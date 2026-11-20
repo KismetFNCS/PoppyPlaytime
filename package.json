@@ -1,0 +1,17 @@
+{
+  "name": "underworks-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Original first-person horror engine: WebGL 2 renderer, volumetric fog, CRT/VHS post-processing, lifecycle manager and main menu.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "bundle": "esbuild src/main.ts --bundle --format=esm --target=es2022 --sourcemap --outfile=dist/main.js",
+    "build": "npm run typecheck && npm run bundle",
+    "dev": "esbuild src/main.ts --bundle --format=esm --target=es2022 --sourcemap --outfile=dist/main.js --servedir=. --serve=0.0.0.0:8080"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "~5.9.3"
+  }
+}
