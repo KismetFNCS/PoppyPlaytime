@@ -30,6 +30,18 @@ Route: Intake Lift → Reclamation Hall (circuit puzzle 1, a found tape) → Pre
 stalks the ducts and hunts by sound; a steam lever and circuit puzzle 2) → Spool Foundry (scripted chase, a
 high shutter lever) → Freight Lift (ending tape).
 
+## Custom models
+
+Drop `.glb` files into `assets/` to replace the creature, its mask, either gauntlet or the tapes, or to
+place your own props in the level. The file name picks the slot (`monster.glb`, `monster_head.glb`,
+`hand_left.glb`, `hand_right.glb`, `tape.glb`, anything else = prop), and models are auto-scaled to fit.
+
+- Opened straight from disk: drag the files onto the game window or use **Settings → Custom models**.
+  They are remembered between sessions.
+- Served with `python3 -m http.server`: list them in `assets/assets.json`, which also positions the props.
+
+Full instructions, manifest fields and Blender export settings are in [`assets/README.md`](assets/README.md).
+
 ## Repository layout
 
 ```
@@ -51,11 +63,14 @@ src/12_player.js    input (keyboard/mouse/pointer-lock/gamepad/touch), player co
 src/13_vhs_ui.js    VHS transmission archive, settings, menus, HUD, F1/F2 overlays
 src/14_game.js      global state machine, director, checkpoints, jumpscare/failure/victory, scene submit
 src/15_harness.js   __TEST__ / __TEST_FIDELITY__ hooks and the embedded self-test (F9)
-src/16_boot.js      main loop, error resilience, resize/DPI, input wiring
+src/16_assets.js    .glb loader, model slots, manifest + drag-and-drop + IndexedDB persistence
+src/17_boot.js      main loop, error resilience, resize/DPI, input wiring
+assets/             your .glb models + assets.json manifest (see assets/README.md)
 tools/build.mjs     concatenates src/ into index.html
 tools/static_check.py  structural/static checks on the built file
 tools/run_game.cjs  headless runner: harness + screenshots at 1920/768/320 widths
 tools/shots.cjs     captures named gameplay poses for visual review
+tools/make_sample_glb.mjs  regenerates assets/examples/sample_crate.glb
 ```
 
 Build and verify:

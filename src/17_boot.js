@@ -57,6 +57,7 @@ function init() {
   UI.init();
   VHS.init();
   FidelityOverlay.init();
+  initAssetInput();
   buildPrimitives();
   CableMesh.init();
   RenderQueue.init();

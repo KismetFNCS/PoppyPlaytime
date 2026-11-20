@@ -237,6 +237,7 @@ const Settings = {
     Audio.applyVolumes();
   },
   buildUI() {
+    UI.refreshAssetList();
     const root = document.getElementById('settingsRows');
     root.textContent = '';
     for (const s of this.schema) {
@@ -363,6 +364,14 @@ const UI = {
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
     const hot = Game.aimHot;
     if (H.hot !== hot) { H.hot = hot; E.hudCross.classList.toggle('hot', hot); }
+  },
+  refreshAssetList() {
+    const ul = document.getElementById('assetList');
+    if (!ul) return;
+    ul.textContent = '';
+    const rows = Assets.loaded.map(a => a.name + '  \u2192  ' + a.slot + '  (' + a.tris + ' tris)').concat(Assets.errors.map(e => 'error: ' + e));
+    if (!rows.length) rows.push('none loaded - the procedural models are in use');
+    for (const r of rows) { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); }
   },
   setMuteLabel() { this.el.btnMute.textContent = Game.muted ? 'MUTE' : 'SND'; }
 };

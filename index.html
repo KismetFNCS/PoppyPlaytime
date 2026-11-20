@@ -84,6 +84,16 @@
   #vhs .skip { position: absolute; right: 2vw; bottom: 2vh; font-size: clamp(14px, 1.8vh, 18px); color: var(--dimText); }
   #vhs .skipbtn { position: absolute; right: 2vw; top: 2vh; font: inherit; font-size: 14px; padding: 0 16px; background: var(--panelFill); color: var(--hudText); border: 1px solid var(--btnBorder); cursor: pointer; }
 
+  /* ---------- custom assets ---------- */
+  .assets { margin-top: 2vh; padding-top: 1.5vh; border-top: 1px solid var(--btnBorder); font-size: clamp(14px, 1.9vh, 20px); }
+  .assets .btns { display: flex; gap: 1vw; flex-wrap: wrap; margin: 1vh 0; }
+  .assets .btns button { width: auto; flex: 1 1 160px; margin: 0; }
+  .assets ul { margin: 0.5vh 0 0; padding-left: 1.2em; color: var(--dimText); }
+  .assets .hint { color: var(--dimText); line-height: 1.35; }
+  #toast { position: fixed; left: 50%; bottom: 7vh; transform: translateX(-50%); max-width: 86vw; padding: 1vh 1.4vw; background: var(--panelFill); border: 1px solid var(--accent); color: var(--hudText); font: 14px/1.4 ui-monospace, Consolas, monospace; opacity: 0; transition: opacity 300ms; pointer-events: none; z-index: 60; }
+  #toast.on { opacity: 1; }
+  #dropHint { position: fixed; inset: 2vmin; display: none; align-items: center; justify-content: center; border: 3px dashed var(--accent); background: var(--panelFill); color: var(--accent); font: bold clamp(16px, 3vh, 32px) ui-monospace, Consolas, monospace; letter-spacing: 0.1em; z-index: 70; pointer-events: none; }
+  #dropHint.on { display: flex; }
   #fatal, #report { position: fixed; inset: 0; display: none; margin: 0; padding: 4vmin; overflow: auto; font: 14px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; z-index: 99; background: var(--reportBg); color: var(--reportText); }
   #debug, #fid { position: fixed; left: 1vw; bottom: 1vh; display: none; padding: 8px; font: 14px/1.35 ui-monospace, Consolas, monospace; white-space: pre; background: var(--reportBg); color: var(--reportText); z-index: 50; pointer-events: none; }
   #fid { inset: 0; padding: 0; background: none; pointer-events: none; }
@@ -127,6 +137,15 @@
     <div class="panel">
       <h2>SETTINGS</h2>
       <div id="settingsRows"></div>
+      <div class="assets">
+        <div>CUSTOM MODELS (.GLB)</div>
+        <div class="btns">
+          <button class="mbtn" id="btnLoadAssets" data-act="loadAssets">LOAD .GLB FILES</button>
+          <button class="mbtn" id="btnClearAssets" data-act="clearAssets">CLEAR MODELS</button>
+        </div>
+        <div class="hint">Name files monster, monster_head, hand_left, hand_right or tape to replace those models; any other name is placed as a prop in front of you. You can also drag files onto the window. See assets/README.md.</div>
+        <ul id="assetList"></ul>
+      </div>
       <button class="mbtn" id="btnSettingsBack" data-act="settingsBack">BACK</button>
     </div>
   </div>
@@ -184,6 +203,9 @@
 </div>
 <div id="debug"></div>
 <div id="fid"><div class="grid"></div><div class="anch" id="fidAnchors"></div><div class="ctrl"><label>Load reference <input type="file" id="fidFile" accept="image/*"></label><br><label>Opacity <input type="range" id="fidOpacity" min="0" max="100" value="50"></label><label><input type="checkbox" id="fidSplit"> split</label></div></div>
+<input type="file" id="assetFile" accept=".glb,model/gltf-binary" multiple hidden>
+<div id="dropHint">DROP .GLB MODELS TO LOAD THEM</div>
+<div id="toast" role="status" aria-live="polite"></div>
 <pre id="fatal"></pre>
 <pre id="report"></pre>
 <script>
@@ -1518,6 +1540,47 @@ void main() {
   oEmis = vec4(min(emis * 0.125, vec3(1.0)), 1.0);
 }`;
 
+// Imported glTF meshes: UV-mapped base color (sRGB texture) + PBR factors into the same G-buffer.
+const VS_GBUF_TEX = SHADER_COMMON + `
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNor;
+layout(location=2) in vec2 aUv;
+uniform mat4 uViewProj;
+uniform mat4 uModel;
+uniform mat3 uNormalMat;
+out vec3 vNormal;
+out vec2 vUv;
+void main() {
+  vNormal = uNormalMat * aNor;
+  vUv = aUv;
+  gl_Position = uViewProj * uModel * vec4(aPos, 1.0);
+}`;
+const FS_GBUF_TEX = SHADER_COMMON + `
+uniform sampler2D uBaseTex;
+uniform int uHasTex;
+uniform vec4 uBaseColor;
+uniform vec2 uRoughMetal;
+uniform vec3 uEmissive;
+uniform float uCutoff;
+uniform vec4 uTint;
+uniform vec3 uEmisAdd;
+in vec3 vNormal;
+in vec2 vUv;
+layout(location=0) out vec4 oAlbedo;
+layout(location=1) out vec4 oNormal;
+layout(location=2) out vec4 oEmis;
+void main() {
+  vec4 c = uBaseColor;
+  if (uHasTex == 1) c *= texture(uBaseTex, vUv);
+  if (c.a < uCutoff) discard;
+  vec3 n = normalize(gl_FrontFacing ? vNormal : -vNormal);
+  vec3 albedo = c.rgb * uTint.rgb;
+  vec3 emis = uEmissive + uEmisAdd + albedo * uTint.a;
+  oAlbedo = vec4(sqrt(clamp(albedo, 0.0, 1.0)), clamp(uRoughMetal.x, 0.05, 1.0));
+  oNormal = vec4(n * 0.5 + 0.5, clamp(uRoughMetal.y, 0.0, 1.0));
+  oEmis = vec4(min(emis * 0.125, vec3(1.0)), 1.0);
+}`;
+
 const VS_SHADOW = SHADER_COMMON + `
 layout(location=0) in vec3 aPos;
 uniform mat4 uViewProj;
@@ -1913,7 +1976,7 @@ const Renderer = {
   camPos: V3.create(), camRight: V3.create(), camUp: V3.create(), camFwd: V3.create(),
   fovDeg: 95, frustum: new Float32Array(24),
   normalMat: new Float32Array(9), identity: M4.create(), identity3: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
-  stats: { draws: 0, lights: 0, tris: 0 },
+  stats: { draws: 0, lights: 0, tris: 0, assetDraws: 0 },
   post: { fear: 0, redWave: 0, fade: 0, flash: 0, flashTint: new Float32Array([1, 0.1, 0.05]), calibrate: false, vhsBoost: 0 },
   fogUpload: new Float32Array(3), ambSkyUpload: new Float32Array(3), ambGroundUpload: new Float32Array(3),
   flashColorUpload: new Float32Array(3), flashOn: true,
@@ -1939,6 +2002,7 @@ const Renderer = {
   createResources() {
     const gl = this.gl;
     this.progs.gbuf = this.program(VS_GBUF, FS_GBUF, 'gbuf');
+    this.progs.gbufTex = this.program(VS_GBUF_TEX, FS_GBUF_TEX, 'gbufTex');
     this.progs.shadow = this.program(VS_SHADOW, FS_SHADOW, 'shadow');
     this.progs.ssao = this.program(VS_FULL, FS_SSAO, 'ssao');
     this.progs.blur4 = this.program(VS_FULL, FS_BLUR4, 'blur4');
@@ -1975,6 +2039,7 @@ const Renderer = {
     gl.bindVertexArray(null);
     if (this.albedoData) this.uploadMaterialArrays();
     if (Level.batches.length) Level.uploadBatches();
+    if (typeof Assets !== 'undefined') Assets.reupload();
     this.uploadMaterialUniforms();
     this.allocTargets();
     this.ok = true;
@@ -2298,6 +2363,22 @@ const Renderer = {
           gl.drawElements(gl.TRIANGLES, mesh.count, mesh.type, 0);
           this.stats.draws++;
         }
+        // imported glTF meshes
+        const AQ = AssetQueue;
+        for (let i = 0; i < AQ.count; i++) {
+          const it = AQ.items[i];
+          if (!it.shadow) continue;
+          const prims = it.asset.prims;
+          for (let k = 0; k < prims.length; k++) {
+            const pr = prims[k];
+            if (!pr.gpu) continue;
+            M4.multiply(_r.am, it.matrix, pr.node);
+            gl.uniformMatrix4fv(this.u('shadow', 'uModel'), false, _r.am);
+            gl.bindVertexArray(pr.gpu.vao);
+            gl.drawElements(gl.TRIANGLES, pr.gpu.count, pr.gpu.type, 0);
+            this.stats.draws++;
+          }
+        }
         gl.disable(gl.POLYGON_OFFSET_FILL);
       }
     }
@@ -2364,6 +2445,39 @@ const Renderer = {
         gl.drawElements(gl.TRIANGLES, rg.count, gl.UNSIGNED_SHORT, rg.offset * 2);
         this.stats.draws++;
       }
+    }
+    // imported glTF meshes
+    this.stats.assetDraws = 0;
+    if (AssetQueue.count > 0) {
+      gl.useProgram(this.progs.gbufTex);
+      gl.uniformMatrix4fv(this.u('gbufTex', 'uViewProj'), false, this.viewProj);
+      gl.uniform1i(this.u('gbufTex', 'uBaseTex'), 4);
+      gl.activeTexture(gl.TEXTURE4);
+      const AQ = AssetQueue;
+      for (let i = 0; i < AQ.count; i++) {
+        const it = AQ.items[i];
+        gl.uniform4f(this.u('gbufTex', 'uTint'), it.tint[0], it.tint[1], it.tint[2], it.tint[3]);
+        gl.uniform3f(this.u('gbufTex', 'uEmisAdd'), it.emis[0], it.emis[1], it.emis[2]);
+        const prims = it.asset.prims;
+        for (let k = 0; k < prims.length; k++) {
+          const pr = prims[k], m = pr.material;
+          if (!pr.gpu) continue;
+          M4.multiply(_r.am, it.matrix, pr.node);
+          gl.uniformMatrix4fv(this.u('gbufTex', 'uModel'), false, _r.am);
+          gl.uniformMatrix3fv(this.u('gbufTex', 'uNormalMat'), false, this.computeNormalMat(_r.am));
+          gl.uniform4fv(this.u('gbufTex', 'uBaseColor'), m.baseColor);
+          gl.uniform2f(this.u('gbufTex', 'uRoughMetal'), m.rough, m.metal);
+          gl.uniform3fv(this.u('gbufTex', 'uEmissive'), m.emissive);
+          gl.uniform1f(this.u('gbufTex', 'uCutoff'), m.cutoff);
+          gl.uniform1i(this.u('gbufTex', 'uHasTex'), m.tex ? 1 : 0);
+          gl.bindTexture(gl.TEXTURE_2D, m.tex || this.white);
+          if (m.doubleSided) gl.disable(gl.CULL_FACE); else gl.enable(gl.CULL_FACE);
+          gl.bindVertexArray(pr.gpu.vao);
+          gl.drawElements(gl.TRIANGLES, pr.gpu.count, pr.gpu.type, 0);
+          this.stats.draws++; this.stats.assetDraws++; this.stats.tris += pr.gpu.count / 3;
+        }
+      }
+      gl.enable(gl.CULL_FACE);
     }
     gl.bindVertexArray(null);
     gl.disable(gl.CULL_FACE);
@@ -2530,7 +2644,7 @@ const Renderer = {
     return true;
   }
 };
-const _r = { m: M4.create(), a: V3.create(), yUp: V3.create(0, 1, 0), zUp: V3.create(0, 0, 1) };
+const _r = { am: M4.create(), m: M4.create(), a: V3.create(), yUp: V3.create(0, 1, 0), zUp: V3.create(0, 0, 1) };
 
 // Inverse of the ACES fit used in the composite (solves the rational quadratic for x).
 function inverseAces(y) {
@@ -4261,6 +4375,15 @@ const Monster = {
   submit(jumpscare) {
     if (!this.visible) return;
     const yaw = this.yaw, lean = this.lean, R = RenderQueue;
+    // a custom .glb in the "monster" slot replaces the whole procedural body
+    const custom = Assets.slot('monster');
+    if (custom) {
+      M4.compose(this.m, this.pos[0], this.pos[1] + this.bodyBob, this.pos[2], yaw, lean * 0.5 + this.flinchAmt * 0.15, Math.sin(this.headTilt) * 0.05, 1, 1, 1);
+      AssetQueue.push(custom, this.m, true);
+      V3.set(_mh.local, 0, custom.size[1] * 0.86, -custom.size[2] * 0.3);
+      M4.transformPoint(this.head, this.m, _mh.local);
+      return;
+    }
     const B = this.tmp, H = this.tmp2;
     // abdomen (rear fur sac)
     this.bodyPoint(B, 0, 1.45, 0.95);
@@ -4321,6 +4444,12 @@ const Monster = {
 
   submitHead(p, yaw, pitch, roll, scale) {
     const R = RenderQueue, s = scale;
+    const customHead = Assets.slot('monsterHead');
+    if (customHead) {
+      M4.compose(this.m, p[0], p[1], p[2], yaw, pitch, roll, 1, 1, 1);
+      AssetQueue.push(customHead, this.m, true);
+      return;
+    }
     // canvas hood behind the mask
     let it = R.push('cone', MAT.furViolet);
     if (it) {
@@ -5386,6 +5515,7 @@ const Settings = {
     Audio.applyVolumes();
   },
   buildUI() {
+    UI.refreshAssetList();
     const root = document.getElementById('settingsRows');
     root.textContent = '';
     for (const s of this.schema) {
@@ -5512,6 +5642,14 @@ const UI = {
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
     const hot = Game.aimHot;
     if (H.hot !== hot) { H.hot = hot; E.hudCross.classList.toggle('hot', hot); }
+  },
+  refreshAssetList() {
+    const ul = document.getElementById('assetList');
+    if (!ul) return;
+    ul.textContent = '';
+    const rows = Assets.loaded.map(a => a.name + '  \u2192  ' + a.slot + '  (' + a.tris + ' tris)').concat(Assets.errors.map(e => 'error: ' + e));
+    if (!rows.length) rows.push('none loaded - the procedural models are in use');
+    for (const r of rows) { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); }
   },
   setMuteLabel() { this.el.btnMute.textContent = Game.muted ? 'MUTE' : 'SND'; }
 };
@@ -5717,6 +5855,8 @@ const Game = {
       case 'mainmenu': setState(STATE.MAIN_MENU); break;
       case 'mute': this.toggleMute(); break;
       case 'skipTape': VHS.finish(); break;
+      case 'loadAssets': document.getElementById('assetFile').click(); break;
+      case 'clearAssets': Assets.clear(true).then(() => toast('Custom models cleared - procedural models restored')); break;
       case 'rewind': if (state === STATE.FAILURE_STATE) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
       case 'winDone': if (state === STATE.VICTORY) setState(STATE.MAIN_MENU); break;
     }
@@ -6102,8 +6242,10 @@ const Game = {
   // ---------- scene submission (render side; reads simulation, never writes it) ----------
   submitScene() {
     RenderQueue.begin();
+    AssetQueue.begin();
     const vis = Streaming.visible;
     Doors.submit(vis);
+    Assets.submitProps(vis);
     Lights.submitFixtures(vis);
     this.submitPuzzles(vis);
     Monster.submit();
@@ -6183,8 +6325,15 @@ const Game = {
       const lamp = R.trs('sphereLow', MAT.rubber, p[0] + n[0] * 0.08, p[1] - 0.45, p[2] + n[2] * 0.08, 0, 0, 0, 0.05, 0.05, 0.05, false);
       if (lamp) { if (l.pulled) { lamp.emis[1] = 2.5; } else { lamp.emis[0] = 2.5; lamp.emis[1] = 0.6 + Math.sin(t * 6) * 0.5; } }
     }
+    const customTape = Assets.slot('tape');
     for (const tp of Level.tapes) {
       if (!vis[tp.sector] || tp.collected) continue;
+      if (customTape) {
+        M4.compose(_g.m, tp.pos[0], tp.pos[1] + 0.36, tp.pos[2] + 0.2, 0.3 + Math.sin(t) * 0.05, 0, 0, 1, 1, 1);
+        const ci = AssetQueue.push(customTape, _g.m, true);
+        if (ci) { const g = 0.15 + 0.15 * Math.sin(t * 3); ci.emis[0] = g; ci.emis[1] = g * 0.7; ci.emis[2] = g * 0.2; }
+        continue;
+      }
       const it = R.trs('box', MAT.rubber, tp.pos[0], tp.pos[1] + 0.33, tp.pos[2] + 0.2, 0.3, 0, 0, 0.19, 0.025, 0.105);
       R.trs('box', MAT.paint, tp.pos[0], tp.pos[1] + 0.346, tp.pos[2] + 0.2, 0.3, 0, 0, 0.12, 0.004, 0.06, false);
       if (it) { const g = 0.15 + 0.15 * Math.sin(t * 3); it.emis[0] = g; it.emis[1] = g * 0.7; it.emis[2] = g * 0.2; }
@@ -6229,6 +6378,14 @@ const Game = {
     V3.cross(_g.r, f, upRef); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, _g.r, f); V3.normalize(_g.u, _g.u);
     const r = _g.r, u = _g.u, s = scale;
+    // custom gauntlet models: one per side, or a single model shared by both
+    const custom = Assets.slot(side === 0 ? 'handLeft' : 'handRight') || Assets.slot(side === 0 ? 'handRight' : 'handLeft');
+    if (custom) {
+      basisMatrix(_g.m, pos, r, u, f, s, s, s);
+      const it = AssetQueue.push(custom, _g.m, shadow);
+      if (it && h.tethered) { it.emis[0] = 0.15 * h.energized; it.emis[1] = 0.6 * h.energized; it.emis[2] = 0.9 * h.energized; }
+      return;
+    }
     // cuff (steel) behind the palm
     V3.addScaled(_g.p0, pos, f, -0.13 * s); V3.addScaled(_g.p1, pos, f, -0.035 * s);
     R.seg('cyl', MAT.steel, _g.p0, _g.p1, 0.05 * s, shadow);
@@ -6260,7 +6417,7 @@ const Game = {
 };
 const _g = {
   v: V3.create(), a: V3.create(), b: V3.create(), c: V3.create(), d: V3.create(), e: V3.create(), r: V3.create(), u: V3.create(),
-  up: V3.create(0, 1, 0), p0: V3.create(), p1: V3.create(), p2: V3.create(),
+  m: M4.create(), up: V3.create(0, 1, 0), p0: V3.create(), p1: V3.create(), p2: V3.create(),
   idle: hexToLinear(PALETTE.relayIdle), linked: hexToLinear(PALETTE.relayLinked), red: hexToLinear(PALETTE.receptacleIdle)
 };
 // Model matrix from an orthonormal basis (columns r, u, f) scaled per axis.
@@ -6290,6 +6447,7 @@ const Loader = {
         UI.setLoading(0.95, 'Uploading to GPU...');
         Renderer.uploadMaterialArrays();
         Level.uploadBatches();
+        Assets.uploadPending();
         Monster.init();
         if (Audio.ctx && !Audio.emittersBuilt) Audio.buildEmitters();
         this.phase = 3;
@@ -6301,6 +6459,7 @@ const Loader = {
         this.phase = 4;
         setState(STATE.MAIN_MENU);
         window.__TEST__.ready = true;
+        Assets.loadStartup();
         if (/[?&]test=1/.test(location.search)) runAll();
       }
     } catch (err) { fatal(err); }
@@ -6459,6 +6618,42 @@ window.__TEST_FIDELITY__ = {
   },
   capture: () => { render(); return document.getElementById('game').toDataURL('image/png'); }
 };
+
+// Builds a 1 m textured box as a .glb in memory (exercises the same parser as user files).
+async function makeTestGlb(opts) {
+  opts = opts || {};
+  const cv = document.createElement('canvas'); cv.width = 16; cv.height = 16;
+  const c = cv.getContext('2d');
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { c.fillStyle = (x + y) % 2 ? 'rgb(200,40,40)' : 'rgb(240,220,60)'; c.fillRect(x, y, 1, 1); }
+  const pngBlob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  const png = new Uint8Array(await pngBlob.arrayBuffer());
+  const pos = [], nor = [], uv = [], idx = [];
+  const F = [[[1, 0, 0], [[.5, 0, .5], [.5, 0, -.5], [.5, 1, -.5], [.5, 1, .5]]], [[-1, 0, 0], [[-.5, 0, -.5], [-.5, 0, .5], [-.5, 1, .5], [-.5, 1, -.5]]],
+    [[0, 1, 0], [[-.5, 1, .5], [.5, 1, .5], [.5, 1, -.5], [-.5, 1, -.5]]], [[0, -1, 0], [[-.5, 0, -.5], [.5, 0, -.5], [.5, 0, .5], [-.5, 0, .5]]],
+    [[0, 0, 1], [[-.5, 0, .5], [.5, 0, .5], [.5, 1, .5], [-.5, 1, .5]]], [[0, 0, -1], [[.5, 0, -.5], [-.5, 0, -.5], [-.5, 1, -.5], [.5, 1, -.5]]]];
+  for (const [n, q] of F) { const b = pos.length / 3; q.forEach((p, i) => { pos.push(...p); nor.push(...n); uv.push(i === 0 || i === 3 ? 0 : 1, i < 2 ? 1 : 0); }); idx.push(b, b + 1, b + 2, b, b + 2, b + 3); }
+  const parts = [new Uint8Array(new Float32Array(pos).buffer), new Uint8Array(new Float32Array(nor).buffer), new Uint8Array(new Float32Array(uv).buffer), new Uint8Array(new Uint16Array(idx).buffer), png];
+  const views = []; let off = 0;
+  const padded = parts.map(p => { const n = Math.ceil(p.length / 4) * 4; const o = new Uint8Array(n); o.set(p); views.push({ buffer: 0, byteOffset: off, byteLength: p.length }); off += n; return o; });
+  const bin = new Uint8Array(off); let o2 = 0; for (const p of padded) { bin.set(p, o2); o2 += p.length; }
+  const json = {
+    asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0, translation: [0, 0, 0] }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1, TEXCOORD_0: 2 }, indices: 3, material: 0 }] }],
+    materials: [{ pbrMetallicRoughness: { baseColorTexture: { index: 0 }, metallicFactor: 0, roughnessFactor: 0.8 } }],
+    textures: [{ source: 0 }], images: [{ bufferView: 4, mimeType: 'image/png' }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: 24, type: 'VEC3' }, { bufferView: 1, componentType: 5126, count: 24, type: 'VEC3' },
+      { bufferView: 2, componentType: 5126, count: 24, type: 'VEC2' }, { bufferView: 3, componentType: 5123, count: 36, type: 'SCALAR' }],
+    bufferViews: views, buffers: [{ byteLength: bin.length }]
+  };
+  if (opts.draco) json.extensionsRequired = ['KHR_draco_mesh_compression'];
+  let jb = new TextEncoder().encode(JSON.stringify(json));
+  const jl = Math.ceil(jb.length / 4) * 4, jp = new Uint8Array(jl).fill(0x20); jp.set(jb);
+  const total = 12 + 8 + jl + 8 + bin.length, out = new ArrayBuffer(total), dv = new DataView(out), u8 = new Uint8Array(out);
+  dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, total, true);
+  dv.setUint32(12, jl, true); dv.setUint32(16, 0x4E4F534A, true); u8.set(jp, 20);
+  dv.setUint32(20 + jl, bin.length, true); dv.setUint32(24 + jl, 0x004E4942, true); u8.set(bin, 28 + jl);
+  return out;
+}
 
 function showReport(text) {
   const el = document.getElementById('report');
@@ -6819,6 +7014,41 @@ async function runAll() {
     check('save: corrupt checkpoint data is ignored safely', Game.hasSave === false && T.getLastError() === null);
 
     await breathe();
+    // ---------------- custom .glb assets ----------------
+    {
+      const isTest = n => /^harness_/.test(n);
+      const prevSlots = Object.assign({}, Assets.slots);
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+      const glb = await makeTestGlb();
+      const a = await Assets.loadBuffer(glb, 'harness_crate.glb', { slot: 'prop', position: [0, 0, 2.2], persist: false });
+      check('assets: .glb parsed (1 primitive, 12 triangles)', a.prims.length === 1 && a.tris === 12, a.prims.length + ' / ' + a.tris);
+      check('assets: embedded PNG uploaded as a texture', !!a.materials[0].tex);
+      check('assets: prop keeps its native 1 m size', Math.abs(a.size[1] - 1) < 1e-3 && Math.abs(a.size[0] - 1) < 1e-3, Array.from(a.size).map(v => v.toFixed(3)).join(','));
+      T.setPlayerPose(0, 0, 4.2, 0, 0); T.step(DT, 2);
+      T.simulateKey('KeyW', true); T.step(DT, 90); T.simulateKey('KeyW', false); T.step(DT, 2);
+      check('assets: prop collider blocks the player', Player.body.pos[2] >= 2.7 + SCALE.playerRadius - 0.02, Player.body.pos[2].toFixed(3));
+      T.setStepRender(true);
+      T.setPlayerPose(0, 0, 4.4, 0, -0.2); T.step(DT, 2);
+      check('assets: prop rendered through the textured G-buffer path', Renderer.stats.assetDraws > 0 && T.getLastError() === null, Renderer.stats.assetDraws);
+      const m = await Assets.loadBuffer(glb, 'harness_monster.glb', { slot: 'monster', persist: false });
+      check('assets: monster slot auto-fits to 2.9 m', Math.abs(m.size[1] - 2.9) < 1e-3, m.size[1].toFixed(3));
+      T.gotoMenu(); T.step(DT, 2);
+      check('assets: custom monster replaces the procedural body', Assets.slot('monster') === m && Renderer.stats.assetDraws > 0 && V3.finite(Monster.head), Renderer.stats.assetDraws);
+      await Assets.loadBuffer(glb, 'harness_hand_left.glb', { persist: false });
+      check('assets: file name picks the slot (hand_left -> handLeft)', !!Assets.slot('handLeft'));
+      let bad = '';
+      try { await Assets.loadBuffer(new ArrayBuffer(64), 'harness_bad.glb', { persist: false }); } catch (err) { bad = err.message; }
+      check('assets: invalid file rejected with a message', /magic|small/.test(bad) && T.getLastError() === null, bad);
+      let draco = '';
+      try { await Assets.loadBuffer(await makeTestGlb({ draco: true }), 'harness_draco.glb', { persist: false }); } catch (err) { draco = err.message; }
+      check('assets: Draco-compressed file rejected with advice', /Draco/.test(draco), draco);
+      Assets.removeWhere(isTest);
+      for (const k in prevSlots) Assets.slots[k] = prevSlots[k];
+      T.step(DT, 1);
+      check('assets: removal restores procedural models and colliders', !Assets.props.some(p => isTest(p.name)) && Assets.slot('monster') === (prevSlots.monster || null) && T.getLastError() === null);
+      T.setStepRender(false);
+    }
+
     // ---------------- fidelity ----------------
     T.setStepRender(true);
     T.gotoMenu(); T.step(DT, 3);
@@ -6854,7 +7084,491 @@ async function runAll() {
   return report;
 }
 
-// ===== module: 16_boot.js =====
+// ===== module: 16_assets.js =====
+// =====================================================================================
+// CUSTOM ASSETS: glTF 2.0 binary (.glb) loader + slot system.
+//   Sources, all optional (the procedural art stays as the fallback):
+//     1. assets/assets.json manifest      (when the game is served over http/https)
+//     2. drag-and-drop .glb onto the window, or SETTINGS > CUSTOM MODELS > LOAD
+//        (dropped files are kept in IndexedDB so they survive reloads)
+//   Slots: monster, monsterHead, handLeft, handRight, tape, prop.
+//   Supported: meshes (triangles), node hierarchy (TRS / matrix), POSITION / NORMAL / TEXCOORD_0,
+//   8/16/32-bit indices, normalized integer attributes, baseColorFactor + baseColorTexture (PNG/JPEG),
+//   metallic/roughness factors, emissiveFactor (+ KHR_materials_emissive_strength), alpha MASK/BLEND
+//   (cutout), doubleSided. Skinned meshes render in their bind pose; Draco/meshopt are rejected.
+// =====================================================================================
+
+const ASSET_SLOTS = {
+  monster: { fit: 'height', size: 2.9, anchor: 'ground', rotate: [0, 180, 0] },
+  monsterHead: { fit: 'height', size: 0.62, anchor: 'center', rotate: [0, 180, 0] },
+  handLeft: { fit: 'extent', size: 0.26, anchor: 'center', rotate: [0, 0, 0] },
+  handRight: { fit: 'extent', size: 0.26, anchor: 'center', rotate: [0, 0, 0] },
+  tape: { fit: 'extent', size: 0.2, anchor: 'center', rotate: [0, 0, 0] },
+  prop: { fit: 'none', size: 1, anchor: 'ground', rotate: [0, 0, 0] }
+};
+
+function slotFromFileName(name) {
+  const n = name.toLowerCase();
+  if (/monster[_-]?head|head/.test(n)) return 'monsterHead';
+  if (/monster|spoolwright|creature/.test(n)) return 'monster';
+  if (/hand[_-]?l(eft)?\b|left[_-]?hand|hand_l/.test(n)) return 'handLeft';
+  if (/hand[_-]?r(ight)?\b|right[_-]?hand|hand_r/.test(n)) return 'handRight';
+  if (/tape|cassette|vhs/.test(n)) return 'tape';
+  return 'prop';
+}
+
+// ---------- GLB parsing ----------
+const GLB = {
+  COMPONENTS: { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 },
+  parse(buffer) {
+    if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 20) throw new Error('not a .glb file (too small)');
+    const dv = new DataView(buffer);
+    if (dv.getUint32(0, true) !== 0x46546C67) throw new Error('not a .glb file (bad magic) - export as "glTF Binary (.glb)"');
+    if (dv.getUint32(4, true) !== 2) throw new Error('unsupported glTF version ' + dv.getUint32(4, true));
+    let off = 12, json = null, bin = null;
+    while (off + 8 <= buffer.byteLength) {
+      const len = dv.getUint32(off, true), type = dv.getUint32(off + 4, true);
+      const start = off + 8;
+      if (start + len > buffer.byteLength) throw new Error('truncated chunk');
+      if (type === 0x4E4F534A) json = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, start, len)));
+      else if (type === 0x004E4942) bin = new Uint8Array(buffer, start, len);
+      off = start + len + ((4 - (len % 4)) % 4);
+    }
+    if (!json) throw new Error('missing JSON chunk');
+    const req = json.extensionsRequired || [];
+    for (const ext of req) {
+      if (/draco|meshopt|KHR_texture_basisu/i.test(ext)) throw new Error('uses ' + ext + ' compression - re-export without Draco / meshopt / Basis compression');
+    }
+    return { json, bin };
+  },
+
+  bufferViewBytes(g, index) {
+    const bv = g.json.bufferViews[index];
+    const buf = g.json.buffers[bv.buffer || 0];
+    if (buf && buf.uri) throw new Error('external buffer "' + buf.uri + '" - export as a single .glb');
+    if (!g.bin) throw new Error('missing BIN chunk');
+    return new Uint8Array(g.bin.buffer, g.bin.byteOffset + (bv.byteOffset || 0), bv.byteLength);
+  },
+
+  // Reads an accessor into a Float32Array (attributes) or Uint32Array (indices).
+  readAccessor(g, index, asIndices) {
+    const a = g.json.accessors[index];
+    const nc = this.COMPONENTS[a.type];
+    if (!nc) throw new Error('unsupported accessor type ' + a.type);
+    const count = a.count;
+    const out = asIndices ? new Uint32Array(count * nc) : new Float32Array(count * nc);
+    if (a.bufferView === undefined) return out; // all zeros (sparse-only accessors are rare)
+    const bv = g.json.bufferViews[a.bufferView];
+    const bytes = this.bufferViewBytes(g, a.bufferView);
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const csize = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 }[a.componentType];
+    if (!csize) throw new Error('unsupported component type ' + a.componentType);
+    const stride = bv.byteStride || csize * nc;
+    const base = a.byteOffset || 0;
+    const norm = !!a.normalized;
+    for (let i = 0; i < count; i++) {
+      for (let c = 0; c < nc; c++) {
+        const p = base + i * stride + c * csize;
+        let v;
+        switch (a.componentType) {
+          case 5126: v = dv.getFloat32(p, true); break;
+          case 5125: v = dv.getUint32(p, true); break;
+          case 5123: v = dv.getUint16(p, true); if (norm) v /= 65535; break;
+          case 5122: v = dv.getInt16(p, true); if (norm) v = Math.max(v / 32767, -1); break;
+          case 5121: v = dv.getUint8(p); if (norm) v /= 255; break;
+          default: v = dv.getInt8(p); if (norm) v = Math.max(v / 127, -1);
+        }
+        out[i * nc + c] = v;
+      }
+    }
+    return out;
+  },
+
+  nodeLocal(node, out) {
+    if (node.matrix) { for (let i = 0; i < 16; i++) out[i] = node.matrix[i]; return out; }
+    const t = node.translation || [0, 0, 0], r = node.rotation || [0, 0, 0, 1], s = node.scale || [1, 1, 1];
+    const x = r[0], y = r[1], z = r[2], w = r[3];
+    const xx = x * x, yy = y * y, zz = z * z, xy = x * y, xz = x * z, yz = y * z, wx = w * x, wy = w * y, wz = w * z;
+    out[0] = (1 - 2 * (yy + zz)) * s[0]; out[1] = 2 * (xy + wz) * s[0]; out[2] = 2 * (xz - wy) * s[0]; out[3] = 0;
+    out[4] = 2 * (xy - wz) * s[1]; out[5] = (1 - 2 * (xx + zz)) * s[1]; out[6] = 2 * (yz + wx) * s[1]; out[7] = 0;
+    out[8] = 2 * (xz + wy) * s[2]; out[9] = 2 * (yz - wx) * s[2]; out[10] = (1 - 2 * (xx + yy)) * s[2]; out[11] = 0;
+    out[12] = t[0]; out[13] = t[1]; out[14] = t[2]; out[15] = 1;
+    return out;
+  },
+
+  // Builds CPU-side primitives (interleaved pos3 nor3 uv2), materials and image blobs.
+  async build(buffer, name) {
+    const g = this.parse(buffer);
+    const J = g.json;
+    if (!J.meshes || !J.meshes.length) throw new Error('contains no meshes');
+    // images -> blobs (decoded later to ImageBitmap)
+    const images = [];
+    for (const im of J.images || []) {
+      if (im.bufferView !== undefined) images.push(new Blob([this.bufferViewBytes(g, im.bufferView)], { type: im.mimeType || 'image/png' }));
+      else if (im.uri && im.uri.startsWith('data:')) images.push(await (await fetch(im.uri)).blob());
+      else images.push(null);
+    }
+    const bitmaps = [];
+    for (const b of images) {
+      try { bitmaps.push(b ? await createImageBitmap(b) : null); } catch (err) { bitmaps.push(null); }
+    }
+    const materials = (J.materials || []).map(m => {
+      const pbr = m.pbrMetallicRoughness || {};
+      const bc = pbr.baseColorFactor || [1, 1, 1, 1];
+      let img = null;
+      if (pbr.baseColorTexture && J.textures && J.textures[pbr.baseColorTexture.index]) {
+        const src = J.textures[pbr.baseColorTexture.index].source;
+        img = src !== undefined ? bitmaps[src] || null : null;
+      }
+      const ef = m.emissiveFactor || [0, 0, 0];
+      const strength = m.extensions && m.extensions.KHR_materials_emissive_strength ? m.extensions.KHR_materials_emissive_strength.emissiveStrength || 1 : 1;
+      return {
+        baseColor: new Float32Array(bc), image: img, tex: null,
+        metal: pbr.metallicFactor === undefined ? 1 : pbr.metallicFactor, rough: pbr.roughnessFactor === undefined ? 1 : pbr.roughnessFactor,
+        emissive: new Float32Array([ef[0] * strength, ef[1] * strength, ef[2] * strength]),
+        cutoff: m.alphaMode === 'MASK' ? (m.alphaCutoff === undefined ? 0.5 : m.alphaCutoff) : m.alphaMode === 'BLEND' ? 0.35 : -1,
+        doubleSided: !!m.doubleSided
+      };
+    });
+    const defaultMat = { baseColor: new Float32Array([0.8, 0.8, 0.8, 1]), image: null, tex: null, metal: 0, rough: 0.8, emissive: new Float32Array(3), cutoff: -1, doubleSided: false };
+    // walk the default scene
+    const prims = [];
+    const bmin = [Infinity, Infinity, Infinity], bmax = [-Infinity, -Infinity, -Infinity];
+    const tmpLocal = M4.create(), p = V3.create();
+    const visit = (ni, parent, depth) => {
+      if (depth > 64) return;
+      const node = J.nodes[ni];
+      const world = M4.create();
+      M4.multiply(world, parent, this.nodeLocal(node, tmpLocal));
+      if (node.mesh !== undefined) {
+        for (const pr of J.meshes[node.mesh].primitives) {
+          if (pr.mode !== undefined && pr.mode !== 4) continue;
+          if (pr.extensions && Object.keys(pr.extensions).some(k => /draco|meshopt/i.test(k))) throw new Error('mesh uses Draco compression - re-export without it');
+          if (pr.attributes.POSITION === undefined) continue;
+          const pos = this.readAccessor(g, pr.attributes.POSITION);
+          const vc = pos.length / 3;
+          const nor = pr.attributes.NORMAL !== undefined ? this.readAccessor(g, pr.attributes.NORMAL) : null;
+          const uv = pr.attributes.TEXCOORD_0 !== undefined ? this.readAccessor(g, pr.attributes.TEXCOORD_0) : null;
+          let idx = pr.indices !== undefined ? this.readAccessor(g, pr.indices, true) : null;
+          if (!idx) { idx = new Uint32Array(vc); for (let i = 0; i < vc; i++) idx[i] = i; }
+          const normals = nor || computeNormals(pos, idx);
+          const v = new Float32Array(vc * 8);
+          for (let i = 0; i < vc; i++) {
+            v[i * 8] = pos[i * 3]; v[i * 8 + 1] = pos[i * 3 + 1]; v[i * 8 + 2] = pos[i * 3 + 2];
+            v[i * 8 + 3] = normals[i * 3]; v[i * 8 + 4] = normals[i * 3 + 1]; v[i * 8 + 5] = normals[i * 3 + 2];
+            v[i * 8 + 6] = uv ? uv[i * 2] : 0; v[i * 8 + 7] = uv ? uv[i * 2 + 1] : 0;
+            V3.set(p, pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+            M4.transformPoint(p, world, p);
+            for (let k = 0; k < 3; k++) { if (p[k] < bmin[k]) bmin[k] = p[k]; if (p[k] > bmax[k]) bmax[k] = p[k]; }
+          }
+          const indices = vc <= 65535 ? Uint16Array.from(idx) : idx;
+          const mat = pr.material !== undefined && materials[pr.material] ? materials[pr.material] : defaultMat;
+          prims.push({ vertices: v, indices, node: world, material: mat, gpu: null, tris: idx.length / 3 });
+        }
+      }
+      for (const c of node.children || []) visit(c, world, depth + 1);
+    };
+    const sceneIdx = J.scene || 0;
+    const roots = J.scenes && J.scenes[sceneIdx] ? J.scenes[sceneIdx].nodes : J.nodes.map((n, i) => i);
+    for (const r of roots) visit(r, M4.create(), 0);
+    if (!prims.length) throw new Error('no triangle meshes found in the default scene');
+    let tris = 0;
+    for (const pr of prims) tris += pr.tris;
+    return { name, prims, materials: materials.concat([defaultMat]), min: V3.create(bmin[0], bmin[1], bmin[2]), max: V3.create(bmax[0], bmax[1], bmax[2]), tris, fit: M4.create() };
+  }
+};
+
+function computeNormals(pos, idx) {
+  const n = new Float32Array(pos.length);
+  for (let i = 0; i + 2 < idx.length; i += 3) {
+    const a = idx[i] * 3, b = idx[i + 1] * 3, c = idx[i + 2] * 3;
+    const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2];
+    const vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (const k of [a, b, c]) { n[k] += nx; n[k + 1] += ny; n[k + 2] += nz; }
+  }
+  for (let i = 0; i < n.length; i += 3) {
+    const l = Math.hypot(n[i], n[i + 1], n[i + 2]) || 1;
+    n[i] /= l; n[i + 1] /= l; n[i + 2] /= l;
+  }
+  return n;
+}
+
+// ---------- per-frame queue of asset draws (preallocated) ----------
+const AssetQueue = {
+  items: [], count: 0, cap: 128, tmp: M4.create(),
+  init() { for (let i = 0; i < this.cap; i++) this.items.push({ asset: null, matrix: M4.create(), tint: new Float32Array([1, 1, 1, 0]), emis: new Float32Array(3), shadow: true }); },
+  begin() { this.count = 0; },
+  push(asset, placement, shadow) {
+    if (!asset || !asset.ready || this.count >= this.cap) return null;
+    const it = this.items[this.count++];
+    it.asset = asset; it.shadow = shadow !== false;
+    M4.multiply(it.matrix, placement, asset.fit);
+    it.tint[0] = 1; it.tint[1] = 1; it.tint[2] = 1; it.tint[3] = 0;
+    it.emis[0] = 0; it.emis[1] = 0; it.emis[2] = 0;
+    return it;
+  }
+};
+
+// ---------- persistence of dropped files (IndexedDB) ----------
+const AssetStore = {
+  db: null,
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise(resolve => {
+      if (!window.indexedDB) { resolve(null); return; }
+      let req;
+      try { req = indexedDB.open(SLUG + '-assets', 1); } catch (err) { resolve(null); return; }
+      req.onupgradeneeded = () => req.result.createObjectStore('files', { keyPath: 'name' });
+      req.onsuccess = () => { this.db = req.result; resolve(this.db); };
+      req.onerror = () => resolve(null);
+    });
+  },
+  async tx(mode, fn) {
+    const db = await this.open();
+    if (!db) return null;
+    return new Promise(resolve => {
+      const t = db.transaction('files', mode), st = t.objectStore('files');
+      const r = fn(st);
+      t.oncomplete = () => resolve(r && r.result !== undefined ? r.result : true);
+      t.onerror = () => resolve(null);
+    });
+  },
+  put(rec) { return this.tx('readwrite', st => st.put(rec)); },
+  getAll() { return this.tx('readonly', st => st.getAll()); },
+  clear() { return this.tx('readwrite', st => st.clear()); }
+};
+
+// ---------- library ----------
+const Assets = {
+  slots: Object.create(null), props: [], loaded: [], errors: [], busy: 0, tmpM: M4.create(), tmpR: M4.create(),
+
+  slot(name) { const a = this.slots[name]; return a && a.ready ? a : null; },
+
+  // Load a .glb from an ArrayBuffer. opts: { slot, position:[x,y,z], rotate:[x,y,z] deg, scale, fit, collider, persist }
+  async loadBuffer(buffer, fileName, opts) {
+    opts = opts || {};
+    const slot = ASSET_SLOTS[opts.slot] ? opts.slot : slotFromFileName(fileName);
+    this.busy++;
+    try {
+      const asset = await GLB.build(buffer, fileName);
+      asset.slot = slot;
+      this.computeFit(asset, slot, opts);
+      if (Renderer.ok) this.upload(asset);
+      asset.ready = true;
+      if (slot === 'prop') this.addProp(asset, opts);
+      else this.slots[slot] = asset;
+      this.loaded.push({ name: fileName, slot, tris: asset.tris, prims: asset.prims.length });
+      UI.refreshAssetList && UI.refreshAssetList();
+      if (opts.persist) await AssetStore.put({ name: fileName, slot, data: buffer, opts: { position: opts.position, rotate: opts.rotate, scale: opts.scale, fit: opts.fit, collider: opts.collider } });
+      toast(fileName + ' loaded as ' + slot + ' (' + asset.tris + ' triangles)');
+      UI.refreshAssetList && UI.refreshAssetList();
+      return asset;
+    } catch (err) {
+      const msg = fileName + ': ' + (err && err.message ? err.message : err);
+      this.errors.push(msg);
+      console.warn('[assets] ' + msg);
+      toast('Could not load ' + msg);
+      throw err;
+    } finally {
+      this.busy--;
+    }
+  },
+
+  // Fit matrix: rotate (slot default + manifest), then anchor (ground or center), then scale to the slot size.
+  computeFit(asset, slot, opts) {
+    const def = ASSET_SLOTS[slot];
+    const rot = opts.rotate || [0, 0, 0];
+    const rx = (def.rotate[0] + (rot[0] || 0)) * DEG, ry = (def.rotate[1] + (rot[1] || 0)) * DEG, rz = (def.rotate[2] + (rot[2] || 0)) * DEG;
+    const R = M4.compose(this.tmpR, 0, 0, 0, ry, rx, rz, 1, 1, 1);
+    const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity], p = V3.create();
+    for (let i = 0; i < 8; i++) {
+      V3.set(p, i & 1 ? asset.max[0] : asset.min[0], i & 2 ? asset.max[1] : asset.min[1], i & 4 ? asset.max[2] : asset.min[2]);
+      M4.transformPoint(p, R, p);
+      for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], p[k]); mx[k] = Math.max(mx[k], p[k]); }
+    }
+    const ext = [mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]];
+    let s = 1;
+    const fitSize = opts.fit !== undefined ? opts.fit : def.size;
+    const mode = opts.fit !== undefined ? (def.fit === 'none' ? 'height' : def.fit) : def.fit;
+    if (mode === 'height') s = fitSize / Math.max(ext[1], 1e-4);
+    else if (mode === 'extent') s = fitSize / Math.max(ext[0], ext[1], ext[2], 1e-4);
+    if (typeof opts.scale === 'number' && opts.scale > 0) s *= opts.scale;
+    const cx = (mn[0] + mx[0]) / 2, cz = (mn[2] + mx[2]) / 2, cy = def.anchor === 'ground' ? mn[1] : (mn[1] + mx[1]) / 2;
+    // fit = S * T(-anchor) * R
+    const T = M4.create(); T[12] = -cx; T[13] = -cy; T[14] = -cz;
+    const S = M4.create(); S[0] = S[5] = S[10] = s;
+    M4.multiply(asset.fit, T, R);
+    M4.multiply(asset.fit, S, asset.fit);
+    asset.size = V3.create(ext[0] * s, ext[1] * s, ext[2] * s);
+  },
+
+  upload(asset) {
+    const gl = Renderer.gl;
+    for (const m of asset.materials) {
+      if (m.image && !m.tex) {
+        const t = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, gl.RGBA, gl.UNSIGNED_BYTE, m.image);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        m.tex = t;
+      }
+    }
+    for (const pr of asset.prims) {
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+      const vbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, pr.vertices, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 32, 0);
+      gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 32, 12);
+      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 32, 24);
+      const ibo = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, pr.indices, gl.STATIC_DRAW);
+      gl.bindVertexArray(null);
+      pr.gpu = { vao, vbo, ibo, count: pr.indices.length, type: pr.indices instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT };
+    }
+  },
+  // After a WebGL context restore every GPU handle is stale: rebuild from the CPU copies.
+  reupload() {
+    const all = Object.values(this.slots).concat(this.props.map(p => p.asset));
+    for (const a of all) {
+      if (!a) continue;
+      for (const m of a.materials) m.tex = null;
+      for (const pr of a.prims) pr.gpu = null;
+      this.upload(a);
+    }
+  },
+  uploadPending() {
+    const all = Object.values(this.slots).concat(this.props.map(p => p.asset));
+    for (const a of all) if (a && a.prims.some(pr => !pr.gpu)) this.upload(a);
+  },
+
+  addProp(asset, opts) {
+    const pos = opts.position || [0, 0, 0];
+    const yaw = ((opts.rotate && opts.rotate[1]) || 0) * DEG;
+    const placement = M4.create();
+    M4.compose(placement, pos[0], pos[1], pos[2], 0, 0, 0, 1, 1, 1);
+    const prop = { asset, placement, sector: Level.sectorAt(pos[0], pos[2]), collider: null, name: asset.name };
+    // the rotation is already folded into asset.fit (ground-anchored), placement is translation only
+    if (opts.collider !== false) {
+      const s = asset.size, hx = s[0] / 2, hz = s[2] / 2;
+      if (s[1] > 0.05 && hx > 0.02 && hz > 0.02) {
+        prop.collider = Physics.addBox(pos[0] - hx, pos[1], pos[2] - hz, pos[0] + hx, pos[1] + s[1], pos[2] + hz, LAYER.WORLD_STATIC, SURFACE.METAL, -1, false, prop.sector);
+        Physics.buildBVH();
+        if (Level.nav) NavGrid.build();
+      }
+    }
+    this.props.push(prop);
+    return prop;
+  },
+
+  // Remove everything loaded (props lose their colliders). store=true also wipes IndexedDB.
+  async clear(store) {
+    for (const p of this.props) if (p.collider) p.collider.enabled = false;
+    if (this.props.some(p => p.collider)) { Physics.buildBVH(); if (Level.nav) NavGrid.build(); }
+    this.props.length = 0;
+    for (const k in this.slots) delete this.slots[k];
+    this.loaded.length = 0; this.errors.length = 0;
+    if (store) await AssetStore.clear();
+    UI.refreshAssetList && UI.refreshAssetList();
+  },
+
+  // Remove matching entries for this session only (IndexedDB untouched). Used by the self-test.
+  removeWhere(pred) {
+    let touched = false;
+    for (const p of this.props) if (pred(p.name) && p.collider) { p.collider.enabled = false; touched = true; }
+    this.props = this.props.filter(p => !pred(p.name));
+    for (const k in this.slots) if (pred(this.slots[k].name)) delete this.slots[k];
+    this.loaded = this.loaded.filter(l => !pred(l.name));
+    this.errors = this.errors.filter(e => !pred(e));
+    if (touched) { Physics.buildBVH(); if (Level.nav) NavGrid.build(); }
+  },
+
+  // Boot-time sources: IndexedDB (any protocol) and the manifest (http/https only).
+  async loadStartup() {
+    try {
+      const recs = await AssetStore.getAll();
+      for (const r of recs || []) {
+        try { await this.loadBuffer(r.data, r.name, Object.assign({ slot: r.slot }, r.opts || {})); } catch (err) { /* reported by loadBuffer */ }
+      }
+    } catch (err) { /* IndexedDB unavailable */ }
+    if (!/^https?:$/.test(location.protocol)) return;
+    let manifest = null;
+    try {
+      const res = await fetch('assets/assets.json', { cache: 'no-store' });
+      if (res.ok) manifest = await res.json();
+    } catch (err) { manifest = null; }
+    if (!manifest || !Array.isArray(manifest.assets)) return;
+    for (const e of manifest.assets) {
+      if (!e || typeof e.file !== 'string' || !/\.glb$/i.test(e.file)) continue;
+      try {
+        const res = await fetch('assets/' + e.file.replace(/^\/+/, ''), { cache: 'no-store' });
+        if (!res.ok) { toast('assets/' + e.file + ' not found (HTTP ' + res.status + ')'); continue; }
+        await this.loadBuffer(await res.arrayBuffer(), e.file, e);
+      } catch (err) { /* reported */ }
+    }
+  },
+
+  // Files picked or dropped by the user: persisted, props placed in front of the player.
+  async loadFiles(fileList) {
+    for (const f of Array.from(fileList || [])) {
+      if (!/\.glb$/i.test(f.name)) { toast(f.name + ': only .glb (glTF Binary) files are supported - re-export as .glb'); continue; }
+      const slot = slotFromFileName(f.name);
+      const opts = { slot, persist: true };
+      if (slot === 'prop') {
+        const p = Game.isGameplay() || state === STATE.PAUSED ? Player.body.pos : CHECKPOINT_POSES[0].pos;
+        const yaw = Game.isGameplay() || state === STATE.PAUSED ? Player.yaw : 0;
+        opts.position = [+(p[0] - Math.sin(yaw) * 2.5).toFixed(2), +p[1].toFixed(2), +(p[2] - Math.cos(yaw) * 2.5).toFixed(2)];
+        opts.rotate = [0, +(yaw / DEG).toFixed(0), 0];
+      }
+      try {
+        await this.loadBuffer(await f.arrayBuffer(), f.name, opts);
+        if (slot === 'prop') console.log('[assets] manifest entry: ' + JSON.stringify({ file: f.name, slot: 'prop', position: opts.position, rotate: opts.rotate }));
+      } catch (err) { /* reported */ }
+    }
+  },
+
+  submitProps(vis) {
+    for (const p of this.props) {
+      if (p.sector >= 0 && !vis[p.sector]) continue;
+      AssetQueue.push(p.asset, p.placement, true);
+    }
+  }
+};
+
+// Small transient message line (menus and gameplay)
+let _toastTimer = 0;
+function toast(text) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('on');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('on'), 4200);
+}
+
+function initAssetInput() {
+  AssetQueue.init();
+  const input = document.getElementById('assetFile');
+  input.addEventListener('change', () => { Assets.loadFiles(input.files); input.value = ''; });
+  window.addEventListener('dragover', e => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') >= 0) { e.preventDefault(); document.getElementById('dropHint').classList.add('on'); } });
+  window.addEventListener('dragleave', e => { if (!e.relatedTarget) document.getElementById('dropHint').classList.remove('on'); });
+  window.addEventListener('drop', e => {
+    document.getElementById('dropHint').classList.remove('on');
+    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+    e.preventDefault();
+    Audio.init();
+    Assets.loadFiles(e.dataTransfer.files);
+  });
+}
+
+// ===== module: 17_boot.js =====
 // =====================================================================================
 // BOOT: main loop, error resilience, resize/DPI, input wiring, lifecycle.
 // =====================================================================================
@@ -6914,6 +7628,7 @@ function init() {
   UI.init();
   VHS.init();
   FidelityOverlay.init();
+  initAssetInput();
   buildPrimitives();
   CableMesh.init();
   RenderQueue.init();

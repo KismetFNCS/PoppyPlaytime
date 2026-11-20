@@ -104,6 +104,47 @@ void main() {
   oEmis = vec4(min(emis * 0.125, vec3(1.0)), 1.0);
 }`;
 
+// Imported glTF meshes: UV-mapped base color (sRGB texture) + PBR factors into the same G-buffer.
+const VS_GBUF_TEX = SHADER_COMMON + `
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNor;
+layout(location=2) in vec2 aUv;
+uniform mat4 uViewProj;
+uniform mat4 uModel;
+uniform mat3 uNormalMat;
+out vec3 vNormal;
+out vec2 vUv;
+void main() {
+  vNormal = uNormalMat * aNor;
+  vUv = aUv;
+  gl_Position = uViewProj * uModel * vec4(aPos, 1.0);
+}`;
+const FS_GBUF_TEX = SHADER_COMMON + `
+uniform sampler2D uBaseTex;
+uniform int uHasTex;
+uniform vec4 uBaseColor;
+uniform vec2 uRoughMetal;
+uniform vec3 uEmissive;
+uniform float uCutoff;
+uniform vec4 uTint;
+uniform vec3 uEmisAdd;
+in vec3 vNormal;
+in vec2 vUv;
+layout(location=0) out vec4 oAlbedo;
+layout(location=1) out vec4 oNormal;
+layout(location=2) out vec4 oEmis;
+void main() {
+  vec4 c = uBaseColor;
+  if (uHasTex == 1) c *= texture(uBaseTex, vUv);
+  if (c.a < uCutoff) discard;
+  vec3 n = normalize(gl_FrontFacing ? vNormal : -vNormal);
+  vec3 albedo = c.rgb * uTint.rgb;
+  vec3 emis = uEmissive + uEmisAdd + albedo * uTint.a;
+  oAlbedo = vec4(sqrt(clamp(albedo, 0.0, 1.0)), clamp(uRoughMetal.x, 0.05, 1.0));
+  oNormal = vec4(n * 0.5 + 0.5, clamp(uRoughMetal.y, 0.0, 1.0));
+  oEmis = vec4(min(emis * 0.125, vec3(1.0)), 1.0);
+}`;
+
 const VS_SHADOW = SHADER_COMMON + `
 layout(location=0) in vec3 aPos;
 uniform mat4 uViewProj;
@@ -499,7 +540,7 @@ const Renderer = {
   camPos: V3.create(), camRight: V3.create(), camUp: V3.create(), camFwd: V3.create(),
   fovDeg: 95, frustum: new Float32Array(24),
   normalMat: new Float32Array(9), identity: M4.create(), identity3: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
-  stats: { draws: 0, lights: 0, tris: 0 },
+  stats: { draws: 0, lights: 0, tris: 0, assetDraws: 0 },
   post: { fear: 0, redWave: 0, fade: 0, flash: 0, flashTint: new Float32Array([1, 0.1, 0.05]), calibrate: false, vhsBoost: 0 },
   fogUpload: new Float32Array(3), ambSkyUpload: new Float32Array(3), ambGroundUpload: new Float32Array(3),
   flashColorUpload: new Float32Array(3), flashOn: true,
@@ -525,6 +566,7 @@ const Renderer = {
   createResources() {
     const gl = this.gl;
     this.progs.gbuf = this.program(VS_GBUF, FS_GBUF, 'gbuf');
+    this.progs.gbufTex = this.program(VS_GBUF_TEX, FS_GBUF_TEX, 'gbufTex');
     this.progs.shadow = this.program(VS_SHADOW, FS_SHADOW, 'shadow');
     this.progs.ssao = this.program(VS_FULL, FS_SSAO, 'ssao');
     this.progs.blur4 = this.program(VS_FULL, FS_BLUR4, 'blur4');
@@ -561,6 +603,7 @@ const Renderer = {
     gl.bindVertexArray(null);
     if (this.albedoData) this.uploadMaterialArrays();
     if (Level.batches.length) Level.uploadBatches();
+    if (typeof Assets !== 'undefined') Assets.reupload();
     this.uploadMaterialUniforms();
     this.allocTargets();
     this.ok = true;
@@ -884,6 +927,22 @@ const Renderer = {
           gl.drawElements(gl.TRIANGLES, mesh.count, mesh.type, 0);
           this.stats.draws++;
         }
+        // imported glTF meshes
+        const AQ = AssetQueue;
+        for (let i = 0; i < AQ.count; i++) {
+          const it = AQ.items[i];
+          if (!it.shadow) continue;
+          const prims = it.asset.prims;
+          for (let k = 0; k < prims.length; k++) {
+            const pr = prims[k];
+            if (!pr.gpu) continue;
+            M4.multiply(_r.am, it.matrix, pr.node);
+            gl.uniformMatrix4fv(this.u('shadow', 'uModel'), false, _r.am);
+            gl.bindVertexArray(pr.gpu.vao);
+            gl.drawElements(gl.TRIANGLES, pr.gpu.count, pr.gpu.type, 0);
+            this.stats.draws++;
+          }
+        }
         gl.disable(gl.POLYGON_OFFSET_FILL);
       }
     }
@@ -950,6 +1009,39 @@ const Renderer = {
         gl.drawElements(gl.TRIANGLES, rg.count, gl.UNSIGNED_SHORT, rg.offset * 2);
         this.stats.draws++;
       }
+    }
+    // imported glTF meshes
+    this.stats.assetDraws = 0;
+    if (AssetQueue.count > 0) {
+      gl.useProgram(this.progs.gbufTex);
+      gl.uniformMatrix4fv(this.u('gbufTex', 'uViewProj'), false, this.viewProj);
+      gl.uniform1i(this.u('gbufTex', 'uBaseTex'), 4);
+      gl.activeTexture(gl.TEXTURE4);
+      const AQ = AssetQueue;
+      for (let i = 0; i < AQ.count; i++) {
+        const it = AQ.items[i];
+        gl.uniform4f(this.u('gbufTex', 'uTint'), it.tint[0], it.tint[1], it.tint[2], it.tint[3]);
+        gl.uniform3f(this.u('gbufTex', 'uEmisAdd'), it.emis[0], it.emis[1], it.emis[2]);
+        const prims = it.asset.prims;
+        for (let k = 0; k < prims.length; k++) {
+          const pr = prims[k], m = pr.material;
+          if (!pr.gpu) continue;
+          M4.multiply(_r.am, it.matrix, pr.node);
+          gl.uniformMatrix4fv(this.u('gbufTex', 'uModel'), false, _r.am);
+          gl.uniformMatrix3fv(this.u('gbufTex', 'uNormalMat'), false, this.computeNormalMat(_r.am));
+          gl.uniform4fv(this.u('gbufTex', 'uBaseColor'), m.baseColor);
+          gl.uniform2f(this.u('gbufTex', 'uRoughMetal'), m.rough, m.metal);
+          gl.uniform3fv(this.u('gbufTex', 'uEmissive'), m.emissive);
+          gl.uniform1f(this.u('gbufTex', 'uCutoff'), m.cutoff);
+          gl.uniform1i(this.u('gbufTex', 'uHasTex'), m.tex ? 1 : 0);
+          gl.bindTexture(gl.TEXTURE_2D, m.tex || this.white);
+          if (m.doubleSided) gl.disable(gl.CULL_FACE); else gl.enable(gl.CULL_FACE);
+          gl.bindVertexArray(pr.gpu.vao);
+          gl.drawElements(gl.TRIANGLES, pr.gpu.count, pr.gpu.type, 0);
+          this.stats.draws++; this.stats.assetDraws++; this.stats.tris += pr.gpu.count / 3;
+        }
+      }
+      gl.enable(gl.CULL_FACE);
     }
     gl.bindVertexArray(null);
     gl.disable(gl.CULL_FACE);
@@ -1116,7 +1208,7 @@ const Renderer = {
     return true;
   }
 };
-const _r = { m: M4.create(), a: V3.create(), yUp: V3.create(0, 1, 0), zUp: V3.create(0, 0, 1) };
+const _r = { am: M4.create(), m: M4.create(), a: V3.create(), yUp: V3.create(0, 1, 0), zUp: V3.create(0, 0, 1) };
 
 // Inverse of the ACES fit used in the composite (solves the rational quadratic for x).
 function inverseAces(y) {

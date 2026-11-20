@@ -84,6 +84,16 @@
   #vhs .skip { position: absolute; right: 2vw; bottom: 2vh; font-size: clamp(14px, 1.8vh, 18px); color: var(--dimText); }
   #vhs .skipbtn { position: absolute; right: 2vw; top: 2vh; font: inherit; font-size: 14px; padding: 0 16px; background: var(--panelFill); color: var(--hudText); border: 1px solid var(--btnBorder); cursor: pointer; }
 
+  /* ---------- custom assets ---------- */
+  .assets { margin-top: 2vh; padding-top: 1.5vh; border-top: 1px solid var(--btnBorder); font-size: clamp(14px, 1.9vh, 20px); }
+  .assets .btns { display: flex; gap: 1vw; flex-wrap: wrap; margin: 1vh 0; }
+  .assets .btns button { width: auto; flex: 1 1 160px; margin: 0; }
+  .assets ul { margin: 0.5vh 0 0; padding-left: 1.2em; color: var(--dimText); }
+  .assets .hint { color: var(--dimText); line-height: 1.35; }
+  #toast { position: fixed; left: 50%; bottom: 7vh; transform: translateX(-50%); max-width: 86vw; padding: 1vh 1.4vw; background: var(--panelFill); border: 1px solid var(--accent); color: var(--hudText); font: 14px/1.4 ui-monospace, Consolas, monospace; opacity: 0; transition: opacity 300ms; pointer-events: none; z-index: 60; }
+  #toast.on { opacity: 1; }
+  #dropHint { position: fixed; inset: 2vmin; display: none; align-items: center; justify-content: center; border: 3px dashed var(--accent); background: var(--panelFill); color: var(--accent); font: bold clamp(16px, 3vh, 32px) ui-monospace, Consolas, monospace; letter-spacing: 0.1em; z-index: 70; pointer-events: none; }
+  #dropHint.on { display: flex; }
   #fatal, #report { position: fixed; inset: 0; display: none; margin: 0; padding: 4vmin; overflow: auto; font: 14px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; z-index: 99; background: var(--reportBg); color: var(--reportText); }
   #debug, #fid { position: fixed; left: 1vw; bottom: 1vh; display: none; padding: 8px; font: 14px/1.35 ui-monospace, Consolas, monospace; white-space: pre; background: var(--reportBg); color: var(--reportText); z-index: 50; pointer-events: none; }
   #fid { inset: 0; padding: 0; background: none; pointer-events: none; }
@@ -127,6 +137,15 @@
     <div class="panel">
       <h2>SETTINGS</h2>
       <div id="settingsRows"></div>
+      <div class="assets">
+        <div>CUSTOM MODELS (.GLB)</div>
+        <div class="btns">
+          <button class="mbtn" id="btnLoadAssets" data-act="loadAssets">LOAD .GLB FILES</button>
+          <button class="mbtn" id="btnClearAssets" data-act="clearAssets">CLEAR MODELS</button>
+        </div>
+        <div class="hint">Name files monster, monster_head, hand_left, hand_right or tape to replace those models; any other name is placed as a prop in front of you. You can also drag files onto the window. See assets/README.md.</div>
+        <ul id="assetList"></ul>
+      </div>
       <button class="mbtn" id="btnSettingsBack" data-act="settingsBack">BACK</button>
     </div>
   </div>
@@ -184,6 +203,9 @@
 </div>
 <div id="debug"></div>
 <div id="fid"><div class="grid"></div><div class="anch" id="fidAnchors"></div><div class="ctrl"><label>Load reference <input type="file" id="fidFile" accept="image/*"></label><br><label>Opacity <input type="range" id="fidOpacity" min="0" max="100" value="50"></label><label><input type="checkbox" id="fidSplit"> split</label></div></div>
+<input type="file" id="assetFile" accept=".glb,model/gltf-binary" multiple hidden>
+<div id="dropHint">DROP .GLB MODELS TO LOAD THEM</div>
+<div id="toast" role="status" aria-live="polite"></div>
 <pre id="fatal"></pre>
 <pre id="report"></pre>
 <script>

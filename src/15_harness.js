@@ -150,6 +150,42 @@ window.__TEST_FIDELITY__ = {
   capture: () => { render(); return document.getElementById('game').toDataURL('image/png'); }
 };
 
+// Builds a 1 m textured box as a .glb in memory (exercises the same parser as user files).
+async function makeTestGlb(opts) {
+  opts = opts || {};
+  const cv = document.createElement('canvas'); cv.width = 16; cv.height = 16;
+  const c = cv.getContext('2d');
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { c.fillStyle = (x + y) % 2 ? 'rgb(200,40,40)' : 'rgb(240,220,60)'; c.fillRect(x, y, 1, 1); }
+  const pngBlob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  const png = new Uint8Array(await pngBlob.arrayBuffer());
+  const pos = [], nor = [], uv = [], idx = [];
+  const F = [[[1, 0, 0], [[.5, 0, .5], [.5, 0, -.5], [.5, 1, -.5], [.5, 1, .5]]], [[-1, 0, 0], [[-.5, 0, -.5], [-.5, 0, .5], [-.5, 1, .5], [-.5, 1, -.5]]],
+    [[0, 1, 0], [[-.5, 1, .5], [.5, 1, .5], [.5, 1, -.5], [-.5, 1, -.5]]], [[0, -1, 0], [[-.5, 0, -.5], [.5, 0, -.5], [.5, 0, .5], [-.5, 0, .5]]],
+    [[0, 0, 1], [[-.5, 0, .5], [.5, 0, .5], [.5, 1, .5], [-.5, 1, .5]]], [[0, 0, -1], [[.5, 0, -.5], [-.5, 0, -.5], [-.5, 1, -.5], [.5, 1, -.5]]]];
+  for (const [n, q] of F) { const b = pos.length / 3; q.forEach((p, i) => { pos.push(...p); nor.push(...n); uv.push(i === 0 || i === 3 ? 0 : 1, i < 2 ? 1 : 0); }); idx.push(b, b + 1, b + 2, b, b + 2, b + 3); }
+  const parts = [new Uint8Array(new Float32Array(pos).buffer), new Uint8Array(new Float32Array(nor).buffer), new Uint8Array(new Float32Array(uv).buffer), new Uint8Array(new Uint16Array(idx).buffer), png];
+  const views = []; let off = 0;
+  const padded = parts.map(p => { const n = Math.ceil(p.length / 4) * 4; const o = new Uint8Array(n); o.set(p); views.push({ buffer: 0, byteOffset: off, byteLength: p.length }); off += n; return o; });
+  const bin = new Uint8Array(off); let o2 = 0; for (const p of padded) { bin.set(p, o2); o2 += p.length; }
+  const json = {
+    asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0, translation: [0, 0, 0] }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1, TEXCOORD_0: 2 }, indices: 3, material: 0 }] }],
+    materials: [{ pbrMetallicRoughness: { baseColorTexture: { index: 0 }, metallicFactor: 0, roughnessFactor: 0.8 } }],
+    textures: [{ source: 0 }], images: [{ bufferView: 4, mimeType: 'image/png' }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: 24, type: 'VEC3' }, { bufferView: 1, componentType: 5126, count: 24, type: 'VEC3' },
+      { bufferView: 2, componentType: 5126, count: 24, type: 'VEC2' }, { bufferView: 3, componentType: 5123, count: 36, type: 'SCALAR' }],
+    bufferViews: views, buffers: [{ byteLength: bin.length }]
+  };
+  if (opts.draco) json.extensionsRequired = ['KHR_draco_mesh_compression'];
+  let jb = new TextEncoder().encode(JSON.stringify(json));
+  const jl = Math.ceil(jb.length / 4) * 4, jp = new Uint8Array(jl).fill(0x20); jp.set(jb);
+  const total = 12 + 8 + jl + 8 + bin.length, out = new ArrayBuffer(total), dv = new DataView(out), u8 = new Uint8Array(out);
+  dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, total, true);
+  dv.setUint32(12, jl, true); dv.setUint32(16, 0x4E4F534A, true); u8.set(jp, 20);
+  dv.setUint32(20 + jl, bin.length, true); dv.setUint32(24 + jl, 0x004E4942, true); u8.set(bin, 28 + jl);
+  return out;
+}
+
 function showReport(text) {
   const el = document.getElementById('report');
   el.textContent = text + '\n\n(click to copy - F9 runs again - Escape closes)';
@@ -509,6 +545,41 @@ async function runAll() {
     check('save: corrupt checkpoint data is ignored safely', Game.hasSave === false && T.getLastError() === null);
 
     await breathe();
+    // ---------------- custom .glb assets ----------------
+    {
+      const isTest = n => /^harness_/.test(n);
+      const prevSlots = Object.assign({}, Assets.slots);
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+      const glb = await makeTestGlb();
+      const a = await Assets.loadBuffer(glb, 'harness_crate.glb', { slot: 'prop', position: [0, 0, 2.2], persist: false });
+      check('assets: .glb parsed (1 primitive, 12 triangles)', a.prims.length === 1 && a.tris === 12, a.prims.length + ' / ' + a.tris);
+      check('assets: embedded PNG uploaded as a texture', !!a.materials[0].tex);
+      check('assets: prop keeps its native 1 m size', Math.abs(a.size[1] - 1) < 1e-3 && Math.abs(a.size[0] - 1) < 1e-3, Array.from(a.size).map(v => v.toFixed(3)).join(','));
+      T.setPlayerPose(0, 0, 4.2, 0, 0); T.step(DT, 2);
+      T.simulateKey('KeyW', true); T.step(DT, 90); T.simulateKey('KeyW', false); T.step(DT, 2);
+      check('assets: prop collider blocks the player', Player.body.pos[2] >= 2.7 + SCALE.playerRadius - 0.02, Player.body.pos[2].toFixed(3));
+      T.setStepRender(true);
+      T.setPlayerPose(0, 0, 4.4, 0, -0.2); T.step(DT, 2);
+      check('assets: prop rendered through the textured G-buffer path', Renderer.stats.assetDraws > 0 && T.getLastError() === null, Renderer.stats.assetDraws);
+      const m = await Assets.loadBuffer(glb, 'harness_monster.glb', { slot: 'monster', persist: false });
+      check('assets: monster slot auto-fits to 2.9 m', Math.abs(m.size[1] - 2.9) < 1e-3, m.size[1].toFixed(3));
+      T.gotoMenu(); T.step(DT, 2);
+      check('assets: custom monster replaces the procedural body', Assets.slot('monster') === m && Renderer.stats.assetDraws > 0 && V3.finite(Monster.head), Renderer.stats.assetDraws);
+      await Assets.loadBuffer(glb, 'harness_hand_left.glb', { persist: false });
+      check('assets: file name picks the slot (hand_left -> handLeft)', !!Assets.slot('handLeft'));
+      let bad = '';
+      try { await Assets.loadBuffer(new ArrayBuffer(64), 'harness_bad.glb', { persist: false }); } catch (err) { bad = err.message; }
+      check('assets: invalid file rejected with a message', /magic|small/.test(bad) && T.getLastError() === null, bad);
+      let draco = '';
+      try { await Assets.loadBuffer(await makeTestGlb({ draco: true }), 'harness_draco.glb', { persist: false }); } catch (err) { draco = err.message; }
+      check('assets: Draco-compressed file rejected with advice', /Draco/.test(draco), draco);
+      Assets.removeWhere(isTest);
+      for (const k in prevSlots) Assets.slots[k] = prevSlots[k];
+      T.step(DT, 1);
+      check('assets: removal restores procedural models and colliders', !Assets.props.some(p => isTest(p.name)) && Assets.slot('monster') === (prevSlots.monster || null) && T.getLastError() === null);
+      T.setStepRender(false);
+    }
+
     // ---------------- fidelity ----------------
     T.setStepRender(true);
     T.gotoMenu(); T.step(DT, 3);

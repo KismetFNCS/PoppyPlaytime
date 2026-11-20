@@ -1,0 +1,11 @@
+{
+  "assets": [
+    { "file": "monster.glb", "slot": "monster" },
+    { "file": "monster_head.glb", "slot": "monsterHead" },
+    { "file": "hand_left.glb", "slot": "handLeft", "rotate": [0, 0, 0] },
+    { "file": "hand_right.glb", "slot": "handRight" },
+    { "file": "tape.glb", "slot": "tape" },
+    { "file": "examples/sample_crate.glb", "slot": "prop", "position": [-2.6, 0, 4.2], "rotate": [0, 20, 0], "fit": 1.0 },
+    { "file": "doll.glb", "slot": "prop", "position": [9.2, 0.95, -3.4], "rotate": [0, 200, 0], "fit": 0.5, "collider": false }
+  ]
+}

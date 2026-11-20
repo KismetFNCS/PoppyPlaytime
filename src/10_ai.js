@@ -429,6 +429,15 @@ const Monster = {
   submit(jumpscare) {
     if (!this.visible) return;
     const yaw = this.yaw, lean = this.lean, R = RenderQueue;
+    // a custom .glb in the "monster" slot replaces the whole procedural body
+    const custom = Assets.slot('monster');
+    if (custom) {
+      M4.compose(this.m, this.pos[0], this.pos[1] + this.bodyBob, this.pos[2], yaw, lean * 0.5 + this.flinchAmt * 0.15, Math.sin(this.headTilt) * 0.05, 1, 1, 1);
+      AssetQueue.push(custom, this.m, true);
+      V3.set(_mh.local, 0, custom.size[1] * 0.86, -custom.size[2] * 0.3);
+      M4.transformPoint(this.head, this.m, _mh.local);
+      return;
+    }
     const B = this.tmp, H = this.tmp2;
     // abdomen (rear fur sac)
     this.bodyPoint(B, 0, 1.45, 0.95);
@@ -489,6 +498,12 @@ const Monster = {
 
   submitHead(p, yaw, pitch, roll, scale) {
     const R = RenderQueue, s = scale;
+    const customHead = Assets.slot('monsterHead');
+    if (customHead) {
+      M4.compose(this.m, p[0], p[1], p[2], yaw, pitch, roll, 1, 1, 1);
+      AssetQueue.push(customHead, this.m, true);
+      return;
+    }
     // canvas hood behind the mask
     let it = R.push('cone', MAT.furViolet);
     if (it) {

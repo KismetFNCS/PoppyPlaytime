@@ -142,6 +142,8 @@ const Game = {
       case 'mainmenu': setState(STATE.MAIN_MENU); break;
       case 'mute': this.toggleMute(); break;
       case 'skipTape': VHS.finish(); break;
+      case 'loadAssets': document.getElementById('assetFile').click(); break;
+      case 'clearAssets': Assets.clear(true).then(() => toast('Custom models cleared - procedural models restored')); break;
       case 'rewind': if (state === STATE.FAILURE_STATE) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
       case 'winDone': if (state === STATE.VICTORY) setState(STATE.MAIN_MENU); break;
     }
@@ -527,8 +529,10 @@ const Game = {
   // ---------- scene submission (render side; reads simulation, never writes it) ----------
   submitScene() {
     RenderQueue.begin();
+    AssetQueue.begin();
     const vis = Streaming.visible;
     Doors.submit(vis);
+    Assets.submitProps(vis);
     Lights.submitFixtures(vis);
     this.submitPuzzles(vis);
     Monster.submit();
@@ -608,8 +612,15 @@ const Game = {
       const lamp = R.trs('sphereLow', MAT.rubber, p[0] + n[0] * 0.08, p[1] - 0.45, p[2] + n[2] * 0.08, 0, 0, 0, 0.05, 0.05, 0.05, false);
       if (lamp) { if (l.pulled) { lamp.emis[1] = 2.5; } else { lamp.emis[0] = 2.5; lamp.emis[1] = 0.6 + Math.sin(t * 6) * 0.5; } }
     }
+    const customTape = Assets.slot('tape');
     for (const tp of Level.tapes) {
       if (!vis[tp.sector] || tp.collected) continue;
+      if (customTape) {
+        M4.compose(_g.m, tp.pos[0], tp.pos[1] + 0.36, tp.pos[2] + 0.2, 0.3 + Math.sin(t) * 0.05, 0, 0, 1, 1, 1);
+        const ci = AssetQueue.push(customTape, _g.m, true);
+        if (ci) { const g = 0.15 + 0.15 * Math.sin(t * 3); ci.emis[0] = g; ci.emis[1] = g * 0.7; ci.emis[2] = g * 0.2; }
+        continue;
+      }
       const it = R.trs('box', MAT.rubber, tp.pos[0], tp.pos[1] + 0.33, tp.pos[2] + 0.2, 0.3, 0, 0, 0.19, 0.025, 0.105);
       R.trs('box', MAT.paint, tp.pos[0], tp.pos[1] + 0.346, tp.pos[2] + 0.2, 0.3, 0, 0, 0.12, 0.004, 0.06, false);
       if (it) { const g = 0.15 + 0.15 * Math.sin(t * 3); it.emis[0] = g; it.emis[1] = g * 0.7; it.emis[2] = g * 0.2; }
@@ -654,6 +665,14 @@ const Game = {
     V3.cross(_g.r, f, upRef); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, _g.r, f); V3.normalize(_g.u, _g.u);
     const r = _g.r, u = _g.u, s = scale;
+    // custom gauntlet models: one per side, or a single model shared by both
+    const custom = Assets.slot(side === 0 ? 'handLeft' : 'handRight') || Assets.slot(side === 0 ? 'handRight' : 'handLeft');
+    if (custom) {
+      basisMatrix(_g.m, pos, r, u, f, s, s, s);
+      const it = AssetQueue.push(custom, _g.m, shadow);
+      if (it && h.tethered) { it.emis[0] = 0.15 * h.energized; it.emis[1] = 0.6 * h.energized; it.emis[2] = 0.9 * h.energized; }
+      return;
+    }
     // cuff (steel) behind the palm
     V3.addScaled(_g.p0, pos, f, -0.13 * s); V3.addScaled(_g.p1, pos, f, -0.035 * s);
     R.seg('cyl', MAT.steel, _g.p0, _g.p1, 0.05 * s, shadow);
@@ -685,7 +704,7 @@ const Game = {
 };
 const _g = {
   v: V3.create(), a: V3.create(), b: V3.create(), c: V3.create(), d: V3.create(), e: V3.create(), r: V3.create(), u: V3.create(),
-  up: V3.create(0, 1, 0), p0: V3.create(), p1: V3.create(), p2: V3.create(),
+  m: M4.create(), up: V3.create(0, 1, 0), p0: V3.create(), p1: V3.create(), p2: V3.create(),
   idle: hexToLinear(PALETTE.relayIdle), linked: hexToLinear(PALETTE.relayLinked), red: hexToLinear(PALETTE.receptacleIdle)
 };
 // Model matrix from an orthonormal basis (columns r, u, f) scaled per axis.
@@ -715,6 +734,7 @@ const Loader = {
         UI.setLoading(0.95, 'Uploading to GPU...');
         Renderer.uploadMaterialArrays();
         Level.uploadBatches();
+        Assets.uploadPending();
         Monster.init();
         if (Audio.ctx && !Audio.emittersBuilt) Audio.buildEmitters();
         this.phase = 3;
@@ -726,6 +746,7 @@ const Loader = {
         this.phase = 4;
         setState(STATE.MAIN_MENU);
         window.__TEST__.ready = true;
+        Assets.loadStartup();
         if (/[?&]test=1/.test(location.search)) runAll();
       }
     } catch (err) { fatal(err); }
