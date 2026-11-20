@@ -67,7 +67,7 @@ export function createDefaultPostProcessParameters(): PostProcessParameters {
       scatteringAnisotropy: 0.45,
       maxRayDistance: 42,
       lightScatteringBoost: 0.32,
-      toxicVolume: { minimum: [0, 0, 0], maximum: [0, 0, 0], density: 0, albedo: [0.45, 1, 0.3], emission: [0.006, 0.02, 0.004] },
+      toxicVolume: { minimum: [0, 0, 0], maximum: [0, 0, 0], density: 0, albedo: [0.45, 1, 0.3], emission: [0.002, 0.007, 0.0015] },
     },
     crt: {
       exposure: 1.15,

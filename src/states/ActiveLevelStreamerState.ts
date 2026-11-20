@@ -551,25 +551,25 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (!showMeter) {
       return;
     }
-    const panelX: number = width - 520;
+    const panelX: number = width - 600;
     const panelY: number = height - 190;
     const segments = 24;
-    const segmentWidth = 16;
+    const segmentWidth = 19;
     context.save();
     context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    context.fillRect(panelX - 16, panelY - 44, 456, 150);
+    context.fillRect(panelX - 16, panelY - 44, 536, 150);
     context.font = UI_FONTS.small;
     context.fillStyle = UI_COLORS.textPrimary;
     context.fillText('TOXICITY', panelX, panelY - 14);
     const statusLabels: Readonly<Record<typeof mask.areaStatus, [string, string]>> = {
       clean: ['CLEAN AIR', '#8fd18a'],
-      filtered: ['FILTERED · SAFE BREATHING', '#e9c46a'],
+      filtered: ['FILTERED AIR', '#e9c46a'],
       contaminated: ['CONTAMINATED', UI_COLORS.accentRed],
     };
     const [statusText, statusColor] = statusLabels[mask.areaStatus];
     context.textAlign = 'right';
     context.fillStyle = statusColor;
-    context.fillText(statusText, panelX + 424, panelY - 14);
+    context.fillText(statusText, panelX + 504, panelY - 14);
     context.textAlign = 'left';
     const filled: number = Math.ceil(mask.exposure * segments);
     for (let segment = 0; segment < segments; segment += 1) {
@@ -594,12 +594,12 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         worn: '[G] REMOVE MASK',
         unequipping: 'REMOVING…',
       };
-      context.fillText(maskStates[mask.phase], panelX + 424, panelY + 62);
+      context.fillText(maskStates[mask.phase], panelX + 504, panelY + 62);
       context.textAlign = 'left';
       context.fillStyle = 'rgba(233, 225, 207, 0.12)';
-      context.fillRect(panelX, panelY + 74, 424, 6);
+      context.fillRect(panelX, panelY + 74, 504, 6);
       context.fillStyle = mask.filterRemaining < 0.25 ? UI_COLORS.accentRed : '#8fd18a';
-      context.fillRect(panelX, panelY + 74, 424 * mask.filterRemaining, 6);
+      context.fillRect(panelX, panelY + 74, 504 * mask.filterRemaining, 6);
     } else if (mask.concentration > 0.01) {
       context.fillStyle = UI_COLORS.accentRed;
       context.fillText('NO RESPIRATOR · LEAVE THE GAS', panelX, panelY + 62);
@@ -700,7 +700,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     post.fog.ambientColor = [post.fog.ambientColor[0] + LIGHT_PALETTE.emergencyRed[0] * 0.02 * dreadCurve, post.fog.ambientColor[1], post.fog.ambientColor[2]];
     const zone: ToxicZone | null = this.streamer?.nearestToxicZone(this.services.camera.position) ?? null;
     if (zone !== null) {
-      post.fog.toxicVolume = { ...post.fog.toxicVolume, minimum: zone.bounds.minimum, maximum: zone.bounds.maximum, density: 0.35 * zone.concentration };
+      post.fog.toxicVolume = { ...post.fog.toxicVolume, minimum: zone.bounds.minimum, maximum: zone.bounds.maximum, density: 0.11 * zone.concentration };
     }
     this.drawHud(context, frame.elapsedSeconds);
   }
