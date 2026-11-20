@@ -528,17 +528,17 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     context.font = UI_FONTS.small;
     sides.forEach(([side, binding]: [ClawSide, string], index: number) => {
       const claw: ClawState = rig.claws[side];
-      const x: number = width / 2 + (index === 0 ? -250 : 30);
+      const x: number = width / 2 + (index === 0 ? -330 : 30);
       const y: number = height - 104;
       context.globalAlpha = claw.phase === 'holstered' ? 0.85 : 1;
       context.fillStyle = 'rgba(0, 0, 0, 0.45)';
-      context.fillRect(x, y, 220, 36);
+      context.fillRect(x, y, 300, 36);
       context.fillStyle = POLARITY_COLORS[claw.polarity];
       context.fillRect(x, y, 8, 36);
       context.fillText(`${claw.polarity.toUpperCase()} ${labels[claw.phase]}`, x + 18, y + 25);
       context.fillStyle = UI_COLORS.textDim;
       context.textAlign = 'right';
-      context.fillText(binding, x + 212, y + 25);
+      context.fillText(binding, x + 292, y + 25);
       context.textAlign = 'left';
     });
     context.restore();
