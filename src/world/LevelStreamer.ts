@@ -55,7 +55,16 @@ export interface TetherTarget {
   readonly attachNormal: Vec3;
   /** Relay plates accept exactly one polarity; anchors accept both (null). */
   readonly polarity: Polarity | null;
+  /**
+   * Anchors only: rope length the rig auto-reels to after latching, chosen so the lowest point of the
+   * swing keeps the player's feet `SWING_FLOOR_CLEARANCE` above the floor (null for plates).
+   */
+  readonly preferredRopeLength: number | null;
 }
+
+/** Shoulder height of a standing player, used to size swing ropes (matches CharacterMotor 0.8 × 1.78 m). */
+const SWING_SHOULDER_HEIGHT: number = 1.42;
+const SWING_FLOOR_CLEARANCE: number = 0.45;
 
 export interface WorldRayHit extends RayHit {
   readonly target: TetherTarget | null;
@@ -319,6 +328,7 @@ export class LevelChunkBuilder {
           bounds: { minimum: [plateSide > 0 ? halfWidth - 0.12 : -halfWidth, plateY - 0.46, plateZ - 0.36], maximum: [plateSide > 0 ? halfWidth : -halfWidth + 0.12, plateY + 0.46, plateZ + 0.36] },
           attachPoint: [plateX - plateSide * 0.09, plateY + 0.05, plateZ],
           attachNormal: plateNormal,
+          preferredRopeLength: null,
         });
         // Gate frame and a warning light keyed to the plate colour.
         place('rusted_steel', createBoxMesh(halfWidth * 2, 0.5, 0.7), [0, height - 0.25, gateZ]);
@@ -343,6 +353,8 @@ export class LevelChunkBuilder {
           bounds: aabbFromCenter(anchorCenter, [0.4, 0.4, 0.4]),
           attachPoint: anchorCenter,
           attachNormal: [0, -1, 0],
+          // L* = y_anchor − (floor + clearance) − shoulder height
+          preferredRopeLength: anchorCenter[1] - SWING_FLOOR_CLEARANCE - SWING_SHOULDER_HEIGHT,
         });
         lights.push({ position: [anchorCenter[0], anchorCenter[1] - 0.3, anchorCenter[2]], color: LIGHT_PALETTE.serviceBlue, intensity: 3.5, range: 7, behavior: { kind: 'steady' } });
         break;

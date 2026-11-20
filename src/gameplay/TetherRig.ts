@@ -50,6 +50,8 @@ export interface TetherRigTuning {
   readonly minimumRopeLength: number;
   /** On latch, rest length = latch distance × factor (< 1 gives an initial tug). */
   readonly latchRestLengthFactor: number;
+  /** Rate at which the rig winds slack in toward an anchor's preferred rope length after latching (m/s). */
+  readonly autoReelSpeed: number;
   /** Tangential "pump" acceleration players can add while swinging, along the camera's flat forward. */
   readonly swingPumpAcceleration: number;
   readonly cableSegmentCount: number;
@@ -68,6 +70,7 @@ export const DEFAULT_TETHER_RIG_TUNING: TetherRigTuning = {
   reelSpeed: 3.2,
   minimumRopeLength: 1.2,
   latchRestLengthFactor: 0.97,
+  autoReelSpeed: 4,
   swingPumpAcceleration: 3.2,
   cableSegmentCount: 12,
   cableSagPerSlackMeter: 0.35,
@@ -85,6 +88,8 @@ export interface ClawState {
   target: TetherTarget | null;
   /** Rope rest length while latched to an anchor. */
   restLength: number;
+  /** Remaining auto-reel goal for this latch (null once reached or for non-anchor targets). */
+  autoReelTarget: number | null;
   triggerHeld: boolean;
 }
 
@@ -136,6 +141,7 @@ export class TetherRig {
       phaseSeconds: 0,
       target: null,
       restLength: 0,
+      autoReelTarget: null,
       triggerHeld: false,
     });
     this.claws = { left: createClaw('left'), right: createClaw('right') };
@@ -226,6 +232,10 @@ export class TetherRig {
         if (hit.target.kind === 'anchor') {
           const socket: Vec3 = this.socketPosition(claw.side);
           claw.restLength = Math.max(this.tuning.minimumRopeLength, vec3Distance(socket, claw.position) * this.tuning.latchRestLengthFactor);
+          const preferred: number | null = hit.target.preferredRopeLength;
+          claw.autoReelTarget = preferred !== null && preferred < claw.restLength ? Math.max(this.tuning.minimumRopeLength, preferred) : null;
+        } else {
+          claw.autoReelTarget = null;
         }
         this.setPhase(claw, 'latched');
         this.events.emit('clawLatched', { side: claw.side, polarity: claw.polarity, target: hit.target, point: claw.position });
@@ -286,7 +296,14 @@ export class TetherRig {
       claw.target = null;
       return;
     }
-    // Reel: L ← clamp(L − reel·v_reel·dt, L_min, R_max)
+    // Auto-reel: L ← max(L*, L − v_auto·dt) until the anchor's preferred length L* is reached.
+    if (claw.autoReelTarget !== null) {
+      claw.restLength = Math.max(claw.autoReelTarget, claw.restLength - this.tuning.autoReelSpeed * deltaSeconds);
+      if (claw.restLength <= claw.autoReelTarget + 1e-4) {
+        claw.autoReelTarget = null;
+      }
+    }
+    // Manual reel: L ← clamp(L − reel·v_reel·dt, L_min, R_max)
     claw.restLength = clamp(claw.restLength - input.reelInput * this.tuning.reelSpeed * deltaSeconds, this.tuning.minimumRopeLength, this.tuning.maximumRange);
   }
 
