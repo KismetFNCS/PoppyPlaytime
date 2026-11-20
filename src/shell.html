@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Merriweather Works - Chapter 6: Resurrection</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--void); color: var(--hudText); }
+  body { font-family: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; }
+  #game { display: block; position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+  #ui { position: fixed; inset: 0; pointer-events: none; user-select: none; -webkit-user-select: none; }
+  #ui button, #ui input, #ui select, #ui .interactive { pointer-events: auto; }
+  #ui button { min-width: 44px; min-height: 44px; }
+  .screen { position: absolute; inset: 0; display: none; }
+  .screen.on { display: block; animation: fadein 360ms ease-out; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ---------- main menu (layout from UI CONTRACT) ---------- */
+  #menu .chapter { position: absolute; left: 4.2vw; top: 8.6vh; font-size: clamp(14px, 3.4vh, 40px); letter-spacing: 0.08em; color: var(--titleText); text-shadow: 0 0 1.2vh var(--textGlow); }
+  #menu .title { position: absolute; left: 4.0vw; top: 13.2vh; font-size: clamp(22px, min(7.4vh, 8.6vw), 92px); font-weight: 800; letter-spacing: 0.04em; color: var(--titleText); white-space: nowrap; text-shadow: 0 0 2vh var(--textGlow); }
+  #menu .rule { position: absolute; left: 0; top: 25.6vh; width: 44vw; height: 2px; background: linear-gradient(90deg, var(--ruleColor), var(--ruleFade)); }
+  #menu .desc { position: absolute; left: 4.3vw; top: 30vh; width: min(36vw, 560px); font-family: 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, sans-serif; font-weight: 700; font-size: clamp(14px, 2.35vh, 26px); line-height: 1.18; color: var(--descText); text-shadow: 0 1px 2px var(--void); }
+  #menu .buttons { position: absolute; left: 4.75vw; top: min(61.1vh, calc(100vh - 5 * max(5.3vh, 44px) - 2.8vh - 2vh)); width: 22.6vw; min-width: 200px; display: flex; flex-direction: column; gap: 0.7vh; }
+  .mbtn { display: block; width: 100%; height: 5.3vh; min-height: 44px; padding: 0 0 0 1.3vw; text-align: left; background: var(--btnFill); color: var(--btnText); border: 1.5px solid var(--btnBorder); font: inherit; font-size: clamp(14px, 2.6vh, 30px); letter-spacing: 0.06em; cursor: pointer; transition: background 140ms ease-out, color 140ms ease-out, transform 140ms ease-out; }
+  .mbtn:hover, .mbtn:focus-visible, .mbtn.sel { background: var(--btnHover); outline: none; }
+  .mbtn:focus-visible { box-shadow: 0 0 0 2px var(--focusRing); }
+  .mbtn:active { transform: translateX(0.4vw); background: var(--btnActive); }
+  .mbtn:disabled { opacity: 0.38; cursor: default; }
+  #menu .ver { position: absolute; right: 2vw; bottom: 2vh; font-size: clamp(14px, 1.6vh, 18px); color: var(--dimText); }
+
+  /* ---------- generic panels ---------- */
+  .panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(92vw, 760px); max-height: 88vh; overflow: auto; padding: 3vh 3vw; background: var(--panelFill); border: 1.5px solid var(--btnBorder); box-sizing: border-box; }
+  .panel h2 { margin: 0 0 2vh; font-size: clamp(18px, 4vh, 44px); letter-spacing: 0.08em; color: var(--titleText); font-weight: 800; }
+  .row { display: grid; grid-template-columns: 1fr 1.3fr 4.5em; align-items: center; gap: 1.2vw; min-height: 44px; font-size: clamp(14px, 2.1vh, 22px); }
+  .row input[type=range] { width: 100%; min-height: 32px; accent-color: var(--accent); }
+  .row select { min-height: 40px; font: inherit; background: var(--btnFill); color: var(--btnText); border: 1px solid var(--btnBorder); }
+  .row input[type=checkbox] { width: 26px; height: 26px; accent-color: var(--accent); }
+  .row .val { text-align: right; color: var(--accent); }
+  .panel .mbtn { margin-top: 1.2vh; }
+  .credits p { margin: 0.6vh 0; font-size: clamp(14px, 2vh, 20px); line-height: 1.4; }
+  .credits .k { color: var(--dimText); }
+
+  /* ---------- HUD ---------- */
+  #hud .cross { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--hudText); box-shadow: 0 0 4px var(--void); opacity: 0.8; transition: transform 90ms ease-out, background 90ms; }
+  #hud .cross.hot { transform: scale(2.2); background: var(--accent); }
+  #hud .objective { position: absolute; left: 3vw; top: 4vh; max-width: 46vw; font-size: clamp(14px, 2.1vh, 22px); letter-spacing: 0.05em; color: var(--hudText); text-shadow: 0 0 6px var(--void), 0 1px 2px var(--void); transition: opacity 600ms; }
+  #hud .objective b { display: block; font-size: 0.75em; color: var(--dimText); letter-spacing: 0.18em; }
+  #hud .prompt { position: absolute; left: 50%; top: 60%; transform: translateX(-50%); font-size: clamp(14px, 2.2vh, 22px); padding: 0.6vh 1.2vw; background: var(--panelFill); border: 1px solid var(--btnBorder); color: var(--hudText); display: none; white-space: nowrap; }
+  #hud .hand { position: absolute; bottom: 3.5vh; width: 12vh; min-width: 64px; font-size: clamp(14px, 1.7vh, 18px); letter-spacing: 0.1em; text-align: center; padding: 0.6vh 0; border: 1.5px solid currentColor; background: var(--panelFill); }
+  #hud .hand.l { left: 3vw; color: var(--handL); }
+  #hud .hand.r { right: 3vw; color: var(--handR); }
+  #hud .hand.away { opacity: 0.45; }
+  #hud .cable { position: absolute; left: 50%; bottom: 3.5vh; transform: translateX(-50%); width: min(40vw, 380px); display: none; font-size: clamp(14px, 1.7vh, 18px); text-align: center; color: var(--live); }
+  #hud .cable .bar { height: 6px; margin-top: 0.5vh; background: var(--panelFill); border: 1px solid var(--live); }
+  #hud .cable .bar i { display: block; height: 100%; width: 0; background: var(--live); }
+  #hud .sub { position: absolute; left: 50%; bottom: 14vh; transform: translateX(-50%); max-width: 80vw; text-align: center; font-size: clamp(14px, 2.3vh, 24px); color: var(--hudText); text-shadow: 0 0 6px var(--void), 0 1px 2px var(--void); transition: opacity 400ms; }
+  #hud .mute { position: absolute; right: 2vw; top: 2vh; width: 48px; height: 48px; font: inherit; font-size: 14px; background: var(--panelFill); color: var(--hudText); border: 1px solid var(--btnBorder); cursor: pointer; }
+  #hud .pausebtn { position: absolute; right: calc(2vw + 56px); top: 2vh; width: 48px; height: 48px; font: inherit; font-size: 14px; background: var(--panelFill); color: var(--hudText); border: 1px solid var(--btnBorder); cursor: pointer; }
+
+  /* ---------- touch controls ---------- */
+  #touch { position: absolute; inset: 0; display: none; }
+  #touch.on { display: block; }
+  #touch .stick { position: absolute; left: 5vw; bottom: 8vh; width: 22vmin; height: 22vmin; min-width: 110px; min-height: 110px; border-radius: 50%; border: 2px solid var(--btnBorder); background: var(--panelFill); pointer-events: auto; touch-action: none; }
+  #touch .knob { position: absolute; left: 50%; top: 50%; width: 40%; height: 40%; margin: -20% 0 0 -20%; border-radius: 50%; background: var(--btnBorder); opacity: 0.7; }
+  #touch .tb { position: absolute; width: 13vmin; height: 13vmin; min-width: 56px; min-height: 56px; border-radius: 50%; border: 2px solid currentColor; background: var(--panelFill); font: inherit; font-size: clamp(14px, 2vmin, 18px); pointer-events: auto; touch-action: none; }
+  #touch .tl { right: 22vmin; bottom: 22vmin; color: var(--handL); }
+  #touch .tr { right: 6vmin; bottom: 30vmin; color: var(--handR); }
+  #touch .tj { right: 6vmin; bottom: 12vmin; color: var(--hudText); }
+  #touch .te { right: 22vmin; bottom: 6vmin; color: var(--hudText); }
+  #touch .ts { left: 5vw; bottom: calc(8vh + 24vmin); color: var(--hudText); }
+
+  /* ---------- failure / victory / loading ---------- */
+  #fail .big, #win .big, #loading .big { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-size: clamp(26px, 9vh, 110px); font-weight: 800; letter-spacing: 0.12em; color: var(--danger); text-shadow: 0.4vw 0 var(--chromaA), -0.4vw 0 var(--chromaB); white-space: nowrap; }
+  #win .big { color: var(--titleText); font-size: clamp(22px, 6vh, 70px); }
+  #fail .small, #win .small, #loading .small { position: absolute; left: 50%; top: 56%; transform: translateX(-50%); font-size: clamp(14px, 2.4vh, 26px); color: var(--hudText); letter-spacing: 0.1em; text-align: center; width: 90vw; }
+  #loading { background: var(--void); }
+  #loading .big { color: var(--titleText); font-size: clamp(20px, 5vh, 60px); }
+  #loading .barwrap { position: absolute; left: 50%; top: 64%; transform: translateX(-50%); width: min(60vw, 520px); height: 8px; border: 1px solid var(--btnBorder); }
+  #loading .barwrap i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 120ms; }
+
+  /* ---------- VHS transmission ---------- */
+  #vhs { background: var(--void); }
+  #vhs canvas { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(100vw, 177.78vh); height: min(56.25vw, 100vh); image-rendering: auto; }
+  #vhs .skip { position: absolute; right: 2vw; bottom: 2vh; font-size: clamp(14px, 1.8vh, 18px); color: var(--dimText); }
+  #vhs .skipbtn { position: absolute; right: 2vw; top: 2vh; font: inherit; font-size: 14px; padding: 0 16px; background: var(--panelFill); color: var(--hudText); border: 1px solid var(--btnBorder); cursor: pointer; }
+
+  #fatal, #report { position: fixed; inset: 0; display: none; margin: 0; padding: 4vmin; overflow: auto; font: 14px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; z-index: 99; background: var(--reportBg); color: var(--reportText); }
+  #debug, #fid { position: fixed; left: 1vw; bottom: 1vh; display: none; padding: 8px; font: 14px/1.35 ui-monospace, Consolas, monospace; white-space: pre; background: var(--reportBg); color: var(--reportText); z-index: 50; pointer-events: none; }
+  #fid { inset: 0; padding: 0; background: none; pointer-events: none; }
+  #fid .grid { position: absolute; inset: 0; background-image: linear-gradient(var(--gridLine) 1px, transparent 1px), linear-gradient(90deg, var(--gridLine) 1px, transparent 1px); background-size: 8.3333% 8.3333%; }
+  #fid .anch { position: absolute; right: 1vw; top: 1vh; padding: 8px; background: var(--reportBg); white-space: pre; }
+  #fid .ctrl { position: absolute; right: 1vw; bottom: 1vh; padding: 8px; background: var(--reportBg); pointer-events: auto; }
+  #fid img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; opacity: 0.5; }
+  @media (max-width: 700px) {
+    #menu .desc { width: 86vw; top: 29vh; }
+    #menu .buttons { width: 60vw; left: 6vw; }
+    #menu .rule { width: 86vw; }
+    .row { grid-template-columns: 1fr 1.2fr 3.5em; }
+    #menu .ver { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .screen.on { animation: none; } }
+</style>
+</head>
+<body>
+<canvas id="game" tabindex="0" aria-label="Game view"></canvas>
+<div id="ui">
+  <div id="loading" class="screen">
+    <div class="big">MERRIWEATHER WORKS</div>
+    <div class="small" id="loadMsg">Synthesizing assets...</div>
+    <div class="barwrap"><i id="loadBar"></i></div>
+  </div>
+  <div id="menu" class="screen">
+    <div class="chapter" id="menuChapter">CHAPTER 6</div>
+    <div class="title" id="menuTitle">&lsquo;RESURRECTION&rsquo;</div>
+    <div class="rule" id="menuRule"></div>
+    <div class="desc" id="menuDesc">Far below the flooded reclamation floors, the machines that stitched Merriweather's toys are stirring again. Restore the power, follow the tapes, and outrun the thing that learned to sew itself back together.</div>
+    <div class="buttons" id="menuButtons">
+      <button class="mbtn" id="btnContinue" data-act="continue">CONTINUE</button>
+      <button class="mbtn" id="btnNew" data-act="new">NEW GAME</button>
+      <button class="mbtn" id="btnSettings" data-act="settings">SETTINGS</button>
+      <button class="mbtn" id="btnCredits" data-act="credits">CREDITS</button>
+      <button class="mbtn" id="btnQuit" data-act="quit">QUIT</button>
+    </div>
+    <div class="ver">fan-made engine slice &middot; F9 self-test</div>
+  </div>
+  <div id="settings" class="screen">
+    <div class="panel">
+      <h2>SETTINGS</h2>
+      <div id="settingsRows"></div>
+      <button class="mbtn" id="btnSettingsBack" data-act="settingsBack">BACK</button>
+    </div>
+  </div>
+  <div id="credits" class="screen">
+    <div class="panel credits">
+      <h2>CREDITS</h2>
+      <p><span class="k">ENGINE, SHADERS, AUDIO SYNTHESIS</span><br>Procedural runtime &mdash; every mesh, texture and sound generated in code</p>
+      <p><span class="k">SETTING</span><br>Merriweather Toy Works, Sector 06: Reclamation (an original fictional factory)</p>
+      <p><span class="k">ENTITY DESIGN</span><br>Experiment 6-06 &ldquo;The Spoolwright&rdquo;</p>
+      <p><span class="k">INSPIRATION</span><br>A fan tribute to the industrial toy-factory horror genre. Not affiliated with any studio.</p>
+      <button class="mbtn" id="btnCreditsBack" data-act="creditsBack">BACK</button>
+    </div>
+  </div>
+  <div id="pause" class="screen">
+    <div class="panel">
+      <h2>PAUSED</h2>
+      <button class="mbtn" id="btnResume" data-act="resume">RESUME</button>
+      <button class="mbtn" id="btnPauseSettings" data-act="settings">SETTINGS</button>
+      <button class="mbtn" id="btnCheckpoint" data-act="checkpoint">RELOAD CHECKPOINT</button>
+      <button class="mbtn" id="btnMainMenu" data-act="mainmenu">MAIN MENU</button>
+    </div>
+  </div>
+  <div id="hud" class="screen">
+    <div class="objective" id="hudObjective"><b>OBJECTIVE</b><span id="hudObjText"></span></div>
+    <div class="cross" id="hudCross"></div>
+    <div class="prompt" id="hudPrompt"></div>
+    <div class="sub" id="hudSub"></div>
+    <div class="hand l" id="hudHandL">L &middot; TEAL</div>
+    <div class="hand r" id="hudHandR">R &middot; AMBER</div>
+    <div class="cable" id="hudCable"><span id="hudCableText">TETHER</span><div class="bar"><i id="hudCableBar"></i></div></div>
+    <button class="pausebtn" id="btnHudPause" data-act="pause" aria-label="Pause">II</button>
+    <button class="mute" id="btnMute" data-act="mute" aria-label="Mute">SND</button>
+    <div id="touch">
+      <div class="stick" id="touchStick"><div class="knob" id="touchKnob"></div></div>
+      <button class="tb tl" id="touchL">L</button>
+      <button class="tb tr" id="touchR">R</button>
+      <button class="tb tj" id="touchJ">JUMP</button>
+      <button class="tb te" id="touchE">USE</button>
+      <button class="tb ts" id="touchS">RUN</button>
+    </div>
+  </div>
+  <div id="fail" class="screen">
+    <div class="big">SIGNAL LOST</div>
+    <div class="small">REWINDING TAPE TO LAST CHECKPOINT&hellip;<br>(press Enter or tap to rewind now)</div>
+  </div>
+  <div id="win" class="screen">
+    <div class="big">END OF TRANSMISSION</div>
+    <div class="small">Sector 06 sealed. Thank you for playing.<br>(press Enter or tap to return to the menu)</div>
+  </div>
+  <div id="vhs" class="screen">
+    <canvas id="vhsCanvas" width="640" height="360"></canvas>
+    <button class="skipbtn" id="btnSkipTape" data-act="skipTape">SKIP TAPE</button>
+    <div class="skip">SPACE / CLICK: next line &middot; ESC: skip tape</div>
+  </div>
+</div>
+<div id="debug"></div>
+<div id="fid"><div class="grid"></div><div class="anch" id="fidAnchors"></div><div class="ctrl"><label>Load reference <input type="file" id="fidFile" accept="image/*"></label><br><label>Opacity <input type="range" id="fidOpacity" min="0" max="100" value="50"></label><label><input type="checkbox" id="fidSplit"> split</label></div></div>
+<pre id="fatal"></pre>
+<pre id="report"></pre>
+<script>
+// Boot guard: a separate script block, so it still reports when the main block fails to parse.
+window.__BOOT_ERRORS__ = [];
+window.addEventListener('error', function (e) {
+  var msg = (e.message || 'error') + ' @ line ' + (e.lineno || '?');
+  window.__BOOT_ERRORS__.push(msg);
+  var el = document.getElementById('fatal');
+  el.style.display = 'block';
+  el.textContent += msg + '\n';
+});
+</script>
+<!--@@SCRIPTS@@-->
+</body>
+</html>
