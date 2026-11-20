@@ -214,6 +214,13 @@ uniform float uScatteringAnisotropy;
 uniform float uMaxRayDistance;
 uniform float uLightScatteringBoost;
 
+// Localised toxic gas volume (soft-edged box) with its own scattering albedo.
+uniform vec3 uToxicMinimum;
+uniform vec3 uToxicMaximum;
+uniform float uToxicDensity;
+uniform vec3 uToxicAlbedo;
+uniform vec3 uToxicEmission;
+
 out vec4 outColor;
 
 const float PI = 3.14159265359;
@@ -239,6 +246,18 @@ float sampleFogDensity(vec3 worldPosition) {
   return max(uFogDensity * heightTerm * noiseTerm, 0.0);
 }
 
+float sampleToxicDensity(vec3 worldPosition) {
+  if (uToxicDensity <= 0.0) {
+    return 0.0;
+  }
+  vec3 outside = max(max(uToxicMinimum - worldPosition, worldPosition - uToxicMaximum), vec3(0.0));
+  float edgeFalloff = 1.0 - smoothstep(0.0, 1.4, length(outside));
+  float heightBias = 1.0 - smoothstep(uToxicMinimum.y, uToxicMaximum.y, worldPosition.y) * 0.65;
+  vec3 noiseCoordinate = worldPosition * 0.6 + vec3(0.0, uTime * 0.35, uTime * 0.12);
+  float churn = valueNoise3D(noiseCoordinate) * 0.7 + valueNoise3D(noiseCoordinate * 2.3) * 0.3;
+  return uToxicDensity * edgeFalloff * heightBias * (0.45 + churn * 1.1);
+}
+
 void main() {
   float depthSample = texture(uSceneDepth, vUv).r;
   vec3 worldPosition = reconstructWorldPosition(vUv, depthSample);
@@ -254,10 +273,14 @@ void main() {
   for (int stepIndex = 0; stepIndex < FOG_STEPS; stepIndex++) {
     float travel = (float(stepIndex) + jitter) * stepLength;
     vec3 samplePosition = uCameraPosition + rayDirection * travel;
-    float density = sampleFogDensity(samplePosition);
+    float baseDensity = sampleFogDensity(samplePosition);
+    float toxicDensity = sampleToxicDensity(samplePosition);
+    float density = baseDensity + toxicDensity;
     if (density < 1e-5) {
       continue;
     }
+    float toxicFraction = toxicDensity / density;
+    vec3 sampleAlbedo = mix(uFogAlbedo, uToxicAlbedo, toxicFraction);
     vec3 lighting = uFogAmbientColor;
     for (int lightIndex = 0; lightIndex < MAX_LIGHTS; lightIndex++) {
       if (lightIndex >= uLightCount) {
@@ -274,7 +297,7 @@ void main() {
       lighting += uLightColors[lightIndex] * attenuation * phase * 4.0 * PI * uLightScatteringBoost;
     }
     vec3 extinction = vec3(density);
-    vec3 scattering = density * uFogAlbedo * lighting;
+    vec3 scattering = density * sampleAlbedo * lighting + toxicDensity * uToxicEmission;
     vec3 sampleTransmittance = exp(-extinction * stepLength);
     // Energy-conserving analytic integration of scattering across the step (Hillaire 2015).
     inScattered += transmittance * (scattering - scattering * sampleTransmittance) / max(extinction, vec3(1e-5));

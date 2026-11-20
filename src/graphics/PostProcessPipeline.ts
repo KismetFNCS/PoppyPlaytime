@@ -18,6 +18,17 @@ export interface VolumetricFogParameters {
   scatteringAnisotropy: number;
   maxRayDistance: number;
   lightScatteringBoost: number;
+  toxicVolume: ToxicFogVolume;
+}
+
+export interface ToxicFogVolume {
+  minimum: Vec3;
+  maximum: Vec3;
+  /** Extinction coefficient at the core of the volume; 0 disables it. */
+  density: number;
+  albedo: Vec3;
+  /** Self-glow added per unit density so the gas reads even in darkness. */
+  emission: Vec3;
 }
 
 export interface CrtVhsParameters {
@@ -56,6 +67,7 @@ export function createDefaultPostProcessParameters(): PostProcessParameters {
       scatteringAnisotropy: 0.45,
       maxRayDistance: 42,
       lightScatteringBoost: 0.32,
+      toxicVolume: { minimum: [0, 0, 0], maximum: [0, 0, 0], density: 0, albedo: [0.45, 1, 0.3], emission: [0.006, 0.02, 0.004] },
     },
     crt: {
       exposure: 1.15,
@@ -159,6 +171,12 @@ export class PostProcessPipeline {
     program.setFloat('uScatteringAnisotropy', fog.scatteringAnisotropy);
     program.setFloat('uMaxRayDistance', fog.maxRayDistance);
     program.setFloat('uLightScatteringBoost', fog.lightScatteringBoost);
+    const toxic: ToxicFogVolume = fog.toxicVolume;
+    program.setVec3('uToxicMinimum', toxic.minimum[0], toxic.minimum[1], toxic.minimum[2]);
+    program.setVec3('uToxicMaximum', toxic.maximum[0], toxic.maximum[1], toxic.maximum[2]);
+    program.setFloat('uToxicDensity', toxic.density);
+    program.setVec3('uToxicAlbedo', toxic.albedo[0], toxic.albedo[1], toxic.albedo[2]);
+    program.setVec3('uToxicEmission', toxic.emission[0], toxic.emission[1], toxic.emission[2]);
     program.setInt('uLightCount', lights.count);
     program.setVec3Array('uLightPositions', lights.positions);
     program.setVec3Array('uLightColors', lights.colors);

@@ -23,13 +23,22 @@ export class InputManager {
   private accumulatedMouseDeltaY: number = 0;
   private accumulatedWheel: number = 0;
   private anyGesture: boolean = false;
+  private readonly mouseButtonsHeld: Set<number> = new Set();
+  private readonly mouseButtonsPressed: Set<number> = new Set();
+  private readonly mouseButtonsReleased: Set<number> = new Set();
   private readonly abortController: AbortController = new AbortController();
 
   public constructor(private readonly canvas: HTMLCanvasElement) {
     const signal: AbortSignal = this.abortController.signal;
     window.addEventListener('keydown', (event: KeyboardEvent) => this.onKeyDown(event), { signal });
     window.addEventListener('keyup', (event: KeyboardEvent) => this.onKeyUp(event), { signal });
-    window.addEventListener('blur', () => this.keysHeld.clear(), { signal });
+    window.addEventListener('blur', () => {
+      this.keysHeld.clear();
+      for (const button of this.mouseButtonsHeld) {
+        this.mouseButtonsReleased.add(button);
+      }
+      this.mouseButtonsHeld.clear();
+    }, { signal });
     canvas.addEventListener('pointermove', (event: PointerEvent) => this.onPointerMove(event), { signal });
     canvas.addEventListener('pointerdown', (event: PointerEvent) => this.onPointerDown(event), { signal });
     window.addEventListener('pointerup', (event: PointerEvent) => this.onPointerUp(event), { signal });
@@ -78,6 +87,10 @@ export class InputManager {
       this.primaryHeld = true;
       this.primaryPressed = true;
     }
+    if (!this.mouseButtonsHeld.has(event.button)) {
+      this.mouseButtonsPressed.add(event.button);
+    }
+    this.mouseButtonsHeld.add(event.button);
     this.anyGesture = true;
   }
 
@@ -85,6 +98,9 @@ export class InputManager {
     if (event.button === 0 && this.primaryHeld) {
       this.primaryHeld = false;
       this.primaryReleased = true;
+    }
+    if (this.mouseButtonsHeld.delete(event.button)) {
+      this.mouseButtonsReleased.add(event.button);
     }
   }
 
@@ -98,6 +114,23 @@ export class InputManager {
 
   public wasAnyKeyPressed(codes: readonly string[]): boolean {
     return codes.some((code: string) => this.keysPressed.has(code));
+  }
+
+  /** 0 = primary (left), 1 = middle, 2 = secondary (right). */
+  public isMouseButtonHeld(button: number): boolean {
+    return this.mouseButtonsHeld.has(button);
+  }
+
+  public wasMouseButtonPressed(button: number): boolean {
+    return this.mouseButtonsPressed.has(button);
+  }
+
+  public wasMouseButtonReleased(button: number): boolean {
+    return this.mouseButtonsReleased.has(button);
+  }
+
+  public wasKeyReleased(code: string): boolean {
+    return this.keysReleased.has(code);
   }
 
   public get anyGestureThisFrame(): boolean {
@@ -154,6 +187,8 @@ export class InputManager {
     this.keysReleased.clear();
     this.primaryPressed = false;
     this.primaryReleased = false;
+    this.mouseButtonsPressed.clear();
+    this.mouseButtonsReleased.clear();
     this.pointerMoved = false;
     this.accumulatedWheel = 0;
     this.anyGesture = false;

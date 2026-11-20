@@ -1,6 +1,6 @@
 import { LIGHT_PALETTE, UI_COLORS, UI_FONTS, VIRTUAL_RESOLUTION } from '../config/GameConstants';
 import type { GameServices } from '../core/GameServices';
-import type { FrameContext, FrameRenderRequest, GameStateHandler, GameStatePayloadMap } from '../core/GameStateTypes';
+import type { DeathCause, FrameContext, FrameRenderRequest, GameStateHandler, GameStatePayloadMap } from '../core/GameStateTypes';
 import { GameStateId } from '../core/GameStateTypes';
 import type { SaveCheckpoint } from '../core/PersistentStores';
 import type { PointLight } from '../graphics/LightingSystem';
@@ -18,6 +18,11 @@ const LUNGE_END: number = 0.28;
 const HOLD_END: number = 1.35;
 const BLACKOUT_END: number = 2.4;
 const DEATH_ENVIRONMENT: SceneEnvironment = { ambientColor: [0.03, 0.006, 0.006], clearColor: [0, 0, 0] };
+const DEATH_HEADLINES: Readonly<Record<DeathCause, string>> = {
+  entity: 'YOUR SHIFT IS OVER',
+  fall: 'LOST TO THE FOUNDATIONS',
+  toxicity: 'THE AIR TOOK YOU',
+};
 
 /**
  * Jumpscare / Death sequence: the entity lunges into a close-up under a strobing red light with screen
@@ -32,6 +37,7 @@ export class JumpscareDeathSequenceState implements GameStateHandler<GameStateId
   private checkpoint: SaveCheckpoint | null = null;
   private survivedSeconds: number = 0;
   private depthMeters: number = 0;
+  private cause: DeathCause = 'entity';
   private pendingChoice: 'retry' | 'title' | null = null;
   private readonly focusGroup: UIFocusGroup;
 
@@ -57,6 +63,7 @@ export class JumpscareDeathSequenceState implements GameStateHandler<GameStateId
     this.checkpoint = payload.checkpoint;
     this.survivedSeconds = payload.survivedSeconds;
     this.depthMeters = payload.depthMeters;
+    this.cause = payload.cause;
     const jester = new JesterEntity(services.meshes);
     jester.mode = 'lunging';
     jester.headTwitchStrength = 1.2;
@@ -79,7 +86,19 @@ export class JumpscareDeathSequenceState implements GameStateHandler<GameStateId
     camera.rollRadians = 0;
     services.audio.stopAmbientDrone(0.05);
     services.audio.setDreadLevel(0);
-    services.audio.playJumpscare();
+    services.audio.setMaskAudioMix(0);
+    if (this.cause === 'entity') {
+      services.audio.playJumpscare();
+    } else {
+      // Non-entity deaths skip the lunge and cut straight to the blackout.
+      this.elapsed = HOLD_END;
+      this.phase = 'blackout';
+      if (this.cause === 'toxicity') {
+        services.audio.playChoke();
+      } else {
+        services.audio.playImpactThud(1);
+      }
+    }
     this.focusGroup.focusedIndex = 0;
     this.focusGroup.resetInteraction();
   }
@@ -155,7 +174,7 @@ export class JumpscareDeathSequenceState implements GameStateHandler<GameStateId
       context.fillStyle = UI_COLORS.accentRed;
       context.shadowColor = UI_COLORS.accentRedGlow;
       context.shadowBlur = 30;
-      context.fillText('YOUR SHIFT IS OVER', centerX + Math.sin(frame.elapsedSeconds * 40) * (reveal < 1 ? 6 : 0), 420);
+      context.fillText(DEATH_HEADLINES[this.cause], centerX + Math.sin(frame.elapsedSeconds * 40) * (reveal < 1 ? 6 : 0), 420);
       context.shadowBlur = 0;
       context.font = UI_FONTS.chapter;
       context.fillStyle = UI_COLORS.textPrimary;

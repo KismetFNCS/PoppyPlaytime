@@ -208,3 +208,31 @@ export function mat4TransformDirection(matrix: Mat4, direction: Readonly<Vec3>):
     (matrix[2] as number) * x + (matrix[6] as number) * y + (matrix[10] as number) * z,
   ];
 }
+
+/**
+ * Builds a transform whose columns are the given (not necessarily unit) basis axes and translation:
+ * world = origin + xAxis * local.x + yAxis * local.y + zAxis * local.z.
+ */
+export function mat4FromBasis(origin: Readonly<Vec3>, xAxis: Readonly<Vec3>, yAxis: Readonly<Vec3>, zAxis: Readonly<Vec3>): Mat4 {
+  return new Float32Array([
+    xAxis[0], xAxis[1], xAxis[2], 0,
+    yAxis[0], yAxis[1], yAxis[2], 0,
+    zAxis[0], zAxis[1], zAxis[2], 0,
+    origin[0], origin[1], origin[2], 1,
+  ]);
+}
+
+/**
+ * Orthonormal basis whose +Z points along `forward`, using `upHint` to resolve roll.
+ * Falls back to world +X as the hint when `forward` is (anti)parallel to `upHint`.
+ */
+export function orthonormalBasisFromForward(forward: Readonly<Vec3>, upHint: Readonly<Vec3> = [0, 1, 0]): [Vec3, Vec3, Vec3] {
+  const zAxis: Vec3 = vec3Normalize(forward);
+  let hint: Readonly<Vec3> = upHint;
+  if (Math.abs(zAxis[0] * hint[0] + zAxis[1] * hint[1] + zAxis[2] * hint[2]) > 0.995) {
+    hint = [1, 0, 0];
+  }
+  const xAxis: Vec3 = vec3Normalize(vec3Cross(hint, zAxis));
+  const yAxis: Vec3 = vec3Cross(zAxis, xAxis);
+  return [xAxis, yAxis, zAxis];
+}

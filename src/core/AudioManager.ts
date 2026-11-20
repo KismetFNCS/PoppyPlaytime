@@ -21,6 +21,12 @@ export class AudioManager {
   private ambient: AmbientDroneNodes | null = null;
   private masterVolume: number = 0.7;
   private heartbeatAccumulator: number = 0;
+  /** Ambient bed routing: drone → muffle (lowpass) → duck (gain) → master. */
+  private ambientMuffle: BiquadFilterNode | null = null;
+  private ambientDuck: GainNode | null = null;
+  /** Separate bus for the mask's breathing track; its gain follows mask coverage. */
+  private breathingBus: GainNode | null = null;
+  private maskMix: number = 0;
 
   public get isUnlocked(): boolean {
     return this.context !== null && this.context.state === 'running';
@@ -38,6 +44,15 @@ export class AudioManager {
       this.masterGain.gain.value = this.masterVolume;
       this.masterGain.connect(this.context.destination);
       this.noiseBuffer = this.createNoiseBuffer(this.context, 2);
+      this.ambientMuffle = this.context.createBiquadFilter();
+      this.ambientMuffle.type = 'lowpass';
+      this.ambientMuffle.frequency.value = 18000;
+      this.ambientDuck = this.context.createGain();
+      this.ambientDuck.gain.value = 1;
+      this.ambientMuffle.connect(this.ambientDuck).connect(this.masterGain);
+      this.breathingBus = this.context.createGain();
+      this.breathingBus.gain.value = 0;
+      this.breathingBus.connect(this.masterGain);
     }
     if (this.context.state === 'suspended') {
       void this.context.resume();
@@ -154,7 +169,7 @@ export class AudioManager {
     noiseGain.gain.value = 0.25;
     noiseSource.connect(noiseGain).connect(filter);
     noiseSource.start(now);
-    filter.connect(gain).connect(this.masterGain);
+    filter.connect(gain).connect(this.ambientMuffle ?? this.masterGain);
     lfo.start(now);
     this.ambient = { oscillators, noiseSource, gain, filter, lfo };
   }
@@ -223,6 +238,133 @@ export class AudioManager {
   public playCheckpointChime(): void {
     this.playTone(523.25, 0.6, 'triangle', 0.05);
     window.setTimeout(() => this.playTone(392, 0.8, 'triangle', 0.045), 180);
+  }
+
+  // ---- Gas mask audio track -----------------------------------------------------------------------------------
+
+  /**
+   * Crossfades the soundscape for mask coverage c ∈ [0,1]:
+   *   ambient duck gain = 1 − 0.8c,  ambient lowpass cutoff = 18 kHz · (500/18000)^c  (exponential sweep),
+   *   breathing bus gain = c.
+   */
+  public setMaskAudioMix(coverage: number): void {
+    const mix: number = clamp(coverage, 0, 1);
+    this.maskMix = mix;
+    if (this.context === null || this.ambientDuck === null || this.ambientMuffle === null || this.breathingBus === null) {
+      return;
+    }
+    const now: number = this.context.currentTime;
+    this.ambientDuck.gain.setTargetAtTime(1 - 0.8 * mix, now, 0.05);
+    this.ambientMuffle.frequency.setTargetAtTime(18000 * Math.pow(500 / 18000, mix), now, 0.05);
+    this.breathingBus.gain.setTargetAtTime(mix, now, 0.05);
+  }
+
+  private scheduleBreathNoise(startTime: number, durationSeconds: number, centerFrequency: number, quality: number, peakGain: number, attackFraction: number): void {
+    if (this.context === null || this.breathingBus === null || this.noiseBuffer === null) {
+      return;
+    }
+    const source: AudioBufferSourceNode = this.context.createBufferSource();
+    source.buffer = this.noiseBuffer;
+    const bandpass: BiquadFilterNode = this.context.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(centerFrequency * 0.85, startTime);
+    bandpass.frequency.linearRampToValueAtTime(centerFrequency * 1.1, startTime + durationSeconds);
+    bandpass.Q.value = quality;
+    const envelope: GainNode = this.context.createGain();
+    envelope.gain.setValueAtTime(0.0001, startTime);
+    envelope.gain.linearRampToValueAtTime(peakGain, startTime + durationSeconds * attackFraction);
+    envelope.gain.linearRampToValueAtTime(peakGain * 0.7, startTime + durationSeconds * 0.75);
+    envelope.gain.linearRampToValueAtTime(0.0001, startTime + durationSeconds);
+    source.connect(bandpass).connect(envelope).connect(this.breathingBus);
+    source.start(startTime, Math.random() * 1.2);
+    source.stop(startTime + durationSeconds + 0.05);
+  }
+
+  private scheduleValveClick(startTime: number, frequency: number, gain: number): void {
+    if (this.context === null || this.breathingBus === null) {
+      return;
+    }
+    const oscillator: OscillatorNode = this.context.createOscillator();
+    const envelope: GainNode = this.context.createGain();
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(frequency, startTime);
+    envelope.gain.setValueAtTime(gain, startTime);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.035);
+    oscillator.connect(envelope).connect(this.breathingBus);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + 0.05);
+  }
+
+  /**
+   * Schedules one full mechanical breath on the breathing bus:
+   *   inhale: [0, 0.42·T) — bandpassed hiss ~1.15 kHz through the filter cartridge, inlet valve click at start
+   *   exhale: [0.42·T, T) — lower ~650 Hz rush, outlet flap click at start
+   *   strain (clogged filter / exposure) adds a narrow 2.4 kHz whistle to the inhale.
+   */
+  public playBreathCycle(cycleSeconds: number, strain: number): void {
+    if (this.context === null || this.maskMix <= 0.01) {
+      return;
+    }
+    const now: number = this.context.currentTime + 0.01;
+    const inhaleSeconds: number = cycleSeconds * 0.42;
+    const exhaleSeconds: number = cycleSeconds * 0.58;
+    this.scheduleValveClick(now, 180, 0.05);
+    this.scheduleBreathNoise(now, inhaleSeconds, 1150, 1.4, 0.32, 0.55);
+    if (strain > 0.05) {
+      this.scheduleBreathNoise(now, inhaleSeconds, 2400, 18, 0.12 * clamp(strain, 0, 1), 0.7);
+    }
+    this.scheduleValveClick(now + inhaleSeconds, 120, 0.07);
+    this.scheduleBreathNoise(now + inhaleSeconds, exhaleSeconds * 0.85, 650, 0.9, 0.42, 0.2);
+  }
+
+  public playMaskSeal(equipping: boolean): void {
+    this.playNoiseBurst(equipping ? 0.35 : 0.25, equipping ? 3200 : 1800, 'bandpass', 0.18);
+    this.playTone(equipping ? 160 : 220, 0.12, 'triangle', 0.05, equipping ? 90 : 300);
+  }
+
+  /** Survival meter tick: pitch climbs with exposure so the danger is audible without looking. */
+  public playMeterTick(exposure: number): void {
+    this.playTone(900 + clamp(exposure, 0, 1) * 1400, 0.035, 'square', 0.035 + exposure * 0.03);
+  }
+
+  public playTetherFire(): void {
+    this.playNoiseBurst(0.12, 2600, 'highpass', 0.16);
+    this.playTone(520, 0.18, 'sawtooth', 0.05, 180);
+  }
+
+  public playTetherLatch(): void {
+    this.playTone(140, 0.12, 'square', 0.08, 70);
+    this.playNoiseBurst(0.08, 900, 'bandpass', 0.2);
+  }
+
+  public playTetherClank(): void {
+    this.playTone(1800, 0.09, 'triangle', 0.06, 1400);
+    this.playNoiseBurst(0.05, 5000, 'highpass', 0.12);
+  }
+
+  public playTetherRetract(): void {
+    this.playTone(240, 0.22, 'sawtooth', 0.035, 700);
+  }
+
+  public playRelayAccepted(): void {
+    this.playTone(392, 0.18, 'triangle', 0.06);
+    window.setTimeout(() => this.playTone(587.33, 0.35, 'triangle', 0.06), 120);
+    this.playNoiseBurst(0.6, 120, 'lowpass', 0.25);
+  }
+
+  public playRelayRejected(): void {
+    this.playTone(110, 0.25, 'square', 0.07);
+    this.playTone(116, 0.25, 'square', 0.07);
+  }
+
+  public playChoke(): void {
+    this.playNoiseBurst(1.2, 700, 'bandpass', 0.5);
+    this.playTone(180, 0.9, 'sawtooth', 0.06, 60);
+  }
+
+  public playImpactThud(intensity: number): void {
+    this.playNoiseBurst(0.18, 260, 'lowpass', 0.25 + clamp(intensity, 0, 1) * 0.5);
+    this.playTone(55, 0.2, 'sine', 0.1 + clamp(intensity, 0, 1) * 0.15, 35);
   }
 
   public dispose(): void {

@@ -147,6 +147,111 @@ function buildFoundationRebar(): MeshData {
   return builder.build();
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Tether Rig, relay plates, anchors and gates. Local +Z is the "facing" axis (claw travel, launcher aim, plate normal).
+// ---------------------------------------------------------------------------------------------------------------------
+
+const CLAW_TALON_COUNT: number = 3;
+
+/** Magnetic claw: hexagonal puck with three hooked talons spaced 120 degrees apart around the travel axis. */
+function buildTetherClawShell(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.085, 0.07, 0.09, 6), [0, 0, -0.02], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  place(builder, createCylinderMesh(0.03, 0.03, 0.08, 8), [0, 0, -0.1], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  for (let talon = 0; talon < CLAW_TALON_COUNT; talon += 1) {
+    const angle: number = (talon / CLAW_TALON_COUNT) * Math.PI * 2;
+    const radialX: number = Math.cos(angle);
+    const radialY: number = Math.sin(angle);
+    // Base segment: leans outward 35 degrees from the travel axis.
+    const baseCenter: [number, number, number] = [radialX * 0.085, radialY * 0.085, 0.07];
+    const outwardTilt = 0.6;
+    place(builder, createCylinderMesh(0.018, 0.014, 0.12, 6), baseCenter, [Math.PI / 2 - radialY * outwardTilt, 0, radialX * outwardTilt], [1, 1, 1]);
+    // Hook segment: bends back toward the axis, ending in a point.
+    const hookCenter: [number, number, number] = [radialX * 0.1, radialY * 0.1, 0.14];
+    place(builder, createCylinderMesh(0.014, 0.0, 0.08, 6), hookCenter, [Math.PI / 2 + radialY * 0.9, 0, -radialX * 0.9], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
+function buildTetherClawCore(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createSphereMesh(0.032, 12, 8), [0, 0, 0.035], [0, 0, 0], [1, 1, 0.7]);
+  return builder.build();
+}
+
+/** Wrist launcher: the barrel tip sits at the local origin; the housing extends back along -Z. */
+function buildTetherLauncherBody(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createBoxMesh(0.11, 0.1, 0.34, 2), [0, -0.01, -0.21], [0, 0, 0], [1, 1, 1]);
+  place(builder, createCylinderMesh(0.058, 0.052, 0.1, 12), [0, 0, -0.04], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  for (let coil = 0; coil < 3; coil += 1) {
+    place(builder, createCylinderMesh(0.066, 0.066, 0.018, 12), [0, -0.01, -0.12 - coil * 0.06], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  }
+  place(builder, createBoxMesh(0.03, 0.05, 0.16, 2), [0, 0.07, -0.24], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** Relay plate frame: wall-mounted housing; local +Z is the plate's outward normal. */
+function buildRelayPlateFrame(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createBoxMesh(0.72, 0.92, 0.05, 1), [0, 0, 0.025], [0, 0, 0], [1, 1, 1]);
+  const railThickness = 0.05;
+  place(builder, createBoxMesh(0.72, railThickness, 0.09), [0, 0.46 - railThickness / 2, 0.045], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(0.72, railThickness, 0.09), [0, -0.46 + railThickness / 2, 0.045], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(railThickness, 0.92, 0.09), [0.36 - railThickness / 2, 0, 0.045], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(railThickness, 0.92, 0.09), [-0.36 + railThickness / 2, 0, 0.045], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** Relay plate core: polarity disc with three radial contact bars matching the claw's talon layout. */
+function buildRelayPlateCore(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.2, 0.2, 0.025, 24), [0, 0.05, 0.065], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  for (let bar = 0; bar < CLAW_TALON_COUNT; bar += 1) {
+    const angle: number = (bar / CLAW_TALON_COUNT) * Math.PI * 2 + Math.PI / 2;
+    place(builder, createBoxMesh(0.03, 0.12, 0.02), [Math.cos(angle) * 0.27, 0.05 + Math.sin(angle) * 0.27, 0.06], [0, 0, angle - Math.PI / 2], [1, 1, 1]);
+  }
+  place(builder, createBoxMesh(0.4, 0.05, 0.02), [0, -0.33, 0.06], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** Ceiling swing anchor: a ring of short cylinders hanging from a mounting rod; origin at ring centre. */
+function buildCeilingAnchorRing(): MeshData {
+  const builder = new MeshBuilder();
+  const ringRadius = 0.22;
+  const ringSegments = 14;
+  const segmentLength: number = 2 * ringRadius * Math.sin(Math.PI / ringSegments) * 1.08;
+  for (let segment = 0; segment < ringSegments; segment += 1) {
+    const angle: number = ((segment + 0.5) / ringSegments) * Math.PI * 2;
+    place(builder, createCylinderMesh(0.028, 0.028, segmentLength, 6), [Math.cos(angle) * ringRadius, Math.sin(angle) * ringRadius, 0], [0, 0, angle], [1, 1, 1]);
+  }
+  place(builder, createCylinderMesh(0.035, 0.035, 0.6, 8), [0, ringRadius + 0.3, 0], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(0.4, 0.06, 0.4), [0, ringRadius + 0.62, 0], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+function buildCeilingAnchorBeacon(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createSphereMesh(0.045, 10, 8), [0, 0.22 + 0.14, 0.05], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** Ribbed blast gate filling the corridor cross-section; origin at bottom centre. */
+function buildBlastGatePanel(): MeshData {
+  const builder = new MeshBuilder();
+  const width = 6;
+  const height = 4.6;
+  place(builder, createBoxMesh(width, height, 0.24, 0.5), [0, height / 2, 0], [0, 0, 0], [1, 1, 1]);
+  for (let rib = 0; rib < 7; rib += 1) {
+    place(builder, createBoxMesh(width, 0.14, 0.38, 0.5), [0, 0.35 + rib * 0.65, 0], [0, 0, 0], [1, 1, 1]);
+  }
+  // Hazard chevrons as raised diagonal bars across the lower section.
+  for (let chevron = -4; chevron <= 4; chevron += 1) {
+    place(builder, createBoxMesh(0.18, 1.1, 0.3, 0.5), [chevron * 0.7, 0.75, 0], [0, 0, 0.6], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
 export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, () => MeshData>> = {
   jester_body: buildJesterBody,
   jester_head: buildJesterHead,
@@ -156,6 +261,14 @@ export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, 
   gas_mask_filter: buildGasMaskFilter,
   foundation_slabs: buildFoundationSlabs,
   foundation_rebar: buildFoundationRebar,
+  tether_claw_shell: buildTetherClawShell,
+  tether_claw_core: buildTetherClawCore,
+  tether_launcher_body: buildTetherLauncherBody,
+  relay_plate_frame: buildRelayPlateFrame,
+  relay_plate_core: buildRelayPlateCore,
+  ceiling_anchor_ring: buildCeilingAnchorRing,
+  ceiling_anchor_beacon: buildCeilingAnchorBeacon,
+  blast_gate_panel: buildBlastGatePanel,
 };
 
 /** Approximate collision footprint (half-extents on X/Z) of the foundation heap, used by the level streamer. */

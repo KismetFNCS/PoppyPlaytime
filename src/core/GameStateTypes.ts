@@ -11,6 +11,7 @@ export enum GameStateId {
 
 export type TitleEntryReason = 'boot' | 'returnFromSettings' | 'returnFromLevel' | 'returnFromDeath';
 export type LevelEntryMode = 'newGame' | 'continue' | 'retry';
+export type DeathCause = 'entity' | 'fall' | 'toxicity';
 
 /** Strongly typed payload delivered to each state's `enter`. */
 export interface GameStatePayloadMap {
@@ -18,7 +19,12 @@ export interface GameStatePayloadMap {
   [GameStateId.TitleScreen]: { readonly reason: TitleEntryReason };
   [GameStateId.SettingsMenu]: { readonly returnTo: GameStateId.TitleScreen };
   [GameStateId.ActiveLevelStreamer]: { readonly mode: LevelEntryMode; readonly checkpoint: SaveCheckpoint };
-  [GameStateId.JumpscareDeathSequence]: { readonly checkpoint: SaveCheckpoint; readonly survivedSeconds: number; readonly depthMeters: number };
+  [GameStateId.JumpscareDeathSequence]: {
+    readonly checkpoint: SaveCheckpoint;
+    readonly survivedSeconds: number;
+    readonly depthMeters: number;
+    readonly cause: DeathCause;
+  };
 }
 
 /** Rigid transition graph: any request outside this table is rejected and logged. */

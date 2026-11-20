@@ -133,19 +133,32 @@ export class SettingsStore {
 // Save data
 // ---------------------------------------------------------------------------------------------------------------------
 
+export interface SaveInventory {
+  readonly hasGasMask: boolean;
+}
+
 export interface SaveCheckpoint {
-  readonly version: 1;
+  readonly version: 2;
   /** Index of the corridor chunk the player respawns at. */
   readonly checkpointChunkIndex: number;
   /** Deepest chunk index ever reached on this save. */
   readonly deepestChunkIndex: number;
   readonly playTimeSeconds: number;
   readonly deathCount: number;
+  readonly inventory: SaveInventory;
   readonly savedAtIso: string;
 }
 
 export function createFreshCheckpoint(): SaveCheckpoint {
-  return { version: 1, checkpointChunkIndex: 0, deepestChunkIndex: 0, playTimeSeconds: 0, deathCount: 0, savedAtIso: new Date().toISOString() };
+  return {
+    version: 2,
+    checkpointChunkIndex: 0,
+    deepestChunkIndex: 0,
+    playTimeSeconds: 0,
+    deathCount: 0,
+    inventory: { hasGasMask: false },
+    savedAtIso: new Date().toISOString(),
+  };
 }
 
 export class SaveSystem {
@@ -160,8 +173,9 @@ export class SaveSystem {
         return null;
       }
       const record = parsed as Record<string, unknown>;
+      // Version 1 saves predate the inventory block; they migrate with an empty inventory.
       if (
-        record['version'] !== 1 ||
+        (record['version'] !== 1 && record['version'] !== 2) ||
         typeof record['checkpointChunkIndex'] !== 'number' ||
         typeof record['deepestChunkIndex'] !== 'number' ||
         typeof record['playTimeSeconds'] !== 'number' ||
@@ -170,12 +184,16 @@ export class SaveSystem {
       ) {
         return null;
       }
+      const rawInventory: unknown = record['inventory'];
+      const hasGasMask: boolean =
+        typeof rawInventory === 'object' && rawInventory !== null && (rawInventory as Record<string, unknown>)['hasGasMask'] === true;
       return {
-        version: 1,
+        version: 2,
         checkpointChunkIndex: Math.max(0, Math.floor(record['checkpointChunkIndex'])),
         deepestChunkIndex: Math.max(0, Math.floor(record['deepestChunkIndex'])),
         playTimeSeconds: Math.max(0, record['playTimeSeconds']),
         deathCount: Math.max(0, Math.floor(record['deathCount'])),
+        inventory: { hasGasMask },
         savedAtIso: record['savedAtIso'],
       };
     } catch {
