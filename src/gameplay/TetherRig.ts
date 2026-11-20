@@ -67,7 +67,7 @@ export const DEFAULT_TETHER_RIG_TUNING: TetherRigTuning = {
   maximumStretch: 0.22,
   reelSpeed: 3.2,
   minimumRopeLength: 1.2,
-  latchRestLengthFactor: 0.94,
+  latchRestLengthFactor: 0.97,
   swingPumpAcceleration: 3.2,
   cableSegmentCount: 12,
   cableSagPerSlackMeter: 0.35,

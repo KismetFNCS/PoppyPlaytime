@@ -143,6 +143,8 @@ export function archetypeForChunk(chunkIndex: number): ChunkArchetype {
 /** Gap in the floor of a foundation chasm, measured from the chunk start along -Z. */
 const CHASM_GAP_START_OFFSET: number = 3.5;
 const CHASM_GAP_END_OFFSET: number = 8.5;
+/** Anchor sits 70% of the way across the gap so a swing from the near lip carries past the far lip. */
+const CHASM_ANCHOR_GAP_FRACTION: number = 0.7;
 const CRAWL_CLEARANCE_HEIGHT: number = 1.25;
 const CRAWL_HALF_LENGTH: number = 2.5;
 const GATE_THICKNESS: number = 0.4;
@@ -331,7 +333,7 @@ export class LevelChunkBuilder {
       }
       case 'foundationChasm': {
         const anchorId: string = `anchor.${chunkIndex}`;
-        const anchorCenter: Vec3 = [0, height - 0.75, startZ - (CHASM_GAP_START_OFFSET + CHASM_GAP_END_OFFSET) / 2];
+        const anchorCenter: Vec3 = [0, height - 0.75, startZ - (CHASM_GAP_START_OFFSET + (CHASM_GAP_END_OFFSET - CHASM_GAP_START_OFFSET) * CHASM_ANCHOR_GAP_FRACTION)];
         anchors.push({ id: anchorId, modelMatrix: mat4Compose(anchorCenter, [0, Math.PI / 2, 0], [1, 1, 1]) });
         targets.push({
           id: anchorId,
