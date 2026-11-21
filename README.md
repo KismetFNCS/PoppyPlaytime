@@ -39,9 +39,10 @@ staggers it for a moment; a *charged* hit (your other hand tethered to a live no
 and a stalker then slinks back into the vents. Only in the Loom boss fight can it actually be beaten.
 
 Route: Intake Lift → Reclamation Hall (circuit puzzle 1, a found tape) → Pressure Gallery (you meet Mister
-Thimble, who comes along; the Spoolwright stalks the ducts and hunts by sound; a steam lever and circuit
-puzzle 2) → Spool Foundry (the Spoolwright ambushes you both, then the chase: Thimble's overloaded socket or the
-high shutter lever) → Freight Lift → the Loom (boss fight).
+Thimble, who comes along; something only rattles through the ducts overhead and taunts you over the PA; a
+steam lever and circuit puzzle 2) → Spool Foundry (the Spoolwright is finally revealed when it drops in on you
+both, then the chase: Thimble's overloaded socket or the high shutter lever) → Freight Lift → the Loom (boss
+fight). It is not in the menu or the early levels: it is the chapter's later boss.
 
 ## Cast
 
@@ -167,8 +168,10 @@ node tools/run_game.cjs index.html shots
     with per-character pitch-modulated voice blips, and tracking tears.
 18. **Settings:** FOV 90–100 (Hor+), X/Y sensitivity, invert Y, master/music/effects volume, quality tiers
     LOW/MEDIUM/HIGH/CINEMATIC AAA, VHS strength, shadows, reduced motion and hints. All persist across sessions.
-19. **Jumpscare:** an override state that locks the view onto the mask, plays a lunge, a red shock-wave,
-    heavy chromatic aberration and an un-attenuated scream, then fades into a failure card.
+19. **Jumpscare (the kill):** an override state that locks the view onto the mask. The Spoolwright lunges,
+    clamps both needle hands around your head and lifts you up to its face, throws its head back in a crackling
+    old-time-radio showman's laugh, pinches the needle fingers of one hand into a single spike, draws it back
+    and stabs: a red flash, crack and shock-wave, then a fade into the failure card.
 20. **Checkpoints:** a preallocated struct that snapshots doors, receptacles, levers, pegs, tapes, triggers,
     steam and AI mode, and is persisted (defensively parsed) for CONTINUE. Restoring clears physics, recalls
     the hands, empties the particle pools and the event queue, and resets the AI.

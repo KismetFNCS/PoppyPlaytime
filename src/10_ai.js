@@ -45,6 +45,8 @@ const Monster = {
   path: new Float32Array(400), pathLen: 0, pathIdx: 0, repathTimer: 0, pathGoal: V3.create(),
   btTimer: 0, tree: null, intent: '', time: 0, stunTimer: 0, lostTimer: 0, roarCooldown: 0, clickTimer: 0,
   hitPoint: V3.create(), head: V3.create(), chest: V3.create(), eye: V3.create(),
+  // kill animation: grab (both hands close round you), join (needle fingers pinch into one spike), stab (-1 wind-up .. 1 thrust)
+  kill: { on: false, grab: 0, join: 0, stab: 0 },
   legs: [], bodyBob: 0, lean: 0, armReach: 0, jaw: 0, headTilt: 0, flinchAmt: 0, breathe: 0,
   catchCooldown: 0, sector: -1, sightRange: 20,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
@@ -83,6 +85,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
+    this.kill.on = false; this.kill.grab = 0; this.kill.join = 0; this.kill.stab = 0;
     this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0; this.stunImmune = 0; this.retreatAfterStun = false; this.retreatTimer = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
@@ -125,6 +128,7 @@ const Monster = {
     this.setState(MSTATE.EMERGE);
   },
 
+  // (the Spoolwright no longer appears in the menu backdrop: he is revealed later in the chapter)
   setMenuPose() {
     this.reset();
     this.active = true; this.visible = true; this.inVent = false;
@@ -621,6 +625,7 @@ const Monster = {
     }
     this.submitHead(this.head, yaw + this.headTilt * 0.4, -0.15 + lean * 0.5, this.headTilt * 0.6, 1.15);
     // ---- arms: long thin machine arms ending in needle fingers ----
+    if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
     for (const side of [-1, 1]) {
       this.bodyPoint(B, side * 0.3, 2.14, -0.47);
       const reach = this.armReach;
@@ -645,7 +650,64 @@ const Monster = {
         R.seg('cone', MAT.steel, B, H, 0.011);
       }
     }
-    // ---- legs: plated femur with a copper piston, heavy knee joint, blade foot, red tendon cables ----
+    this.submitLegs();
+  },
+
+  // the kill: both hands clamp around your head, then the right hand's needle fingers pinch together into a
+  // single spike that draws back and drives forward into the camera
+  submitKillArms() {
+    const R = RenderQueue, K = this.kill, B = this.tmp, H = this.tmp2, X = this.tmp3, L = _mh.kl;
+    // where your eyes are in its local space (you are lifted up toward its face during the kill)
+    const ce = Player.cam.eye, cx = 0, cy = ce[1] - this.pos[1] - this.bodyBob, cz = -Math.hypot(ce[0] - this.pos[0], ce[2] - this.pos[2]);
+    for (const side of [-1, 1]) {
+      // hand position in local space: resting reach -> clamped beside your head -> (right) wind-up / thrust
+      let hx = side * 0.75, hy = cy - 0.3, hz = cz + 0.6;
+      const gx = side * 0.36, gy = cy + 0.16, gz = cz + 0.5;
+      hx += (gx - hx) * K.grab; hy += (gy - hy) * K.grab; hz += (gz - hz) * K.grab;
+      if (side > 0 && K.stab < 0) { const w = -K.stab; hx += (0.5 - hx) * w; hy += (cy + 0.32 - hy) * w; hz += (cz + 0.8 - hz) * w; }
+      if (side > 0 && K.stab > 0) { const w = K.stab; hx = 0.5 + (0.03 - 0.5) * w; hy = cy + 0.32 + (-0.3) * w; hz = cz + 0.8 + (-0.45) * w; }
+      this.bodyPoint(B, side * 0.3, 2.14, -0.47);
+      this.bodyPoint(X, hx, hy, hz);
+      this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.32, (2.14 + hy) * 0.5 - 0.15, (-0.47 + hz) * 0.5 + 0.1);
+      R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
+      R.seg('cyl', MAT.steel, B, H, 0.045);
+      V3.lerp(L.a, B, H, 0.72);
+      R.seg('cyl', MAT.clothWine, B, L.a, 0.08);
+      R.seg('cone', MAT.canvas, L.a, H, 0.085);
+      R.seg('cyl', MAT.steel, H, X, 0.035);
+      R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
+      R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.055, 0.055, 0.055);
+      // direction from the hand toward your face, and a sideways axis
+      let dx = cx - hx, dy = cy - hy, dz = cz - hz;
+      const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+      let lx = -dz, lz = dx; const ll = Math.hypot(lx, lz) || 1; lx /= ll; lz /= ll;
+      const join = side > 0 ? K.join : 0;
+      for (let f = -2; f <= 2; f++) {
+        // grabbing: fingers curl in around your head; joined: every needle meets at one spike point ahead
+        const spread = f * (1 - join);
+        const mx = hx + dx * 0.16 + lx * spread * 0.05, my = hy + dy * 0.16 + 0.07 - Math.abs(spread) * 0.015, mz = hz + dz * 0.16 + lz * spread * 0.05;
+        let tx = hx + (cx - hx) * 0.62 + lx * spread * 0.07, ty = hy + (cy - hy) * 0.62 + spread * 0.03, tz = hz + (cz - hz) * 0.62 + lz * spread * 0.07;
+        if (join > 0) { const sx = hx + dx * 0.55, sy = hy + dy * 0.55, sz = hz + dz * 0.55; tx += (sx - tx) * join; ty += (sy - ty) * join; tz += (sz - tz) * join; }
+        this.bodyPoint(L.b, mx, my, mz);
+        this.bodyPoint(L.c, tx, ty, tz);
+        R.seg('cylLow', MAT.steel, X, L.b, 0.012);
+        R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.02, 0.02, 0.02);
+        const nd = R.seg('cone', MAT.steel, L.b, L.c, 0.011 + join * 0.004);
+        if (nd && join > 0) { nd.emis[0] = 0.5 * join; nd.emis[1] = 0.42 * join; nd.emis[2] = 0.38 * join; }
+      }
+      if (side > 0 && join > 0.9) {
+        // the pinched needles glint at the tip
+        this.bodyPoint(L.c, hx + dx * 0.55, hy + dy * 0.55, hz + dz * 0.55);
+        const g = R.trs('sphereLow', MAT.screen, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.009, 0.009, 0.009, false);
+        if (g) { g.emis[0] = 1.6; g.emis[1] = 1.4; g.emis[2] = 1.2; }
+      }
+    }
+  },
+
+  // ---- legs: plated femur with a copper piston, heavy knee joint, blade foot, red tendon cables ----
+  submitLegs() {
+    const R = RenderQueue, B = this.tmp, H = this.tmp2, X = this.tmp3, yaw = this.yaw;
+    let it;
     for (const l of this.legs) {
       this.bodyPoint(this.hipW, l.hip[0], l.hip[1], l.hip[2]);
       const side = l.hip[0] < 0 ? -1 : 1;
@@ -739,6 +801,7 @@ const Monster = {
 };
 const _mh = {
   dir: V3.create(),
+  kl: { a: V3.create(), b: V3.create(), c: V3.create() },
   tapePrev: V3.create(),
   boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })(),
   groupStepping: new Uint8Array(2), spheres: [V3.create(), V3.create()], radii: new Float32Array([1.0, 0.6]), local: V3.create(), pole: V3.create(),

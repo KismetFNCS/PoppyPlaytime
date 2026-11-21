@@ -495,6 +495,55 @@ const SFX = {
     }
     Audio.noise(t, 0.8, 0.25, 3000, 'bandpass', out, 2);
   },
+  // the kill grab: a cloth whoosh and needle fingers clacking shut
+  grab(t) {
+    const out = Audio.buses.scare;
+    Audio.noise(t, 0.3, 0.45, 700, 'bandpass', out, 1.2);
+    Audio.ring(t + 0.08, [1500, 3300], 0.2, 0.18, out);
+    Audio.ring(t + 0.13, [1700, 3600], 0.2, 0.16, out);
+    Audio.tone(t, 'sawtooth', 90, 45, 0.4, 0.3, out);
+  },
+  // a theatrical old-time-radio showman's laugh: a run of "ha"s through a crackling, band-limited, overdriven
+  // radio chain, rising then tumbling down, with a little warble
+  laugh(t) {
+    const ctx = Audio.ctx, out = Audio.buses.scare;
+    const hp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter(), shaper = ctx.createWaveShaper(), g = ctx.createGain();
+    hp.type = 'highpass'; hp.frequency.value = 450; lp.type = 'lowpass'; lp.frequency.value = 3200;
+    const curve = new Float32Array(512);
+    for (let i = 0; i < 512; i++) { const x = i / 256 - 1; curve[i] = Math.tanh(x * 2.6); }
+    shaper.curve = curve; g.gain.value = 0.9;
+    hp.connect(shaper); shaper.connect(lp); lp.connect(g); g.connect(out);
+    const N = 14, span = 1.75;
+    for (let k = 0; k < N; k++) {
+      const s = t + k * (span / N) + (k > 9 ? (k - 9) * 0.02 : 0);
+      const arc = k < 4 ? k / 4 : 1 - (k - 4) / (N - 4);
+      const f0 = 150 + arc * 90 + (k % 2) * 12, dur = 0.1 + (k === N - 1 ? 0.25 : 0);
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f0 * 1.12, s); o.frequency.exponentialRampToValueAtTime(f0 * 0.86, s + dur);
+      const vib = ctx.createOscillator(), vg = ctx.createGain(); vib.frequency.value = 7; vg.gain.value = f0 * 0.03;
+      vib.connect(vg); vg.connect(o.frequency);
+      og.gain.setValueAtTime(0.0001, s); og.gain.exponentialRampToValueAtTime(0.5, s + 0.015); og.gain.exponentialRampToValueAtTime(0.0001, s + dur);
+      // "ah" vowel: two formant band-passes plus a breathy "h" onset
+      for (const [ff, q, a] of [[750, 6, 1], [1250, 8, 0.6], [2600, 10, 0.25]]) {
+        const bp = ctx.createBiquadFilter(), bg = ctx.createGain(); bp.type = 'bandpass'; bp.frequency.value = ff; bp.Q.value = q; bg.gain.value = a;
+        og.connect(bp); bp.connect(bg); bg.connect(hp);
+      }
+      o.connect(og); o.start(s); o.stop(s + dur + 0.05); vib.start(s); vib.stop(s + dur + 0.05);
+      Audio.noise(s, 0.04, 0.12, 1800, 'bandpass', hp, 1.5);
+    }
+    // radio crackle and hiss bed under the whole laugh
+    Audio.noise(t, span + 0.3, 0.05, 2500, 'highpass', lp);
+    for (let k = 0; k < 18; k++) Audio.noise(t + Math.random() * (span + 0.2), 0.008, 0.25, 4000, 'highpass', out);
+  },
+  // the stab: a sharp metallic schhk and a wet, heavy thud
+  stab(t) {
+    const out = Audio.buses.scare;
+    Audio.noise(t, 0.12, 0.6, 3200, 'bandpass', out, 2);
+    Audio.ring(t, [2100, 4700], 0.25, 0.2, out);
+    Audio.noise(t + 0.02, 0.35, 0.6, 500, 'lowpass', out);
+    Audio.tone(t + 0.02, 'sine', 110, 38, 0.5, 0.7, out);
+  },
   monsterHurt(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.6); Audio.tone(t, 'sawtooth', 500, 180, 0.4, 0.2, out); Audio.noise(t, 0.3, 0.3, 1200, 'bandpass', out); },
   scream(t) {
     // un-attenuated jumpscare: stacked detuned saws with fast vibrato, distortion and a noise sweep

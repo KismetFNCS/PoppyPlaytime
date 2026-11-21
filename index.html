@@ -401,7 +401,7 @@ window.addEventListener('error', function (e) {
 //   Verify: harness reads camera position after settling (ANCHORS[4].measure).
 // ANCHOR 6: GPU ambient sky uniform equals contract #1d0e13 (linear, max channel diff).  Target 0  Tol 0.002
 //   Verify: harness getUniform (ANCHORS[5].measure).
-// ANCHOR 7: menu hero shot - creature mask on screen x%.  Target 62  Tol 10
+// ANCHOR 7: menu hero shot - focal point (where the creature is later revealed) on screen x%.  Target 62  Tol 10
 //   Verify: harness projects the head position with the menu camera (ANCHORS[6].measure); final look PENDING menu-1920.png.
 // ============================================================
 
@@ -496,7 +496,7 @@ const FEEL = {
   handSpeed: 42, handGravity: 3.5, handReach: 24, handRetract: 55, handCooldown: 0.18,
   cableMax: 42, cableNodes: 28, cableIters: 8, cableSag: 1.035,
   bobWalkHz: 1.9, bobWalkAmp: 0.035, bobSprintHz: 2.7, bobSprintAmp: 0.065, sprintLeanDeg: 2.2,
-  breathHz: 0.25, breathAmp: 0.006, chaseTrauma: 0.55, jumpscareLock: 0.9, failCard: 2.4,
+  breathHz: 0.25, breathAmp: 0.006, chaseTrauma: 0.55, jumpscareLock: 3.4, failCard: 2.4,
   monsterPatrol: 2.2, monsterStalk: 3.1, monsterChase: 5.9, monsterCatch: 1.15,
   bumpFriction: 0.55, fixedStep: 1 / 120
 };
@@ -525,7 +525,7 @@ const ANCHORS = [
   { id: 4, desc: 'menu title center y (%)', target: 19.1, tol: 3, measure: () => anchorDomCy('#menuTitle') },
   { id: 5, desc: 'player eye height (m)', target: 1.62, tol: 0.05, measure: () => anchorEyeHeight() },
   { id: 6, desc: 'GPU ambient sky uniform vs contract (linear diff)', target: 0, tol: 0.002, measure: () => anchorAmbientDiff() },
-  { id: 7, desc: 'menu hero: creature mask screen x (%)', target: 62, tol: 10, measure: () => anchorHeroX() }
+  { id: 7, desc: 'menu hero: focal point screen x (%)', target: 62, tol: 10, measure: () => anchorHeroX() }
 ];
 
 // ===== module: 01_core.js =====
@@ -4114,8 +4114,10 @@ const Lights = {
       list.items[list.count++] = TG;
     }
     const G = this.monsterGlow;
-    if (Monster.visible && !Assets.slot('monster') && Game.isGameplay()) {
-      Monster.bodyPoint(G.pos, 0, 1.42, -0.2);
+    const killing = Monster.kill.on && state === STATE.JUMPSCARE;
+    if (Monster.visible && !Assets.slot('monster') && (Game.isGameplay() || killing)) {
+      // during the kill the red glow sits between its face and yours, lighting the hands and the spike
+      if (killing) { V3.copy(G.pos, Player.cam.eye); V3.addScaled(G.pos, G.pos, Renderer.camFwd, 0.55); G.pos[1] += 0.25; } else Monster.bodyPoint(G.pos, 0, 1.42, -0.2);
       G.sector = Level.sectorAt(G.pos[0], G.pos[2]);
       G.current = sectorVisible[G.sector] ? G.base * (0.8 + 0.25 * Math.sin(time * 4.3) + 0.1 * Math.sin(time * 11)) : 0;
       if (G.current > 0) {
@@ -4315,6 +4317,8 @@ const Monster = {
   path: new Float32Array(400), pathLen: 0, pathIdx: 0, repathTimer: 0, pathGoal: V3.create(),
   btTimer: 0, tree: null, intent: '', time: 0, stunTimer: 0, lostTimer: 0, roarCooldown: 0, clickTimer: 0,
   hitPoint: V3.create(), head: V3.create(), chest: V3.create(), eye: V3.create(),
+  // kill animation: grab (both hands close round you), join (needle fingers pinch into one spike), stab (-1 wind-up .. 1 thrust)
+  kill: { on: false, grab: 0, join: 0, stab: 0 },
   legs: [], bodyBob: 0, lean: 0, armReach: 0, jaw: 0, headTilt: 0, flinchAmt: 0, breathe: 0,
   catchCooldown: 0, sector: -1, sightRange: 20,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
@@ -4353,6 +4357,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
+    this.kill.on = false; this.kill.grab = 0; this.kill.join = 0; this.kill.stab = 0;
     this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0; this.stunImmune = 0; this.retreatAfterStun = false; this.retreatTimer = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
@@ -4395,6 +4400,7 @@ const Monster = {
     this.setState(MSTATE.EMERGE);
   },
 
+  // (the Spoolwright no longer appears in the menu backdrop: he is revealed later in the chapter)
   setMenuPose() {
     this.reset();
     this.active = true; this.visible = true; this.inVent = false;
@@ -4891,6 +4897,7 @@ const Monster = {
     }
     this.submitHead(this.head, yaw + this.headTilt * 0.4, -0.15 + lean * 0.5, this.headTilt * 0.6, 1.15);
     // ---- arms: long thin machine arms ending in needle fingers ----
+    if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
     for (const side of [-1, 1]) {
       this.bodyPoint(B, side * 0.3, 2.14, -0.47);
       const reach = this.armReach;
@@ -4915,7 +4922,64 @@ const Monster = {
         R.seg('cone', MAT.steel, B, H, 0.011);
       }
     }
-    // ---- legs: plated femur with a copper piston, heavy knee joint, blade foot, red tendon cables ----
+    this.submitLegs();
+  },
+
+  // the kill: both hands clamp around your head, then the right hand's needle fingers pinch together into a
+  // single spike that draws back and drives forward into the camera
+  submitKillArms() {
+    const R = RenderQueue, K = this.kill, B = this.tmp, H = this.tmp2, X = this.tmp3, L = _mh.kl;
+    // where your eyes are in its local space (you are lifted up toward its face during the kill)
+    const ce = Player.cam.eye, cx = 0, cy = ce[1] - this.pos[1] - this.bodyBob, cz = -Math.hypot(ce[0] - this.pos[0], ce[2] - this.pos[2]);
+    for (const side of [-1, 1]) {
+      // hand position in local space: resting reach -> clamped beside your head -> (right) wind-up / thrust
+      let hx = side * 0.75, hy = cy - 0.3, hz = cz + 0.6;
+      const gx = side * 0.36, gy = cy + 0.16, gz = cz + 0.5;
+      hx += (gx - hx) * K.grab; hy += (gy - hy) * K.grab; hz += (gz - hz) * K.grab;
+      if (side > 0 && K.stab < 0) { const w = -K.stab; hx += (0.5 - hx) * w; hy += (cy + 0.32 - hy) * w; hz += (cz + 0.8 - hz) * w; }
+      if (side > 0 && K.stab > 0) { const w = K.stab; hx = 0.5 + (0.03 - 0.5) * w; hy = cy + 0.32 + (-0.3) * w; hz = cz + 0.8 + (-0.45) * w; }
+      this.bodyPoint(B, side * 0.3, 2.14, -0.47);
+      this.bodyPoint(X, hx, hy, hz);
+      this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.32, (2.14 + hy) * 0.5 - 0.15, (-0.47 + hz) * 0.5 + 0.1);
+      R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
+      R.seg('cyl', MAT.steel, B, H, 0.045);
+      V3.lerp(L.a, B, H, 0.72);
+      R.seg('cyl', MAT.clothWine, B, L.a, 0.08);
+      R.seg('cone', MAT.canvas, L.a, H, 0.085);
+      R.seg('cyl', MAT.steel, H, X, 0.035);
+      R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
+      R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.055, 0.055, 0.055);
+      // direction from the hand toward your face, and a sideways axis
+      let dx = cx - hx, dy = cy - hy, dz = cz - hz;
+      const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+      let lx = -dz, lz = dx; const ll = Math.hypot(lx, lz) || 1; lx /= ll; lz /= ll;
+      const join = side > 0 ? K.join : 0;
+      for (let f = -2; f <= 2; f++) {
+        // grabbing: fingers curl in around your head; joined: every needle meets at one spike point ahead
+        const spread = f * (1 - join);
+        const mx = hx + dx * 0.16 + lx * spread * 0.05, my = hy + dy * 0.16 + 0.07 - Math.abs(spread) * 0.015, mz = hz + dz * 0.16 + lz * spread * 0.05;
+        let tx = hx + (cx - hx) * 0.62 + lx * spread * 0.07, ty = hy + (cy - hy) * 0.62 + spread * 0.03, tz = hz + (cz - hz) * 0.62 + lz * spread * 0.07;
+        if (join > 0) { const sx = hx + dx * 0.55, sy = hy + dy * 0.55, sz = hz + dz * 0.55; tx += (sx - tx) * join; ty += (sy - ty) * join; tz += (sz - tz) * join; }
+        this.bodyPoint(L.b, mx, my, mz);
+        this.bodyPoint(L.c, tx, ty, tz);
+        R.seg('cylLow', MAT.steel, X, L.b, 0.012);
+        R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.02, 0.02, 0.02);
+        const nd = R.seg('cone', MAT.steel, L.b, L.c, 0.011 + join * 0.004);
+        if (nd && join > 0) { nd.emis[0] = 0.5 * join; nd.emis[1] = 0.42 * join; nd.emis[2] = 0.38 * join; }
+      }
+      if (side > 0 && join > 0.9) {
+        // the pinched needles glint at the tip
+        this.bodyPoint(L.c, hx + dx * 0.55, hy + dy * 0.55, hz + dz * 0.55);
+        const g = R.trs('sphereLow', MAT.screen, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.009, 0.009, 0.009, false);
+        if (g) { g.emis[0] = 1.6; g.emis[1] = 1.4; g.emis[2] = 1.2; }
+      }
+    }
+  },
+
+  // ---- legs: plated femur with a copper piston, heavy knee joint, blade foot, red tendon cables ----
+  submitLegs() {
+    const R = RenderQueue, B = this.tmp, H = this.tmp2, X = this.tmp3, yaw = this.yaw;
+    let it;
     for (const l of this.legs) {
       this.bodyPoint(this.hipW, l.hip[0], l.hip[1], l.hip[2]);
       const side = l.hip[0] < 0 ? -1 : 1;
@@ -5009,6 +5073,7 @@ const Monster = {
 };
 const _mh = {
   dir: V3.create(),
+  kl: { a: V3.create(), b: V3.create(), c: V3.create() },
   tapePrev: V3.create(),
   boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })(),
   groupStepping: new Uint8Array(2), spheres: [V3.create(), V3.create()], radii: new Float32Array([1.0, 0.6]), local: V3.create(), pole: V3.create(),
@@ -5513,6 +5578,55 @@ const SFX = {
       vib.frequency.value = 23; vg.gain.value = f * 0.04; vib.connect(vg); vg.connect(o.frequency); vib.start(t); vib.stop(t + 1);
     }
     Audio.noise(t, 0.8, 0.25, 3000, 'bandpass', out, 2);
+  },
+  // the kill grab: a cloth whoosh and needle fingers clacking shut
+  grab(t) {
+    const out = Audio.buses.scare;
+    Audio.noise(t, 0.3, 0.45, 700, 'bandpass', out, 1.2);
+    Audio.ring(t + 0.08, [1500, 3300], 0.2, 0.18, out);
+    Audio.ring(t + 0.13, [1700, 3600], 0.2, 0.16, out);
+    Audio.tone(t, 'sawtooth', 90, 45, 0.4, 0.3, out);
+  },
+  // a theatrical old-time-radio showman's laugh: a run of "ha"s through a crackling, band-limited, overdriven
+  // radio chain, rising then tumbling down, with a little warble
+  laugh(t) {
+    const ctx = Audio.ctx, out = Audio.buses.scare;
+    const hp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter(), shaper = ctx.createWaveShaper(), g = ctx.createGain();
+    hp.type = 'highpass'; hp.frequency.value = 450; lp.type = 'lowpass'; lp.frequency.value = 3200;
+    const curve = new Float32Array(512);
+    for (let i = 0; i < 512; i++) { const x = i / 256 - 1; curve[i] = Math.tanh(x * 2.6); }
+    shaper.curve = curve; g.gain.value = 0.9;
+    hp.connect(shaper); shaper.connect(lp); lp.connect(g); g.connect(out);
+    const N = 14, span = 1.75;
+    for (let k = 0; k < N; k++) {
+      const s = t + k * (span / N) + (k > 9 ? (k - 9) * 0.02 : 0);
+      const arc = k < 4 ? k / 4 : 1 - (k - 4) / (N - 4);
+      const f0 = 150 + arc * 90 + (k % 2) * 12, dur = 0.1 + (k === N - 1 ? 0.25 : 0);
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f0 * 1.12, s); o.frequency.exponentialRampToValueAtTime(f0 * 0.86, s + dur);
+      const vib = ctx.createOscillator(), vg = ctx.createGain(); vib.frequency.value = 7; vg.gain.value = f0 * 0.03;
+      vib.connect(vg); vg.connect(o.frequency);
+      og.gain.setValueAtTime(0.0001, s); og.gain.exponentialRampToValueAtTime(0.5, s + 0.015); og.gain.exponentialRampToValueAtTime(0.0001, s + dur);
+      // "ah" vowel: two formant band-passes plus a breathy "h" onset
+      for (const [ff, q, a] of [[750, 6, 1], [1250, 8, 0.6], [2600, 10, 0.25]]) {
+        const bp = ctx.createBiquadFilter(), bg = ctx.createGain(); bp.type = 'bandpass'; bp.frequency.value = ff; bp.Q.value = q; bg.gain.value = a;
+        og.connect(bp); bp.connect(bg); bg.connect(hp);
+      }
+      o.connect(og); o.start(s); o.stop(s + dur + 0.05); vib.start(s); vib.stop(s + dur + 0.05);
+      Audio.noise(s, 0.04, 0.12, 1800, 'bandpass', hp, 1.5);
+    }
+    // radio crackle and hiss bed under the whole laugh
+    Audio.noise(t, span + 0.3, 0.05, 2500, 'highpass', lp);
+    for (let k = 0; k < 18; k++) Audio.noise(t + Math.random() * (span + 0.2), 0.008, 0.25, 4000, 'highpass', out);
+  },
+  // the stab: a sharp metallic schhk and a wet, heavy thud
+  stab(t) {
+    const out = Audio.buses.scare;
+    Audio.noise(t, 0.12, 0.6, 3200, 'bandpass', out, 2);
+    Audio.ring(t, [2100, 4700], 0.25, 0.2, out);
+    Audio.noise(t + 0.02, 0.35, 0.6, 500, 'lowpass', out);
+    Audio.tone(t + 0.02, 'sine', 110, 38, 0.5, 0.7, out);
   },
   monsterHurt(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.6); Audio.tone(t, 'sawtooth', 500, 180, 0.4, 0.2, out); Audio.noise(t, 0.3, 0.3, 1200, 'bandpass', out); },
   scream(t) {
@@ -6419,7 +6533,7 @@ let state = null;
 const HANDLERS = {
   BOOT_LOADING: { enter() { UI.show('loading'); }, exit() { UI.hide('loading'); }, update(dt) { Loader.step(); } },
   MAIN_MENU: {
-    enter() { UI.show('menu'); Input.exitLock(); Monster.setMenuPose(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
+    enter() { UI.show('menu'); Input.exitLock(); Monster.reset(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
     exit() { UI.hide('menu'); },
     update(dt) {
       if (Input.justPressed.has('ArrowDown') || Input.justPressed.has('KeyS')) UI.menuNav(1);
@@ -6686,13 +6800,12 @@ const Game = {
         this.stage = 2; UI.setObjective(OBJECTIVES[2]); this.saveCheckpoint(2);
         break;
       case 'enterGallery':
-        Monster.activateStalker(2);
+        // only a warning for now: something rattles through the ducts overhead (it shows itself in the foundry)
         this.pulseLightsNear(0, 3, -36, -0.9);
         sfx('ventClick', Level.vents[0].pos);
-        GrabPack.showHint('Something is moving in the ducts. Walk - do not run.');
-        Dialogue.say('PIP', 'See those lockers? Press E to hide. Hide BEFORE it sees you, never after!');
-        Dialogue.say('MARIGOLD', 'Shh... it listens to the floor. Walk softly. Please.');
-        this.checkpoint.monsterMode = 1;
+        sfx('ventEnter', Level.vents[2].pos);
+        GrabPack.showHint('Something just crawled through the ducts overhead...');
+        Dialogue.say('MARIGOLD', 'Did you hear that? Something big lives in those ducts. It hasn\'t come down. Not yet.');
         break;
       case 'L1':
         Steam.setAll(false);
@@ -6993,10 +7106,12 @@ const Game = {
     this.jumpTimer = 0;
     Input.releaseAll();
     GrabPack.reset();
-    sfx('scream');
-    Player.addTrauma(1);
-    Renderer.post.redWave = 0.2;
-    Monster.jaw = 1; Monster.armReach = 1;
+    sfx('grab');
+    this.killCue = 0;
+    Player.addTrauma(0.8);
+    Renderer.post.redWave = 0.1;
+    Monster.jaw = 0.4; Monster.armReach = 1;
+    Monster.kill.on = true; Monster.kill.grab = 0; Monster.kill.join = 0; Monster.kill.stab = 0;
     this.placeJumpscareMonster(1.7);
     Player.lockTarget = Monster.head;
     Player.lockAmt = 0;
@@ -7005,35 +7120,53 @@ const Game = {
   placeJumpscareMonster(dist) {
     const fx = -Math.sin(Player.yaw), fz = -Math.cos(Player.yaw);
     Monster.yaw = Player.yaw + Math.PI;
-    Monster.lean = 0.35;
+    Monster.lean = 0;
     Monster.pos[0] = Player.eyePos[0] + fx * (dist + 0.8);
     Monster.pos[2] = Player.eyePos[2] + fz * (dist + 0.8);
-    Monster.pos[1] = Math.max(0, Player.eyePos[1] - 2.35);
+    Monster.pos[1] = Math.max(0, Player.eyePos[1] - (Monster.kill.on ? 2.6 : 2.35));
     Monster.bodyPoint(Monster.head, 0, 2.55, -0.8);
   },
   updateJumpscare(dt) {
     this.jumpTimer += dt;
     const t = this.jumpTimer;
-    const lunge = 1.7 - 0.95 * smoothstep(0, 0.28, t);
+    // 0-0.45 s: lunge in and clamp both hands around your head
+    // 0.45-2.3 s: throws its head back and laughs, jaw clattering in time
+    // 2.0-2.6 s: the right hand's needle fingers pinch into one spike and draw back
+    // 2.78 s: it stabs; the screen cracks red and cuts to black
+    const K = Monster.kill;
+    const lunge = 1.9 - 0.6 * smoothstep(0, 0.3, t);
     this.placeJumpscareMonster(lunge);
-    Monster.headTilt = noise1(t * 40) * 0.35;
-    Monster.jaw = 0.85 + 0.15 * noise1(t * 30);
+    K.grab = smoothstep(0.05, 0.42, t);
+    K.join = smoothstep(2.0, 2.45, t);
+    K.stab = t < 2.75 ? -smoothstep(2.1, 2.65, t) : smoothstep(2.75, 2.86, t);
+    const laughing = t > 0.45 && t < 2.3;
+    const ha = Math.abs(Math.sin((t - 0.45) * 13));
+    Monster.headTilt = laughing ? Math.sin(t * 6.5) * 0.3 : noise1(t * 40) * 0.12;
+    Monster.jaw = laughing ? 0.35 + 0.65 * ha : t < 0.45 ? 0.5 : 0.95;
+    Monster.flinchAmt = laughing ? -0.15 * ha : 0;   // head jerks back with each "ha"
     Monster.animateLegs(dt, false);
     Player.lockAmt = Math.min(1, Player.lockAmt + dt * 9);
-    Player.trauma = 1;
+    Player.trauma = laughing ? 0.35 + 0.25 * ha : t < 0.45 ? 0.9 : t > 2.75 ? 1 : 0.4;
+    if (this.killCue === 0 && t > 0.45) { this.killCue = 1; sfx('laugh'); }
+    if (this.killCue === 1 && t > 2.78) {
+      this.killCue = 2; sfx('stab');
+      this.fracture[0] = Player.cam.eye[0]; this.fracture[1] = Player.cam.eye[1]; this.fracture[2] = Player.cam.eye[2]; this.fracture[3] = 4; this.fractureAmt = 1;
+    }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
+    // it lifts you off your feet, up to its face
+    Player.cam.eye[1] += 0.5 * smoothstep(0.08, 0.5, t);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    Renderer.post.redWave = Math.min(1, 0.2 + t * 2.2);
+    Renderer.post.redWave = t < 2.78 ? 0.15 + 0.1 * Math.sin(t * 13) : 1;
     Renderer.post.fear = 1;
-    Renderer.post.flash = t < 0.08 ? 0.5 : 0;
+    Renderer.post.flash = t < 0.08 ? 0.35 : t > 2.8 && t < 2.9 ? 0.6 : 0;
     Renderer.post.flashTint[0] = 1; Renderer.post.flashTint[1] = 0.05; Renderer.post.flashTint[2] = 0.02;
     Renderer.post.fade = smoothstep(FEEL.jumpscareLock - 0.25, FEEL.jumpscareLock, t);
     Lights.update(dt, this.time + t, Streaming.visible);
     Audio.updateChase(false);
     if (t >= FEEL.jumpscareLock) {
       Player.lockAmt = 0; Player.lockTarget = null; Player.trauma = 0;
-      Monster.catchCooldown = 2;
+      Monster.catchCooldown = 2; Monster.kill.on = false; Monster.flinchAmt = 0;
       setState(STATE.FAILURE_STATE);
     }
   },
@@ -7407,7 +7540,8 @@ function anchorAmbientDiff() {
   return Math.max(Math.abs(u[0] / k - want[0]), Math.abs(u[1] / k - want[1]), Math.abs(u[2] / k - want[2]));
 }
 function anchorHeroX() {
-  const m = Renderer.viewProj, h = Monster.head;
+  // the menu's focal point (where the hero shot frames the corridor; the Spoolwright itself is revealed later)
+  const m = Renderer.viewProj, mp = Level.menuMonster.pos, h = [mp[0], mp[1] + 2.5, mp[2]];
   const w = m[3] * h[0] + m[7] * h[1] + m[11] * h[2] + m[15];
   if (w <= 0) return NaN;
   const x = (m[0] * h[0] + m[4] * h[1] + m[8] * h[2] + m[12]) / w;
@@ -7620,7 +7754,7 @@ async function runAll() {
     T.step(DT, 2);
     check('menu: state is MAIN_MENU', T.getState() === 'MAIN_MENU', T.getState());
     checkUI('MAIN_MENU');
-    check('menu: hero creature visible in menu pose', Monster.visible && Monster.state === MSTATE.MENU_POSE, Monster.state);
+    check('menu: the Spoolwright is not in the menu (he is a later reveal)', !Monster.visible && !Monster.active, Monster.state);
     check('menu: arrow navigation moves selection', (() => { const a = UI.menuIndex; tap('ArrowDown'); const b = UI.menuIndex; tap('ArrowUp'); return b !== a; })());
     Game.uiAction('settings'); T.step(DT, 1);
     check('settings: panel opens from menu', T.getState() === 'SETTINGS_PANEL', T.getState());
@@ -7779,7 +7913,10 @@ async function runAll() {
     // ---------------- stalker AI ----------------
     T.step(DT, 300);
     T.setPlayerPose(0, 0, -26, 0, 0); T.step(DT, 3);
-    check('ai: entering the gallery wakes the stalker in the vents', Monster.active && Monster.inVent && Monster.state === MSTATE.VENT_PATROL, Monster.state);
+    check('gallery: only rattles in the ducts - the Spoolwright stays hidden until the foundry', !Monster.active && !Monster.visible && T.getSfxLog().includes('ventEnter'), Monster.state);
+    // the stalker behaviours are still exercised directly
+    Monster.activateStalker(2); T.step(DT, 3);
+    check('ai: stalker wakes in the vents', Monster.active && Monster.inVent && Monster.state === MSTATE.VENT_PATROL, Monster.state);
     T.step(DT, 120);
     check('ai: vent patrol travels between vents', Monster.inVent && Number.isFinite(Monster.pos[0]), JSON.stringify(T.monster()));
     // loud noise next to a vent draws it out
@@ -7800,12 +7937,18 @@ async function runAll() {
     check('ai: pathfinding closes distance', V3.distXZ(Monster.pos, Player.body.pos) < dBefore - 1, dBefore.toFixed(2) + ' -> ' + V3.distXZ(Monster.pos, Player.body.pos).toFixed(2));
     T.clearSfxLog();
     check('ai: catch triggers JUMPSCARE override', untilState('JUMPSCARE', 240), T.getState());
-    check('jumpscare: scream fired (un-attenuated bus)', T.getSfxLog().includes('scream'), T.getSfxLog().join(','));
+    check('kill: it grabs you (un-attenuated bus)', T.getSfxLog().includes('grab') && Monster.kill.on, T.getSfxLog().join(','));
     T.step(DT, 20);
     check('jumpscare: view locked toward the creature', Player.lockAmt > 0.9, Player.lockAmt.toFixed(2));
-    check('jumpscare: red distortion wave active', Renderer.post.redWave > 0.5, Renderer.post.redWave.toFixed(2));
     check('jumpscare: hands pulled back instantly', GrabPack.hands.every(h => h.state === HAND.DOCKED));
+    T.step(DT, 40);
+    check('kill: both hands clamp around your head, then it laughs', Monster.kill.grab > 0.95 && T.getSfxLog().includes('laugh'), Monster.kill.grab.toFixed(2));
+    T.step(DT, 95);
+    check('kill: needle fingers pinch into one spike and draw back', Monster.kill.join > 0.95 && Monster.kill.stab < -0.5, Monster.kill.join.toFixed(2) + ' ' + Monster.kill.stab.toFixed(2));
+    T.step(DT, 18);
+    check('kill: it stabs - red crack and wave', T.getSfxLog().includes('stab') && Monster.kill.stab > 0.9 && Renderer.post.redWave > 0.5, Monster.kill.stab.toFixed(2));
     check('failure: FAILURE_STATE after the lock', untilState('FAILURE_STATE', 120), T.getState());
+    check('kill: pose cleared afterwards', !Monster.kill.on, '');
     check('sound: game over', T.getSfxLog().includes('gameover'), '');
     T.step(DT, 1);
     tap('Enter');
@@ -7816,7 +7959,7 @@ async function runAll() {
     const cp = Game.checkpoint;
     check('checkpoint: player at stage-2 checkpoint', Math.abs(Player.body.pos[2] - cp.pos[2]) < 0.2 && Game.stage === 2, Player.body.pos[2].toFixed(2));
     check('checkpoint: puzzle progress kept (R1 powered, D1 open)', Level.receptacles[1].powered && Level.doorById('D1').open === 1);
-    check('checkpoint: AI reset into vents', Monster.active && Monster.inVent && Monster.state === MSTATE.VENT_PATROL, Monster.state);
+    check('checkpoint: the Spoolwright is not back in the gallery (revealed later)', !Monster.active && !Monster.visible, Monster.state);
     check('checkpoint: no hands out, particles cleared', T.getCounts().handsOut === 0, JSON.stringify(T.getCounts()));
 
     await breathe();
@@ -8089,7 +8232,7 @@ async function runAll() {
       tap('KeyE');
       check('locker: hiding in plain sight is remembered', seen && Monster.sawHide && Player.hidden === L, 'seen ' + seen + ' sawHide ' + Monster.sawHide);
       check('locker: the creature rips the door open (JUMPSCARE)', untilState('JUMPSCARE', 600), T.getState());
-      untilState('FAILURE_STATE', 200); T.step(DT, 30); tap('Enter');
+      untilState('FAILURE_STATE', 320); T.step(DT, 30); tap('Enter');
       check('locker: rewind clears the hiding state', !Player.hidden && Game.isGameplay(), T.getState());
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
@@ -8112,7 +8255,7 @@ async function runAll() {
       check('assets: prop rendered through the textured G-buffer path', Renderer.stats.assetDraws > 0 && T.getLastError() === null, Renderer.stats.assetDraws);
       const m = await Assets.loadBuffer(glb, 'harness_monster.glb', { slot: 'monster', persist: false });
       check('assets: monster slot auto-fits to 2.9 m', Math.abs(m.size[1] - 2.9) < 1e-3, m.size[1].toFixed(3));
-      T.gotoMenu(); T.step(DT, 2);
+      T.gotoMenu(); Monster.setMenuPose(); T.step(DT, 2);
       check('assets: custom monster replaces the procedural body', Assets.slot('monster') === m && Renderer.stats.assetDraws > 0 && V3.finite(Monster.head), Renderer.stats.assetDraws);
       await Assets.loadBuffer(glb, 'harness_hand_left.glb', { persist: false });
       check('assets: file name picks the slot (hand_left -> handLeft)', !!Assets.slot('handLeft'));

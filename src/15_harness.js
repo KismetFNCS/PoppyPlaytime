@@ -39,7 +39,8 @@ function anchorAmbientDiff() {
   return Math.max(Math.abs(u[0] / k - want[0]), Math.abs(u[1] / k - want[1]), Math.abs(u[2] / k - want[2]));
 }
 function anchorHeroX() {
-  const m = Renderer.viewProj, h = Monster.head;
+  // the menu's focal point (where the hero shot frames the corridor; the Spoolwright itself is revealed later)
+  const m = Renderer.viewProj, mp = Level.menuMonster.pos, h = [mp[0], mp[1] + 2.5, mp[2]];
   const w = m[3] * h[0] + m[7] * h[1] + m[11] * h[2] + m[15];
   if (w <= 0) return NaN;
   const x = (m[0] * h[0] + m[4] * h[1] + m[8] * h[2] + m[12]) / w;
@@ -252,7 +253,7 @@ async function runAll() {
     T.step(DT, 2);
     check('menu: state is MAIN_MENU', T.getState() === 'MAIN_MENU', T.getState());
     checkUI('MAIN_MENU');
-    check('menu: hero creature visible in menu pose', Monster.visible && Monster.state === MSTATE.MENU_POSE, Monster.state);
+    check('menu: the Spoolwright is not in the menu (he is a later reveal)', !Monster.visible && !Monster.active, Monster.state);
     check('menu: arrow navigation moves selection', (() => { const a = UI.menuIndex; tap('ArrowDown'); const b = UI.menuIndex; tap('ArrowUp'); return b !== a; })());
     Game.uiAction('settings'); T.step(DT, 1);
     check('settings: panel opens from menu', T.getState() === 'SETTINGS_PANEL', T.getState());
@@ -411,7 +412,10 @@ async function runAll() {
     // ---------------- stalker AI ----------------
     T.step(DT, 300);
     T.setPlayerPose(0, 0, -26, 0, 0); T.step(DT, 3);
-    check('ai: entering the gallery wakes the stalker in the vents', Monster.active && Monster.inVent && Monster.state === MSTATE.VENT_PATROL, Monster.state);
+    check('gallery: only rattles in the ducts - the Spoolwright stays hidden until the foundry', !Monster.active && !Monster.visible && T.getSfxLog().includes('ventEnter'), Monster.state);
+    // the stalker behaviours are still exercised directly
+    Monster.activateStalker(2); T.step(DT, 3);
+    check('ai: stalker wakes in the vents', Monster.active && Monster.inVent && Monster.state === MSTATE.VENT_PATROL, Monster.state);
     T.step(DT, 120);
     check('ai: vent patrol travels between vents', Monster.inVent && Number.isFinite(Monster.pos[0]), JSON.stringify(T.monster()));
     // loud noise next to a vent draws it out
@@ -432,12 +436,18 @@ async function runAll() {
     check('ai: pathfinding closes distance', V3.distXZ(Monster.pos, Player.body.pos) < dBefore - 1, dBefore.toFixed(2) + ' -> ' + V3.distXZ(Monster.pos, Player.body.pos).toFixed(2));
     T.clearSfxLog();
     check('ai: catch triggers JUMPSCARE override', untilState('JUMPSCARE', 240), T.getState());
-    check('jumpscare: scream fired (un-attenuated bus)', T.getSfxLog().includes('scream'), T.getSfxLog().join(','));
+    check('kill: it grabs you (un-attenuated bus)', T.getSfxLog().includes('grab') && Monster.kill.on, T.getSfxLog().join(','));
     T.step(DT, 20);
     check('jumpscare: view locked toward the creature', Player.lockAmt > 0.9, Player.lockAmt.toFixed(2));
-    check('jumpscare: red distortion wave active', Renderer.post.redWave > 0.5, Renderer.post.redWave.toFixed(2));
     check('jumpscare: hands pulled back instantly', GrabPack.hands.every(h => h.state === HAND.DOCKED));
+    T.step(DT, 40);
+    check('kill: both hands clamp around your head, then it laughs', Monster.kill.grab > 0.95 && T.getSfxLog().includes('laugh'), Monster.kill.grab.toFixed(2));
+    T.step(DT, 95);
+    check('kill: needle fingers pinch into one spike and draw back', Monster.kill.join > 0.95 && Monster.kill.stab < -0.5, Monster.kill.join.toFixed(2) + ' ' + Monster.kill.stab.toFixed(2));
+    T.step(DT, 18);
+    check('kill: it stabs - red crack and wave', T.getSfxLog().includes('stab') && Monster.kill.stab > 0.9 && Renderer.post.redWave > 0.5, Monster.kill.stab.toFixed(2));
     check('failure: FAILURE_STATE after the lock', untilState('FAILURE_STATE', 120), T.getState());
+    check('kill: pose cleared afterwards', !Monster.kill.on, '');
     check('sound: game over', T.getSfxLog().includes('gameover'), '');
     T.step(DT, 1);
     tap('Enter');
@@ -448,7 +458,7 @@ async function runAll() {
     const cp = Game.checkpoint;
     check('checkpoint: player at stage-2 checkpoint', Math.abs(Player.body.pos[2] - cp.pos[2]) < 0.2 && Game.stage === 2, Player.body.pos[2].toFixed(2));
     check('checkpoint: puzzle progress kept (R1 powered, D1 open)', Level.receptacles[1].powered && Level.doorById('D1').open === 1);
-    check('checkpoint: AI reset into vents', Monster.active && Monster.inVent && Monster.state === MSTATE.VENT_PATROL, Monster.state);
+    check('checkpoint: the Spoolwright is not back in the gallery (revealed later)', !Monster.active && !Monster.visible, Monster.state);
     check('checkpoint: no hands out, particles cleared', T.getCounts().handsOut === 0, JSON.stringify(T.getCounts()));
 
     await breathe();
@@ -721,7 +731,7 @@ async function runAll() {
       tap('KeyE');
       check('locker: hiding in plain sight is remembered', seen && Monster.sawHide && Player.hidden === L, 'seen ' + seen + ' sawHide ' + Monster.sawHide);
       check('locker: the creature rips the door open (JUMPSCARE)', untilState('JUMPSCARE', 600), T.getState());
-      untilState('FAILURE_STATE', 200); T.step(DT, 30); tap('Enter');
+      untilState('FAILURE_STATE', 320); T.step(DT, 30); tap('Enter');
       check('locker: rewind clears the hiding state', !Player.hidden && Game.isGameplay(), T.getState());
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
@@ -744,7 +754,7 @@ async function runAll() {
       check('assets: prop rendered through the textured G-buffer path', Renderer.stats.assetDraws > 0 && T.getLastError() === null, Renderer.stats.assetDraws);
       const m = await Assets.loadBuffer(glb, 'harness_monster.glb', { slot: 'monster', persist: false });
       check('assets: monster slot auto-fits to 2.9 m', Math.abs(m.size[1] - 2.9) < 1e-3, m.size[1].toFixed(3));
-      T.gotoMenu(); T.step(DT, 2);
+      T.gotoMenu(); Monster.setMenuPose(); T.step(DT, 2);
       check('assets: custom monster replaces the procedural body', Assets.slot('monster') === m && Renderer.stats.assetDraws > 0 && V3.finite(Monster.head), Renderer.stats.assetDraws);
       await Assets.loadBuffer(glb, 'harness_hand_left.glb', { persist: false });
       check('assets: file name picks the slot (hand_left -> handLeft)', !!Assets.slot('handLeft'));

@@ -27,7 +27,7 @@ let state = null;
 const HANDLERS = {
   BOOT_LOADING: { enter() { UI.show('loading'); }, exit() { UI.hide('loading'); }, update(dt) { Loader.step(); } },
   MAIN_MENU: {
-    enter() { UI.show('menu'); Input.exitLock(); Monster.setMenuPose(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
+    enter() { UI.show('menu'); Input.exitLock(); Monster.reset(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
     exit() { UI.hide('menu'); },
     update(dt) {
       if (Input.justPressed.has('ArrowDown') || Input.justPressed.has('KeyS')) UI.menuNav(1);
@@ -294,13 +294,12 @@ const Game = {
         this.stage = 2; UI.setObjective(OBJECTIVES[2]); this.saveCheckpoint(2);
         break;
       case 'enterGallery':
-        Monster.activateStalker(2);
+        // only a warning for now: something rattles through the ducts overhead (it shows itself in the foundry)
         this.pulseLightsNear(0, 3, -36, -0.9);
         sfx('ventClick', Level.vents[0].pos);
-        GrabPack.showHint('Something is moving in the ducts. Walk - do not run.');
-        Dialogue.say('PIP', 'See those lockers? Press E to hide. Hide BEFORE it sees you, never after!');
-        Dialogue.say('MARIGOLD', 'Shh... it listens to the floor. Walk softly. Please.');
-        this.checkpoint.monsterMode = 1;
+        sfx('ventEnter', Level.vents[2].pos);
+        GrabPack.showHint('Something just crawled through the ducts overhead...');
+        Dialogue.say('MARIGOLD', 'Did you hear that? Something big lives in those ducts. It hasn\'t come down. Not yet.');
         break;
       case 'L1':
         Steam.setAll(false);
@@ -601,10 +600,12 @@ const Game = {
     this.jumpTimer = 0;
     Input.releaseAll();
     GrabPack.reset();
-    sfx('scream');
-    Player.addTrauma(1);
-    Renderer.post.redWave = 0.2;
-    Monster.jaw = 1; Monster.armReach = 1;
+    sfx('grab');
+    this.killCue = 0;
+    Player.addTrauma(0.8);
+    Renderer.post.redWave = 0.1;
+    Monster.jaw = 0.4; Monster.armReach = 1;
+    Monster.kill.on = true; Monster.kill.grab = 0; Monster.kill.join = 0; Monster.kill.stab = 0;
     this.placeJumpscareMonster(1.7);
     Player.lockTarget = Monster.head;
     Player.lockAmt = 0;
@@ -613,35 +614,53 @@ const Game = {
   placeJumpscareMonster(dist) {
     const fx = -Math.sin(Player.yaw), fz = -Math.cos(Player.yaw);
     Monster.yaw = Player.yaw + Math.PI;
-    Monster.lean = 0.35;
+    Monster.lean = 0;
     Monster.pos[0] = Player.eyePos[0] + fx * (dist + 0.8);
     Monster.pos[2] = Player.eyePos[2] + fz * (dist + 0.8);
-    Monster.pos[1] = Math.max(0, Player.eyePos[1] - 2.35);
+    Monster.pos[1] = Math.max(0, Player.eyePos[1] - (Monster.kill.on ? 2.6 : 2.35));
     Monster.bodyPoint(Monster.head, 0, 2.55, -0.8);
   },
   updateJumpscare(dt) {
     this.jumpTimer += dt;
     const t = this.jumpTimer;
-    const lunge = 1.7 - 0.95 * smoothstep(0, 0.28, t);
+    // 0-0.45 s: lunge in and clamp both hands around your head
+    // 0.45-2.3 s: throws its head back and laughs, jaw clattering in time
+    // 2.0-2.6 s: the right hand's needle fingers pinch into one spike and draw back
+    // 2.78 s: it stabs; the screen cracks red and cuts to black
+    const K = Monster.kill;
+    const lunge = 1.9 - 0.6 * smoothstep(0, 0.3, t);
     this.placeJumpscareMonster(lunge);
-    Monster.headTilt = noise1(t * 40) * 0.35;
-    Monster.jaw = 0.85 + 0.15 * noise1(t * 30);
+    K.grab = smoothstep(0.05, 0.42, t);
+    K.join = smoothstep(2.0, 2.45, t);
+    K.stab = t < 2.75 ? -smoothstep(2.1, 2.65, t) : smoothstep(2.75, 2.86, t);
+    const laughing = t > 0.45 && t < 2.3;
+    const ha = Math.abs(Math.sin((t - 0.45) * 13));
+    Monster.headTilt = laughing ? Math.sin(t * 6.5) * 0.3 : noise1(t * 40) * 0.12;
+    Monster.jaw = laughing ? 0.35 + 0.65 * ha : t < 0.45 ? 0.5 : 0.95;
+    Monster.flinchAmt = laughing ? -0.15 * ha : 0;   // head jerks back with each "ha"
     Monster.animateLegs(dt, false);
     Player.lockAmt = Math.min(1, Player.lockAmt + dt * 9);
-    Player.trauma = 1;
+    Player.trauma = laughing ? 0.35 + 0.25 * ha : t < 0.45 ? 0.9 : t > 2.75 ? 1 : 0.4;
+    if (this.killCue === 0 && t > 0.45) { this.killCue = 1; sfx('laugh'); }
+    if (this.killCue === 1 && t > 2.78) {
+      this.killCue = 2; sfx('stab');
+      this.fracture[0] = Player.cam.eye[0]; this.fracture[1] = Player.cam.eye[1]; this.fracture[2] = Player.cam.eye[2]; this.fracture[3] = 4; this.fractureAmt = 1;
+    }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
+    // it lifts you off your feet, up to its face
+    Player.cam.eye[1] += 0.5 * smoothstep(0.08, 0.5, t);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    Renderer.post.redWave = Math.min(1, 0.2 + t * 2.2);
+    Renderer.post.redWave = t < 2.78 ? 0.15 + 0.1 * Math.sin(t * 13) : 1;
     Renderer.post.fear = 1;
-    Renderer.post.flash = t < 0.08 ? 0.5 : 0;
+    Renderer.post.flash = t < 0.08 ? 0.35 : t > 2.8 && t < 2.9 ? 0.6 : 0;
     Renderer.post.flashTint[0] = 1; Renderer.post.flashTint[1] = 0.05; Renderer.post.flashTint[2] = 0.02;
     Renderer.post.fade = smoothstep(FEEL.jumpscareLock - 0.25, FEEL.jumpscareLock, t);
     Lights.update(dt, this.time + t, Streaming.visible);
     Audio.updateChase(false);
     if (t >= FEEL.jumpscareLock) {
       Player.lockAmt = 0; Player.lockTarget = null; Player.trauma = 0;
-      Monster.catchCooldown = 2;
+      Monster.catchCooldown = 2; Monster.kill.on = false; Monster.flinchAmt = 0;
       setState(STATE.FAILURE_STATE);
     }
   },

@@ -180,8 +180,10 @@ const Lights = {
       list.items[list.count++] = TG;
     }
     const G = this.monsterGlow;
-    if (Monster.visible && !Assets.slot('monster') && Game.isGameplay()) {
-      Monster.bodyPoint(G.pos, 0, 1.42, -0.2);
+    const killing = Monster.kill.on && state === STATE.JUMPSCARE;
+    if (Monster.visible && !Assets.slot('monster') && (Game.isGameplay() || killing)) {
+      // during the kill the red glow sits between its face and yours, lighting the hands and the spike
+      if (killing) { V3.copy(G.pos, Player.cam.eye); V3.addScaled(G.pos, G.pos, Renderer.camFwd, 0.55); G.pos[1] += 0.25; } else Monster.bodyPoint(G.pos, 0, 1.42, -0.2);
       G.sector = Level.sectorAt(G.pos[0], G.pos[2]);
       G.current = sectorVisible[G.sector] ? G.base * (0.8 + 0.25 * Math.sin(time * 4.3) + 0.1 * Math.sin(time * 11)) : 0;
       if (G.current > 0) {
