@@ -259,17 +259,48 @@ function buildRelayPlateFrame(): MeshData {
   return builder.build();
 }
 
-const PLATE_CONTACT_BARS: number = 3;
+/** Relay plate core: a glowing handprint scanner inside an outlined pad, with a scan bar underneath. */
+const PLATE_PRINT_FINGERS: ReadonlyArray<{ readonly x: number; readonly length: number; readonly tilt: number }> = [
+  { x: -0.075, length: 0.15, tilt: 0.16 },
+  { x: -0.025, length: 0.19, tilt: 0.05 },
+  { x: 0.025, length: 0.18, tilt: -0.05 },
+  { x: 0.073, length: 0.14, tilt: -0.16 },
+];
 
-/** Relay plate core: polarity disc with three radial contact bars around the contact face. */
 function buildRelayPlateCore(): MeshData {
   const builder = new MeshBuilder();
-  place(builder, createCylinderMesh(0.2, 0.2, 0.025, 24), [0, 0.05, 0.065], [Math.PI / 2, 0, 0], [1, 1, 1]);
-  for (let bar = 0; bar < PLATE_CONTACT_BARS; bar += 1) {
-    const angle: number = (bar / PLATE_CONTACT_BARS) * Math.PI * 2 + Math.PI / 2;
-    place(builder, createBoxMesh(0.03, 0.12, 0.02), [Math.cos(angle) * 0.27, 0.05 + Math.sin(angle) * 0.27, 0.06], [0, 0, angle - Math.PI / 2], [1, 1, 1]);
+  const faceZ = 0.062;
+  const printY = 0.0;
+  // Palm: rounded pad built from a box and two discs.
+  place(builder, createBoxMesh(0.2, 0.17, 0.012), [0, printY, faceZ], [0, 0, 0], [1, 1, 1]);
+  place(builder, createCylinderMesh(0.1, 0.1, 0.012, 20), [0, printY - 0.085, faceZ], [Math.PI / 2, 0, 0], [1, 1, 0.45]);
+  // Fingers: tilted bars with rounded tips, fanning out from the top of the palm.
+  for (const finger of PLATE_PRINT_FINGERS) {
+    const baseY: number = printY + 0.09;
+    const centerX: number = finger.x - Math.sin(finger.tilt) * finger.length * 0.5;
+    const centerY: number = baseY + Math.cos(finger.tilt) * finger.length * 0.5;
+    place(builder, createBoxMesh(0.04, finger.length, 0.012), [centerX, centerY, faceZ], [0, 0, finger.tilt], [1, 1, 1]);
+    const tipX: number = finger.x - Math.sin(finger.tilt) * finger.length;
+    const tipY: number = baseY + Math.cos(finger.tilt) * finger.length;
+    place(builder, createCylinderMesh(0.02, 0.02, 0.012, 12), [tipX, tipY, faceZ], [Math.PI / 2, 0, 0], [1, 1, 1]);
   }
-  place(builder, createBoxMesh(0.4, 0.05, 0.02), [0, -0.33, 0.06], [0, 0, 0], [1, 1, 1]);
+  // Thumb: angled out from the lower side of the palm.
+  const thumbTilt = 0.85;
+  const thumbLength = 0.13;
+  const thumbBase: [number, number] = [-0.1, printY - 0.03];
+  place(builder, createBoxMesh(0.045, thumbLength, 0.012), [thumbBase[0] - Math.sin(thumbTilt) * thumbLength * 0.5, thumbBase[1] + Math.cos(thumbTilt) * thumbLength * 0.5, faceZ], [0, 0, thumbTilt], [1, 1, 1]);
+  place(builder, createCylinderMesh(0.0225, 0.0225, 0.012, 12), [thumbBase[0] - Math.sin(thumbTilt) * thumbLength, thumbBase[1] + Math.cos(thumbTilt) * thumbLength, faceZ], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  // Pad outline: four thin rails around the print.
+  const padHalfWidth = 0.25;
+  const padTop = 0.36;
+  const padBottom = -0.25;
+  const rail = 0.014;
+  place(builder, createBoxMesh(padHalfWidth * 2, rail, 0.01), [0, padTop, faceZ], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(padHalfWidth * 2, rail, 0.01), [0, padBottom, faceZ], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(rail, padTop - padBottom, 0.01), [-padHalfWidth, (padTop + padBottom) / 2, faceZ], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(rail, padTop - padBottom, 0.01), [padHalfWidth, (padTop + padBottom) / 2, faceZ], [0, 0, 0], [1, 1, 1]);
+  // Scan bar below the pad.
+  place(builder, createBoxMesh(0.4, 0.04, 0.02), [0, -0.34, 0.06], [0, 0, 0], [1, 1, 1]);
   return builder.build();
 }
 

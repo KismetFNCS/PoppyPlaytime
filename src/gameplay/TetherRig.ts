@@ -484,8 +484,7 @@ export class TetherRig {
     for (const side of ['left', 'right'] as const) {
       const claw: ClawState = this.claws[side];
       const socket: Vec3 = this.socketPosition(side);
-      // Launcher viewmodel: aligned to the camera frame, barrel tip at the socket.
-      this.pushModel(output, 'tether_launcher', mat4FromBasis(socket, basis.right, basis.up, basis.forward), 1);
+      // First person shows only the hands; the launchers stay out of view.
       const corePulse: number = claw.phase === 'latched' ? 2.2 : 0.8 + 0.2 * Math.sin(timeSeconds * 6 + (side === 'left' ? 0 : 1.7));
       if (claw.phase === 'holstered') {
         // Held: hand raised beside the launcher, fingers up, palm toward the player, tilted slightly outward and forward.
