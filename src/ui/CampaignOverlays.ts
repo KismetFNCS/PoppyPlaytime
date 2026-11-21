@@ -44,7 +44,8 @@ export function drawSubtitle(context: CanvasRenderingContext2D, subtitle: Subtit
   context.font = '400 30px "Georgia", "Times New Roman", serif';
   const lines: string[] = wrapText(context, subtitle.text, 1100);
   const boxHeight: number = 56 + lines.length * 40;
-  const boxY: number = HEIGHT - 330 - boxHeight;
+  // Bottom edge sits above the toast line (0.7 × height) so subtitles and hints never overlap.
+  const boxY: number = HEIGHT - 372 - boxHeight;
   context.fillStyle = 'rgba(0, 0, 0, 0.6)';
   context.fillRect(WIDTH / 2 - 600, boxY, 1200, boxHeight);
   context.fillStyle = subtitle.speakerColor;
