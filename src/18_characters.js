@@ -9,13 +9,13 @@
 //                     reacts to the game (talks with hints, cheers, panics, glitches).
 // =====================================================================================
 // CHARACTER PALETTE (UI CONTRACT addendum)
-//   Usher screen bg #04121a, sclera #e8eef2, iris #3fd4a8, pupil #050608, static #c8d2dc
+//   Usher screen bg #04121a, sclera #e8eef2, iris #3fd4a8, pupil #050608, static #c8d2dc, veins #a3172a
 //   Pip casing #d9a63a, casing shadow #8a6420, screen #07090c, LED #f2f4f0, LED happy #7dff6a,
 //   LED scared #b98cff, LED love #ff6aa8, antenna tip #ff3b2e
 //   Source: [ASSUMED] original character colours chosen to differ from the reference characters
 //   (teal-green iris instead of blue, cog casing instead of a star, green/violet LED moods).
 const CAST_COLORS = {
-  screenBg: '#04121a', sclera: '#e8eef2', iris: '#3fd4a8', pupil: '#050608', static: '#c8d2dc',
+  screenBg: '#04121a', sclera: '#e8eef2', iris: '#3fd4a8', pupil: '#050608', static: '#c8d2dc', vein: '#a3172a',
   pipCase: '#d9a63a', pipShade: '#8a6420', pipScreen: '#07090c', led: '#f2f4f0', ledHappy: '#7dff6a',
   ledScared: '#b98cff', ledLove: '#ff6aa8', antenna: '#ff3b2e'
 };
@@ -227,6 +227,14 @@ const Cast = {
     g.addColorStop(0, C.sclera); g.addColorStop(1, C.static);
     c.fillStyle = g; c.fillRect(0, 0, W, H);
     const ix = cx + U.eyeX * 18, iy = cy - U.eyeY * 8;
+    // bloodshot veins creeping in from the corners
+    c.strokeStyle = C.vein; c.lineWidth = 1;
+    for (let k = 0; k < 9; k++) {
+      const sx0 = k % 2 ? cx - 46 : cx + 46, sy0 = cy - 14 + (k * 7) % 28;
+      c.beginPath(); c.moveTo(sx0, sy0);
+      c.quadraticCurveTo((sx0 + ix) / 2 + Math.sin(k * 3) * 6, (sy0 + iy) / 2 + Math.cos(k * 2) * 8, ix + (sx0 > ix ? 20 : -20), iy + Math.sin(k) * 8);
+      c.stroke();
+    }
     c.fillStyle = C.iris; c.beginPath(); c.arc(ix, iy, 17, 0, Math.PI * 2); c.fill();
     c.strokeStyle = C.screenBg; c.lineWidth = 1;
     for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; c.beginPath(); c.moveTo(ix + Math.cos(a) * 8, iy + Math.sin(a) * 8); c.lineTo(ix + Math.cos(a) * 16, iy + Math.sin(a) * 16); c.stroke(); }
@@ -324,7 +332,7 @@ const Cast = {
     // amber glass eye in the intact socket; the lid closes on blinks
     V3.set(this.local, 0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
     it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, hp, 0.08, 0.022, 0.022 * (1 - D.blink * 0.9), 0.012, false);
-    if (it) { it.emis[0] = 0.7; it.emis[1] = 0.38; it.emis[2] = 0.06; }
+    if (it) { it.tint[0] = 0.85; it.tint[1] = 0.95; it.tint[2] = 1.25; it.emis[0] = 0.45; it.emis[1] = 0.5; it.emis[2] = 0.55; }
     V3.set(this.local, 0.05, 0.013, -0.106); M4.transformPoint(b, this.m, this.local);
     R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008, 0.006, false);
     // faint glint deep in the empty socket
@@ -337,27 +345,27 @@ const Cast = {
     const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw;
     const a = this.tmp, b = this.tmp2;
     if (!Sculpt.ready('th_body')) return;
-    const L = P.armRaise;
+    const L = P.armRaise, S = 1.2;
     // body rears up and forward during the lunge
-    this.pt(a, p, yaw, 0, L * 0.12, -L * 0.22);
+    this.pt(a, p, yaw, 0, L * 0.12 * S, -L * 0.22 * S);
     let it = R.push('th_body', MAT.burnt);
-    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, 1, 1, 1);
+    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, S, S, S);
     // arms: limp at rest, thrown up and forward for the "hug"
     for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.4, 0.86 + L * 0.2, 0.08 - L * 0.3);
-      this.pt(b, p, yaw, sx * (0.6 - L * 0.2), 0.3 + L * 1.05, -0.14 - L * 0.8);
+      this.pt(a, p, yaw, sx * 0.4 * S, (0.86 + L * 0.2) * S, (0.08 - L * 0.3) * S);
+      this.pt(b, p, yaw, sx * (0.6 - L * 0.2) * S, (0.3 + L * 1.05) * S, (-0.14 - L * 0.8) * S);
       it = R.push('th_arm', MAT.burnt);
       if (it) M4.segment(it.model, a, b, 1);
     }
     // head
     const hy = yaw + P.headYaw;
-    this.pt(a, p, yaw, 0, 1.2 + L * 0.25, 0.1 - L * 0.45);
-    M4.compose(this.m, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), 1, 1, 1);
+    this.pt(a, p, yaw, 0, (1.2 + L * 0.25) * S, (0.1 - L * 0.45) * S);
+    M4.compose(this.m, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), S, S, S);
     it = R.push('th_head', MAT.burnt);
     if (it) it.model.set(this.m);
     // glowing violet glass eye in the right socket
     V3.set(this.local, 0.12, 0.06, -0.265); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.045, 0.045, 0.028, false);
+    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.054, 0.054, 0.034, false);
     if (it) { const g = P.eyeGlow; it.emis[0] = 1.1 * g; it.emis[1] = 0.25 * g; it.emis[2] = 1.6 * g; it.tint[0] = 0.6; it.tint[1] = 0.25; it.tint[2] = 1.0; }
   }
 };

@@ -244,11 +244,66 @@ const TexSynth = {
       const strands = TexSynth.fbmA(s, t, 96, 8, 4, 151);
       const char = smoothstep(0.5, 0.68, TexSynth.fbm(s, t, 5, 5, 152));
       const embers = TexSynth.valueNoise(s * 64, t * 64, 64, 153) > 0.985 ? 1 : 0;
-      let g = (0.55 + strands * 0.45) * lerp(1, 0.12, char);
+      let g = (0.5 + strands * 0.5) * lerp(1, 0.08, char) * (TexSynth.worley(s, t, 9, 154)[1] - TexSynth.worley(s, t, 9, 154)[0] < 0.04 ? 0.4 : 1);
       out[0] = g * (1 + embers * 0.6); out[1] = g * lerp(1, 0.9, char); out[2] = g * lerp(1, 0.85, char);
       out[3] = strands * 0.7 - char * 0.4;
       out[4] = 1;
       out[5] = lerp(1, 1.6, char);
+    },
+    // aged porcelain: two-scale crazing, yellowed stains, grime packed into the cracks, chips
+    porcelainAged(s, t, out) {
+      const w1 = TexSynth.worley(s, t, 7, 161), e1 = w1[1] - w1[0];
+      const w2 = TexSynth.worley(s, t, 22, 162), e2 = w2[1] - w2[0];
+      const craze = clamp(1 - smoothstep(0.0, 0.05, e1) * 0.85 - (1 - smoothstep(0.0, 0.035, e2)) * 0.35, 0, 1);
+      const stain = TexSynth.fbm(s, t, 5, 5, 163);
+      const drip = TexSynth.fbmA(s, t, 9, 1, 3, 164);
+      const chip = TexSynth.fbm(s, t, 12, 3, 165) > 0.72 ? 1 : 0;
+      const crack = 1 - smoothstep(0.0, 0.05, e1);
+      let g = (0.86 + stain * 0.14) * (1 - crack * 0.82) * (1 - (1 - smoothstep(0.0, 0.035, e2)) * 0.25) * (chip ? 0.55 : 1);
+      g *= 1 - Math.max(0, drip - 0.55) * 0.9;
+      out[0] = g; out[1] = g * (0.97 - stain * 0.05); out[2] = g * (0.9 - stain * 0.12);
+      out[3] = 0.6 + craze * 0.4 - (chip ? 0.25 : 0);
+      out[4] = 1;
+      out[5] = crack > 0.5 ? 2.2 : 0.75 + stain * 0.5;
+    },
+    // matted fur: directional strands, clumps, bald patches, dried stains
+    furMatted(s, t, out) {
+      const strands = TexSynth.fbmA(s, t, 128, 10, 4, 171);
+      const clump = TexSynth.worley(s, t, 10, 172), cl = clamp(clump[0] * 1.4, 0, 1);
+      const stain = smoothstep(0.55, 0.75, TexSynth.fbm(s, t, 4, 4, 173));
+      const bald = TexSynth.fbm(s, t, 7, 3, 174) > 0.74 ? 1 : 0;
+      let g = (0.45 + strands * 0.55) * (1 - cl * 0.45) * (1 - stain * 0.55);
+      if (bald) g = 0.35 + strands * 0.15;
+      out[0] = g * (1 - stain * 0.1); out[1] = g * (1 - stain * 0.3); out[2] = g * (1 - stain * 0.35);
+      out[3] = strands * 0.55 + (1 - cl) * 0.45 - bald * 0.3;
+      out[4] = 1;
+      out[5] = 1.0 + stain * 0.3;
+    },
+    // oily gunmetal: brushed base, scratches, oil streaks, rust bleeding from seams
+    steelGrime(s, t, out) {
+      const brushed = TexSynth.fbmA(s, t, 2, 128, 3, 181);
+      const scratch = TexSynth.fbmA(s, t, 96, 3, 2, 182) > 0.78 ? 1 : 0;
+      const oil = smoothstep(0.5, 0.7, TexSynth.fbmA(s, t, 6, 2, 4, 183));
+      const rust = smoothstep(0.62, 0.78, TexSynth.fbm(s, t, 8, 5, 184));
+      const panel = ((s * 2) % 1 < 0.008 || (t * 2) % 1 < 0.008) ? 1 : 0;
+      let g = (0.7 + brushed * 0.25 + scratch * 0.25) * (1 - oil * 0.55) * (panel ? 0.35 : 1);
+      out[0] = g * lerp(1, 1.4, rust); out[1] = g * lerp(1, 0.75, rust); out[2] = g * lerp(1, 0.5, rust);
+      out[3] = 0.5 + brushed * 0.05 + scratch * 0.08 - panel * 0.2 + rust * 0.1;
+      out[4] = 1;
+      out[5] = lerp(0.75, 1.5, Math.max(rust, oil * 0.5)) - scratch * 0.2;
+    },
+    // rotting cloth: weave, mould blooms, damp tide marks, holes
+    clothRot(s, t, out) {
+      const over = (Math.floor(s * 110) + Math.floor(t * 110)) % 2 === 0;
+      const weave = over ? 0.5 + 0.5 * Math.abs(Math.sin(s * Math.PI * 220)) : 0.5 + 0.5 * Math.abs(Math.sin(t * Math.PI * 220));
+      const mould = smoothstep(0.58, 0.72, TexSynth.fbm(s, t, 6, 5, 191));
+      const tide = Math.abs(TexSynth.fbmA(s, t, 3, 6, 3, 192) - 0.5) < 0.03 ? 1 : 0;
+      const hole = TexSynth.fbm(s, t, 10, 3, 193) > 0.76 ? 1 : 0;
+      let g = (0.6 + weave * 0.3) * (1 - mould * 0.5) * (tide ? 0.6 : 1) * (hole ? 0.1 : 1);
+      out[0] = g * (1 - mould * 0.15); out[1] = g * (1 + mould * 0.05); out[2] = g * (1 - mould * 0.2);
+      out[3] = weave * 0.6 - hole * 0.5 + mould * 0.1;
+      out[4] = 1;
+      out[5] = 1.0 + mould * 0.2;
     },
     rubber(s, t, out) {
       const n = TexSynth.fbm(s, t, 32, 3, 121);
@@ -262,10 +317,10 @@ const TexSynth = {
 
   // Material index -> recipe name and normal strength. Order matches MATERIALS.
   layerPlan: [
-    ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelain', 2.5], ['fur', 5.0],
-    ['fur', 5.0], ['steel', 2.0], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
+    ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelainAged', 3.0], ['furMatted', 5.0],
+    ['furMatted', 5.0], ['steelGrime', 2.5], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
     ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5],
-    ['fur', 4.0], ['cloth', 3.5], ['glass', 0.5], ['burnt', 5.0]
+    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['burnt', 5.0], ['furMatted', 4.5], ['clothRot', 3.5]
   ],
 
   // Synthesizes one layer into the given Uint8Array slices.

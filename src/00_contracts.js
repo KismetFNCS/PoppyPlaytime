@@ -95,6 +95,14 @@
 // MATERIAL 18: screen glass (CRT faces, LED panels)  Base #050608, rough 0.12, metal 0.0
 //     Source: [ESTIMATED] 7.jpg / 8.jpg glossy black screens.
 // MATERIAL 19: scorched plush  Base #6a4632, rough 0.97, tile 3.0
+// DARK GRIME PASS (supersedes the bases above): porcelain #c9b99a (aged ivory), violet fur #3a2150 (dark plum),
+//   blue fur #1d3a6b (deep navy), steel #2b2729 (oily gunmetal), light fur #8f8266 (dingy cream),
+//   canvas #211d1a (rotting black), scorched plush #4a2e1f.
+//   Source: [ASSUMED] user asked for darker, scarier characters; hues kept, value and saturation dropped ~40%.
+// MATERIAL 20: matted dark hair  Base #1e1916, rough 0.8, tile 4.0
+//   Source: [ASSUMED] Marigold's new raven hair (deliberately not the reference doll's red).
+// MATERIAL 21: wine cloth (doll dress)  Base #4a2433, rough 0.92, tile 2.5
+//   Source: [ASSUMED] dusty wine dress replacing mustard.
 //     Source: [ESTIMATED] 9.webp burnt fur, mid brown with char-black patches.
 //     Source: [ASSUMED].
 // ============================================================
@@ -199,10 +207,10 @@ const MATERIALS = [
   { name: 'rustIron', base: '#6b4a3a', rough: 0.62, metal: 0.55, tile: 0.5, emis: '#000000', emisStr: 0 },
   { name: 'hazard', base: '#e0b020', rough: 0.5, metal: 0.1, tile: 1.0, emis: '#ffb030', emisStr: 0.9 },
   { name: 'grating', base: '#4a4c50', rough: 0.55, metal: 0.6, tile: 0.5, emis: '#000000', emisStr: 0 },
-  { name: 'porcelain', base: '#e6ddd0', rough: 0.25, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
-  { name: 'furViolet', base: '#5b2a8c', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
-  { name: 'furBlue', base: '#0c77d9', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
-  { name: 'steel', base: '#3a3438', rough: 0.38, metal: 0.85, tile: 1.0, emis: '#000000', emisStr: 0 },
+  { name: 'porcelain', base: '#c9b99a', rough: 0.35, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'furViolet', base: '#3a2150', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'furBlue', base: '#1d3a6b', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'steel', base: '#2b2729', rough: 0.45, metal: 0.8, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'handTeal', base: '#2fb8b0', rough: 0.4, metal: 0.3, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'handRose', base: '#f4a3a8', rough: 0.42, metal: 0.2, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'cable', base: '#1a1a1c', rough: 0.7, metal: 0.0, tile: 4.0, emis: '#4fe3ff', emisStr: 0 },
@@ -211,10 +219,12 @@ const MATERIALS = [
   { name: 'copper', base: '#b87333', rough: 0.35, metal: 0.9, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'lens', base: '#edcd41', rough: 0.2, metal: 0.0, tile: 1.0, emis: '#edcd41', emisStr: 6.0 },
   { name: 'rubber', base: '#151515', rough: 0.9, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'furLight', base: '#b9aa86', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
-  { name: 'canvas', base: '#2a2622', rough: 0.95, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'furLight', base: '#8f8266', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'canvas', base: '#211d1a', rough: 0.95, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'screen', base: '#050608', rough: 0.12, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'burnt', base: '#6a4632', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 }
+  { name: 'burnt', base: '#4a2e1f', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'hairDark', base: '#1e1916', rough: 0.8, metal: 0.0, tile: 4.0, emis: '#000000', emisStr: 0 },
+  { name: 'clothWine', base: '#4a2433', rough: 0.92, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 }
 ];
 const MAT = Object.create(null);
 for (let i = 0; i < MATERIALS.length; i++) MAT[MATERIALS[i].name] = i;

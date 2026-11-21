@@ -323,6 +323,14 @@ window.addEventListener('error', function (e) {
 // MATERIAL 18: screen glass (CRT faces, LED panels)  Base #050608, rough 0.12, metal 0.0
 //     Source: [ESTIMATED] 7.jpg / 8.jpg glossy black screens.
 // MATERIAL 19: scorched plush  Base #6a4632, rough 0.97, tile 3.0
+// DARK GRIME PASS (supersedes the bases above): porcelain #c9b99a (aged ivory), violet fur #3a2150 (dark plum),
+//   blue fur #1d3a6b (deep navy), steel #2b2729 (oily gunmetal), light fur #8f8266 (dingy cream),
+//   canvas #211d1a (rotting black), scorched plush #4a2e1f.
+//   Source: [ASSUMED] user asked for darker, scarier characters; hues kept, value and saturation dropped ~40%.
+// MATERIAL 20: matted dark hair  Base #1e1916, rough 0.8, tile 4.0
+//   Source: [ASSUMED] Marigold's new raven hair (deliberately not the reference doll's red).
+// MATERIAL 21: wine cloth (doll dress)  Base #4a2433, rough 0.92, tile 2.5
+//   Source: [ASSUMED] dusty wine dress replacing mustard.
 //     Source: [ESTIMATED] 9.webp burnt fur, mid brown with char-black patches.
 //     Source: [ASSUMED].
 // ============================================================
@@ -427,10 +435,10 @@ const MATERIALS = [
   { name: 'rustIron', base: '#6b4a3a', rough: 0.62, metal: 0.55, tile: 0.5, emis: '#000000', emisStr: 0 },
   { name: 'hazard', base: '#e0b020', rough: 0.5, metal: 0.1, tile: 1.0, emis: '#ffb030', emisStr: 0.9 },
   { name: 'grating', base: '#4a4c50', rough: 0.55, metal: 0.6, tile: 0.5, emis: '#000000', emisStr: 0 },
-  { name: 'porcelain', base: '#e6ddd0', rough: 0.25, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
-  { name: 'furViolet', base: '#5b2a8c', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
-  { name: 'furBlue', base: '#0c77d9', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
-  { name: 'steel', base: '#3a3438', rough: 0.38, metal: 0.85, tile: 1.0, emis: '#000000', emisStr: 0 },
+  { name: 'porcelain', base: '#c9b99a', rough: 0.35, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'furViolet', base: '#3a2150', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'furBlue', base: '#1d3a6b', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'steel', base: '#2b2729', rough: 0.45, metal: 0.8, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'handTeal', base: '#2fb8b0', rough: 0.4, metal: 0.3, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'handRose', base: '#f4a3a8', rough: 0.42, metal: 0.2, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'cable', base: '#1a1a1c', rough: 0.7, metal: 0.0, tile: 4.0, emis: '#4fe3ff', emisStr: 0 },
@@ -439,10 +447,12 @@ const MATERIALS = [
   { name: 'copper', base: '#b87333', rough: 0.35, metal: 0.9, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'lens', base: '#edcd41', rough: 0.2, metal: 0.0, tile: 1.0, emis: '#edcd41', emisStr: 6.0 },
   { name: 'rubber', base: '#151515', rough: 0.9, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'furLight', base: '#b9aa86', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
-  { name: 'canvas', base: '#2a2622', rough: 0.95, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'furLight', base: '#8f8266', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'canvas', base: '#211d1a', rough: 0.95, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'screen', base: '#050608', rough: 0.12, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'burnt', base: '#6a4632', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 }
+  { name: 'burnt', base: '#4a2e1f', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'hairDark', base: '#1e1916', rough: 0.8, metal: 0.0, tile: 4.0, emis: '#000000', emisStr: 0 },
+  { name: 'clothWine', base: '#4a2433', rough: 0.92, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 }
 ];
 const MAT = Object.create(null);
 for (let i = 0; i < MATERIALS.length; i++) MAT[MATERIALS[i].name] = i;
@@ -1283,11 +1293,66 @@ const TexSynth = {
       const strands = TexSynth.fbmA(s, t, 96, 8, 4, 151);
       const char = smoothstep(0.5, 0.68, TexSynth.fbm(s, t, 5, 5, 152));
       const embers = TexSynth.valueNoise(s * 64, t * 64, 64, 153) > 0.985 ? 1 : 0;
-      let g = (0.55 + strands * 0.45) * lerp(1, 0.12, char);
+      let g = (0.5 + strands * 0.5) * lerp(1, 0.08, char) * (TexSynth.worley(s, t, 9, 154)[1] - TexSynth.worley(s, t, 9, 154)[0] < 0.04 ? 0.4 : 1);
       out[0] = g * (1 + embers * 0.6); out[1] = g * lerp(1, 0.9, char); out[2] = g * lerp(1, 0.85, char);
       out[3] = strands * 0.7 - char * 0.4;
       out[4] = 1;
       out[5] = lerp(1, 1.6, char);
+    },
+    // aged porcelain: two-scale crazing, yellowed stains, grime packed into the cracks, chips
+    porcelainAged(s, t, out) {
+      const w1 = TexSynth.worley(s, t, 7, 161), e1 = w1[1] - w1[0];
+      const w2 = TexSynth.worley(s, t, 22, 162), e2 = w2[1] - w2[0];
+      const craze = clamp(1 - smoothstep(0.0, 0.05, e1) * 0.85 - (1 - smoothstep(0.0, 0.035, e2)) * 0.35, 0, 1);
+      const stain = TexSynth.fbm(s, t, 5, 5, 163);
+      const drip = TexSynth.fbmA(s, t, 9, 1, 3, 164);
+      const chip = TexSynth.fbm(s, t, 12, 3, 165) > 0.72 ? 1 : 0;
+      const crack = 1 - smoothstep(0.0, 0.05, e1);
+      let g = (0.86 + stain * 0.14) * (1 - crack * 0.82) * (1 - (1 - smoothstep(0.0, 0.035, e2)) * 0.25) * (chip ? 0.55 : 1);
+      g *= 1 - Math.max(0, drip - 0.55) * 0.9;
+      out[0] = g; out[1] = g * (0.97 - stain * 0.05); out[2] = g * (0.9 - stain * 0.12);
+      out[3] = 0.6 + craze * 0.4 - (chip ? 0.25 : 0);
+      out[4] = 1;
+      out[5] = crack > 0.5 ? 2.2 : 0.75 + stain * 0.5;
+    },
+    // matted fur: directional strands, clumps, bald patches, dried stains
+    furMatted(s, t, out) {
+      const strands = TexSynth.fbmA(s, t, 128, 10, 4, 171);
+      const clump = TexSynth.worley(s, t, 10, 172), cl = clamp(clump[0] * 1.4, 0, 1);
+      const stain = smoothstep(0.55, 0.75, TexSynth.fbm(s, t, 4, 4, 173));
+      const bald = TexSynth.fbm(s, t, 7, 3, 174) > 0.74 ? 1 : 0;
+      let g = (0.45 + strands * 0.55) * (1 - cl * 0.45) * (1 - stain * 0.55);
+      if (bald) g = 0.35 + strands * 0.15;
+      out[0] = g * (1 - stain * 0.1); out[1] = g * (1 - stain * 0.3); out[2] = g * (1 - stain * 0.35);
+      out[3] = strands * 0.55 + (1 - cl) * 0.45 - bald * 0.3;
+      out[4] = 1;
+      out[5] = 1.0 + stain * 0.3;
+    },
+    // oily gunmetal: brushed base, scratches, oil streaks, rust bleeding from seams
+    steelGrime(s, t, out) {
+      const brushed = TexSynth.fbmA(s, t, 2, 128, 3, 181);
+      const scratch = TexSynth.fbmA(s, t, 96, 3, 2, 182) > 0.78 ? 1 : 0;
+      const oil = smoothstep(0.5, 0.7, TexSynth.fbmA(s, t, 6, 2, 4, 183));
+      const rust = smoothstep(0.62, 0.78, TexSynth.fbm(s, t, 8, 5, 184));
+      const panel = ((s * 2) % 1 < 0.008 || (t * 2) % 1 < 0.008) ? 1 : 0;
+      let g = (0.7 + brushed * 0.25 + scratch * 0.25) * (1 - oil * 0.55) * (panel ? 0.35 : 1);
+      out[0] = g * lerp(1, 1.4, rust); out[1] = g * lerp(1, 0.75, rust); out[2] = g * lerp(1, 0.5, rust);
+      out[3] = 0.5 + brushed * 0.05 + scratch * 0.08 - panel * 0.2 + rust * 0.1;
+      out[4] = 1;
+      out[5] = lerp(0.75, 1.5, Math.max(rust, oil * 0.5)) - scratch * 0.2;
+    },
+    // rotting cloth: weave, mould blooms, damp tide marks, holes
+    clothRot(s, t, out) {
+      const over = (Math.floor(s * 110) + Math.floor(t * 110)) % 2 === 0;
+      const weave = over ? 0.5 + 0.5 * Math.abs(Math.sin(s * Math.PI * 220)) : 0.5 + 0.5 * Math.abs(Math.sin(t * Math.PI * 220));
+      const mould = smoothstep(0.58, 0.72, TexSynth.fbm(s, t, 6, 5, 191));
+      const tide = Math.abs(TexSynth.fbmA(s, t, 3, 6, 3, 192) - 0.5) < 0.03 ? 1 : 0;
+      const hole = TexSynth.fbm(s, t, 10, 3, 193) > 0.76 ? 1 : 0;
+      let g = (0.6 + weave * 0.3) * (1 - mould * 0.5) * (tide ? 0.6 : 1) * (hole ? 0.1 : 1);
+      out[0] = g * (1 - mould * 0.15); out[1] = g * (1 + mould * 0.05); out[2] = g * (1 - mould * 0.2);
+      out[3] = weave * 0.6 - hole * 0.5 + mould * 0.1;
+      out[4] = 1;
+      out[5] = 1.0 + mould * 0.2;
     },
     rubber(s, t, out) {
       const n = TexSynth.fbm(s, t, 32, 3, 121);
@@ -1301,10 +1366,10 @@ const TexSynth = {
 
   // Material index -> recipe name and normal strength. Order matches MATERIALS.
   layerPlan: [
-    ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelain', 2.5], ['fur', 5.0],
-    ['fur', 5.0], ['steel', 2.0], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
+    ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelainAged', 3.0], ['furMatted', 5.0],
+    ['furMatted', 5.0], ['steelGrime', 2.5], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
     ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5],
-    ['fur', 4.0], ['cloth', 3.5], ['glass', 0.5], ['burnt', 5.0]
+    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['burnt', 5.0], ['furMatted', 4.5], ['clothRot', 3.5]
   ],
 
   // Synthesizes one layer into the given Uint8Array slices.
@@ -1562,6 +1627,14 @@ void main() {
   vec4 ny = texture(uNormalTex, vec3(uvY, L));
   vec4 nz = texture(uNormalTex, vec3(uvZ, L));
   vec3 tnx = nx.xyz * 2.0 - 1.0, tny = ny.xyz * 2.0 - 1.0, tnz = nz.xyz * 2.0 - 1.0;
+  // detail layer: the same material at 4.37x frequency adds fine grain to albedo and normals
+  const float DF = 4.37;
+  vec3 dax = texture(uAlbedoTex, vec3(uvX * DF, L)).rgb, day = texture(uAlbedoTex, vec3(uvY * DF, L)).rgb, daz = texture(uAlbedoTex, vec3(uvZ * DF, L)).rgb;
+  float dl = dot(dax * bw.x + day * bw.y + daz * bw.z, vec3(0.3333));
+  alb.rgb *= mix(1.0, 0.55 + 0.9 * dl, 0.4);
+  tnx.xy += (texture(uNormalTex, vec3(uvX * DF, L)).xy * 2.0 - 1.0) * 0.6;
+  tny.xy += (texture(uNormalTex, vec3(uvY * DF, L)).xy * 2.0 - 1.0) * 0.6;
+  tnz.xy += (texture(uNormalTex, vec3(uvZ * DF, L)).xy * 2.0 - 1.0) * 0.6;
   // whiteout triplanar normal blend
   tnx = vec3(tnx.xy + n.zy, abs(tnx.z) * n.x);
   tny = vec3(tny.xy + n.xz, abs(tny.z) * n.y);
@@ -4523,20 +4596,17 @@ const Monster = {
       this.solveKnee(this.hipW, l.foot, l.a, l.b, side, this.kneeW);
       const hip = this.hipW, knee = this.kneeW, foot = l.foot;
       R.trs('sphere', MAT.steel, hip[0], hip[1], hip[2], 0, 0, 0, 0.13, 0.13, 0.13);
-      it = R.push('box', MAT.steel);
-      if (it) { M4.segment(it.model, hip, knee, 1); it.model[0] *= 0.15; it.model[1] *= 0.15; it.model[2] *= 0.15; it.model[8] *= 0.1; it.model[9] *= 0.1; it.model[10] *= 0.1; M4.multiply(it.model, it.model, _mh.boxUp); }
+      it = R.push(Sculpt.ready('sp_femur') ? 'sp_femur' : 'cyl', MAT.steel);
+      if (it) { M4.segment(it.model, hip, knee, Sculpt.ready('sp_femur') ? 1 : 0.08); }
       // piston riding along the femur
       V3.lerp(B, hip, knee, 0.15); V3.lerp(H, hip, knee, 0.8); B[1] += 0.09; H[1] += 0.09;
       R.seg('cylLow', MAT.copper, B, H, 0.03);
       // knee: joint drum + bolt
       R.trs('sphere', MAT.steel, knee[0], knee[1], knee[2], 0, 0, 0, 0.12, 0.12, 0.12);
       R.trs('cyl', MAT.copper, knee[0], knee[1] - 0.04, knee[2], this.yaw, 0, Math.PI / 2, 0.06, 0.28, 0.06);
-      // tibia: tapered shaft then a flat blade claw into the floor
-      V3.lerp(X, knee, foot, 0.72);
-      R.seg('cyl', MAT.steel, knee, X, 0.06);
-      R.trs('sphereLow', MAT.steel, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065);
-      it = R.push('cone', MAT.steel);
-      if (it) { M4.segment(it.model, X, foot, 1); it.model[0] *= 0.075; it.model[1] *= 0.075; it.model[2] *= 0.075; it.model[8] *= 0.025; it.model[9] *= 0.025; it.model[10] *= 0.025; }
+      // tibia: ribbed shaft flaring into a hooked blade
+      it = R.push(Sculpt.ready('sp_tibia') ? 'sp_tibia' : 'cyl', MAT.steel);
+      if (it) M4.segment(it.model, knee, foot, Sculpt.ready('sp_tibia') ? 1 : 0.06);
       // red tendon cables spanning hip -> shin
       for (const off of [-0.07, 0.07]) {
         V3.set(B, hip[0] + off * side, hip[1] - 0.05, hip[2] + off);
@@ -7938,13 +8008,13 @@ else boot();
 //                     reacts to the game (talks with hints, cheers, panics, glitches).
 // =====================================================================================
 // CHARACTER PALETTE (UI CONTRACT addendum)
-//   Usher screen bg #04121a, sclera #e8eef2, iris #3fd4a8, pupil #050608, static #c8d2dc
+//   Usher screen bg #04121a, sclera #e8eef2, iris #3fd4a8, pupil #050608, static #c8d2dc, veins #a3172a
 //   Pip casing #d9a63a, casing shadow #8a6420, screen #07090c, LED #f2f4f0, LED happy #7dff6a,
 //   LED scared #b98cff, LED love #ff6aa8, antenna tip #ff3b2e
 //   Source: [ASSUMED] original character colours chosen to differ from the reference characters
 //   (teal-green iris instead of blue, cog casing instead of a star, green/violet LED moods).
 const CAST_COLORS = {
-  screenBg: '#04121a', sclera: '#e8eef2', iris: '#3fd4a8', pupil: '#050608', static: '#c8d2dc',
+  screenBg: '#04121a', sclera: '#e8eef2', iris: '#3fd4a8', pupil: '#050608', static: '#c8d2dc', vein: '#a3172a',
   pipCase: '#d9a63a', pipShade: '#8a6420', pipScreen: '#07090c', led: '#f2f4f0', ledHappy: '#7dff6a',
   ledScared: '#b98cff', ledLove: '#ff6aa8', antenna: '#ff3b2e'
 };
@@ -8156,6 +8226,14 @@ const Cast = {
     g.addColorStop(0, C.sclera); g.addColorStop(1, C.static);
     c.fillStyle = g; c.fillRect(0, 0, W, H);
     const ix = cx + U.eyeX * 18, iy = cy - U.eyeY * 8;
+    // bloodshot veins creeping in from the corners
+    c.strokeStyle = C.vein; c.lineWidth = 1;
+    for (let k = 0; k < 9; k++) {
+      const sx0 = k % 2 ? cx - 46 : cx + 46, sy0 = cy - 14 + (k * 7) % 28;
+      c.beginPath(); c.moveTo(sx0, sy0);
+      c.quadraticCurveTo((sx0 + ix) / 2 + Math.sin(k * 3) * 6, (sy0 + iy) / 2 + Math.cos(k * 2) * 8, ix + (sx0 > ix ? 20 : -20), iy + Math.sin(k) * 8);
+      c.stroke();
+    }
     c.fillStyle = C.iris; c.beginPath(); c.arc(ix, iy, 17, 0, Math.PI * 2); c.fill();
     c.strokeStyle = C.screenBg; c.lineWidth = 1;
     for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; c.beginPath(); c.moveTo(ix + Math.cos(a) * 8, iy + Math.sin(a) * 8); c.lineTo(ix + Math.cos(a) * 16, iy + Math.sin(a) * 16); c.stroke(); }
@@ -8253,7 +8331,7 @@ const Cast = {
     // amber glass eye in the intact socket; the lid closes on blinks
     V3.set(this.local, 0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
     it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, hp, 0.08, 0.022, 0.022 * (1 - D.blink * 0.9), 0.012, false);
-    if (it) { it.emis[0] = 0.7; it.emis[1] = 0.38; it.emis[2] = 0.06; }
+    if (it) { it.tint[0] = 0.85; it.tint[1] = 0.95; it.tint[2] = 1.25; it.emis[0] = 0.45; it.emis[1] = 0.5; it.emis[2] = 0.55; }
     V3.set(this.local, 0.05, 0.013, -0.106); M4.transformPoint(b, this.m, this.local);
     R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008, 0.006, false);
     // faint glint deep in the empty socket
@@ -8266,27 +8344,27 @@ const Cast = {
     const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw;
     const a = this.tmp, b = this.tmp2;
     if (!Sculpt.ready('th_body')) return;
-    const L = P.armRaise;
+    const L = P.armRaise, S = 1.2;
     // body rears up and forward during the lunge
-    this.pt(a, p, yaw, 0, L * 0.12, -L * 0.22);
+    this.pt(a, p, yaw, 0, L * 0.12 * S, -L * 0.22 * S);
     let it = R.push('th_body', MAT.burnt);
-    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, 1, 1, 1);
+    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, S, S, S);
     // arms: limp at rest, thrown up and forward for the "hug"
     for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.4, 0.86 + L * 0.2, 0.08 - L * 0.3);
-      this.pt(b, p, yaw, sx * (0.6 - L * 0.2), 0.3 + L * 1.05, -0.14 - L * 0.8);
+      this.pt(a, p, yaw, sx * 0.4 * S, (0.86 + L * 0.2) * S, (0.08 - L * 0.3) * S);
+      this.pt(b, p, yaw, sx * (0.6 - L * 0.2) * S, (0.3 + L * 1.05) * S, (-0.14 - L * 0.8) * S);
       it = R.push('th_arm', MAT.burnt);
       if (it) M4.segment(it.model, a, b, 1);
     }
     // head
     const hy = yaw + P.headYaw;
-    this.pt(a, p, yaw, 0, 1.2 + L * 0.25, 0.1 - L * 0.45);
-    M4.compose(this.m, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), 1, 1, 1);
+    this.pt(a, p, yaw, 0, (1.2 + L * 0.25) * S, (0.1 - L * 0.45) * S);
+    M4.compose(this.m, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), S, S, S);
     it = R.push('th_head', MAT.burnt);
     if (it) it.model.set(this.m);
     // glowing violet glass eye in the right socket
     V3.set(this.local, 0.12, 0.06, -0.265); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.045, 0.045, 0.028, false);
+    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.054, 0.054, 0.034, false);
     if (it) { const g = P.eyeGlow; it.emis[0] = 1.1 * g; it.emis[1] = 0.25 * g; it.emis[2] = 1.6 * g; it.tint[0] = 0.6; it.tint[1] = 0.25; it.tint[2] = 1.0; }
   }
 };
@@ -8639,28 +8717,62 @@ const SN_EDGES = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 1, 3, 4, 6, 5, 7,
 
 // ---------- character models ----------
 const SCULPTS = {
-  // Spoolwright porcelain mask: brow, cheekbones, two sockets, carved grin with teeth, cracks.
+  // Spoolwright porcelain mask: heavy brow, gaunt cheeks, deep sockets, ear-to-ear grin of needle teeth,
+  // a smashed skull plate and a web of carved cracks.
   sp_mask: () => {
     const P = MAT.porcelain, D = MAT.rubber, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.42, 0.31], m: P },
-      { t: 'ell', c: [0.15, -0.07, -0.2], r: [0.1, 0.08, 0.09], m: P, k: 0.08 },
-      { t: 'ell', c: [-0.15, -0.07, -0.2], r: [0.1, 0.08, 0.09], m: P, k: 0.08 },
-      { t: 'cap', a: [-0.19, 0.12, -0.23], b: [0.19, 0.12, -0.23], r: 0.05, m: P, k: 0.07 },
-      { t: 'ell', c: [0, -0.3, -0.13], r: [0.15, 0.1, 0.12], m: P, k: 0.08 },
-      { t: 'sph', c: [0.125, 0.055, -0.3], r: 0.085, op: 's', k: 0.025, sm: D },
-      { t: 'sph', c: [-0.125, 0.06, -0.3], r: 0.075, op: 's', k: 0.025, sm: D },
-      { t: 'ell', c: [0, -0.15, -0.3], r: [0.23, 0.065, 0.13], op: 's', k: 0.02, sm: D },
-      { t: 'sph', c: [0.02, -0.02, -0.33], r: 0.018, op: 's', k: 0.005, sm: D },
-      { t: 'sph', c: [-0.02, -0.02, -0.33], r: 0.018, op: 's', k: 0.005, sm: D }
+      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.43, 0.31], m: P },
+      { t: 'ell', c: [0.16, -0.06, -0.2], r: [0.1, 0.08, 0.09], m: P, k: 0.08 },
+      { t: 'ell', c: [-0.16, -0.06, -0.2], r: [0.1, 0.08, 0.09], m: P, k: 0.08 },
+      { t: 'cap', a: [-0.2, 0.12, -0.23], b: [0.2, 0.12, -0.23], r: 0.055, m: P, k: 0.07 },
+      { t: 'ell', c: [0, -0.31, -0.12], r: [0.14, 0.1, 0.12], m: P, k: 0.08 },
+      // gaunt hollows under the cheekbones
+      { t: 'sph', c: [0.22, -0.16, -0.24], r: 0.06, op: 's', k: 0.05, sm: P },
+      { t: 'sph', c: [-0.22, -0.16, -0.24], r: 0.06, op: 's', k: 0.05, sm: P },
+      // deep sockets
+      { t: 'sph', c: [0.125, 0.055, -0.3], r: 0.09, op: 's', k: 0.03, sm: D },
+      { t: 'sph', c: [-0.125, 0.06, -0.3], r: 0.078, op: 's', k: 0.03, sm: D },
+      // wide grin curling up into the cheeks
+      { t: 'ell', c: [0, -0.15, -0.29], r: [0.25, 0.068, 0.14], op: 's', k: 0.015, sm: D },
+      { t: 'ell', c: [0.25, -0.09, -0.21], r: [0.06, 0.05, 0.1], rot: [0, 0, 0.6], op: 's', k: 0.015, sm: D },
+      { t: 'ell', c: [-0.25, -0.09, -0.21], r: [0.06, 0.05, 0.1], rot: [0, 0, -0.6], op: 's', k: 0.015, sm: D },
+      // smashed skull plate on the upper right
+      { t: 'box', c: [0.17, 0.33, -0.1], h: [0.09, 0.07, 0.1], rot: [0.5, 0.4, 0.8], op: 's', k: 0.003, sm: D, n: [0.02, 40] },
+      { t: 'sph', c: [0.02, -0.02, -0.33], r: 0.017, op: 's', k: 0.005, sm: D },
+      { t: 'sph', c: [-0.02, -0.02, -0.33], r: 0.017, op: 's', k: 0.005, sm: D }
     ];
-    for (let i = 0; i < 11; i++) {
-      const x = -0.19 + i * 0.038, curve = Math.abs(x) * 0.25;
-      n.push({ t: 'box', c: [x, -0.115 + curve, -0.27 + curve * 0.6], h: [0.014, 0.024, 0.03], rr: 0.006, m: P, k: 0.004 });
-      n.push({ t: 'box', c: [x, -0.19 + curve, -0.27 + curve * 0.6], h: [0.014, 0.022, 0.03], rr: 0.006, m: P, k: 0.004 });
+    // needle teeth along the grin, upper and lower rows
+    for (let i = 0; i < 17; i++) {
+      const a = -0.95 + i * (1.9 / 16), x = Math.sin(a) * 0.28, z = -Math.cos(a) * 0.275, y = -0.15 + a * a * 0.07;
+      n.push({ t: 'cap', a: [x, y + 0.045, z], b: [x * 0.98, y - 0.005, z * 0.98], r: 0.013, r2: 0.002, m: P, k: 0.003 });
+      n.push({ t: 'cap', a: [x, y - 0.06, z], b: [x * 0.98, y - 0.01, z * 0.98], r: 0.012, r2: 0.002, m: P, k: 0.003 });
     }
-    const cracks = [[0.05, 0.25, -0.26, 0.12, 0.13, -0.29], [0.12, 0.13, -0.29, 0.07, 0.02, -0.31], [-0.2, 0.2, -0.22, -0.27, 0.0, -0.18], [0.24, -0.02, -0.2, 0.3, -0.18, -0.12]];
-    for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.007, op: 's', sm: D });
-    return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 70);
+    const cracks = [[0.05, 0.3, -0.25, 0.12, 0.13, -0.29], [0.12, 0.13, -0.29, 0.07, 0.02, -0.31], [-0.2, 0.22, -0.22, -0.28, 0.0, -0.18],
+      [0.24, -0.02, -0.2, 0.3, -0.18, -0.12], [-0.05, 0.38, -0.12, -0.12, 0.2, -0.27], [-0.12, 0.2, -0.27, -0.2, 0.15, -0.24], [0.0, -0.22, -0.28, 0.06, -0.38, -0.18]];
+    for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.008, op: 's', sm: D, n: [0.004, 60] });
+    return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 80);
+  },
+  // Spoolwright femur (y 0 -> 1 along the bone): armour plates, bolts, a hydraulic ram
+  sp_femur: () => {
+    const S = MAT.steel, n = [
+      { t: 'box', c: [0, 0.5, 0], h: [0.075, 0.42, 0.05], rr: 0.02, m: S },
+      { t: 'box', c: [0, 0.45, 0.055], h: [0.06, 0.3, 0.012], rr: 0.006, m: S, k: 0.01 },
+      { t: 'cap', a: [0.07, 0.15, 0], b: [0.07, 0.8, 0], r: 0.022, m: MAT.copper, k: 0.01 },
+      { t: 'cyl', c: [0, 0.03, 0], r: 0.09, h: 0.06, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 },
+      { t: 'cyl', c: [0, 0.97, 0], r: 0.075, h: 0.06, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 }
+    ];
+    for (let i = 0; i < 4; i++) n.push({ t: 'sph', c: [0.05 * (i % 2 ? 1 : -1), 0.25 + i * 0.15, 0.07], r: 0.012, m: MAT.copper, k: 0.004 });
+    return SDF.mesh(n, [-0.15, -0.08, -0.12], [0.15, 1.08, 0.12], 64);
+  },
+  // Spoolwright tibia (knee at y 0, tip at y 1): ribbed shaft flaring into a hooked blade
+  sp_tibia: () => {
+    const S = MAT.steel, n = [
+      { t: 'cap', a: [0, 0.02, 0], b: [0, 0.62, 0], r: 0.055, r2: 0.04, m: S },
+      { t: 'box', c: [0.02, 0.8, 0], h: [0.05, 0.2, 0.012], rr: 0.006, rot: [0, 0, 0.12], m: S, k: 0.03 },
+      { t: 'cap', a: [0.03, 0.7, 0], b: [-0.03, 1.0, 0], r: 0.02, r2: 0.002, m: S, k: 0.03 }
+    ];
+    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, 0.1 + i * 0.11, 0], R: 0.055 - i * 0.003, r: 0.009, m: MAT.copper, k: 0.005 });
+    return SDF.mesh(n, [-0.1, -0.05, -0.08], [0.1, 1.05, 0.08], 64);
   },
   // Torn canvas hood that frames the mask
   sp_hood: () => {
@@ -8688,97 +8800,111 @@ const SCULPTS = {
     n.push({ t: 'cyl', c: [0, 0.27, -0.45], r: 0.17, h: 0.06, rr: 0.02, rot: [0, Math.PI / 2, 0], m: MAT.steel, k: 0.03 });
     return SDF.mesh(n, [-0.9, -0.75, -0.75], [0.9, 0.95, 2.25], 80);
   },
-  // Marigold seated body: mustard dress, cream pinafore + petticoat ruffle, porcelain limbs, black shoes
+  // Marigold seated body: dusty wine dress with a torn hem, grimy pinafore, cracked porcelain limbs
   mg_body: () => {
-    const Y = MAT.paint, W = MAT.furLight, P = MAT.porcelain, B = MAT.rubber, n = [
-      { t: 'ell', c: [0, 0.13, 0.02], r: [0.25, 0.15, 0.24], m: Y, n: [0.008, 40] },
-      { t: 'tor', c: [0, 0.04, 0.02], R: 0.23, r: 0.04, m: W, k: 0.02, n: [0.012, 55] },
+    const Y = MAT.clothWine, W = MAT.furLight, P = MAT.porcelain, B = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0.13, 0.02], r: [0.26, 0.15, 0.25], m: Y, n: [0.01, 34] },
+      { t: 'tor', c: [0, 0.035, 0.02], R: 0.24, r: 0.035, m: Y, k: 0.02, n: [0.016, 48] },
+      { t: 'box', c: [0, 0.0, 0.0], h: [0.4, 0.03, 0.4], op: 's', k: 0.01, sm: Y, n: [0.03, 22] },
       { t: 'ell', c: [0, 0.35, 0.03], r: [0.1, 0.15, 0.08], m: Y, k: 0.06 },
-      { t: 'box', c: [0, 0.3, -0.045], h: [0.075, 0.13, 0.012], rr: 0.01, m: W, k: 0.01 },
-      { t: 'ell', c: [0, 0.16, -0.17], r: [0.13, 0.1, 0.04], m: W, k: 0.03 },
-      { t: 'tor', c: [0, 0.49, 0.03], R: 0.045, r: 0.018, m: W, k: 0.01 },
-      { t: 'cap', a: [0, 0.48, 0.03], b: [0, 0.57, 0.03], r: 0.024, m: P, k: 0.01 }
+      { t: 'box', c: [0, 0.3, -0.045], h: [0.075, 0.13, 0.012], rr: 0.01, m: W, k: 0.01, n: [0.004, 60] },
+      { t: 'ell', c: [0, 0.16, -0.17], r: [0.13, 0.1, 0.04], m: W, k: 0.03, n: [0.006, 50] },
+      { t: 'tor', c: [0, 0.49, 0.03], R: 0.045, r: 0.016, m: W, k: 0.01 },
+      { t: 'cap', a: [0, 0.48, 0.03], b: [0, 0.57, 0.03], r: 0.023, m: P, k: 0.01 }
     ];
     for (const sx of [-1, 1]) {
-      n.push({ t: 'ell', c: [sx * 0.115, 0.45, 0.03], r: [0.055, 0.045, 0.05], m: Y, k: 0.03 });
-      n.push({ t: 'cap', a: [sx * 0.12, 0.43, 0.03], b: [sx * 0.135, 0.3, -0.04], r: 0.025, m: P, k: 0.015 });
-      n.push({ t: 'cap', a: [sx * 0.135, 0.3, -0.04], b: [sx * 0.1, 0.22, -0.13], r: 0.022, m: P, k: 0.015 });
-      n.push({ t: 'sph', c: [sx * 0.095, 0.21, -0.145], r: 0.028, m: P, k: 0.01 });
-      n.push({ t: 'cap', a: [sx * 0.07, 0.07, -0.08], b: [sx * 0.08, 0.05, -0.32], r: 0.033, r2: 0.028, m: P, k: 0.02 });
-      n.push({ t: 'ell', c: [sx * 0.08, 0.045, -0.37], r: [0.038, 0.032, 0.058], m: B, k: 0.012 });
+      n.push({ t: 'ell', c: [sx * 0.115, 0.45, 0.03], r: [0.055, 0.045, 0.05], m: Y, k: 0.03, n: [0.006, 50] });
+      n.push({ t: 'cap', a: [sx * 0.12, 0.43, 0.03], b: [sx * 0.135, 0.3, -0.04], r: 0.023, m: P, k: 0.015 });
+      n.push({ t: 'cap', a: [sx * 0.135, 0.3, -0.04], b: [sx * 0.1, 0.22, -0.13], r: 0.02, m: P, k: 0.015 });
+      n.push({ t: 'sph', c: [sx * 0.095, 0.21, -0.145], r: 0.026, m: P, k: 0.01 });
+      for (let f = 0; f < 3; f++) n.push({ t: 'cap', a: [sx * 0.095, 0.2, -0.16], b: [sx * (0.085 + f * 0.012), 0.165, -0.19], r: 0.006, m: P, k: 0.006 });
+      n.push({ t: 'cap', a: [sx * 0.07, 0.07, -0.08], b: [sx * 0.08, 0.05, -0.32], r: 0.031, r2: 0.026, m: P, k: 0.02 });
+      n.push({ t: 'ell', c: [sx * 0.08, 0.045, -0.37], r: [0.036, 0.03, 0.056], m: B, k: 0.012 });
     }
-    return SDF.mesh(n, [-0.33, -0.02, -0.46], [0.33, 0.62, 0.3], 64);
+    // a cracked-off knee showing the hollow inside
+    n.push({ t: 'sph', c: [0.085, 0.085, -0.2], r: 0.022, op: 's', k: 0.004, sm: B, n: [0.006, 80] });
+    return SDF.mesh(n, [-0.33, -0.02, -0.46], [0.33, 0.62, 0.3], 76);
   },
-  // Marigold head: big doll head, broken cheek, hollow socket, glass-eye socket, ash-blonde ringlets, bow
+  // Marigold head: shattered porcelain face (a whole cheek missing, hollow socket, milky eye),
+  // parted lips, matted raven hair hanging in clumps over one side
   mg_head: () => {
-    const P = MAT.porcelain, H = MAT.furLight, D = MAT.rubber, Y = MAT.paint;
+    const P = MAT.porcelain, H = MAT.hairDark, D = MAT.rubber;
     const n = [
-      { t: 'ell', c: [0, 0.035, 0.025], r: [0.158, 0.152, 0.152], m: H, n: [0.006, 60] },
-      { t: 'ell', c: [0, -0.03, -0.12], r: [0.14, 0.14, 0.09], op: 's', k: 0.02, sm: H },
+      { t: 'ell', c: [0, 0.035, 0.03], r: [0.16, 0.155, 0.155], m: H, n: [0.008, 50] },
+      { t: 'ell', c: [0.02, -0.03, -0.12], r: [0.14, 0.14, 0.09], op: 's', k: 0.02, sm: H },
       { t: 'ell', c: [0, 0, 0], r: [0.14, 0.155, 0.135], m: P },
-      { t: 'ell', c: [0.07, -0.05, -0.085], r: [0.052, 0.045, 0.045], m: P, k: 0.05 },
-      { t: 'ell', c: [-0.07, -0.05, -0.085], r: [0.052, 0.045, 0.045], m: P, k: 0.05 },
-      { t: 'sph', c: [0, -0.012, -0.136], r: 0.014, m: P, k: 0.012 },
-      { t: 'sph', c: [-0.05, 0.016, -0.125], r: 0.034, op: 's', k: 0.008, sm: D },
+      { t: 'ell', c: [0.07, -0.05, -0.085], r: [0.05, 0.045, 0.045], m: P, k: 0.05 },
+      { t: 'ell', c: [-0.07, -0.05, -0.085], r: [0.05, 0.045, 0.045], m: P, k: 0.05 },
+      { t: 'sph', c: [0, -0.012, -0.136], r: 0.013, m: P, k: 0.012 },
+      { t: 'sph', c: [-0.05, 0.016, -0.125], r: 0.036, op: 's', k: 0.008, sm: D },
       { t: 'sph', c: [0.05, 0.013, -0.125], r: 0.029, op: 's', k: 0.008, sm: D },
-      { t: 'ell', c: [0, -0.072, -0.125], r: [0.022, 0.007, 0.02], op: 's', k: 0.004, sm: D },
-      { t: 'box', c: [-0.105, 0.065, -0.085], h: [0.05, 0.055, 0.05], rot: [0.4, 0.5, 0.7], op: 's', k: 0.004, sm: D, n: [0.012, 70] }
+      { t: 'ell', c: [0, -0.072, -0.126], r: [0.026, 0.012, 0.02], op: 's', k: 0.004, sm: D },
+      // shattered left cheek and temple: a jagged hole into the hollow head
+      { t: 'box', c: [-0.1, 0.03, -0.09], h: [0.06, 0.08, 0.06], rot: [0.4, 0.5, 0.7], op: 's', k: 0.003, sm: D, n: [0.02, 55] },
+      { t: 'ell', c: [0, 0, 0], r: [0.125, 0.14, 0.12], op: 's', k: 0.0, sm: D }
     ];
-    // ringlets: spiralling chains of curls around the sides and back
-    for (let r = 0; r < 12; r++) {
-      const ang = Math.PI * 0.35 + (r / 11) * Math.PI * 1.3;
-      const bx = Math.sin(ang) * 0.15, bz = -Math.cos(ang) * 0.14 + 0.02;
-      for (let s = 0; s < 7; s++) {
-        const a = s * 1.6 + r;
-        n.push({ t: 'sph', c: [bx * (1 + s * 0.02) + Math.cos(a) * 0.018, 0.02 - s * 0.026, bz * (1 + s * 0.02) + Math.sin(a) * 0.018], r: 0.025 - s * 0.0012, m: H, k: 0.012 });
-      }
+    // crack lines radiating from the hole
+    const cr = [[-0.06, 0.09, -0.12, 0.02, 0.13, -0.11], [-0.04, -0.02, -0.13, 0.03, -0.09, -0.12], [-0.07, 0.11, -0.1, -0.03, 0.15, -0.03], [-0.02, 0.04, -0.14, 0.05, 0.08, -0.13]];
+    for (const c of cr) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.004, op: 's', sm: D, n: [0.003, 120] });
+    // matted clumps of hair hanging down the back and over the right side of the face
+    for (let r = 0; r < 14; r++) {
+      const ang = Math.PI * 0.2 + (r / 13) * Math.PI * 1.6;
+      const bx = Math.sin(ang) * 0.15, bz = -Math.cos(ang) * 0.14 + 0.03;
+      const len = 0.16 + ((r * 37) % 7) * 0.025;
+      n.push({ t: 'cap', a: [bx, 0.06, bz], b: [bx * 1.12 + Math.sin(r) * 0.015, 0.06 - len, bz * 1.1 + 0.02], r: 0.03, r2: 0.012, m: H, k: 0.025, n: [0.006, 70] });
     }
-    // mustard bow on the right side of the head
-    n.push({ t: 'ell', c: [0.1, 0.15, -0.02], r: [0.05, 0.03, 0.025], rot: [0, 0, 0.5], m: Y, k: 0.01 });
-    n.push({ t: 'ell', c: [0.17, 0.11, -0.02], r: [0.05, 0.03, 0.025], rot: [0, 0, 0.5], m: Y, k: 0.01 });
-    n.push({ t: 'sph', c: [0.135, 0.13, -0.03], r: 0.022, m: Y, k: 0.01 });
-    return SDF.mesh(n, [-0.23, -0.2, -0.2], [0.24, 0.22, 0.23], 66);
+    n.push({ t: 'cap', a: [0.08, 0.1, -0.12], b: [0.1, -0.08, -0.15], r: 0.022, r2: 0.01, m: H, k: 0.02, n: [0.004, 80] });
+    return SDF.mesh(n, [-0.24, -0.26, -0.22], [0.24, 0.22, 0.24], 78);
   },
-  // Mister Thimble: slumped body with belly patch, stitches, scorch holes and splayed legs
+  // Mister Thimble: slumped scorched body, belly seam split open with stuffing spilling out
   th_body: () => {
     const B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, n = [
-      { t: 'ell', c: [0, 0.55, 0.12], r: [0.42, 0.52, 0.36], m: B, n: [0.025, 9] },
-      { t: 'ell', c: [0, 0.5, -0.16], r: [0.26, 0.32, 0.13], m: W, k: 0.05 },
-      { t: 'cap', a: [-0.1, 0.72, -0.27], b: [0.12, 0.3, -0.26], r: 0.008, op: 's', sm: D },
-      { t: 'sph', c: [0.25, 0.75, -0.12], r: 0.08, op: 's', k: 0.02, sm: W, n: [0.02, 30] },
-      { t: 'sph', c: [-0.3, 0.4, -0.06], r: 0.06, op: 's', k: 0.02, sm: W, n: [0.02, 30] }
+      { t: 'ell', c: [0, 0.55, 0.12], r: [0.42, 0.52, 0.36], m: B, n: [0.03, 8] },
+      { t: 'ell', c: [0, 0.5, -0.16], r: [0.26, 0.32, 0.13], m: W, k: 0.05, n: [0.012, 25] },
+      { t: 'cap', a: [-0.02, 0.78, -0.26], b: [0.05, 0.3, -0.27], r: 0.045, op: 's', k: 0.01, sm: D, n: [0.015, 30] },
+      { t: 'sph', c: [0.25, 0.75, -0.12], r: 0.09, op: 's', k: 0.02, sm: W, n: [0.025, 30] },
+      { t: 'sph', c: [-0.3, 0.4, -0.06], r: 0.07, op: 's', k: 0.02, sm: W, n: [0.025, 30] }
     ];
-    for (let i = 0; i < 6; i++) n.push({ t: 'box', c: [-0.08 + i * 0.04 * 1.0, 0.68 - i * 0.075, -0.27], h: [0.03, 0.006, 0.01], rot: [0, 0, 0.3], m: D, k: 0.004 });
+    // stuffing bursting from the split seam
+    for (let i = 0; i < 6; i++) n.push({ t: 'sph', c: [0.01 + Math.sin(i * 2.1) * 0.03, 0.72 - i * 0.075, -0.29 - (i % 2) * 0.02], r: 0.04 + (i % 3) * 0.01, m: W, k: 0.02, n: [0.015, 45] });
+    for (let i = 0; i < 7; i++) n.push({ t: 'box', c: [-0.06 + (i % 2) * 0.12, 0.74 - i * 0.065, -0.265], h: [0.022, 0.005, 0.008], rot: [0, 0, 0.4], m: D, k: 0.003 });
     for (const sx of [-1, 1]) {
-      n.push({ t: 'cap', a: [sx * 0.24, 0.18, -0.1], b: [sx * 0.4, 0.13, -0.58], r: 0.15, r2: 0.13, m: B, k: 0.08, n: [0.02, 9] });
+      n.push({ t: 'cap', a: [sx * 0.24, 0.18, -0.1], b: [sx * 0.4, 0.13, -0.58], r: 0.15, r2: 0.13, m: B, k: 0.08, n: [0.025, 8] });
       n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.66], r: [0.15, 0.15, 0.08], m: B, k: 0.05 });
       n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.71], r: [0.1, 0.1, 0.03], m: W, k: 0.02 });
     }
-    return SDF.mesh(n, [-0.62, -0.05, -0.82], [0.62, 1.12, 0.55], 66);
+    return SDF.mesh(n, [-0.62, -0.05, -0.82], [0.62, 1.12, 0.55], 74);
   },
-  // Mister Thimble's head (centre origin): muzzle, nose, cupped ears, button-eye, stitched mouth, thimble cap
+  // Mister Thimble's head: torn maw full of crooked teeth, sewn button eye, gouged socket, ripped ear, thimble cap
   th_head: () => {
-    const B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: B, n: [0.02, 10] },
-      { t: 'ell', c: [0, -0.08, -0.24], r: [0.16, 0.115, 0.11], m: W, k: 0.06 },
-      { t: 'ell', c: [0, -0.03, -0.34], r: [0.05, 0.036, 0.032], m: D, k: 0.015 },
-      { t: 'cap', a: [-0.08, -0.15, -0.31], b: [0.08, -0.15, -0.31], r: 0.007, op: 's', sm: D },
+    const B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, T = MAT.porcelain, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: B, n: [0.025, 9] },
+      { t: 'ell', c: [0, -0.1, -0.24], r: [0.17, 0.13, 0.12], m: W, k: 0.06, n: [0.01, 30] },
+      { t: 'ell', c: [0, -0.02, -0.35], r: [0.05, 0.036, 0.032], m: D, k: 0.015 },
+      // the maw: muzzle torn open
+      { t: 'ell', c: [0, -0.15, -0.3], r: [0.13, 0.05, 0.1], op: 's', k: 0.01, sm: D, n: [0.012, 40] },
       { t: 'cyl', c: [-0.12, 0.06, -0.27], r: 0.055, h: 0.014, rr: 0.006, rot: [0, Math.PI / 2, 0], m: D, k: 0.01 },
       { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: B },
       { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: B },
-      { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.05, op: 's', k: 0.01, sm: D },
+      { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.055, op: 's', k: 0.015, sm: D, n: [0.008, 50] },
       { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 }
     ];
+    for (let i = 0; i < 9; i++) {
+      const a = -0.9 + i * 0.225, x = Math.sin(a) * 0.12, z = -0.3 - Math.cos(a) * 0.02 + 0.02;
+      n.push({ t: 'cap', a: [x, -0.11, z], b: [x + Math.sin(i * 3.1) * 0.008, -0.145, z - 0.005], r: 0.011, r2: 0.002, m: T, k: 0.002 });
+      n.push({ t: 'cap', a: [x, -0.2, z + 0.01], b: [x - Math.sin(i * 2.3) * 0.008, -0.165, z], r: 0.01, r2: 0.002, m: T, k: 0.002 });
+    }
     for (let i = 0; i < 8; i++) {
       const a = i / 8 * Math.PI * 2;
-      n.push({ t: 'sph', c: [0.04 + Math.cos(a) * 0.112 + 0.02, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
+      n.push({ t: 'sph', c: [0.06 + Math.cos(a) * 0.112, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
     }
-    for (let i = -3; i <= 3; i++) n.push({ t: 'box', c: [i * 0.025, -0.15, -0.315 + Math.abs(i) * 0.008], h: [0.004, 0.022, 0.006], m: D, k: 0.003 });
     for (const sx of [-1, 1]) {
       n.push({ t: 'sph', c: [sx * 0.25, 0.24, 0.02], r: 0.11, m: B, k: 0.05 });
       n.push({ t: 'sph', c: [sx * 0.26, 0.25, -0.06], r: 0.07, op: 's', k: 0.02, sm: W });
     }
-    return SDF.mesh(n, [-0.42, -0.36, -0.4], [0.42, 0.46, 0.36], 66);
+    // left ear ripped half away, stuffing showing
+    n.push({ t: 'box', c: [-0.3, 0.33, 0.02], h: [0.08, 0.06, 0.12], rot: [0.3, 0, 0.6], op: 's', k: 0.005, sm: W, n: [0.015, 50] });
+    return SDF.mesh(n, [-0.42, -0.36, -0.4], [0.42, 0.46, 0.36], 78);
   },
   // Mister Thimble's arm: shoulder at y 0, paw at y 1 (stretched along the arm when drawn)
   th_arm: () => {

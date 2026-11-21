@@ -513,20 +513,17 @@ const Monster = {
       this.solveKnee(this.hipW, l.foot, l.a, l.b, side, this.kneeW);
       const hip = this.hipW, knee = this.kneeW, foot = l.foot;
       R.trs('sphere', MAT.steel, hip[0], hip[1], hip[2], 0, 0, 0, 0.13, 0.13, 0.13);
-      it = R.push('box', MAT.steel);
-      if (it) { M4.segment(it.model, hip, knee, 1); it.model[0] *= 0.15; it.model[1] *= 0.15; it.model[2] *= 0.15; it.model[8] *= 0.1; it.model[9] *= 0.1; it.model[10] *= 0.1; M4.multiply(it.model, it.model, _mh.boxUp); }
+      it = R.push(Sculpt.ready('sp_femur') ? 'sp_femur' : 'cyl', MAT.steel);
+      if (it) { M4.segment(it.model, hip, knee, Sculpt.ready('sp_femur') ? 1 : 0.08); }
       // piston riding along the femur
       V3.lerp(B, hip, knee, 0.15); V3.lerp(H, hip, knee, 0.8); B[1] += 0.09; H[1] += 0.09;
       R.seg('cylLow', MAT.copper, B, H, 0.03);
       // knee: joint drum + bolt
       R.trs('sphere', MAT.steel, knee[0], knee[1], knee[2], 0, 0, 0, 0.12, 0.12, 0.12);
       R.trs('cyl', MAT.copper, knee[0], knee[1] - 0.04, knee[2], this.yaw, 0, Math.PI / 2, 0.06, 0.28, 0.06);
-      // tibia: tapered shaft then a flat blade claw into the floor
-      V3.lerp(X, knee, foot, 0.72);
-      R.seg('cyl', MAT.steel, knee, X, 0.06);
-      R.trs('sphereLow', MAT.steel, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065);
-      it = R.push('cone', MAT.steel);
-      if (it) { M4.segment(it.model, X, foot, 1); it.model[0] *= 0.075; it.model[1] *= 0.075; it.model[2] *= 0.075; it.model[8] *= 0.025; it.model[9] *= 0.025; it.model[10] *= 0.025; }
+      // tibia: ribbed shaft flaring into a hooked blade
+      it = R.push(Sculpt.ready('sp_tibia') ? 'sp_tibia' : 'cyl', MAT.steel);
+      if (it) M4.segment(it.model, knee, foot, Sculpt.ready('sp_tibia') ? 1 : 0.06);
       // red tendon cables spanning hip -> shin
       for (const off of [-0.07, 0.07]) {
         V3.set(B, hip[0] + off * side, hip[1] - 0.05, hip[2] + off);

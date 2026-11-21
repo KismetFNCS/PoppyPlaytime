@@ -76,6 +76,14 @@ void main() {
   vec4 ny = texture(uNormalTex, vec3(uvY, L));
   vec4 nz = texture(uNormalTex, vec3(uvZ, L));
   vec3 tnx = nx.xyz * 2.0 - 1.0, tny = ny.xyz * 2.0 - 1.0, tnz = nz.xyz * 2.0 - 1.0;
+  // detail layer: the same material at 4.37x frequency adds fine grain to albedo and normals
+  const float DF = 4.37;
+  vec3 dax = texture(uAlbedoTex, vec3(uvX * DF, L)).rgb, day = texture(uAlbedoTex, vec3(uvY * DF, L)).rgb, daz = texture(uAlbedoTex, vec3(uvZ * DF, L)).rgb;
+  float dl = dot(dax * bw.x + day * bw.y + daz * bw.z, vec3(0.3333));
+  alb.rgb *= mix(1.0, 0.55 + 0.9 * dl, 0.4);
+  tnx.xy += (texture(uNormalTex, vec3(uvX * DF, L)).xy * 2.0 - 1.0) * 0.6;
+  tny.xy += (texture(uNormalTex, vec3(uvY * DF, L)).xy * 2.0 - 1.0) * 0.6;
+  tnz.xy += (texture(uNormalTex, vec3(uvZ * DF, L)).xy * 2.0 - 1.0) * 0.6;
   // whiteout triplanar normal blend
   tnx = vec3(tnx.xy + n.zy, abs(tnx.z) * n.x);
   tny = vec3(tny.xy + n.xz, abs(tny.z) * n.y);
