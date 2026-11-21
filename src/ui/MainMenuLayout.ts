@@ -29,6 +29,8 @@ export class MainMenuLayout {
   public readonly storyOverlay: StoryOverlay = new StoryOverlay();
   private readonly buttonsByAction: Map<MainMenuAction, UITextButton> = new Map();
   private introProgress: number = 0;
+  /** One-line description of the save CONTINUE would load (null hides it). */
+  private continueSummary: string | null = null;
 
   public constructor(callbacks: MainMenuCallbacks) {
     const column = MAIN_MENU_LAYOUT.buttonColumn;
@@ -58,6 +60,10 @@ export class MainMenuLayout {
 
   public setContinueAvailable(isAvailable: boolean): void {
     this.button('continue').enabled = isAvailable;
+  }
+
+  public setContinueSummary(summary: string | null): void {
+    this.continueSummary = summary;
   }
 
   public restartIntro(): void {
@@ -142,6 +148,12 @@ export class MainMenuLayout {
     context.save();
     context.globalAlpha = this.introProgress;
     this.focusGroup.draw(context, timeSeconds);
+    if (this.continueSummary !== null) {
+      const continueButton = this.button('continue');
+      context.font = UI_FONTS.small;
+      context.fillStyle = UI_COLORS.textDim;
+      context.fillText(this.continueSummary, continueButton.anchorX + 4 + continueButton.focusBlend * MAIN_MENU_LAYOUT.hoverIndent, continueButton.baselineY + 30);
+    }
     context.restore();
     this.storyOverlay.draw(context, timeSeconds);
     this.drawFooter(context);

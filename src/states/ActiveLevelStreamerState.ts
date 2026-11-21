@@ -1,22 +1,24 @@
 import type { ManagedThreat, ThreatEventMap } from '../ai/ThreatDirector';
-import { ThreatDirector } from '../ai/ThreatDirector';
+import { JESTER_THREAT_ID, ThreatDirector } from '../ai/ThreatDirector';
 import type { NoiseSource, PlayerSignature } from '../ai/Perception';
 import { lightExposureFromIlluminance } from '../ai/Perception';
 import type { CameraPose } from '../cinematics/CinematicDirector';
 import { CinematicDirector } from '../cinematics/CinematicDirector';
 import { CINEMATIC_LIBRARY } from '../cinematics/CinematicLibrary';
 import type { CinematicHookId, CinematicId } from '../cinematics/CinematicTimeline';
-import { LIGHT_PALETTE, UI_COLORS, UI_FONTS, VIRTUAL_RESOLUTION } from '../config/GameConstants';
+import { LIGHT_PALETTE, UI_COLORS } from '../config/GameConstants';
 import type { SpatialCueId } from '../core/AudioManager';
 import type { GameServices } from '../core/GameServices';
 import type { DeathCause, FrameContext, FrameRenderRequest, GameStateHandler, GameStatePayloadMap } from '../core/GameStateTypes';
 import { GameStateId } from '../core/GameStateTypes';
 import type { InputManager } from '../core/InputManager';
-import type { SaveCheckpoint } from '../core/PersistentStores';
+import type { PlayerStateSnapshot, SaveGame, SaveKind, SaveSlotId } from '../core/serialization/SaveGameSchema';
 import type { MotorIntent, MotorStepReport } from '../gameplay/CharacterMotor';
 import { CharacterMotor } from '../gameplay/CharacterMotor';
 import type { GasMaskFrameReport } from '../gameplay/GasMaskSystem';
 import { GasMaskSystem } from '../gameplay/GasMaskSystem';
+import type { HotbarSlotContent } from '../gameplay/Inventory';
+import { HOTBAR_LAYOUT, ITEM_DEFINITIONS, Inventory } from '../gameplay/Inventory';
 import { LEVEL_TRIGGER_RULES } from '../gameplay/LevelRules';
 import { RelayPlateNetwork } from '../gameplay/RelayPlateNetwork';
 import type { ClawSide, ClawState, TetherControlInput, TetherEventMap } from '../gameplay/TetherRig';
@@ -27,7 +29,10 @@ import { WorldEventSystem } from '../gameplay/WorldEventSystem';
 import type { SceneEnvironment } from '../graphics/SceneRenderer';
 import type { Vec3 } from '../math/Vec3';
 import { clamp, smoothstep, vec3Add } from '../math/Vec3';
-import { GasMaskOverlay } from '../ui/GasMaskOverlay';
+import type { CrosshairKind, HotbarSlotSnapshot, HudSnapshot } from '../ui/hud/HudController';
+import { HudController, POLARITY_HUD_COLORS } from '../ui/hud/HudController';
+import { PauseMenu } from '../ui/PauseMenu';
+import { buildUiFrameInput } from '../ui/UIInputAdapter';
 import type { BreakerSwitchRecord, PickupRecord, Polarity, ThreatKind, ToxicZone, WorldRayHit } from '../world/LevelStreamer';
 import { CORRIDOR_DIMENSIONS, LevelStreamer, chunkIndexAtZ, chunkStartZ } from '../world/LevelStreamer';
 import type { MenuBackdropScene } from '../world/MenuBackdropScene';
@@ -46,9 +51,10 @@ const PITCH_LIMIT_RADIANS: number = 1.35;
 /** Landing camera dip spring: ÿ = −k·y − c·ẏ. */
 const LANDING_SPRING_STIFFNESS: number = 140;
 const LANDING_SPRING_DAMPING: number = 16;
-const POLARITY_COLORS: Readonly<Record<Polarity, string>> = { amber: '#ffa22e', violet: '#a54dff' };
 const TOAST_COLORS: Readonly<Record<ToastTone, string>> = { info: UI_COLORS.textPrimary, success: '#8fd18a', warning: '#e9c46a', danger: UI_COLORS.accentRed };
-const LETTERBOX_HEIGHT: number = 96;
+/** Session autosaves are attempted at this interval, but only at safe moments. */
+const AUTOSAVE_INTERVAL_SECONDS: number = 45;
+const HOTBAR_KEY_CODES: readonly string[] = ['Digit1', 'Digit2', 'Digit3', 'Digit4'];
 
 interface HudToast {
   text: string;
@@ -56,10 +62,8 @@ interface HudToast {
   color: string;
 }
 
-type AimKind = 'none' | 'surface' | 'anchor' | 'relayPlate';
-
 interface AimInfo {
-  kind: AimKind;
+  kind: CrosshairKind;
   polarity: Polarity | null;
   distance: number;
 }
@@ -70,9 +74,9 @@ interface PendingDeath {
 }
 
 /**
- * Active Level Streamer: physics-driven first-person play in the streamed corridor, with the Tether Rig,
- * gas mask survival loop, AI threats (ThreatDirector), the world event / quest-flag matrix and the
- * cinematic driver for reveals, transitions and in-world jumpscares.
+ * Active Level Streamer: physics-driven first-person play in the streamed corridor, wiring together the
+ * Tether Rig, gas mask + inventory, AI threats, world event matrix, cinematics, master HUD, pause menu
+ * and save serialization.
  */
 export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.ActiveLevelStreamer>, TriggerActionHost {
   public readonly id = GameStateId.ActiveLevelStreamer;
@@ -85,9 +89,12 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private readonly tetherEvents: TypedEventBus<TetherEventMap> = new TypedEventBus();
   private readonly motor: CharacterMotor = new CharacterMotor();
   private readonly gasMask: GasMaskSystem = new GasMaskSystem();
-  private readonly maskOverlay: GasMaskOverlay = new GasMaskOverlay();
+  private readonly inventory: Inventory = new Inventory();
+  private readonly hud: HudController = new HudController();
+  private readonly pauseMenu: PauseMenu;
   private readonly eventUnsubscribers: Array<() => void> = [];
-  private checkpoint: SaveCheckpoint | null = null;
+  /** The checkpoint record respawns use (play time excludes the current session). */
+  private checkpoint: SaveGame | null = null;
   private yawRadians: number = 0;
   private pitchRadians: number = 0;
   private sessionSeconds: number = 0;
@@ -107,43 +114,80 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private switchInView: BreakerSwitchRecord | null = null;
   private meterFlash: number = 0;
   private letterbox: number = 0;
+  private paused: boolean = false;
+  private pointerWasLocked: boolean = false;
+  private autosaveTimer: number = 0;
+  private leavingLevel: boolean = false;
 
-  public constructor(private readonly services: GameServices, private readonly backdrop: MenuBackdropScene) {}
+  public constructor(private readonly services: GameServices, private readonly backdrop: MenuBackdropScene) {
+    this.pauseMenu = new PauseMenu(
+      services.settings,
+      {
+        resume: () => this.resumeFromPause(),
+        saveGame: () => this.quickSave('quicksave'),
+        restartFromCheckpoint: () => this.restartFromCheckpoint(),
+        saveAndQuit: () => this.saveAndQuit(),
+      },
+      (cue) => services.audio.playUiCue(cue),
+    );
+  }
 
   // ---- Lifecycle ------------------------------------------------------------------------------------------------
 
   public enter(payload: GameStatePayloadMap[GameStateId.ActiveLevelStreamer]): void {
     const services: GameServices = this.services;
+    const save: SaveGame = payload.save;
     this.backdrop.unload();
     services.lighting.clear();
-    this.checkpoint = payload.checkpoint;
+    this.leavingLevel = false;
+    this.checkpoint = { ...save, kind: 'checkpoint', player: null };
     if (payload.mode === 'newGame') {
-      services.save.write(payload.checkpoint);
+      services.saves.write({ ...save, slot: 'autosave', kind: 'checkpoint', player: null });
     }
+
+    // World and puzzle state.
     const streamer = new LevelStreamer(services.gl, services.meshes, services.lighting, LEVEL_WORLD_SEED);
-    if (payload.checkpoint.inventory.hasGasMask) {
+    for (const pickupId of save.world.collectedPickupIds) {
+      streamer.markPickupCollected(pickupId);
+    }
+    if (save.inventory.items.gasMask > 0) {
       streamer.markPickupCollected(MASK_STATION_PICKUP_ID);
     }
-    streamer.restoreSolvedState(payload.checkpoint.world.poweredPlateIds, payload.checkpoint.world.solvedSequenceIds);
-    const spawnChunk: number = payload.checkpoint.checkpointChunkIndex;
+    streamer.restoreSolvedState(save.world.poweredPlateIds, save.world.solvedSequenceIds);
+
+    // Player: exact session resume, or checkpoint spawn.
+    const resume: PlayerStateSnapshot | null = payload.mode === 'continue' && save.kind === 'session' ? save.player : null;
+    this.inventory.restore(save.inventory);
+    this.gasMask.restore(this.inventory.has('gasMask'));
+    const spawnChunk: number = resume !== null ? chunkIndexAtZ(resume.transform.position[2]) : save.checkpointChunkIndex;
     streamer.primeAround(spawnChunk);
     this.streamer = streamer;
-    this.spawnZ = chunkStartZ(spawnChunk) - 2.6;
-    this.motor.teleport([0, 0.02, this.spawnZ]);
-    this.yawRadians = 0;
-    this.pitchRadians = 0;
     this.currentChunk = spawnChunk;
-    this.gasMask.restore(payload.checkpoint.inventory.hasGasMask);
+    if (resume !== null) {
+      this.applyPlayerSnapshot(resume);
+    } else {
+      this.motor.teleport([0, 0.02, chunkStartZ(spawnChunk) - 2.6]);
+      this.yawRadians = 0;
+      this.pitchRadians = 0;
+    }
+    this.spawnZ = this.motor.position[2];
 
+    // Systems.
     const rig = new TetherRig(services.gl, services.meshes, this.tetherEvents);
     this.rig = rig;
     this.relayNetwork = new RelayPlateNetwork(this.tetherEvents, streamer, rig);
     this.threats = new ThreatDirector(services.meshes, services.lighting, streamer, services.audio);
     const worldEvents = new WorldEventSystem(streamer, this, LEVEL_TRIGGER_RULES);
-    worldEvents.restoreFlags(payload.checkpoint.questFlags as Partial<Record<QuestFlagId, number>>);
+    worldEvents.restoreFlags(save.questFlags as Partial<Record<QuestFlagId, number>>);
     this.worldEvents = worldEvents;
     this.subscribeFeedback();
+    if (resume !== null && save.threats.jesterAwake) {
+      // Restored silently: the reveal rule already fired in the original session (flag set).
+      const behind: Vec3 = [0, 0, Math.min(chunkStartZ(0) - 1, this.motor.position[2] + ENTITY_SPAWN_BEHIND_METERS)];
+      this.threats.awakenJester(save.threats.jesterPosition ?? behind, this.playerPosition());
+    }
 
+    // Per-entry presentation state.
     this.sessionSeconds = 0;
     this.dread = 0;
     this.objectiveOpacity = 0;
@@ -155,9 +199,13 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.landingDipVelocity = 0;
     this.meterFlash = 0;
     this.letterbox = 0;
+    this.paused = false;
+    this.pointerWasLocked = false;
+    this.autosaveTimer = 0;
+    this.pauseMenu.close();
     this.cinematics.stop();
     services.audio.startAmbientDrone();
-    services.audio.setMaskAudioMix(0);
+    services.audio.setMaskAudioMix(this.gasMask.coverage);
     this.placeCamera(0);
 
     if (payload.mode === 'newGame' && worldEvents.flag('elevatorIntroSeen') < 1) {
@@ -165,7 +213,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       this.playCinematic('elevatorArrival');
       this.showToast('FOLLOW THE LIGHTS DOWN', 4, 'info');
     } else {
-      this.showToast(payload.mode === 'retry' ? 'RESUMING FROM LAST CHECKPOINT' : 'SHIFT RECORD RESTORED', 3.5, 'info');
+      this.showToast(resume !== null ? 'SHIFT RESUMED' : payload.mode === 'retry' ? 'RESUMING FROM LAST CHECKPOINT' : 'SHIFT RECORD RESTORED', 3.5, 'info');
     }
   }
 
@@ -175,6 +223,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     }
     this.eventUnsubscribers.length = 0;
     this.cinematics.stop();
+    this.pauseMenu.close();
     this.worldEvents?.dispose();
     this.worldEvents = null;
     this.threats?.dispose();
@@ -192,6 +241,28 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.services.audio.setMaskAudioMix(0);
     this.services.audio.overrideListener(null);
     this.services.audio.setCinematicDuck(0);
+  }
+
+  private applyPlayerSnapshot(snapshot: PlayerStateSnapshot): void {
+    const transform = snapshot.transform;
+    this.motor.teleport(transform.position);
+    this.motor.velocity = [transform.velocity[0], transform.velocity[1], transform.velocity[2]];
+    this.motor.stamina = snapshot.stamina;
+    if (transform.crouching) {
+      this.motor.isCrouching = true;
+      this.motor.currentHeight = this.motor.tuning.crouchingHeight;
+      this.motor.smoothedEyeHeight = this.motor.tuning.crouchingEyeHeight;
+    }
+    this.yawRadians = transform.yawRadians;
+    this.pitchRadians = transform.pitchRadians;
+    if (snapshot.mask.phase !== 'unavailable' && this.gasMask.isAvailable) {
+      this.gasMask.filterRemaining = snapshot.mask.filterRemaining;
+      this.gasMask.exposure = snapshot.mask.exposure;
+      if (snapshot.mask.phase === 'worn') {
+        this.gasMask.phase = 'worn';
+        this.gasMask.coverage = 1;
+      }
+    }
   }
 
   /** Wires tether, relay and threat events into audio, noise, toasts and the world event matrix. */
@@ -220,7 +291,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       bus.on('clawRetracted', () => audio.playTetherRetract()),
       bus.on('plateActivated', (event: TetherEventMap['plateActivated']) => {
         audio.playRelayAccepted();
-        this.showToast(`${event.polarity.toUpperCase()} RELAY ENGAGED · GATE OPENING`, 3, 'success', POLARITY_COLORS[event.polarity]);
+        this.showToast(`${event.polarity.toUpperCase()} RELAY ENGAGED · GATE OPENING`, 3, 'success', POLARITY_HUD_COLORS[event.polarity]);
         worldEvents.notify('relayPowered', { plateId: event.plateId, position: this.playerPosition() });
       }),
       bus.on('plateRejected', (event: TetherEventMap['plateRejected']) => {
@@ -251,7 +322,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (this.cinematics.ownsCamera || this.deathRequested) {
       return;
     }
-    const actorThreat: ManagedThreat | null = cinematicId === 'jesterReveal' ? (this.threats?.threat('threat.jester.primary') ?? null) : null;
+    const actorThreat: ManagedThreat | null = cinematicId === 'jesterReveal' ? (this.threats?.threat(JESTER_THREAT_ID) ?? null) : null;
     this.startCinematic(cinematicId, actorThreat, () => undefined);
   }
 
@@ -264,7 +335,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   }
 
   public saveCheckpoint(): void {
-    this.commitCheckpoint(this.buildCheckpoint({}));
+    this.commitCheckpoint(this.buildSave('checkpoint', 'autosave', {}));
   }
 
   // ---- Cinematics --------------------------------------------------------------------------------------------------
@@ -339,52 +410,141 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       return;
     }
     this.deathRequested = true;
-    const deathCheckpoint: SaveCheckpoint = this.buildCheckpoint({ deathCount: this.checkpoint.deathCount + 1 });
-    this.services.save.write(deathCheckpoint);
+    const deathRecord: SaveGame = this.buildSave('checkpoint', 'autosave', { deathCount: this.checkpoint.deathCount + 1 });
+    this.services.saves.write(deathRecord);
     this.services.lifecycle.requestTransition(
       {
         target: GameStateId.JumpscareDeathSequence,
-        payload: { checkpoint: deathCheckpoint, survivedSeconds: this.sessionSeconds, depthMeters: this.depthMeters, cause: death.cause, threat: death.threat },
+        payload: { save: deathRecord, survivedSeconds: this.sessionSeconds, depthMeters: this.depthMeters, cause: death.cause, threat: death.threat },
       },
       'cut',
     );
   }
 
-  // ---- Save helpers -----------------------------------------------------------------------------------------------
+  // ---- Serialization ----------------------------------------------------------------------------------------------
 
   private get depthMeters(): number {
     return Math.max(0, -this.motor.position[2] / CORRIDOR_DIMENSIONS.chunkLength) * METERS_PER_CHUNK;
   }
 
-  private buildCheckpoint(overrides: Partial<Pick<SaveCheckpoint, 'checkpointChunkIndex' | 'deathCount'>>): SaveCheckpoint {
-    const previous: SaveCheckpoint = this.checkpoint as SaveCheckpoint;
+  private capturePlayerSnapshot(): PlayerStateSnapshot {
+    const maskPhase: PlayerStateSnapshot['mask']['phase'] = !this.gasMask.isAvailable ? 'unavailable' : this.gasMask.coverage >= 0.5 ? 'worn' : 'stowed';
     return {
-      version: 3,
+      transform: {
+        position: this.playerPosition(),
+        velocity: [this.motor.velocity[0], this.motor.velocity[1], this.motor.velocity[2]],
+        yawRadians: this.yawRadians,
+        pitchRadians: this.pitchRadians,
+        crouching: this.motor.isCrouching,
+      },
+      stamina: this.motor.stamina,
+      mask: { phase: maskPhase, filterRemaining: this.gasMask.filterRemaining, exposure: this.gasMask.exposure },
+    };
+  }
+
+  /** Assembles a full v4 save document from the live systems. */
+  private buildSave(kind: SaveKind, slot: SaveSlotId, overrides: Partial<Pick<SaveGame, 'checkpointChunkIndex' | 'deathCount'>>): SaveGame {
+    const previous: SaveGame = this.checkpoint as SaveGame;
+    const jester: ManagedThreat | null = this.threats?.threat(JESTER_THREAT_ID) ?? null;
+    return {
+      version: 4,
+      slot,
+      kind,
       checkpointChunkIndex: overrides.checkpointChunkIndex ?? previous.checkpointChunkIndex,
       deepestChunkIndex: Math.max(previous.deepestChunkIndex, this.currentChunk),
       playTimeSeconds: Math.round((previous.playTimeSeconds + this.sessionSeconds) * 100) / 100,
       deathCount: overrides.deathCount ?? previous.deathCount,
-      inventory: { hasGasMask: this.gasMask.isAvailable },
+      inventory: this.inventory.snapshot(),
       questFlags: this.worldEvents?.flagSnapshot ?? previous.questFlags,
       world: {
         poweredPlateIds: this.streamer?.poweredPlates ?? previous.world.poweredPlateIds,
         solvedSequenceIds: this.streamer?.solvedSequences ?? previous.world.solvedSequenceIds,
+        collectedPickupIds: this.streamer?.collectedPickups ?? previous.world.collectedPickupIds,
       },
+      threats: {
+        jesterAwake: kind === 'session' && jester !== null,
+        jesterPosition: kind === 'session' && jester !== null ? [jester.view.position[0], 0, jester.view.position[2]] : null,
+      },
+      player: kind === 'session' ? this.capturePlayerSnapshot() : null,
       savedAtIso: new Date().toISOString(),
     };
   }
 
-  /** Writes the save and rebases session time so play time is never double counted. */
-  private commitCheckpoint(checkpoint: SaveCheckpoint): void {
-    this.services.save.write(checkpoint);
-    this.checkpoint = { ...checkpoint, playTimeSeconds: checkpoint.playTimeSeconds - this.sessionSeconds };
+  /** Writes a checkpoint record and rebases session time so play time is never double counted. */
+  private commitCheckpoint(save: SaveGame): void {
+    this.services.saves.write(save);
+    this.checkpoint = { ...save, kind: 'checkpoint', player: null, playTimeSeconds: save.playTimeSeconds - this.sessionSeconds };
   }
 
   private recordCheckpoint(chunkIndex: number): void {
-    this.commitCheckpoint(this.buildCheckpoint({ checkpointChunkIndex: chunkIndex }));
+    this.commitCheckpoint(this.buildSave('checkpoint', 'autosave', { checkpointChunkIndex: chunkIndex }));
     this.services.audio.playCheckpointChime();
     this.showToast('PROGRESS RECORDED', 2.8, 'success');
     this.playCinematic('checkpointDescent');
+  }
+
+  /**
+   * Session saves are only allowed at safe moments, so a resume never drops the player into certain death:
+   * grounded, breathable air, no threat hunting nearby, no cinematic, not dying.
+   */
+  private get isSafeToSessionSave(): boolean {
+    return (
+      this.motor.isGrounded &&
+      this.gasMask.areaStatus !== 'contaminated' &&
+      this.gasMask.exposure < 0.5 &&
+      this.dread < 0.35 &&
+      !this.cinematics.ownsCamera &&
+      this.pendingDeath === null &&
+      !this.deathRequested
+    );
+  }
+
+  private quickSave(slot: SaveSlotId): string {
+    if (!this.isSafeToSessionSave) {
+      return "CAN'T SAVE NOW · DANGER NEARBY";
+    }
+    const written: boolean = this.services.saves.write(this.buildSave('session', slot, {}));
+    return written ? (slot === 'quicksave' ? 'GAME SAVED · QUICKSAVE SLOT' : 'GAME SAVED') : 'SAVE FAILED · STORAGE UNAVAILABLE';
+  }
+
+  // ---- Pause ---------------------------------------------------------------------------------------------------------
+
+  private openPause(): void {
+    if (this.paused || this.leavingLevel) {
+      return;
+    }
+    this.paused = true;
+    this.pauseMenu.open();
+    this.services.input.releasePointerLock();
+    this.services.audio.setCinematicDuck(0.55);
+  }
+
+  private resumeFromPause(): void {
+    this.paused = false;
+    this.services.audio.setCinematicDuck(0);
+    this.services.input.requestPointerLock();
+    this.pointerWasLocked = false;
+  }
+
+  private restartFromCheckpoint(): void {
+    if (this.checkpoint === null) {
+      return;
+    }
+    this.leavingLevel = true;
+    this.pauseMenu.close();
+    this.services.audio.setCinematicDuck(0);
+    this.services.lifecycle.requestTransition({ target: GameStateId.ActiveLevelStreamer, payload: { mode: 'retry', save: this.checkpoint } });
+  }
+
+  private saveAndQuit(): void {
+    // Prefer an exact resume; if the moment is unsafe, fall back to the checkpoint record.
+    const record: SaveGame = this.isSafeToSessionSave ? this.buildSave('session', 'autosave', {}) : this.buildSave('checkpoint', 'autosave', {});
+    this.services.saves.write(record);
+    this.leavingLevel = true;
+    this.pauseMenu.close();
+    this.services.audio.setCinematicDuck(0);
+    this.services.audio.playUiCue('back');
+    this.services.lifecycle.requestTransition({ target: GameStateId.TitleScreen, payload: { reason: 'returnFromLevel' } });
   }
 
   // ---- Input mapping -------------------------------------------------------------------------------------------
@@ -422,19 +582,71 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     };
   }
 
+  /** Claws fire from LMB/RMB, Q/R, or F when the matching hotbar slot is selected. */
   private buildTetherInput(input: InputManager, controlsEnabled: boolean, motorIntent: MotorIntent): TetherControlInput {
     if (!controlsEnabled) {
       return { leftTriggerPressed: false, leftTriggerHeld: false, rightTriggerPressed: false, rightTriggerHeld: false, reelInput: 0, pumpInput: 0 };
     }
     const locked: boolean = input.isPointerLocked;
-    const leftPressed: boolean = (locked && input.wasMouseButtonPressed(0)) || input.wasKeyPressed('KeyQ');
-    const rightPressed: boolean = (locked && input.wasMouseButtonPressed(2)) || input.wasKeyPressed('KeyR');
-    const leftHeld: boolean = (locked && input.isMouseButtonHeld(0)) || input.isKeyHeld('KeyQ');
-    const rightHeld: boolean = (locked && input.isMouseButtonHeld(2)) || input.isKeyHeld('KeyR');
+    const selected: HotbarSlotContent = this.inventory.selectedContent;
+    const hotbarLeft: boolean = selected.kind === 'claw' && selected.side === 'left';
+    const hotbarRight: boolean = selected.kind === 'claw' && selected.side === 'right';
+    const leftPressed: boolean = (locked && input.wasMouseButtonPressed(0)) || input.wasKeyPressed('KeyQ') || (hotbarLeft && input.wasKeyPressed('KeyF'));
+    const rightPressed: boolean = (locked && input.wasMouseButtonPressed(2)) || input.wasKeyPressed('KeyR') || (hotbarRight && input.wasKeyPressed('KeyF'));
+    const leftHeld: boolean = (locked && input.isMouseButtonHeld(0)) || input.isKeyHeld('KeyQ') || (hotbarLeft && input.isKeyHeld('KeyF'));
+    const rightHeld: boolean = (locked && input.isMouseButtonHeld(2)) || input.isKeyHeld('KeyR') || (hotbarRight && input.isKeyHeld('KeyF'));
     const anchoredAirborne: boolean = (this.rig?.isAnchored ?? false) && !this.motor.isGrounded;
     // Wheel up (negative steps) reels in; holding Space while airborne on a rope also reels in.
     const reelInput: number = -input.wheelSteps * 6 + (anchoredAirborne && input.isKeyHeld('Space') ? 1 : 0);
     return { leftTriggerPressed: leftPressed, leftTriggerHeld: leftHeld, rightTriggerPressed: rightPressed, rightTriggerHeld: rightHeld, reelInput, pumpInput: motorIntent.moveForward };
+  }
+
+  /** Hotbar selection (digits / click) and F-use for item slots. Returns true if the mask should toggle. */
+  private handleHotbar(input: InputManager, controlsEnabled: boolean): boolean {
+    if (!controlsEnabled) {
+      return false;
+    }
+    HOTBAR_KEY_CODES.forEach((code: string, slot: number) => {
+      if (input.wasKeyPressed(code)) {
+        this.inventory.selectSlot(slot);
+        this.services.audio.playUiCue('hover');
+      }
+    });
+    if (!input.isPointerLocked && input.pointer.primaryPressedThisFrame) {
+      const point = this.services.ui.clientToVirtual(input.pointer.clientX, input.pointer.clientY);
+      const slot: number = this.hud.hotbarSlotAt(point);
+      if (slot >= 0) {
+        this.inventory.selectSlot(slot);
+        this.services.audio.playUiCue('hover');
+      }
+    }
+    if (!input.wasKeyPressed('KeyF')) {
+      return false;
+    }
+    const selected: HotbarSlotContent = this.inventory.selectedContent;
+    if (selected.kind !== 'item') {
+      return false;
+    }
+    if (selected.itemId === 'gasMask') {
+      return true;
+    }
+    // Filter cartridge: refits the mask's filter to 100%.
+    if (!this.inventory.has('filterCartridge')) {
+      this.services.audio.playUiCue('denied');
+      this.showToast('NO FILTER CARTRIDGES', 1.6, 'info', UI_COLORS.textDim);
+    } else if (!this.gasMask.isAvailable) {
+      this.services.audio.playUiCue('denied');
+      this.showToast('NO MASK TO FIT IT TO', 1.6, 'warning');
+    } else if (this.gasMask.filterRemaining > 0.95) {
+      this.services.audio.playUiCue('denied');
+      this.showToast('FILTER STILL FRESH', 1.6, 'info', UI_COLORS.textDim);
+    } else {
+      this.inventory.remove('filterCartridge');
+      this.gasMask.filterRemaining = 1;
+      this.services.audio.playMaskSeal(true);
+      this.showToast('FRESH FILTER FITTED', 2, 'success');
+    }
+    return false;
   }
 
   // ---- Camera ------------------------------------------------------------------------------------------------------
@@ -501,6 +713,31 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     };
   }
 
+  private collectPickupInView(streamer: LevelStreamer, worldEvents: WorldEventSystem): void {
+    const pickup: PickupRecord | null = this.pickupInView;
+    if (pickup === null) {
+      return;
+    }
+    if (pickup.kind === 'filterCartridge' && this.inventory.isFull('filterCartridge')) {
+      this.services.audio.playUiCue('denied');
+      this.showToast("CAN'T CARRY MORE FILTERS", 1.8, 'warning');
+      return;
+    }
+    const collected: PickupRecord | null = streamer.collectPickup(pickup.id);
+    if (collected === null) {
+      return;
+    }
+    if (collected.kind === 'gasMask') {
+      this.inventory.add('gasMask');
+      this.gasMask.grant();
+      this.services.audio.playMaskSeal(false);
+    } else {
+      this.inventory.add('filterCartridge');
+      this.services.audio.playUiCue('confirm');
+    }
+    worldEvents.reportPickup(collected.id, collected.kind, collected.position);
+  }
+
   // ---- Frame update -------------------------------------------------------------------------------------------------
 
   public update(frame: FrameContext): void {
@@ -515,7 +752,27 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     const input: InputManager = services.input;
     const deltaSeconds: number = frame.deltaSeconds;
     const dying: boolean = this.pendingDeath !== null || this.deathRequested;
-    const controlsEnabled: boolean = frame.inputEnabled && !dying && !this.cinematics.locksControls;
+    this.pauseMenu.showCollisionBoxes = services.lifecycle.showCollisionBoxes;
+
+    // ---- Pause handling: P / Esc (cursor free) or the browser releasing pointer lock opens the menu.
+    const locked: boolean = input.isPointerLocked;
+    const lostLock: boolean = this.pointerWasLocked && !locked;
+    this.pointerWasLocked = locked;
+    if (this.paused) {
+      input.consumeMouseDelta();
+      this.pauseMenu.update(services.ui.context, buildUiFrameInput(services, frame.inputEnabled), deltaSeconds);
+      return;
+    }
+    const canPause: boolean = frame.inputEnabled && !dying && !this.cinematics.locksControls && !this.leavingLevel;
+    if (canPause && (input.wasKeyPressed('KeyP') || (input.wasKeyPressed('Escape') && !locked) || lostLock)) {
+      this.openPause();
+      return;
+    }
+    if (canPause && input.wasKeyPressed('F5')) {
+      this.showToast(this.quickSave('quicksave'), 2.2, 'success');
+    }
+
+    const controlsEnabled: boolean = frame.inputEnabled && !dying && !this.cinematics.locksControls && !this.leavingLevel;
     this.sessionSeconds += deltaSeconds;
     this.objectiveOpacity = clamp(this.objectiveOpacity + deltaSeconds * 0.8, 0, 1);
     this.meterFlash = Math.max(0, this.meterFlash - deltaSeconds * 4);
@@ -527,23 +784,16 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       }
     }
 
-    if (controlsEnabled) {
-      if (!input.isPointerLocked && input.pointer.primaryPressedThisFrame) {
-        input.requestPointerLock();
-      }
-      if (input.wasKeyPressed('Escape') && !input.isPointerLocked) {
-        services.save.write(this.buildCheckpoint({}));
-        services.audio.playUiCue('back');
-        services.lifecycle.requestTransition({ target: GameStateId.TitleScreen, payload: { reason: 'returnFromLevel' } });
-        return;
-      }
-    }
-
     // While dying, only the lethal cinematic advances (the world holds still behind it).
     if (dying) {
       input.consumeMouseDelta();
       this.cinematics.update(deltaSeconds);
       return;
+    }
+
+    const hotbarToggledMask: boolean = this.handleHotbar(input, controlsEnabled);
+    if (controlsEnabled && !locked && input.pointer.primaryPressedThisFrame && this.hud.hotbarSlotAt(services.ui.clientToVirtual(input.pointer.clientX, input.pointer.clientY)) < 0) {
+      input.requestPointerLock();
     }
 
     // 1–3. Look, intent, provisional camera so launcher sockets track the view.
@@ -599,12 +849,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.updateAim(streamer);
     if (controlsEnabled && input.wasKeyPressed('KeyE')) {
       if (this.pickupInView !== null) {
-        const collected: PickupRecord | null = streamer.collectPickup(this.pickupInView.id);
-        if (collected !== null && collected.kind === 'gasMask') {
-          this.gasMask.grant();
-          services.audio.playMaskSeal(false);
-          worldEvents.reportPickup(collected.id, collected.kind, collected.position);
-        }
+        this.collectPickupInView(streamer, worldEvents);
       } else if (this.switchInView !== null) {
         worldEvents.pressSwitch(this.switchInView);
       }
@@ -612,7 +857,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
     // 11. Gas mask + toxicity survival meter.
     const exertion: number = this.motor.stance === 'run' && this.motor.horizontalSpeed > 2 ? 1 : rig.isAnchored && !this.motor.isGrounded ? 0.6 : 0;
-    const togglePressed: boolean = controlsEnabled && input.wasKeyPressed('KeyG');
+    const togglePressed: boolean = controlsEnabled && (input.wasKeyPressed('KeyG') || hotbarToggledMask);
     const maskReport: GasMaskFrameReport = this.gasMask.update(deltaSeconds, {
       toggleRequested: togglePressed,
       concentration: streamer.toxicConcentrationAt(camera.position),
@@ -667,227 +912,102 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.dread = threats.dreadAt(this.playerPosition());
     services.audio.setDreadLevel(this.dread);
     services.audio.updateHeartbeat(deltaSeconds, this.dread);
+
+    // 14. Periodic session autosave at safe moments.
+    this.autosaveTimer += deltaSeconds;
+    if (this.autosaveTimer >= AUTOSAVE_INTERVAL_SECONDS && this.isSafeToSessionSave) {
+      this.autosaveTimer = 0;
+      services.saves.write(this.buildSave('session', 'autosave', {}));
+    }
   }
 
-  // ---- HUD -----------------------------------------------------------------------------------------------------------
+  // ---- HUD snapshot --------------------------------------------------------------------------------------------------
 
-  private drawCrosshair(context: CanvasRenderingContext2D, centerX: number, centerY: number): void {
-    const aim: AimInfo = this.aim;
-    context.save();
-    if (aim.kind === 'anchor') {
-      context.strokeStyle = '#6fa0ff';
-      context.lineWidth = 3;
-      context.beginPath();
-      context.arc(centerX, centerY, 18, 0, Math.PI * 2);
-      context.stroke();
-      context.font = UI_FONTS.small;
-      context.textAlign = 'center';
-      context.fillStyle = '#6fa0ff';
-      context.fillText(`ANCHOR · ${aim.distance.toFixed(1)} M`, centerX, centerY + 50);
-    } else if (aim.kind === 'relayPlate' && aim.polarity !== null) {
-      const color: string = POLARITY_COLORS[aim.polarity];
-      context.strokeStyle = color;
-      context.lineWidth = 3;
-      for (let bracket = 0; bracket < 4; bracket += 1) {
-        const angle: number = (bracket / 4) * Math.PI * 2 + Math.PI / 4;
-        context.beginPath();
-        context.arc(centerX, centerY, 20, angle - 0.4, angle + 0.4);
-        context.stroke();
-      }
-      context.font = UI_FONTS.small;
-      context.textAlign = 'center';
-      context.fillStyle = color;
-      context.fillText(`${aim.polarity.toUpperCase()} RELAY`, centerX, centerY + 50);
-    } else {
-      context.fillStyle = 'rgba(233, 225, 207, 0.55)';
-      context.fillRect(centerX - 2, centerY - 2, 4, 4);
-    }
-    const prompt: string | null = this.pickupInView !== null ? '[E] TAKE GAS MASK' : this.switchInView !== null ? '[E] THROW BREAKER' : null;
-    if (prompt !== null) {
-      context.font = UI_FONTS.chapter;
-      context.textAlign = 'center';
-      context.fillStyle = UI_COLORS.textPrimary;
-      context.fillText(prompt, centerX, centerY + 90);
-    }
-    context.restore();
-  }
-
-  private drawClawIndicators(context: CanvasRenderingContext2D, width: number, height: number): void {
+  private buildHotbarSlots(): HotbarSlotSnapshot[] {
     const rig: TetherRig | null = this.rig;
-    if (rig === null) {
-      return;
-    }
-    const labels: Readonly<Record<ClawState['phase'], string>> = { holstered: 'READY', extending: 'OUT', latched: 'LOCKED', retracting: 'REEL' };
-    const sides: ReadonlyArray<[ClawSide, string]> = [
-      ['left', 'LMB/Q'],
-      ['right', 'RMB/R'],
-    ];
-    context.save();
-    context.font = UI_FONTS.small;
-    sides.forEach(([side, binding]: [ClawSide, string], index: number) => {
-      const claw: ClawState = rig.claws[side];
-      const x: number = width / 2 + (index === 0 ? -330 : 30);
-      const y: number = height - 104;
-      context.globalAlpha = claw.phase === 'holstered' ? 0.85 : 1;
-      context.fillStyle = 'rgba(0, 0, 0, 0.45)';
-      context.fillRect(x, y, 300, 36);
-      context.fillStyle = POLARITY_COLORS[claw.polarity];
-      context.fillRect(x, y, 8, 36);
-      context.fillText(`${claw.polarity.toUpperCase()} ${labels[claw.phase]}`, x + 18, y + 25);
-      context.fillStyle = UI_COLORS.textDim;
-      context.textAlign = 'right';
-      context.fillText(binding, x + 292, y + 25);
-      context.textAlign = 'left';
-    });
-    context.restore();
-  }
-
-  /** Toxicity survival meter: 24 segments, green→amber→red, flashing on each tick while exposure rises. */
-  private drawToxicityMeter(context: CanvasRenderingContext2D, width: number, height: number): void {
-    const mask: GasMaskSystem = this.gasMask;
-    const showMeter: boolean = mask.exposure > 0.001 || mask.concentration > 0.01 || mask.isAvailable;
-    if (!showMeter) {
-      return;
-    }
-    const panelX: number = width - 600;
-    const panelY: number = height - 190;
-    const segments = 24;
-    const segmentWidth = 19;
-    context.save();
-    context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    context.fillRect(panelX - 16, panelY - 44, 536, 150);
-    context.font = UI_FONTS.small;
-    context.fillStyle = UI_COLORS.textPrimary;
-    context.fillText('TOXICITY', panelX, panelY - 14);
-    const statusLabels: Readonly<Record<typeof mask.areaStatus, [string, string]>> = {
-      clean: ['CLEAN AIR', '#8fd18a'],
-      filtered: ['FILTERED AIR', '#e9c46a'],
-      contaminated: ['CONTAMINATED', UI_COLORS.accentRed],
-    };
-    const [statusText, statusColor] = statusLabels[mask.areaStatus];
-    context.textAlign = 'right';
-    context.fillStyle = statusColor;
-    context.fillText(statusText, panelX + 504, panelY - 14);
-    context.textAlign = 'left';
-    const filled: number = Math.ceil(mask.exposure * segments);
-    for (let segment = 0; segment < segments; segment += 1) {
-      const ratio: number = segment / (segments - 1);
-      const red: number = Math.round(clamp(ratio * 2, 0, 1) * 220);
-      const green: number = Math.round(clamp(2 - ratio * 2, 0, 1) * 200);
-      const lit: boolean = segment < filled;
-      context.fillStyle = lit ? `rgb(${red}, ${green}, 40)` : 'rgba(233, 225, 207, 0.1)';
-      if (lit && segment === filled - 1 && this.meterFlash > 0.5) {
-        context.fillStyle = '#ffffff';
+    return HOTBAR_LAYOUT.map((content: HotbarSlotContent, index: number): HotbarSlotSnapshot => {
+      const keyHint: string = String(index + 1);
+      if (content.kind === 'item') {
+        const definition = ITEM_DEFINITIONS[content.itemId];
+        const count: number = this.inventory.count(content.itemId);
+        if (content.itemId === 'gasMask') {
+          return {
+            label: definition.shortLabel,
+            keyHint,
+            count: null,
+            available: count > 0,
+            statusText: count > 0 ? (this.gasMask.isWorn ? 'GAS MASK · WORN' : 'GAS MASK · STOWED') : 'GAS MASK · NOT FOUND',
+            accentColor: this.gasMask.isWorn ? '#8fd18a' : 'rgba(233, 225, 207, 0.35)',
+          };
+        }
+        return {
+          label: definition.shortLabel,
+          keyHint,
+          count,
+          available: count > 0,
+          statusText: `FILTER CARTRIDGE · ${count}/${definition.maximumStack}`,
+          accentColor: count > 0 ? '#e9c46a' : 'rgba(233, 225, 207, 0.2)',
+        };
       }
-      context.fillRect(panelX + segment * (segmentWidth + 2), panelY, segmentWidth, 28);
-    }
-    context.fillStyle = UI_COLORS.textDim;
-    if (mask.isAvailable) {
-      context.fillText(`FILTER ${Math.round(mask.filterRemaining * 100)}%`, panelX, panelY + 62);
-      context.textAlign = 'right';
-      const maskStates: Readonly<Record<typeof mask.phase, string>> = {
-        unavailable: '',
-        stowed: '[G] EQUIP MASK',
-        equipping: 'SEALING…',
-        worn: '[G] REMOVE MASK',
-        unequipping: 'REMOVING…',
+      const claw: ClawState | undefined = rig?.claws[content.side];
+      const polarity: Polarity = content.side === 'left' ? 'amber' : 'violet';
+      return {
+        label: polarity.toUpperCase(),
+        keyHint,
+        count: null,
+        available: claw !== undefined,
+        statusText: `${polarity.toUpperCase()} CLAW · ${claw?.phase.toUpperCase() ?? 'OFFLINE'}`,
+        accentColor: POLARITY_HUD_COLORS[polarity],
       };
-      context.fillText(maskStates[mask.phase], panelX + 504, panelY + 62);
-      context.textAlign = 'left';
-      context.fillStyle = 'rgba(233, 225, 207, 0.12)';
-      context.fillRect(panelX, panelY + 74, 504, 6);
-      context.fillStyle = mask.filterRemaining < 0.25 ? UI_COLORS.accentRed : '#8fd18a';
-      context.fillRect(panelX, panelY + 74, 504 * mask.filterRemaining, 6);
-    } else if (mask.concentration > 0.01) {
-      context.fillStyle = UI_COLORS.accentRed;
-      context.fillText('NO RESPIRATOR · LEAVE THE GAS', panelX, panelY + 62);
-    }
-    context.restore();
+    });
   }
 
-  private drawHud(context: CanvasRenderingContext2D, timeSeconds: number): void {
-    const width: number = VIRTUAL_RESOLUTION.width;
-    const height: number = VIRTUAL_RESOLUTION.height;
-    this.maskOverlay.draw(context, {
-      coverage: this.gasMask.coverage,
-      lensFog: this.gasMask.lensFog * this.gasMask.coverage,
-      filterStrain: this.gasMask.isWorn ? 1 - this.gasMask.filterRemaining : 0,
-      timeSeconds,
+  private buildHudSnapshot(timeSeconds: number): HudSnapshot {
+    const rig: TetherRig | null = this.rig;
+    const clawSnapshot = (side: ClawSide, binding: string) => ({
+      polarity: (side === 'left' ? 'amber' : 'violet') as Polarity,
+      phase: rig?.claws[side].phase ?? 'holstered',
+      binding,
     });
-    context.save();
-    const hudAlpha: number = 1 - this.letterbox;
-    context.globalAlpha = hudAlpha;
-    if (hudAlpha > 0.01) {
-      this.drawCrosshair(context, width / 2, height / 2);
-      context.font = UI_FONTS.small;
-      if (Math.floor(timeSeconds * 1.5) % 2 === 0) {
-        context.fillStyle = UI_COLORS.accentRed;
-        context.beginPath();
-        context.arc(96, 86, 10, 0, Math.PI * 2);
-        context.fill();
-      }
-      context.fillStyle = UI_COLORS.textPrimary;
-      context.fillText('REC', 116, 94);
-      context.fillText(`DEPTH  -${this.depthMeters.toFixed(1)} M`, 80, 136);
-      context.fillText(`STANCE ${this.motor.stance.toUpperCase()}${this.motor.isGrounded ? '' : ' · AIRBORNE'}`, 80, 172);
-      const totalSeconds: number = Math.floor((this.checkpoint?.playTimeSeconds ?? 0) + this.sessionSeconds);
-      const clock: string = `${String(Math.floor(totalSeconds / 3600)).padStart(2, '0')}:${String(Math.floor(totalSeconds / 60) % 60).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
-      context.textAlign = 'right';
-      context.fillText(`SHIFT ${clock}`, width - 80, 94);
-      context.fillText(`CHECKPOINT ${String(this.checkpoint?.checkpointChunkIndex ?? 0).padStart(3, '0')}`, width - 80, 136);
-      context.textAlign = 'left';
-      context.fillStyle = 'rgba(233, 225, 207, 0.12)';
-      context.fillRect(80, height - 90, 360, 10);
-      context.fillStyle = this.motor.stamina < 0.3 ? UI_COLORS.accentRed : 'rgba(233, 225, 207, 0.7)';
-      context.fillRect(80, height - 90, 360 * this.motor.stamina, 10);
-      context.fillStyle = UI_COLORS.textDim;
-      context.fillText('STAMINA', 80, height - 104);
-      this.drawClawIndicators(context, width, height);
-      this.drawToxicityMeter(context, width, height);
-      if (!this.services.input.isPointerLocked) {
-        context.textAlign = 'center';
-        context.fillStyle = UI_COLORS.textDim;
-        context.fillText('CLICK TO LOOK · WASD · SHIFT RUN · C CROUCH · SPACE JUMP · LMB/RMB TETHER · G MASK · E USE · ESC MENU', width / 2, height - 30);
-        context.textAlign = 'left';
-      }
-    }
-    context.globalAlpha = 1;
-    if (this.toast !== null) {
-      context.globalAlpha = clamp(this.toast.remainingSeconds, 0, 1) * this.objectiveOpacity;
-      context.font = UI_FONTS.chapter;
-      context.textAlign = 'center';
-      context.fillStyle = this.toast.color;
-      context.shadowColor = UI_COLORS.accentRedGlow;
-      context.shadowBlur = 18;
-      context.fillText(this.toast.text, width / 2, height * 0.74);
-      context.shadowBlur = 0;
-      context.globalAlpha = 1;
-      context.textAlign = 'left';
-    }
-    if (this.dread > 0.01) {
-      const gradient: CanvasGradient = context.createRadialGradient(width / 2, height / 2, height * 0.25, width / 2, height / 2, height * 0.85);
-      gradient.addColorStop(0, 'rgba(120, 0, 0, 0)');
-      gradient.addColorStop(1, `rgba(120, 0, 0, ${(this.dread * 0.55).toFixed(3)})`);
-      context.fillStyle = gradient;
-      context.fillRect(0, 0, width, height);
-    }
-    if (this.gasMask.exposure > 0.35) {
-      const pulse: number = 0.5 + 0.5 * Math.sin(timeSeconds * (2 + this.gasMask.exposure * 6));
-      const strength: number = smoothstep(0.35, 1, this.gasMask.exposure) * (0.35 + pulse * 0.25);
-      const sick: CanvasGradient = context.createRadialGradient(width / 2, height / 2, height * 0.2, width / 2, height / 2, height * 0.9);
-      sick.addColorStop(0, 'rgba(60, 90, 10, 0)');
-      sick.addColorStop(1, `rgba(60, 90, 10, ${strength.toFixed(3)})`);
-      context.fillStyle = sick;
-      context.fillRect(0, 0, width, height);
-    }
-    // Cinematic letterbox bars.
-    if (this.letterbox > 0.001) {
-      const barHeight: number = LETTERBOX_HEIGHT * this.letterbox;
-      context.fillStyle = '#000000';
-      context.fillRect(0, 0, width, barHeight);
-      context.fillRect(0, height - barHeight, width, barHeight);
-    }
-    context.restore();
+    const pickupPrompt: string | null =
+      this.pickupInView === null ? null : this.pickupInView.kind === 'gasMask' ? '[E] TAKE GAS MASK' : '[E] TAKE FILTER CARTRIDGE';
+    return {
+      crosshair: {
+        kind: this.aim.kind,
+        polarity: this.aim.polarity,
+        distance: this.aim.distance,
+        interactionPrompt: pickupPrompt ?? (this.switchInView !== null ? '[E] THROW BREAKER' : null),
+      },
+      status: {
+        depthMeters: this.depthMeters,
+        stanceLabel: this.motor.stance.toUpperCase(),
+        airborne: !this.motor.isGrounded,
+        playTimeSeconds: (this.checkpoint?.playTimeSeconds ?? 0) + this.sessionSeconds,
+        checkpointIndex: this.checkpoint?.checkpointChunkIndex ?? 0,
+        stamina: this.motor.stamina,
+      },
+      claws: [clawSnapshot('left', 'LMB/Q'), clawSnapshot('right', 'RMB/R')],
+      toxicity: {
+        exposure: this.gasMask.exposure,
+        concentration: this.gasMask.concentration,
+        areaStatus: this.gasMask.areaStatus,
+        maskAvailable: this.gasMask.isAvailable,
+        maskPhase: this.gasMask.phase,
+        filterRemaining: this.gasMask.filterRemaining,
+        flash: this.meterFlash,
+      },
+      hotbar: { slots: this.buildHotbarSlots(), selectedSlot: this.inventory.selectedSlot },
+      mask: {
+        coverage: this.gasMask.coverage,
+        lensFog: this.gasMask.lensFog * this.gasMask.coverage,
+        filterStrain: this.gasMask.isWorn ? 1 - this.gasMask.filterRemaining : 0,
+      },
+      toast: this.toast !== null ? { text: this.toast.text, color: this.toast.color, alpha: clamp(this.toast.remainingSeconds, 0, 1) * this.objectiveOpacity } : null,
+      dread: this.dread,
+      letterbox: this.letterbox,
+      pointerLocked: this.services.input.isPointerLocked,
+      timeSeconds,
+    };
   }
 
   // ---- Render ----------------------------------------------------------------------------------------------------
@@ -911,6 +1031,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (zone !== null) {
       post.fog.toxicVolume = { ...post.fog.toxicVolume, minimum: zone.bounds.minimum, maximum: zone.bounds.maximum, density: 0.11 * zone.concentration };
     }
-    this.drawHud(context, frame.elapsedSeconds);
+    this.hud.draw(context, this.buildHudSnapshot(frame.elapsedSeconds));
+    this.pauseMenu.draw(context, frame.elapsedSeconds);
   }
 }

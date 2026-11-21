@@ -1,5 +1,4 @@
 import { STATE_TRANSITION_FADE_SECONDS } from '../config/GameConstants';
-import { AudioManager } from './AudioManager';
 import type { GameServices, LifecycleController } from './GameServices';
 import type {
   FrameContext,
@@ -12,25 +11,24 @@ import type {
   TransitionStyle,
 } from './GameStateTypes';
 import { ALLOWED_TRANSITIONS, GameStateId } from './GameStateTypes';
-import { InputManager } from './InputManager';
 import type { GameSettings } from './PersistentStores';
-import { SaveSystem, SettingsStore } from './PersistentStores';
-import { MeshLibrary } from '../assets/MeshLibrary';
-import { PerspectiveCamera } from '../graphics/Camera';
 import type { PackedLightBuffer } from '../graphics/LightingSystem';
-import { LightingSystem, createPackedLightBuffer } from '../graphics/LightingSystem';
-import { MaterialRegistry } from '../graphics/MaterialRegistry';
+import { createPackedLightBuffer } from '../graphics/LightingSystem';
 import type { PostProcessParameters } from '../graphics/PostProcessPipeline';
-import { PostProcessPipeline, createDefaultPostProcessParameters } from '../graphics/PostProcessPipeline';
-import { SceneRenderer } from '../graphics/SceneRenderer';
-import { ActiveLevelStreamerState } from '../states/ActiveLevelStreamerState';
-import { CoreBootloaderState } from '../states/CoreBootloaderState';
-import { JumpscareDeathSequenceState } from '../states/JumpscareDeathSequenceState';
-import { SettingsMenuState } from '../states/SettingsMenuState';
-import { TitleScreenState } from '../states/TitleScreenState';
-import { UISurface } from '../ui/UISurface';
-import { MenuBackdropScene } from '../world/MenuBackdropScene';
+import { createDefaultPostProcessParameters } from '../graphics/PostProcessPipeline';
 import { clamp } from '../math/Vec3';
+
+/** Everything the bootstrapper assembles for the instance: the service graph and one handler per state. */
+export interface EngineAssembly {
+  readonly services: GameServices;
+  readonly handlers: GameStateHandlerMap;
+}
+
+/**
+ * Builds the assembly. Receives the instance as a LifecycleController so services and states can
+ * request transitions without a circular import on GameInstance.
+ */
+export type EngineComposer = (lifecycle: LifecycleController) => EngineAssembly;
 
 export interface GameInstanceDiagnostics {
   readonly stateId: GameStateId;
@@ -72,11 +70,11 @@ export class GameInstance implements LifecycleController {
   private readonly unsubscribeSettings: () => void;
   public showCollisionBoxes: boolean = false;
 
-  public static create(canvas: HTMLCanvasElement): GameInstance {
+  public static create(composer: EngineComposer): GameInstance {
     if (GameInstance.singleton !== null) {
       throw new Error('[GameInstance] already created; the Game Instance is a process-wide singleton.');
     }
-    GameInstance.singleton = new GameInstance(canvas);
+    GameInstance.singleton = new GameInstance(composer);
     return GameInstance.singleton;
   }
 
@@ -87,46 +85,11 @@ export class GameInstance implements LifecycleController {
     return GameInstance.singleton;
   }
 
-  private constructor(canvas: HTMLCanvasElement) {
-    const gl: WebGL2RenderingContext | null = canvas.getContext('webgl2', {
-      antialias: false,
-      alpha: false,
-      depth: false,
-      stencil: false,
-      premultipliedAlpha: false,
-      powerPreference: 'high-performance',
-      preserveDrawingBuffer: false,
-    });
-    if (gl === null) {
-      throw new Error('WebGL 2 is not available on this device/browser.');
-    }
-    const materials = new MaterialRegistry(gl);
-    const camera = new PerspectiveCamera();
-    this.services = {
-      canvas,
-      gl,
-      lifecycle: this,
-      input: new InputManager(canvas),
-      audio: new AudioManager(),
-      settings: new SettingsStore(),
-      save: new SaveSystem(),
-      materials,
-      meshes: new MeshLibrary(gl),
-      lighting: new LightingSystem(),
-      sceneRenderer: new SceneRenderer(gl, materials),
-      post: new PostProcessPipeline(gl),
-      ui: new UISurface(gl),
-      camera,
-      postParameters: createDefaultPostProcessParameters(),
-    };
-    const backdrop = new MenuBackdropScene(this.services);
-    this.handlers = {
-      [GameStateId.CoreBootloader]: new CoreBootloaderState(this.services),
-      [GameStateId.TitleScreen]: new TitleScreenState(this.services, backdrop),
-      [GameStateId.SettingsMenu]: new SettingsMenuState(this.services, backdrop),
-      [GameStateId.ActiveLevelStreamer]: new ActiveLevelStreamerState(this.services, backdrop),
-      [GameStateId.JumpscareDeathSequence]: new JumpscareDeathSequenceState(this.services),
-    };
+  private constructor(composer: EngineComposer) {
+    const assembly: EngineAssembly = composer(this);
+    this.services = assembly.services;
+    this.handlers = assembly.handlers;
+    const canvas: HTMLCanvasElement = this.services.canvas;
     this.services.audio.setMasterVolume(this.services.settings.values.masterVolume);
     this.unsubscribeSettings = this.services.settings.subscribe((settings: Readonly<GameSettings>) => {
       this.services.audio.setMasterVolume(settings.masterVolume);

@@ -159,7 +159,7 @@ export const CINEMATIC_LIBRARY: Readonly<Record<CinematicId, CinematicTimeline>>
     ],
     hooks: [
       { time: 0, hook: 'stopAmbient' },
-      { time: 0.28, hook: 'lightsDip' },
+      // No light dip here: the lunge must stay lit so the face reads at the moment of impact.
       { time: 1.45, hook: 'blackout' },
     ],
   },
@@ -205,7 +205,6 @@ export const CINEMATIC_LIBRARY: Readonly<Record<CinematicId, CinematicTimeline>>
     ],
     hooks: [
       { time: 0, hook: 'stopAmbient' },
-      { time: 0.62, hook: 'lightsDip' },
       { time: 1.6, hook: 'blackout' },
     ],
   },

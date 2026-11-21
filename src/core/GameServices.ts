@@ -1,7 +1,8 @@
 import type { AudioManager } from './AudioManager';
 import type { GameStateId, GameStateTransition, LifecyclePhase, TransitionStyle } from './GameStateTypes';
 import type { InputManager } from './InputManager';
-import type { SaveSystem, SettingsStore } from './PersistentStores';
+import type { SettingsStore } from './PersistentStores';
+import type { SaveRepository } from './serialization/SaveRepository';
 import type { MeshLibrary } from '../assets/MeshLibrary';
 import type { PerspectiveCamera } from '../graphics/Camera';
 import type { LightingSystem } from '../graphics/LightingSystem';
@@ -30,7 +31,7 @@ export interface GameServices {
   readonly input: InputManager;
   readonly audio: AudioManager;
   readonly settings: SettingsStore;
-  readonly save: SaveSystem;
+  readonly saves: SaveRepository;
   readonly materials: MaterialRegistry;
   readonly meshes: MeshLibrary;
   readonly lighting: LightingSystem;

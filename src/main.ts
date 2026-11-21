@@ -1,4 +1,5 @@
-import { GameInstance } from './core/GameInstance';
+import { EngineBootstrapper } from './core/EngineBootstrapper';
+import type { GameInstance } from './core/GameInstance';
 
 function showTerminalMessage(headline: string, detail: string): void {
   const overlay: HTMLElement | null = document.getElementById('terminal-message');
@@ -12,7 +13,8 @@ function showTerminalMessage(headline: string, detail: string): void {
   overlay.hidden = false;
 }
 
-function bootstrap(): void {
+/** Page entry point: DOM wiring only. All engine construction happens in EngineBootstrapper. */
+function main(): void {
   const canvas: HTMLElement | null = document.getElementById('game-canvas');
   if (!(canvas instanceof HTMLCanvasElement)) {
     showTerminalMessage('BOOT FAILURE', 'Canvas element #game-canvas not found.');
@@ -28,13 +30,14 @@ function bootstrap(): void {
     showTerminalMessage('SYSTEM FAULT', detail);
   });
   try {
-    const game: GameInstance = GameInstance.create(canvas);
-    (window as unknown as { underworks: GameInstance }).underworks = game;
-    game.start();
+    const bootstrapper = new EngineBootstrapper(canvas);
+    const game: GameInstance = bootstrapper.launch();
+    (window as unknown as { underworks: GameInstance; underworksBoot: EngineBootstrapper }).underworks = game;
+    (window as unknown as { underworksBoot: EngineBootstrapper }).underworksBoot = bootstrapper;
   } catch (error: unknown) {
     showTerminalMessage('BOOT FAILURE', error instanceof Error ? error.message : String(error));
     console.error(error);
   }
 }
 
-bootstrap();
+main();

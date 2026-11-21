@@ -77,7 +77,7 @@ export interface ToxicZone {
   readonly concentration: number;
 }
 
-export type PickupKind = 'gasMask';
+export type PickupKind = 'gasMask' | 'filterCartridge';
 
 export interface PickupRecord {
   readonly id: string;
@@ -381,6 +381,18 @@ export class LevelChunkBuilder {
           solid('rusted_steel', [side * (halfWidth - 0.35), 0.6, centerZ + side * 2], [0.5, 1.2, 0.5], 1);
           place('lamp_housing_toxic', createBoxMesh(0.36, 0.04, 0.36), [side * (halfWidth - 0.35), 1.22, centerZ + side * 2]);
         }
+        // A spare filter cartridge left on top of the first vent stack.
+        const cartridgeId: string = `pickup.filter.${chunkIndex}`;
+        if (!collectedPickupIds.has(cartridgeId)) {
+          const cartridgePosition: Vec3 = [-(halfWidth - 0.35), 1.3, centerZ - 2];
+          pickups.push({
+            id: cartridgeId,
+            kind: 'filterCartridge',
+            position: cartridgePosition,
+            // Re-centre the gas mask's filter part (authored at ~[0, 0.07, 0.15]) onto the pickup point, upright.
+            modelMatrix: mat4Compose([cartridgePosition[0], cartridgePosition[1] - 0.05, cartridgePosition[2] + 0.05], [-Math.PI / 2 - 0.35, 0.4, 0], [1.3, 1.3, 1.3]),
+          });
+        }
         break;
       }
       case 'relayGate': {
@@ -597,6 +609,10 @@ export class LevelStreamer {
   /** Marks pickups already owned (e.g. restored from a save) so their chunks never spawn them. */
   public markPickupCollected(pickupId: string): void {
     this.collectedPickupIds.add(pickupId);
+  }
+
+  public get collectedPickups(): readonly string[] {
+    return [...this.collectedPickupIds];
   }
 
   private load(chunkIndex: number): void {
@@ -1039,10 +1055,18 @@ export class LevelStreamer {
         pushModel('ceiling_anchor', anchor.modelMatrix, 0.7 + 0.3 * Math.sin(timeSeconds * 2.2));
       }
       for (const pickup of chunk.pickups) {
-        const bob: Mat4 = mat4Compose([0, 0.02 * Math.sin(timeSeconds * 2), 0], [0, 0, 0], [1, 1, 1]);
         const matrix: Mat4 = new Float32Array(pickup.modelMatrix);
-        matrix[13] = (matrix[13] as number) + (bob[13] as number);
-        pushModel('gas_mask_prop', matrix, 1);
+        matrix[13] = (matrix[13] as number) + 0.02 * Math.sin(timeSeconds * 2);
+        if (pickup.kind === 'gasMask') {
+          pushModel('gas_mask_prop', matrix, 1);
+        } else {
+          // Filter cartridges render only the canister part of the gas mask model.
+          for (const part of this.meshes.get('gas_mask_prop').parts) {
+            if (part.partId === 'filter') {
+              output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: matrix, emissiveBoost: 1 });
+            }
+          }
+        }
       }
     }
   }

@@ -1,4 +1,4 @@
-import type { SaveCheckpoint } from './PersistentStores';
+import type { SaveGame } from './serialization/SaveGameSchema';
 import type { DrawItem, SceneEnvironment } from '../graphics/SceneRenderer';
 import type { ThreatKind } from '../world/LevelStreamer';
 
@@ -19,9 +19,11 @@ export interface GameStatePayloadMap {
   [GameStateId.CoreBootloader]: { readonly coldStart: true };
   [GameStateId.TitleScreen]: { readonly reason: TitleEntryReason };
   [GameStateId.SettingsMenu]: { readonly returnTo: GameStateId.TitleScreen };
-  [GameStateId.ActiveLevelStreamer]: { readonly mode: LevelEntryMode; readonly checkpoint: SaveCheckpoint };
+  /** `continue` with a session save restores the exact player state; otherwise spawn at the checkpoint chunk. */
+  [GameStateId.ActiveLevelStreamer]: { readonly mode: LevelEntryMode; readonly save: SaveGame };
   [GameStateId.JumpscareDeathSequence]: {
-    readonly checkpoint: SaveCheckpoint;
+    /** Checkpoint record that RETRY respawns from. */
+    readonly save: SaveGame;
     readonly survivedSeconds: number;
     readonly depthMeters: number;
     readonly cause: DeathCause;
@@ -35,7 +37,8 @@ export const ALLOWED_TRANSITIONS: Readonly<Record<GameStateId, readonly GameStat
   [GameStateId.CoreBootloader]: [GameStateId.TitleScreen],
   [GameStateId.TitleScreen]: [GameStateId.SettingsMenu, GameStateId.ActiveLevelStreamer],
   [GameStateId.SettingsMenu]: [GameStateId.TitleScreen],
-  [GameStateId.ActiveLevelStreamer]: [GameStateId.JumpscareDeathSequence, GameStateId.TitleScreen],
+  // Self-transition = restart from checkpoint (pause menu).
+  [GameStateId.ActiveLevelStreamer]: [GameStateId.JumpscareDeathSequence, GameStateId.TitleScreen, GameStateId.ActiveLevelStreamer],
   [GameStateId.JumpscareDeathSequence]: [GameStateId.ActiveLevelStreamer, GameStateId.TitleScreen],
 };
 

@@ -2,7 +2,7 @@ import { UI_COLORS, UI_FONTS, VIRTUAL_RESOLUTION } from '../config/GameConstants
 import type { GameServices } from '../core/GameServices';
 import type { DeathCause, FrameContext, FrameRenderRequest, GameStateHandler, GameStatePayloadMap } from '../core/GameStateTypes';
 import { GameStateId } from '../core/GameStateTypes';
-import type { SaveCheckpoint } from '../core/PersistentStores';
+import type { SaveGame } from '../core/serialization/SaveGameSchema';
 import { clamp } from '../math/Vec3';
 import type { UIFrameInput } from '../ui/UILayout';
 import { UIFocusGroup, UITextButton } from '../ui/UILayout';
@@ -31,7 +31,7 @@ export class JumpscareDeathSequenceState implements GameStateHandler<GameStateId
   public phase: DeathPhase = 'blackout';
   public cause: DeathCause = 'entity';
   private threat: ThreatKind | null = null;
-  private checkpoint: SaveCheckpoint | null = null;
+  private checkpoint: SaveGame | null = null;
   private survivedSeconds: number = 0;
   private depthMeters: number = 0;
   private pendingChoice: 'retry' | 'title' | null = null;
@@ -61,7 +61,7 @@ export class JumpscareDeathSequenceState implements GameStateHandler<GameStateId
     this.elapsed = 0;
     this.phase = 'blackout';
     this.pendingChoice = null;
-    this.checkpoint = payload.checkpoint;
+    this.checkpoint = payload.save;
     this.survivedSeconds = payload.survivedSeconds;
     this.depthMeters = payload.depthMeters;
     this.cause = payload.cause;
@@ -88,7 +88,7 @@ export class JumpscareDeathSequenceState implements GameStateHandler<GameStateId
       const choice: 'retry' | 'title' = this.pendingChoice;
       this.pendingChoice = null;
       if (choice === 'retry') {
-        this.services.lifecycle.requestTransition({ target: GameStateId.ActiveLevelStreamer, payload: { mode: 'retry', checkpoint: this.checkpoint } });
+        this.services.lifecycle.requestTransition({ target: GameStateId.ActiveLevelStreamer, payload: { mode: 'retry', save: this.checkpoint } });
       } else {
         this.services.lifecycle.requestTransition({ target: GameStateId.TitleScreen, payload: { reason: 'returnFromDeath' } });
       }

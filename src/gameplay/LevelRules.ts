@@ -36,6 +36,14 @@ export const LEVEL_TRIGGER_RULES: readonly TriggerRule[] = [
     once: false,
   },
   {
+    id: 'filter.first.collected',
+    event: 'itemCollected',
+    match: (payload) => payload.kind === 'filterCartridge',
+    conditions: [],
+    actions: [{ type: 'toast', text: 'FILTER CARTRIDGE · SELECT SLOT 2 · PRESS F TO FIT IT', seconds: 3.5, tone: 'success' }],
+    once: true,
+  },
+  {
     id: 'toxic.first.unprotected',
     event: 'zoneEntered',
     match: (payload) => payload.zone.kind === 'toxicEntry',

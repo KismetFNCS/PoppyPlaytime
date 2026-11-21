@@ -1,8 +1,8 @@
 import type { GameServices } from '../core/GameServices';
 import type { FrameContext, FrameRenderRequest, GameStateHandler, GameStatePayloadMap } from '../core/GameStateTypes';
 import { GameStateId } from '../core/GameStateTypes';
-import type { SaveCheckpoint } from '../core/PersistentStores';
-import { createFreshCheckpoint } from '../core/PersistentStores';
+import type { SaveGame } from '../core/serialization/SaveGameSchema';
+import { createNewGameSave, describeSave } from '../core/serialization/SaveGameSchema';
 import type { MainMenuAction } from '../ui/MainMenuLayout';
 import { MainMenuLayout } from '../ui/MainMenuLayout';
 import { ConfirmDialog, CreditsPanel } from '../ui/ModalPanels';
@@ -33,7 +33,9 @@ export class TitleScreenState implements GameStateHandler<GameStateId.TitleScree
     this.services.input.releasePointerLock();
     this.services.audio.startAmbientDrone();
     this.services.audio.setDreadLevel(0.05);
-    this.menu.setContinueAvailable(this.services.save.hasSave);
+    const latest: SaveGame | null = this.services.saves.latest();
+    this.menu.setContinueAvailable(latest !== null);
+    this.menu.setContinueSummary(latest !== null ? `${latest.kind === 'session' ? 'RESUME' : 'CHECKPOINT'} · ${describeSave(latest)}` : null);
     if (payload.reason !== 'returnFromSettings') {
       this.menu.restartIntro();
     } else {
@@ -49,30 +51,30 @@ export class TitleScreenState implements GameStateHandler<GameStateId.TitleScree
     this.overlay = 'none';
   }
 
-  private startLevel(mode: 'newGame' | 'continue', checkpoint: SaveCheckpoint): void {
-    this.services.lifecycle.requestTransition({ target: GameStateId.ActiveLevelStreamer, payload: { mode, checkpoint } });
+  private startLevel(mode: 'newGame' | 'continue', save: SaveGame): void {
+    this.services.lifecycle.requestTransition({ target: GameStateId.ActiveLevelStreamer, payload: { mode, save } });
   }
 
   private handleAction(action: MainMenuAction): void {
-    const save = this.services.save;
+    const saves = this.services.saves;
     switch (action) {
       case 'continue': {
-        const checkpoint: SaveCheckpoint | null = save.load();
-        if (checkpoint !== null) {
-          this.startLevel('continue', checkpoint);
+        const latest: SaveGame | null = saves.latest();
+        if (latest !== null) {
+          this.startLevel('continue', latest);
         }
         break;
       }
       case 'newGame':
-        if (save.hasSave) {
+        if (saves.hasAnySave) {
           this.overlay = 'dialog';
           this.dialog.open('OVERWRITE THE EXISTING SHIFT RECORD?', 'OVERWRITE', 'CANCEL', () => {
-            save.erase();
+            saves.eraseAll();
             this.overlay = 'none';
-            this.startLevel('newGame', createFreshCheckpoint());
+            this.startLevel('newGame', createNewGameSave());
           });
         } else {
-          this.startLevel('newGame', createFreshCheckpoint());
+          this.startLevel('newGame', createNewGameSave());
         }
         break;
       case 'settings':
