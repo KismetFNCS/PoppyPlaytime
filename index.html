@@ -648,10 +648,10 @@ const M4 = {
     // pick a helper axis not parallel to the segment
     let hx = 0, hy = 0, hz = 1;
     if (Math.abs(dz) > 0.9) { hx = 1; hz = 0; }
-    // x = normalize(h x d), z = d x x
+    // x = normalize(h x d), z = x x d  (right-handed, so triangle winding survives back-face culling)
     let xx = hy * dz - hz * dy, xy = hz * dx - hx * dz, xz = hx * dy - hy * dx;
     const xl = Math.hypot(xx, xy, xz) || 1; xx /= xl; xy /= xl; xz /= xl;
-    const zx = dy * xz - dz * xy, zy = dz * xx - dx * xz, zz = dx * xy - dy * xx;
+    const zx = xy * dz - xz * dy, zy = xz * dx - xx * dz, zz = xx * dy - xy * dx;
     o[0] = xx * r; o[1] = xy * r; o[2] = xz * r; o[3] = 0;
     o[4] = dx * len; o[5] = dy * len; o[6] = dz * len; o[7] = 0;
     o[8] = zx * r; o[9] = zy * r; o[10] = zz * r; o[11] = 0;
@@ -7660,16 +7660,29 @@ async function runAll() {
       T.step(DT, 300);
       check('dialogue: line clears after its hold time', !Dialogue.busy() && document.getElementById('hudDialog').style.display === 'none');
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
+      Dialogue.clear();
       T.setPlayerPose(-1.5, 0, -64, 0, 0); T.step(DT, 4);
-      check('thimble: voice box crackles as you approach', Cast.plush.talked, '');
-      T.setPlayerPose(-2.9, 0, -67.4, 0, 0); T.step(DT, 4);
-      check('thimble: lunges once when you get close', Cast.plush.lunged && Cast.plush.armRaise > 0.3, Cast.plush.armRaise.toFixed(2));
+      check('thimble: greets you as a friend', Cast.plush.talked && Dialogue.busy() && Dialogue.current.speaker === 'THIMBLE', '');
+      check('thimble: no lunge / scare on meeting', Player.trauma < 0.3, String(Player.trauma));
+      let opened = 0;
+      for (let i = 0; i < 20; i++) { T.step(DT, 1); if (Cast.plush.talking) opened++; }
+      check('thimble: mouth opens while he talks', opened > 3 && Sculpt.ready('th_head_talk'), opened + '/20 frames');
+      Dialogue.clear(); T.step(DT, 2);
+      check('thimble: closed smile when quiet', !Cast.plush.talking, '');
+      // during the chase he plugs his needle staff into the socket and the shutter rises
+      { const ds = Level.doorById('DS'); ds.open = 0; ds.target = 0; ds.collider.enabled = true; }
+      Game.chaseActive = true; Cast.plush.plugState = 0;
+      T.setPlayerPose(-2.4, 0, -67.6, 0, 0); T.step(DT, 70);
+      check('thimble: plugs his staff into the socket during the chase', Cast.plush.plugState === 2 && Level.doorById('DS').target === 1, 'state ' + Cast.plush.plugState);
+      check('thimble: staff tip lands in the socket', V3.dist(Cast.staff.tip, Cast.plushSocket) < 0.05, V3.dist(Cast.staff.tip, Cast.plushSocket).toFixed(3));
+      check('thimble: purple eye pulses with power', Cast.plush.eyeGlow > 0.9, Cast.plush.eyeGlow.toFixed(2));
+      Game.chaseActive = false;
       Game.stage = 3; T.setPlayerPose(0, 0, -60, -Math.PI / 2, 0); T.step(DT, 3);
       check('marigold: relocates to the freight lift for the ending', Math.abs(Cast.doll.pos[2] - (-96.9)) < 0.01, Cast.doll.pos[2]);
       Game.stage = 1; Dialogue.clear();
       T.setStepRender(true); T.setPlayerPose(-2.6, 0, -66.6, 0, 0);
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
-      T.aimAt(-5.15, 0.9, -68.6); T.step(DT, 2);
+      T.aimAt(-3.6, 1.2, -70.9); T.step(DT, 2);
       check('cast: plush + gauntlets render without errors', T.getLastError() === null && RenderQueue.count > 100, RenderQueue.count + ' items');
       T.setStepRender(false);
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
@@ -8391,7 +8404,9 @@ const Cast = {
     eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
   },
   doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
-  plush: { pos: V3.create(-4.85, 0, -68.6), yaw: -Math.PI / 2, headYaw: 0, eyeGlow: 0.4, lunge: 0, lunged: false, talked: false, armRaise: 0 },
+  plush: { pos: V3.create(-3.6, 0, -70.9), yaw: -2.84, headYaw: 0, eyeGlow: 0.5, eyePulse: 0, talked: false, plugState: 0, plugTimer: 0, plug: 0, wave: 0, cheered: false, talking: false },
+  // broken power socket on the shutter wall that Mister Thimble jams his needle staff into
+  plushSocket: V3.create(-2.5, 1.05, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
@@ -8432,7 +8447,7 @@ const Cast = {
     const D = this.doll; D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0; D.met = false; D.farewell = false;
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
-    const T = this.plush; T.headYaw = 0; T.eyeGlow = 0.4; T.lunge = 0; T.lunged = false; T.talked = false; T.armRaise = 0;
+    const T = this.plush; T.headYaw = 0; T.eyeGlow = 0.5; T.eyePulse = 0; T.talked = false; T.plugState = 0; T.plugTimer = 0; T.plug = 0; T.wave = 0; T.cheered = false; T.talking = false;
     Dialogue.clear();
     Pip.reset();
   },
@@ -8546,31 +8561,58 @@ const Cast = {
     if (gameRng() < dt * 0.12) D.blink = 1;
   },
 
+  // Mister Thimble is an ally: he greets you warmly, and once the Spoolwright is loose he jams his needle
+  // staff into the broken socket on the shutter wall, his eye pulses, and the shutter rises for you.
   updatePlush(dt) {
     const P = this.plush;
     if (!Streaming.visible[3]) return;
-    const eye = Player.eyePos;
-    const want = clamp(wrapAngle(Math.atan2(-(eye[0] - P.pos[0]), -(eye[2] - P.pos[2])) - P.yaw), -1.0, 1.0);
+    const eye = Player.eyePos, sk = this.plushSocket;
     const d = Math.hypot(eye[0] - P.pos[0], eye[2] - P.pos[2]);
-    P.headYaw = damp(P.headYaw, d < 14 ? want : 0, Game.chaseActive ? 2.5 : 0.6, dt);
-    P.eyeGlow = damp(P.eyeGlow, Game.chaseActive || P.lunge > 0 ? 1.1 : 0.5 + 0.15 * Math.sin(Game.time * 2), 3, dt);
-    // the voice box crackles to life when you come close, then he lunges once
-    if (!P.talked && d < 9) {
-      P.talked = true;
-      Dialogue.say('THIMBLE', 'H-hug... time? Is it... hug time?');
+    const ds = Level.doorById('DS');
+    // he looks at you; while plugging he glances at the socket
+    const tx = P.plugState === 1 ? sk[0] : eye[0], tz = P.plugState === 1 ? sk[2] : eye[2];
+    const want = clamp(wrapAngle(Math.atan2(-(tx - P.pos[0]), -(tz - P.pos[2])) - P.yaw), -1.3, 1.3);
+    P.headYaw = damp(P.headYaw, d < 16 || P.plugState === 1 ? want : 0, 3, dt);
+    if (!P.talked && d < 10) {
+      P.talked = true; P.wave = 1;
+      if (Game.chaseActive && ds && ds.target === 0) {
+        Dialogue.say('THIMBLE', 'Over here, friend! Don\'t be scared - I\'m Mister Thimble.');
+        Dialogue.say('THIMBLE', 'Come close and I\'ll get this old shutter open for you!');
+      } else {
+        Dialogue.say('THIMBLE', 'Oh! A visitor! Hello, friend - I\'m Mister Thimble.');
+        Dialogue.say('THIMBLE', 'Stay close to the light. I\'ll help however I can.');
+      }
+      Pip.react('happy', 2);
     }
-    if (!P.lunged && d < 3.4) {
-      P.lunged = true; P.lunge = 1;
-      Dialogue.say('THIMBLE', 'HUG TIME!');
-      Dialogue.say('THIMBLE', '...sorry. So... sorry. I don\'t... mean it anymore.');
-      V3.set(this.tmp, P.pos[0], 1.2, P.pos[2]);
-      sfx('screech', this.tmp);
-      Player.addTrauma(0.55);
-      Pip.react('surprised', 2);
-      Particles.burst(this.tmp, 14, 'ember');
+    if (P.plugState === 0 && ds && ds.target === 1) {
+      // you beat him to it with the lever
+      P.plugState = 3;
+      if (P.talked && !P.cheered) { P.cheered = true; Dialogue.say('THIMBLE', 'Ha! Good shot, friend! Now run!'); }
     }
-    P.lunge = Math.max(0, P.lunge - dt * 0.9);
-    P.armRaise = damp(P.armRaise, P.lunge > 0.3 ? 1 : 0, P.lunge > 0.3 ? 14 : 2, dt);
+    if (P.plugState === 0 && Game.chaseActive && d < 6) {
+      P.plugState = 1; P.plugTimer = 0;
+      Dialogue.say('THIMBLE', 'Hold on... one little jolt...');
+    }
+    if (P.plugState === 1) {
+      P.plugTimer += dt;
+      P.plug = smoothstep(0, 1, P.plugTimer / 0.9);
+      if (P.plugTimer >= 0.9) {
+        P.plugState = 2; P.plug = 1; P.eyePulse = 1;
+        Particles.burst(sk, 22, 'spark');
+        sfx('power', sk);
+        Game.action('L2');
+        Dialogue.say('THIMBLE', 'There we go! Run, friend - go, go!');
+        Pip.react('happy', 2.5);
+      }
+    }
+    // mouth flaps open only while his line is being spoken; otherwise the closed smile
+    const c = Dialogue.current;
+    P.talking = !!(c && c.speaker === 'THIMBLE' && Dialogue.chars < c.text.length && Math.sin(Game.time * 15) > -0.3);
+    P.wave = Math.max(0, P.wave - dt * 0.45);
+    P.eyePulse = Math.max(0, P.eyePulse - dt * 0.6);
+    const pulse = P.plugState === 2 ? 0.35 + 0.35 * Math.sin(Game.time * 7) : 0;
+    P.eyeGlow = damp(P.eyeGlow, 0.55 + 0.12 * Math.sin(Game.time * 2) + pulse + P.eyePulse * 1.4, 6, dt);
+    this.poseStaff();
   },
 
   // ---------- CRT face ----------
@@ -8706,34 +8748,84 @@ const Cast = {
     if (it) { it.emis[0] = 0.5; it.emis[1] = 0.5; it.emis[2] = 0.55; }
   },
 
+  // where the needle staff is this frame (also used by the socket check)
+  poseStaff() {
+    const P = this.plush, p = P.pos, yaw = P.yaw, S = 1.2, st = this.staff, sk = this.plushSocket;
+    const e = P.plug;
+    const rx = -0.66 * S, ry = 0.78 * S, rz = -0.18 * S, qx = -0.7 * S, qy = 1.25 * S, qz = 0.25 * S;
+    this.pt(st.paw, p, yaw, rx + (qx - rx) * e, ry + (qy - ry) * e + Math.sin(Game.time * 1.6) * 0.012 * S, rz + (qz - rz) * e);
+    V3.set(this.local, sk[0] - st.paw[0], sk[1] - st.paw[1], sk[2] - st.paw[2]);
+    const reach = Math.hypot(this.local[0], this.local[1], this.local[2]) || 1;
+    const dx = this.local[0] / reach * e, dy = -(1 - e) + this.local[1] / reach * e, dz = this.local[2] / reach * e;
+    const dl = Math.hypot(dx, dy, dz) || 1;
+    V3.set(st.dir, dx / dl, dy / dl, dz / dl);
+    const below = 0.78 * S * (1 - e) + reach * e, LEN = 1.95 * S;
+    V3.set(st.tip, st.paw[0] + st.dir[0] * below, st.paw[1] + st.dir[1] * below, st.paw[2] + st.dir[2] * below);
+    V3.set(st.top, st.tip[0] - st.dir[0] * LEN, st.tip[1] - st.dir[1] * LEN, st.tip[2] - st.dir[2] * LEN);
+  },
+
   submitPlush() {
-    const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw;
-    const a = this.tmp, b = this.tmp2;
+    const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw, S = 1.2;
+    const a = this.tmp, b = this.tmp2, st = this.staff, sk = this.plushSocket;
     if (!Sculpt.ready('th_body')) return;
-    const L = P.armRaise, S = 1.2;
-    // body rears up and forward during the lunge
-    this.pt(a, p, yaw, 0, L * 0.12 * S, -L * 0.22 * S);
-    let it = R.push('th_body', MAT.burnt);
-    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, S, S, S);
-    // arms: limp at rest, thrown up and forward for the "hug"
+    // the broken socket box on the wall (lamp turns from red to violet once powered)
+    R.trs('box', MAT.rustIron, sk[0], sk[1], sk[2] - 0.04, 0, 0, 0, 0.34, 0.42, 0.12, false);
+    R.trs('box', MAT.hazard, sk[0], sk[1] + 0.25, sk[2] - 0.035, 0, 0, 0, 0.34, 0.06, 0.12, false);
+    R.trs('box', MAT.rubber, sk[0], sk[1], sk[2] + 0.025, 0, 0, 0, 0.16, 0.16, 0.02, false);
+    let it = R.trs('sphereLow', MAT.screen, sk[0] + 0.12, sk[1] + 0.15, sk[2] + 0.03, 0, 0, 0, 0.025, 0.025, 0.02, false);
+    if (it) { const on = P.plugState === 2; it.emis[0] = on ? 0.5 * P.eyeGlow : 0.9; it.emis[1] = on ? 0.08 : 0.05; it.emis[2] = on ? 1.0 * P.eyeGlow : 0.03; }
+    // gentle breathing bob
+    const bob = Math.sin(Game.time * 1.6) * 0.012;
+    this.pt(a, p, yaw, 0, bob * S, 0);
+    it = R.push('th_body', MAT.burnt);
+    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, 0, 0, S, S, S);
+    // arms: left holds the staff, right hangs relaxed and waves when he greets you
     for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.42 * S, (1.33 + L * 0.15) * S, (0.0 - L * 0.3) * S);
-      this.pt(b, p, yaw, sx * (0.56 - L * 0.2) * S, (0.62 + L * 1.0) * S, (-0.1 - L * 0.85) * S);
+      this.pt(a, p, yaw, sx * 0.42 * S, 1.33 * S + bob * S, 0);
+      if (sx < 0) V3.copy(b, st.paw);
+      else {
+        const w = Math.min(1, P.wave * 3), sw = Math.sin(Game.time * 9) * 0.12 * w;
+        this.pt(b, p, yaw, (0.62 - w * 0.05 + sw) * S, (0.6 + w * 1.15) * S, (-0.12 - w * 0.2) * S);
+      }
+      // the paw sits 0.9 along the arm mesh
+      V3.set(this.local, b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      const k = 1 / 0.9;
+      b[0] = a[0] + this.local[0] * k; b[1] = a[1] + this.local[1] * k; b[2] = a[2] + this.local[2] * k;
       it = R.push('th_arm', MAT.burnt);
       if (it) M4.segment(it.model, a, b, 1);
     }
-    // head
+    // the needle staff: a giant ivory sewing needle with a steel point and a brass eye threaded with copper wire
+    const n = st.dir;
+    V3.set(a, st.tip[0] - n[0] * 0.24 * S, st.tip[1] - n[1] * 0.24 * S, st.tip[2] - n[2] * 0.24 * S);
+    R.seg('cyl', MAT.porcelain, a, st.top, 0.04 * S);
+    R.seg('cone', MAT.steel, a, st.tip, 0.04 * S);
+    V3.set(b, st.top[0] + n[0] * 0.12 * S, st.top[1] + n[1] * 0.12 * S, st.top[2] + n[2] * 0.12 * S);
+    let ex = n[2], ez = -n[0], el = Math.hypot(ex, ez);
+    if (el < 0.2) { ex = Math.cos(yaw); ez = -Math.sin(yaw); el = 1; }
+    V3.set(this.local, ex / el, 0, ez / el);
+    it = R.push('torus', MAT.copper);
+    if (it) ringMatrix(it.model, b, this.local, 0.085 * S);
+    V3.set(a, b[0] + n[0] * 0.05, b[1] + n[1] * 0.05, b[2] + n[2] * 0.05);
+    R.seg('cylLow', MAT.copper, a, st.paw, 0.006);
+    // paw wrap of leather where he grips it
+    V3.set(a, st.paw[0] - n[0] * 0.09, st.paw[1] - n[1] * 0.09, st.paw[2] - n[2] * 0.09);
+    V3.set(b, st.paw[0] + n[0] * 0.09, st.paw[1] + n[1] * 0.09, st.paw[2] + n[2] * 0.09);
+    R.seg('cyl', MAT.rubber, a, b, 0.05 * S);
+    if (P.plugState === 2 && Math.sin(Game.time * 23) > 0.6) {
+      it = R.trs('sphereLow', MAT.screen, sk[0], sk[1], sk[2] + 0.05, 0, 0, 0, 0.05, 0.05, 0.05, false);
+      if (it) { it.emis[0] = 0.8; it.emis[1] = 0.5; it.emis[2] = 1.6; }
+    }
+    // head: a friendly little tilt; the stitched smile parts into an open mouth only while he speaks
     const hy = yaw + P.headYaw;
-    // the head sags heavily toward his right shoulder (straightens for the lunge)
-    const sag = 1 - L;
-    this.pt(a, p, yaw, 0.1 * sag * S, (1.74 - 0.07 * sag + L * 0.12) * S, (-0.02 - L * 0.4) * S);
-    M4.compose(this.m, a[0], a[1], a[2], hy, 0.22 * sag - L * 0.4, -0.42 * sag, S * 1.08, S * 0.98, S);
-    it = R.push('th_head', MAT.burnt);
+    const mesh = P.talking && Sculpt.ready('th_head_talk') ? 'th_head_talk' : 'th_head_smile';
+    this.pt(a, p, yaw, 0.04 * S, (1.71 + bob) * S, -0.02 * S);
+    M4.compose(this.m, a[0], a[1], a[2], hy, 0.06, -0.14 + Math.sin(Game.time * 1.1) * 0.03, S * 1.08, S, S);
+    it = Sculpt.ready(mesh) ? R.push(mesh, MAT.burnt) : null;
     if (it) it.model.set(this.m);
-    // glowing violet glass eye in the right socket
+    // soft violet glass eye; pulses while the staff feeds power into the socket
     V3.set(this.local, 0.12, 0.06, -0.265); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.054, 0.054, 0.034, false);
-    if (it) { const g = P.eyeGlow; it.emis[0] = 0.55 * g; it.emis[1] = 0.08 * g; it.emis[2] = 1.05 * g; }
+    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.052, 0.052, 0.034, false);
+    if (it) { const g = P.eyeGlow; it.emis[0] = 0.55 * g; it.emis[1] = 0.1 * g; it.emis[2] = 1.05 * g; }
   }
 };
 const _cast = {
@@ -9122,6 +9214,71 @@ function sculptGlove(mirror, grip) {
   return SDF.mesh(n, [-0.15, -0.12, -0.13], [0.15, 0.06, 0.2], 72);
 }
 
+// Mister Thimble's head. open=false: a gentle closed, stitched smile; open=true: the same smile parted
+// into a friendly open mouth (warm lining, small rounded teeth, a tongue) used while he speaks.
+function sculptThimbleHead(open) {
+  const F = MAT.burnt, R = MAT.lining, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, T = MAT.porcelain, n = [
+    { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: F, n: [0.014, 9] },
+    { t: 'sph', c: [-0.17, -0.06, -0.17], r: 0.11, m: F, k: 0.08 },
+    { t: 'sph', c: [0.17, -0.06, -0.17], r: 0.11, m: F, k: 0.08 },
+    { t: 'ell', c: [0, -0.1, -0.235], r: [0.2, 0.14, 0.13], m: W, k: 0.07, n: [0.006, 26] },
+    { t: 'ell', c: [0, -0.02, -0.36], r: [0.055, 0.04, 0.034], m: D, k: 0.015 },
+    { t: 'cyl', c: [-0.12, 0.06, -0.27], r: 0.052, h: 0.014, rr: 0.006, rot: [0, Math.PI / 2, 0], m: D, k: 0.01 },
+    { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: F },
+    { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: F },
+    { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.052, op: 's', k: 0.015, sm: D },
+    { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 }
+  ];
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    n.push({ t: 'sph', c: [0.06 + Math.cos(a) * 0.112, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
+  }
+  // the smile follows the muzzle surface, corners lifting gently
+  const arc = k => {
+    const a = k * 0.17;
+    return [Math.sin(a) * 0.15, -0.14 + a * a * 0.11, -0.345 + (1 - Math.cos(a)) * 0.2, a];
+  };
+  if (!open) {
+    // a soft groove with a dark thread sewn along it, little dimples at the corners
+    for (let k = -4; k <= 4; k++) {
+      const [x, y, z] = arc(k);
+      n.push({ t: 'sph', c: [x, y, z], r: 0.017, op: 's', k: 0.008, sm: D });
+      if (k < 4) {
+        const [x2, y2, z2] = arc(k + 1);
+        n.push({ t: 'cap', a: [x, y, z + 0.006], b: [x2, y2, z2 + 0.006], r: 0.0075, m: D, k: 0.003 });
+      }
+      if (k % 2 === 0) n.push({ t: 'cap', a: [x, y + 0.026, z - 0.004], b: [x, y - 0.026, z - 0.004], r: 0.005, m: D, k: 0.002 });
+    }
+    for (const sx of [-1, 1]) {
+      const [x, y, z] = arc(sx * 4.6);
+      n.push({ t: 'sph', c: [x, y + 0.012, z], r: 0.014, op: 's', k: 0.01, sm: D });
+    }
+  } else {
+    for (let k = -3; k <= 3; k++) {
+      const [x, y, z] = arc(k);
+      const depth = 1 - Math.abs(k) / 4;
+      n.push({ t: 'ell', c: [x, y - 0.012 * depth, z + 0.01], r: [0.04, 0.012 + 0.03 * depth, 0.06], op: 's', k: 0.014, sm: R });
+    }
+    for (let k = -2; k <= 2; k++) {
+      const [x, y, z, a] = arc(k);
+      n.push({ t: 'box', c: [x, y + 0.005, z + 0.02], h: [0.015, 0.012, 0.01], rr: 0.006, rot: [a, 0, 0], m: T, k: 0.003 });
+    }
+    n.push({ t: 'ell', c: [0, -0.175, -0.3], r: [0.06, 0.02, 0.04], m: R, k: 0.01 });
+  }
+  // right ear stands up, left ear droops; soft rounded rims
+  n.push({ t: 'ell', c: [0.24, 0.3, 0.02], r: [0.1, 0.14, 0.06], rot: [0, 0, -0.25], m: F, k: 0.05, n: [0.006, 45] });
+  n.push({ t: 'ell', c: [0.245, 0.31, -0.035], r: [0.065, 0.095, 0.03], rot: [0, 0, -0.25], op: 's', k: 0.02, sm: W });
+  n.push({ t: 'ell', c: [-0.34, 0.16, 0.02], r: [0.14, 0.085, 0.06], rot: [0, 0, 0.55], m: F, k: 0.05, n: [0.006, 45] });
+  n.push({ t: 'ell', c: [-0.345, 0.155, -0.035], r: [0.095, 0.055, 0.03], rot: [0, 0, 0.55], op: 's', k: 0.02, sm: W });
+  n.push({ t: 'box', c: [0.13, 0.21, -0.2], h: [0.06, 0.05, 0.012], rr: 0.012, rot: [-0.9, -0.3, -0.3], m: MAT.clothWine, k: 0.006 });
+  const X = (cx, cy, cz, sz, m) => {
+    n.push({ t: 'cap', a: [cx - sz, cy - sz, cz], b: [cx + sz, cy + sz, cz], r: 0.0045, m, k: 0.002 });
+    n.push({ t: 'cap', a: [cx - sz, cy + sz, cz], b: [cx + sz, cy - sz, cz], r: 0.0045, m, k: 0.002 });
+  };
+  for (let i = 0; i < 5; i++) X(-0.2 + i * 0.1, 0.27 - Math.abs(i - 2) * 0.03, -0.17 + Math.abs(i - 2) * 0.04, 0.012, i % 2 ? MAT.paint : R);
+  return SDF.mesh(n, [-0.52, -0.36, -0.42], [0.42, 0.5, 0.36], 76);
+}
+
 // ---------- character models ----------
 const SCULPTS = {
   glove_R_open: () => sculptGlove(1, 0.04),
@@ -9274,115 +9431,52 @@ const SCULPTS = {
     n.push({ t: 'cap', a: [0.08, 0.1, -0.12], b: [0.1, -0.08, -0.15], r: 0.022, r2: 0.01, m: H, k: 0.02, n: [0.004, 80] });
     return SDF.mesh(n, [-0.24, -0.26, -0.22], [0.24, 0.22, 0.24], 78);
   },
-  // Mister Thimble: matted auburn/chestnut fur, crimson stains and soil streaks along the seams, a faded
-  // slate vest with brass buttons, split belly seam with stuffing, scorched spots, care tag
+  // Mister Thimble (ally): soft, round, well-loved plush bear in auburn/chestnut fur, a slate vest with
+  // brass buttons, a pale belly, sewn-on patches and cross-stitched seams, chubby legs and bean-toed feet
   th_body: () => {
-    // standing: torso centred at y 1.0, legs planted under the hips, feet pointing forward (-z)
     const F = MAT.burnt, R = MAT.lining, W = MAT.furLight, D = MAT.rubber, V = MAT.vest, n = [
-      { t: 'ell', c: [0, 1.0, 0], r: [0.4, 0.5, 0.33], m: F, n: [0.03, 8] },
-      { t: 'ell', c: [0, 1.07, 0], r: [0.425, 0.42, 0.355], m: V, k: 0.01, n: [0.01, 30] },
-      { t: 'box', c: [0, 0.6, 0], h: [0.6, 0.2, 0.6], op: 's', k: 0.01, sm: F, n: [0.03, 18] },
-      { t: 'box', c: [0, 1.05, -0.36], h: [0.1, 0.5, 0.2], op: 's', k: 0.04, sm: F },
+      { t: 'ell', c: [0, 1.0, 0], r: [0.41, 0.5, 0.34], m: F, n: [0.018, 9] },
+      { t: 'ell', c: [0, 0.92, -0.17], r: [0.27, 0.32, 0.16], m: W, k: 0.08, n: [0.008, 30] },
+      { t: 'ell', c: [0, 1.08, 0], r: [0.43, 0.41, 0.36], m: V, k: 0.01, n: [0.006, 30] },
+      { t: 'box', c: [0, 0.62, 0], h: [0.6, 0.2, 0.6], op: 's', k: 0.01, sm: F },
+      { t: 'box', c: [0, 1.05, -0.37], h: [0.12, 0.5, 0.2], op: 's', k: 0.04, sm: W },
       { t: 'cap', a: [-0.3, 1.27, 0], b: [-0.42, 1.08, 0], r: 0.12, op: 's', k: 0.04, sm: F },
       { t: 'cap', a: [0.3, 1.27, 0], b: [0.42, 1.08, 0], r: 0.12, op: 's', k: 0.04, sm: F },
-      { t: 'cap', a: [-0.01, 1.15, -0.3], b: [0.03, 0.75, -0.31], r: 0.04, op: 's', k: 0.01, sm: D, n: [0.015, 28] },
-      { t: 'sph', c: [-0.26, 0.8, -0.2], r: 0.07, op: 's', k: 0.02, sm: D, n: [0.022, 30] },
       { t: 'box', c: [0.1, 1.5, 0.2], h: [0.04, 0.055, 0.004], rot: [0.3, 0.4, 0.2], m: W, k: 0.004 }
     ];
-    for (let i = 0; i < 6; i++) n.push({ t: 'sph', c: [0.01 + Math.sin(i * 2.1) * 0.03, 1.11 - i * 0.065, -0.33 - (i % 2) * 0.02], r: 0.038 + (i % 3) * 0.01, m: W, k: 0.02, n: [0.014, 45] });
-    for (let i = 0; i < 4; i++) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.11, 1.32 - i * 0.13, -0.32 + i * 0.012], r: 0.018, h: 0.006, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.004 });
-    for (let i = 0; i < 9; i++) {
-      const a = i * 1.9 + 0.5, yy = 0.63 + (i * 0.097) % 0.5;
-      const rr = Math.sqrt(Math.max(0.01, 1 - ((yy - 1.0) / 0.5) ** 2));
-      n.push({ t: 'ell', c: [Math.cos(a) * 0.395 * rr, yy, Math.sin(a) * 0.325 * rr], r: [0.06, 0.045, 0.06], m: i % 3 === 0 ? D : R, k: 0.006 });
-    }
-    // patchwork panels and cross-stitched side seams
-    n.push({ t: 'box', c: [-0.25, 0.78, -0.25], h: [0.1, 0.08, 0.015], rr: 0.012, rot: [0.5, -0.5, 0.2], m: MAT.clothWine, k: 0.008 });
-    n.push({ t: 'box', c: [0.27, 0.8, -0.22], h: [0.09, 0.09, 0.015], rr: 0.012, rot: [0.4, 0.6, -0.3], m: W, k: 0.008 });
+    for (let i = 0; i < 4; i++) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.125, 1.32 - i * 0.13, -0.33 + i * 0.012], r: 0.019, h: 0.006, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.004 });
+    // sewn-on patches and cross-stitched side seams
+    n.push({ t: 'box', c: [-0.25, 0.78, -0.25], h: [0.09, 0.075, 0.015], rr: 0.014, rot: [0.5, -0.5, 0.2], m: MAT.clothWine, k: 0.008 });
+    n.push({ t: 'box', c: [0.28, 0.82, -0.2], h: [0.08, 0.08, 0.015], rr: 0.014, rot: [0.4, 0.6, -0.3], m: W, k: 0.008 });
     for (let i = 0; i < 8; i++) {
       const yy = 0.68 + i * 0.09, side = i % 2 ? 1 : -1;
       const rr = Math.sqrt(Math.max(0.05, 1 - ((yy - 1.0) / 0.5) ** 2));
-      const cx = side * 0.4 * rr, m = i % 3 ? MAT.paint : MAT.lining;
+      const cx = side * 0.41 * rr, m = i % 3 ? MAT.paint : R;
       n.push({ t: 'cap', a: [cx, yy - 0.018, -0.018], b: [cx, yy + 0.018, 0.018], r: 0.005, m, k: 0.002 });
       n.push({ t: 'cap', a: [cx, yy + 0.018, -0.018], b: [cx, yy - 0.018, 0.018], r: 0.005, m, k: 0.002 });
     }
-    // stubby plush legs planted under the hips, big flat feet with pale toe pads and frayed rims
+    // chubby legs: round thighs blending into the hips, short shins, big soft feet with pale soles and bean toes
     for (const sx of [-1, 1]) {
-      n.push({ t: 'cap', a: [sx * 0.2, 0.72, 0.0], b: [sx * 0.23, 0.16, -0.02], r: 0.16, r2: 0.14, m: F, k: 0.1, n: [0.025, 8] });
-      n.push({ t: 'ell', c: [sx * 0.24, 0.09, -0.1], r: [0.15, 0.1, 0.22], m: F, k: 0.06 });
-      n.push({ t: 'ell', c: [sx * 0.24, 0.1, -0.3], r: [0.1, 0.07, 0.035], m: W, k: 0.02 });
-      n.push({ t: 'tor', c: [sx * 0.24, 0.12, -0.27], R: 0.09, r: 0.012, rot: [0, Math.PI / 2, 0], m: F, k: 0.01, n: [0.01, 70] });
-      n.push({ t: 'ell', c: [sx * 0.25, 0.45, -0.12], r: [0.07, 0.09, 0.05], m: R, k: 0.006 });
+      n.push({ t: 'ell', c: [sx * 0.2, 0.62, 0], r: [0.19, 0.2, 0.19], m: F, k: 0.1, n: [0.012, 10] });
+      n.push({ t: 'cap', a: [sx * 0.21, 0.5, 0], b: [sx * 0.23, 0.18, -0.02], r: 0.155, r2: 0.14, m: F, k: 0.08, n: [0.012, 10] });
+      n.push({ t: 'ell', c: [sx * 0.24, 0.1, -0.1], r: [0.16, 0.11, 0.23], m: F, k: 0.07 });
+      n.push({ t: 'ell', c: [sx * 0.24, 0.11, -0.31], r: [0.11, 0.075, 0.03], m: W, k: 0.02 });
+      for (const t of [-1, 0, 1]) n.push({ t: 'sph', c: [sx * 0.24 + t * 0.055, 0.15, -0.325], r: 0.03, m: W, k: 0.01 });
+      n.push({ t: 'cap', a: [sx * 0.4, 0.55, -0.02], b: [sx * 0.42, 0.68, -0.02], r: 0.004, m: MAT.paint, k: 0.002 });
     }
     return SDF.mesh(n, [-0.62, -0.05, -0.62], [0.62, 1.62, 0.52], 80);
   },
-  th_head: () => {
-    const F = MAT.burnt, R = MAT.lining, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, T = MAT.porcelain, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: F, n: [0.022, 9] },
-      { t: 'ell', c: [0, -0.1, -0.235], r: [0.235, 0.15, 0.135], m: W, k: 0.06, n: [0.012, 26] },
-      { t: 'ell', c: [0, -0.01, -0.36], r: [0.055, 0.04, 0.034], m: D, k: 0.015 },
-      { t: 'cyl', c: [-0.12, 0.06, -0.27], r: 0.055, h: 0.014, rr: 0.006, rot: [0, Math.PI / 2, 0], m: D, k: 0.01 },
-      { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: F },
-      { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: F },
-      { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.055, op: 's', k: 0.015, sm: D, n: [0.008, 50] },
-      { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 },
-      { t: 'ell', c: [-0.2, 0.12, -0.18], r: [0.06, 0.05, 0.05], m: R, k: 0.005 }
-    ];
-    // wide stitched grin: a curved slot across the whole muzzle, corners curling up into the cheeks
-    const arc = k => {
-      const a = k * 0.2;
-      return [Math.sin(a) * 0.21, -0.155 + a * a * 0.13, -0.34 + (1 - Math.cos(a)) * 0.24, a];
-    };
-    for (let k = -4; k <= 4; k++) {
-      const [x, y, z] = arc(k);
-      n.push({ t: 'ell', c: [x, y, z], r: [0.05, Math.abs(k) === 4 ? 0.03 : 0.044, 0.075], op: 's', k: 0.012, sm: D });
-    }
-    // chunky square teeth following the curve (upper row hangs, lower row stands)
-    for (let k = -3; k <= 3; k++) {
-      const [x, y, z, a] = arc(k);
-      const hu = 0.02 + ((k + 7) * 5 % 3) * 0.004, hl = 0.018 + ((k + 7) * 7 % 3) * 0.004;
-      n.push({ t: 'box', c: [x, y + 0.04 - hu, z + 0.012], h: [0.017, hu, 0.012], rr: 0.004, rot: [a, 0, Math.sin(k * 2.7) * 0.07], m: T, k: 0.002 });
-      n.push({ t: 'box', c: [x, y - 0.04 + hl, z + 0.018], h: [0.016, hl, 0.012], rr: 0.004, rot: [a, 0, -Math.sin(k * 1.9) * 0.07], m: T, k: 0.002 });
-    }
-    // heavy thread stitches across both lips
-    for (let k = -4; k <= 4; k++) {
-      const [x, y, z, a] = arc(k);
-      const ox = Math.cos(a) * 0.006, oz = Math.sin(a) * 0.006;
-      n.push({ t: 'cap', a: [x - ox, y + 0.065, z - 0.012 + oz], b: [x + ox, y + 0.03, z - 0.004 - oz], r: 0.0045, m: D, k: 0.002 });
-      n.push({ t: 'cap', a: [x + ox, y - 0.065, z - 0.012 - oz], b: [x - ox, y - 0.03, z - 0.004 + oz], r: 0.0045, m: D, k: 0.002 });
-    }
-    for (let i = 0; i < 8; i++) {
-      const a = i / 8 * Math.PI * 2;
-      n.push({ t: 'sph', c: [0.06 + Math.cos(a) * 0.112, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
-    }
-    // right ear stands up, left ear droops sideways; both frayed at the rim
-    n.push({ t: 'ell', c: [0.24, 0.3, 0.02], r: [0.1, 0.14, 0.06], rot: [0, 0, -0.25], m: F, k: 0.05, n: [0.012, 45] });
-    n.push({ t: 'ell', c: [0.245, 0.31, -0.035], r: [0.065, 0.095, 0.03], rot: [0, 0, -0.25], op: 's', k: 0.02, sm: W });
-    n.push({ t: 'ell', c: [-0.34, 0.16, 0.02], r: [0.14, 0.085, 0.06], rot: [0, 0, 0.55], m: F, k: 0.05, n: [0.014, 45] });
-    n.push({ t: 'ell', c: [-0.345, 0.155, -0.035], r: [0.095, 0.055, 0.03], rot: [0, 0, 0.55], op: 's', k: 0.02, sm: W });
-    n.push({ t: 'box', c: [-0.42, 0.21, 0.02], h: [0.05, 0.04, 0.1], rot: [0.3, 0, 0.6], op: 's', k: 0.005, sm: W, n: [0.015, 50] });
-    for (let i = 0; i < 8; i++) n.push({ t: 'sph', c: [Math.sin(i * 2.2) * 0.22, 0.2 + (i % 3) * 0.04, Math.cos(i * 2.2) * 0.2 + 0.05], r: 0.04, m: F, k: 0.02, n: [0.018, 60] });
-    // mismatched patchwork panels sewn onto the head
-    n.push({ t: 'box', c: [0.2, 0.08, -0.2], h: [0.07, 0.06, 0.012], rr: 0.01, rot: [-0.7, 0.1, 0.2], m: MAT.vest, k: 0.006 });
-    n.push({ t: 'box', c: [0.13, 0.21, -0.2], h: [0.06, 0.05, 0.012], rr: 0.01, rot: [-0.9, -0.3, -0.3], m: MAT.clothWine, k: 0.006 });
-    // yellow and red cross-stitches along the seams
-    const X = (cx, cy, cz, sz, m) => {
-      n.push({ t: 'cap', a: [cx - sz, cy - sz, cz], b: [cx + sz, cy + sz, cz], r: 0.0045, m, k: 0.002 });
-      n.push({ t: 'cap', a: [cx - sz, cy + sz, cz], b: [cx + sz, cy - sz, cz], r: 0.0045, m, k: 0.002 });
-    };
-    for (let i = 0; i < 5; i++) X(-0.2 + i * 0.1, 0.27 - Math.abs(i - 2) * 0.03, -0.17 + Math.abs(i - 2) * 0.04, 0.012, i % 2 ? MAT.paint : MAT.lining);
-    for (let i = 0; i < 3; i++) X(0.16 + i * 0.03, 0.02 + i * 0.05, -0.27 + i * 0.03, 0.01, MAT.paint);
-    return SDF.mesh(n, [-0.52, -0.36, -0.4], [0.42, 0.5, 0.36], 80);
-  },
-  // Mister Thimble's arm: matted fur sleeve with a stain, pale paw pad
+  th_head_smile: () => sculptThimbleHead(false),
+  th_head_talk: () => sculptThimbleHead(true),
+  // Mister Thimble's arm: soft fur sleeve, round paw with a pale pad
   th_arm: () => {
     const n = [
-      { t: 'cap', a: [0, 0.05, 0], b: [0, 0.8, 0], r: 0.11, r2: 0.09, m: MAT.burnt, n: [0.018, 12] },
-      { t: 'ell', c: [0.06, 0.45, -0.06], r: [0.06, 0.09, 0.06], m: MAT.lining, k: 0.006 },
-      { t: 'ell', c: [0, 0.9, 0], r: [0.13, 0.12, 0.1], m: MAT.burnt, k: 0.05 },
-      { t: 'ell', c: [0, 0.93, -0.06], r: [0.08, 0.07, 0.04], m: MAT.furLight, k: 0.02 }
+      { t: 'cap', a: [0, 0.04, 0], b: [0, 0.78, 0], r: 0.125, r2: 0.105, m: MAT.burnt, n: [0.012, 12] },
+      { t: 'ell', c: [0, 0.9, -0.01], r: [0.15, 0.14, 0.12], m: MAT.burnt, k: 0.06 },
+      { t: 'ell', c: [0, 0.94, -0.08], r: [0.09, 0.08, 0.04], m: MAT.furLight, k: 0.02 },
+      { t: 'cap', a: [0.11, 0.3, -0.05], b: [0.11, 0.6, -0.06], r: 0.004, m: MAT.paint, k: 0.002 }
     ];
-    return SDF.mesh(n, [-0.18, -0.08, -0.16], [0.18, 1.06, 0.16], 50);
+    return SDF.mesh(n, [-0.2, -0.08, -0.18], [0.2, 1.08, 0.18], 52);
   },
   // The Usher's robe (ground origin): tapered, layered, frayed hem
   us_robe: () => {

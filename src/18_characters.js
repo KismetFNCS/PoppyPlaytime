@@ -26,7 +26,9 @@ const Cast = {
     eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
   },
   doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
-  plush: { pos: V3.create(-4.85, 0, -68.6), yaw: -Math.PI / 2, headYaw: 0, eyeGlow: 0.4, lunge: 0, lunged: false, talked: false, armRaise: 0 },
+  plush: { pos: V3.create(-3.6, 0, -70.9), yaw: -2.84, headYaw: 0, eyeGlow: 0.5, eyePulse: 0, talked: false, plugState: 0, plugTimer: 0, plug: 0, wave: 0, cheered: false, talking: false },
+  // broken power socket on the shutter wall that Mister Thimble jams his needle staff into
+  plushSocket: V3.create(-2.5, 1.05, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
@@ -67,7 +69,7 @@ const Cast = {
     const D = this.doll; D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0; D.met = false; D.farewell = false;
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
-    const T = this.plush; T.headYaw = 0; T.eyeGlow = 0.4; T.lunge = 0; T.lunged = false; T.talked = false; T.armRaise = 0;
+    const T = this.plush; T.headYaw = 0; T.eyeGlow = 0.5; T.eyePulse = 0; T.talked = false; T.plugState = 0; T.plugTimer = 0; T.plug = 0; T.wave = 0; T.cheered = false; T.talking = false;
     Dialogue.clear();
     Pip.reset();
   },
@@ -181,31 +183,58 @@ const Cast = {
     if (gameRng() < dt * 0.12) D.blink = 1;
   },
 
+  // Mister Thimble is an ally: he greets you warmly, and once the Spoolwright is loose he jams his needle
+  // staff into the broken socket on the shutter wall, his eye pulses, and the shutter rises for you.
   updatePlush(dt) {
     const P = this.plush;
     if (!Streaming.visible[3]) return;
-    const eye = Player.eyePos;
-    const want = clamp(wrapAngle(Math.atan2(-(eye[0] - P.pos[0]), -(eye[2] - P.pos[2])) - P.yaw), -1.0, 1.0);
+    const eye = Player.eyePos, sk = this.plushSocket;
     const d = Math.hypot(eye[0] - P.pos[0], eye[2] - P.pos[2]);
-    P.headYaw = damp(P.headYaw, d < 14 ? want : 0, Game.chaseActive ? 2.5 : 0.6, dt);
-    P.eyeGlow = damp(P.eyeGlow, Game.chaseActive || P.lunge > 0 ? 1.1 : 0.5 + 0.15 * Math.sin(Game.time * 2), 3, dt);
-    // the voice box crackles to life when you come close, then he lunges once
-    if (!P.talked && d < 9) {
-      P.talked = true;
-      Dialogue.say('THIMBLE', 'H-hug... time? Is it... hug time?');
+    const ds = Level.doorById('DS');
+    // he looks at you; while plugging he glances at the socket
+    const tx = P.plugState === 1 ? sk[0] : eye[0], tz = P.plugState === 1 ? sk[2] : eye[2];
+    const want = clamp(wrapAngle(Math.atan2(-(tx - P.pos[0]), -(tz - P.pos[2])) - P.yaw), -1.3, 1.3);
+    P.headYaw = damp(P.headYaw, d < 16 || P.plugState === 1 ? want : 0, 3, dt);
+    if (!P.talked && d < 10) {
+      P.talked = true; P.wave = 1;
+      if (Game.chaseActive && ds && ds.target === 0) {
+        Dialogue.say('THIMBLE', 'Over here, friend! Don\'t be scared - I\'m Mister Thimble.');
+        Dialogue.say('THIMBLE', 'Come close and I\'ll get this old shutter open for you!');
+      } else {
+        Dialogue.say('THIMBLE', 'Oh! A visitor! Hello, friend - I\'m Mister Thimble.');
+        Dialogue.say('THIMBLE', 'Stay close to the light. I\'ll help however I can.');
+      }
+      Pip.react('happy', 2);
     }
-    if (!P.lunged && d < 3.4) {
-      P.lunged = true; P.lunge = 1;
-      Dialogue.say('THIMBLE', 'HUG TIME!');
-      Dialogue.say('THIMBLE', '...sorry. So... sorry. I don\'t... mean it anymore.');
-      V3.set(this.tmp, P.pos[0], 1.2, P.pos[2]);
-      sfx('screech', this.tmp);
-      Player.addTrauma(0.55);
-      Pip.react('surprised', 2);
-      Particles.burst(this.tmp, 14, 'ember');
+    if (P.plugState === 0 && ds && ds.target === 1) {
+      // you beat him to it with the lever
+      P.plugState = 3;
+      if (P.talked && !P.cheered) { P.cheered = true; Dialogue.say('THIMBLE', 'Ha! Good shot, friend! Now run!'); }
     }
-    P.lunge = Math.max(0, P.lunge - dt * 0.9);
-    P.armRaise = damp(P.armRaise, P.lunge > 0.3 ? 1 : 0, P.lunge > 0.3 ? 14 : 2, dt);
+    if (P.plugState === 0 && Game.chaseActive && d < 6) {
+      P.plugState = 1; P.plugTimer = 0;
+      Dialogue.say('THIMBLE', 'Hold on... one little jolt...');
+    }
+    if (P.plugState === 1) {
+      P.plugTimer += dt;
+      P.plug = smoothstep(0, 1, P.plugTimer / 0.9);
+      if (P.plugTimer >= 0.9) {
+        P.plugState = 2; P.plug = 1; P.eyePulse = 1;
+        Particles.burst(sk, 22, 'spark');
+        sfx('power', sk);
+        Game.action('L2');
+        Dialogue.say('THIMBLE', 'There we go! Run, friend - go, go!');
+        Pip.react('happy', 2.5);
+      }
+    }
+    // mouth flaps open only while his line is being spoken; otherwise the closed smile
+    const c = Dialogue.current;
+    P.talking = !!(c && c.speaker === 'THIMBLE' && Dialogue.chars < c.text.length && Math.sin(Game.time * 15) > -0.3);
+    P.wave = Math.max(0, P.wave - dt * 0.45);
+    P.eyePulse = Math.max(0, P.eyePulse - dt * 0.6);
+    const pulse = P.plugState === 2 ? 0.35 + 0.35 * Math.sin(Game.time * 7) : 0;
+    P.eyeGlow = damp(P.eyeGlow, 0.55 + 0.12 * Math.sin(Game.time * 2) + pulse + P.eyePulse * 1.4, 6, dt);
+    this.poseStaff();
   },
 
   // ---------- CRT face ----------
@@ -341,34 +370,84 @@ const Cast = {
     if (it) { it.emis[0] = 0.5; it.emis[1] = 0.5; it.emis[2] = 0.55; }
   },
 
+  // where the needle staff is this frame (also used by the socket check)
+  poseStaff() {
+    const P = this.plush, p = P.pos, yaw = P.yaw, S = 1.2, st = this.staff, sk = this.plushSocket;
+    const e = P.plug;
+    const rx = -0.66 * S, ry = 0.78 * S, rz = -0.18 * S, qx = -0.7 * S, qy = 1.25 * S, qz = 0.25 * S;
+    this.pt(st.paw, p, yaw, rx + (qx - rx) * e, ry + (qy - ry) * e + Math.sin(Game.time * 1.6) * 0.012 * S, rz + (qz - rz) * e);
+    V3.set(this.local, sk[0] - st.paw[0], sk[1] - st.paw[1], sk[2] - st.paw[2]);
+    const reach = Math.hypot(this.local[0], this.local[1], this.local[2]) || 1;
+    const dx = this.local[0] / reach * e, dy = -(1 - e) + this.local[1] / reach * e, dz = this.local[2] / reach * e;
+    const dl = Math.hypot(dx, dy, dz) || 1;
+    V3.set(st.dir, dx / dl, dy / dl, dz / dl);
+    const below = 0.78 * S * (1 - e) + reach * e, LEN = 1.95 * S;
+    V3.set(st.tip, st.paw[0] + st.dir[0] * below, st.paw[1] + st.dir[1] * below, st.paw[2] + st.dir[2] * below);
+    V3.set(st.top, st.tip[0] - st.dir[0] * LEN, st.tip[1] - st.dir[1] * LEN, st.tip[2] - st.dir[2] * LEN);
+  },
+
   submitPlush() {
-    const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw;
-    const a = this.tmp, b = this.tmp2;
+    const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw, S = 1.2;
+    const a = this.tmp, b = this.tmp2, st = this.staff, sk = this.plushSocket;
     if (!Sculpt.ready('th_body')) return;
-    const L = P.armRaise, S = 1.2;
-    // body rears up and forward during the lunge
-    this.pt(a, p, yaw, 0, L * 0.12 * S, -L * 0.22 * S);
-    let it = R.push('th_body', MAT.burnt);
-    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, S, S, S);
-    // arms: limp at rest, thrown up and forward for the "hug"
+    // the broken socket box on the wall (lamp turns from red to violet once powered)
+    R.trs('box', MAT.rustIron, sk[0], sk[1], sk[2] - 0.04, 0, 0, 0, 0.34, 0.42, 0.12, false);
+    R.trs('box', MAT.hazard, sk[0], sk[1] + 0.25, sk[2] - 0.035, 0, 0, 0, 0.34, 0.06, 0.12, false);
+    R.trs('box', MAT.rubber, sk[0], sk[1], sk[2] + 0.025, 0, 0, 0, 0.16, 0.16, 0.02, false);
+    let it = R.trs('sphereLow', MAT.screen, sk[0] + 0.12, sk[1] + 0.15, sk[2] + 0.03, 0, 0, 0, 0.025, 0.025, 0.02, false);
+    if (it) { const on = P.plugState === 2; it.emis[0] = on ? 0.5 * P.eyeGlow : 0.9; it.emis[1] = on ? 0.08 : 0.05; it.emis[2] = on ? 1.0 * P.eyeGlow : 0.03; }
+    // gentle breathing bob
+    const bob = Math.sin(Game.time * 1.6) * 0.012;
+    this.pt(a, p, yaw, 0, bob * S, 0);
+    it = R.push('th_body', MAT.burnt);
+    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, 0, 0, S, S, S);
+    // arms: left holds the staff, right hangs relaxed and waves when he greets you
     for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.42 * S, (1.33 + L * 0.15) * S, (0.0 - L * 0.3) * S);
-      this.pt(b, p, yaw, sx * (0.56 - L * 0.2) * S, (0.62 + L * 1.0) * S, (-0.1 - L * 0.85) * S);
+      this.pt(a, p, yaw, sx * 0.42 * S, 1.33 * S + bob * S, 0);
+      if (sx < 0) V3.copy(b, st.paw);
+      else {
+        const w = Math.min(1, P.wave * 3), sw = Math.sin(Game.time * 9) * 0.12 * w;
+        this.pt(b, p, yaw, (0.62 - w * 0.05 + sw) * S, (0.6 + w * 1.15) * S, (-0.12 - w * 0.2) * S);
+      }
+      // the paw sits 0.9 along the arm mesh
+      V3.set(this.local, b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      const k = 1 / 0.9;
+      b[0] = a[0] + this.local[0] * k; b[1] = a[1] + this.local[1] * k; b[2] = a[2] + this.local[2] * k;
       it = R.push('th_arm', MAT.burnt);
       if (it) M4.segment(it.model, a, b, 1);
     }
-    // head
+    // the needle staff: a giant ivory sewing needle with a steel point and a brass eye threaded with copper wire
+    const n = st.dir;
+    V3.set(a, st.tip[0] - n[0] * 0.24 * S, st.tip[1] - n[1] * 0.24 * S, st.tip[2] - n[2] * 0.24 * S);
+    R.seg('cyl', MAT.porcelain, a, st.top, 0.04 * S);
+    R.seg('cone', MAT.steel, a, st.tip, 0.04 * S);
+    V3.set(b, st.top[0] + n[0] * 0.12 * S, st.top[1] + n[1] * 0.12 * S, st.top[2] + n[2] * 0.12 * S);
+    let ex = n[2], ez = -n[0], el = Math.hypot(ex, ez);
+    if (el < 0.2) { ex = Math.cos(yaw); ez = -Math.sin(yaw); el = 1; }
+    V3.set(this.local, ex / el, 0, ez / el);
+    it = R.push('torus', MAT.copper);
+    if (it) ringMatrix(it.model, b, this.local, 0.085 * S);
+    V3.set(a, b[0] + n[0] * 0.05, b[1] + n[1] * 0.05, b[2] + n[2] * 0.05);
+    R.seg('cylLow', MAT.copper, a, st.paw, 0.006);
+    // paw wrap of leather where he grips it
+    V3.set(a, st.paw[0] - n[0] * 0.09, st.paw[1] - n[1] * 0.09, st.paw[2] - n[2] * 0.09);
+    V3.set(b, st.paw[0] + n[0] * 0.09, st.paw[1] + n[1] * 0.09, st.paw[2] + n[2] * 0.09);
+    R.seg('cyl', MAT.rubber, a, b, 0.05 * S);
+    if (P.plugState === 2 && Math.sin(Game.time * 23) > 0.6) {
+      it = R.trs('sphereLow', MAT.screen, sk[0], sk[1], sk[2] + 0.05, 0, 0, 0, 0.05, 0.05, 0.05, false);
+      if (it) { it.emis[0] = 0.8; it.emis[1] = 0.5; it.emis[2] = 1.6; }
+    }
+    // head: a friendly little tilt; the stitched smile parts into an open mouth only while he speaks
     const hy = yaw + P.headYaw;
-    // the head sags heavily toward his right shoulder (straightens for the lunge)
-    const sag = 1 - L;
-    this.pt(a, p, yaw, 0.1 * sag * S, (1.74 - 0.07 * sag + L * 0.12) * S, (-0.02 - L * 0.4) * S);
-    M4.compose(this.m, a[0], a[1], a[2], hy, 0.22 * sag - L * 0.4, -0.42 * sag, S * 1.08, S * 0.98, S);
-    it = R.push('th_head', MAT.burnt);
+    const mesh = P.talking && Sculpt.ready('th_head_talk') ? 'th_head_talk' : 'th_head_smile';
+    this.pt(a, p, yaw, 0.04 * S, (1.71 + bob) * S, -0.02 * S);
+    M4.compose(this.m, a[0], a[1], a[2], hy, 0.06, -0.14 + Math.sin(Game.time * 1.1) * 0.03, S * 1.08, S, S);
+    it = Sculpt.ready(mesh) ? R.push(mesh, MAT.burnt) : null;
     if (it) it.model.set(this.m);
-    // glowing violet glass eye in the right socket
+    // soft violet glass eye; pulses while the staff feeds power into the socket
     V3.set(this.local, 0.12, 0.06, -0.265); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.054, 0.054, 0.034, false);
-    if (it) { const g = P.eyeGlow; it.emis[0] = 0.55 * g; it.emis[1] = 0.08 * g; it.emis[2] = 1.05 * g; }
+    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.052, 0.052, 0.034, false);
+    if (it) { const g = P.eyeGlow; it.emis[0] = 0.55 * g; it.emis[1] = 0.1 * g; it.emis[2] = 1.05 * g; }
   }
 };
 const _cast = {

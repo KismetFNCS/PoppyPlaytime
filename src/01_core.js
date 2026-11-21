@@ -106,10 +106,10 @@ const M4 = {
     // pick a helper axis not parallel to the segment
     let hx = 0, hy = 0, hz = 1;
     if (Math.abs(dz) > 0.9) { hx = 1; hz = 0; }
-    // x = normalize(h x d), z = d x x
+    // x = normalize(h x d), z = x x d  (right-handed, so triangle winding survives back-face culling)
     let xx = hy * dz - hz * dy, xy = hz * dx - hx * dz, xz = hx * dy - hy * dx;
     const xl = Math.hypot(xx, xy, xz) || 1; xx /= xl; xy /= xl; xz /= xl;
-    const zx = dy * xz - dz * xy, zy = dz * xx - dx * xz, zz = dx * xy - dy * xx;
+    const zx = xy * dz - xz * dy, zy = xz * dx - xx * dz, zz = xx * dy - xy * dx;
     o[0] = xx * r; o[1] = xy * r; o[2] = xz * r; o[3] = 0;
     o[4] = dx * len; o[5] = dy * len; o[6] = dz * len; o[7] = 0;
     o[8] = zx * r; o[9] = zy * r; o[10] = zz * r; o[11] = 0;

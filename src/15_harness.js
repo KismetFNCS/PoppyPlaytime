@@ -617,16 +617,29 @@ async function runAll() {
       T.step(DT, 300);
       check('dialogue: line clears after its hold time', !Dialogue.busy() && document.getElementById('hudDialog').style.display === 'none');
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
+      Dialogue.clear();
       T.setPlayerPose(-1.5, 0, -64, 0, 0); T.step(DT, 4);
-      check('thimble: voice box crackles as you approach', Cast.plush.talked, '');
-      T.setPlayerPose(-2.9, 0, -67.4, 0, 0); T.step(DT, 4);
-      check('thimble: lunges once when you get close', Cast.plush.lunged && Cast.plush.armRaise > 0.3, Cast.plush.armRaise.toFixed(2));
+      check('thimble: greets you as a friend', Cast.plush.talked && Dialogue.busy() && Dialogue.current.speaker === 'THIMBLE', '');
+      check('thimble: no lunge / scare on meeting', Player.trauma < 0.3, String(Player.trauma));
+      let opened = 0;
+      for (let i = 0; i < 20; i++) { T.step(DT, 1); if (Cast.plush.talking) opened++; }
+      check('thimble: mouth opens while he talks', opened > 3 && Sculpt.ready('th_head_talk'), opened + '/20 frames');
+      Dialogue.clear(); T.step(DT, 2);
+      check('thimble: closed smile when quiet', !Cast.plush.talking, '');
+      // during the chase he plugs his needle staff into the socket and the shutter rises
+      { const ds = Level.doorById('DS'); ds.open = 0; ds.target = 0; ds.collider.enabled = true; }
+      Game.chaseActive = true; Cast.plush.plugState = 0;
+      T.setPlayerPose(-2.4, 0, -67.6, 0, 0); T.step(DT, 70);
+      check('thimble: plugs his staff into the socket during the chase', Cast.plush.plugState === 2 && Level.doorById('DS').target === 1, 'state ' + Cast.plush.plugState);
+      check('thimble: staff tip lands in the socket', V3.dist(Cast.staff.tip, Cast.plushSocket) < 0.05, V3.dist(Cast.staff.tip, Cast.plushSocket).toFixed(3));
+      check('thimble: purple eye pulses with power', Cast.plush.eyeGlow > 0.9, Cast.plush.eyeGlow.toFixed(2));
+      Game.chaseActive = false;
       Game.stage = 3; T.setPlayerPose(0, 0, -60, -Math.PI / 2, 0); T.step(DT, 3);
       check('marigold: relocates to the freight lift for the ending', Math.abs(Cast.doll.pos[2] - (-96.9)) < 0.01, Cast.doll.pos[2]);
       Game.stage = 1; Dialogue.clear();
       T.setStepRender(true); T.setPlayerPose(-2.6, 0, -66.6, 0, 0);
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
-      T.aimAt(-5.15, 0.9, -68.6); T.step(DT, 2);
+      T.aimAt(-3.6, 1.2, -70.9); T.step(DT, 2);
       check('cast: plush + gauntlets render without errors', T.getLastError() === null && RenderQueue.count > 100, RenderQueue.count + ' items');
       T.setStepRender(false);
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
