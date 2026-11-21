@@ -1,6 +1,7 @@
 import type { NoiseSource } from '../ai/Perception';
 import type { SpatialCueId } from '../core/AudioManager';
 import type { CinematicId } from '../cinematics/CinematicTimeline';
+import type { DialogueId } from '../story/CampaignScript';
 import type { Aabb } from '../math/Collision';
 import { aabbOverlaps } from '../math/Collision';
 import type { Vec3 } from '../math/Vec3';
@@ -121,7 +122,8 @@ export type TriggerAction =
   | { readonly type: 'cinematic'; readonly cinematicId: CinematicId }
   | { readonly type: 'emitNoise'; readonly source: NoiseSource; readonly at: ActionLocation; readonly loudness: number }
   | { readonly type: 'spatialCue'; readonly cue: SpatialCueId; readonly at: ActionLocation; readonly intensity: number }
-  | { readonly type: 'saveCheckpoint' };
+  | { readonly type: 'saveCheckpoint' }
+  | { readonly type: 'dialogue'; readonly dialogueId: DialogueId };
 
 export type TriggerRule = {
   [EventName in WorldEventName]: {
@@ -143,6 +145,7 @@ export interface TriggerActionHost {
   emitNoise(source: NoiseSource, position: Vec3, loudness: number): void;
   playSpatialCue(cue: SpatialCueId, position: Vec3, intensity: number): void;
   saveCheckpoint(): void;
+  playDialogue(dialogueId: DialogueId): void;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -278,6 +281,9 @@ export class WorldEventSystem {
         break;
       case 'saveCheckpoint':
         this.host.saveCheckpoint();
+        break;
+      case 'dialogue':
+        this.host.playDialogue(action.dialogueId);
         break;
     }
   }

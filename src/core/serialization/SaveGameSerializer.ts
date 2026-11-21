@@ -132,6 +132,8 @@ function readWorld(value: unknown): WorldPuzzleRecord {
     poweredPlateIds: readStringArray(record['poweredPlateIds']),
     solvedSequenceIds: readStringArray(record['solvedSequenceIds']),
     collectedPickupIds: readStringArray(record['collectedPickupIds']),
+    silencedMusicBoxIds: readStringArray(record['silencedMusicBoxIds']),
+    openedVentIds: readStringArray(record['openedVentIds']),
   };
 }
 

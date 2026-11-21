@@ -42,6 +42,8 @@ export interface WorldPuzzleRecord {
   readonly poweredPlateIds: readonly string[];
   readonly solvedSequenceIds: readonly string[];
   readonly collectedPickupIds: readonly string[];
+  readonly silencedMusicBoxIds: readonly string[];
+  readonly openedVentIds: readonly string[];
 }
 
 export interface ThreatRecord {
@@ -86,7 +88,7 @@ export function createNewGameSave(): SaveGame {
     deathCount: 0,
     inventory: { items: { gasMask: 0, filterCartridge: 0 }, selectedSlot: 0 },
     questFlags: {},
-    world: { poweredPlateIds: [], solvedSequenceIds: [], collectedPickupIds: [] },
+    world: { poweredPlateIds: [], solvedSequenceIds: [], collectedPickupIds: [], silencedMusicBoxIds: [], openedVentIds: [] },
     threats: { jesterAwake: false, jesterPosition: null },
     player: null,
     savedAtIso: new Date().toISOString(),

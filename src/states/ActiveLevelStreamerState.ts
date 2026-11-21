@@ -36,6 +36,34 @@ import { buildUiFrameInput } from '../ui/UIInputAdapter';
 import type { BreakerSwitchRecord, PickupRecord, Polarity, ThreatKind, ToxicZone, WorldRayHit } from '../world/LevelStreamer';
 import { CORRIDOR_DIMENSIONS, LevelStreamer, chunkIndexAtZ, chunkStartZ } from '../world/LevelStreamer';
 import type { MenuBackdropScene } from '../world/MenuBackdropScene';
+import { PipCompanion } from '../world/PipCompanion';
+import type { MusicBoxRecord, VentRecord } from '../world/LevelStreamer';
+import { ForemanEncounter } from '../gameplay/ForemanEncounter';
+import type { KillerId } from '../core/GameStateTypes';
+import { CampaignDirector } from '../story/CampaignDirector';
+import type { ActDefinition, ActId, DialogueId, DialogueLine, EndingId, LoreTape } from '../story/CampaignScript';
+import { LORE_TAPES, ROSTER_TAPE_ID } from '../story/CampaignScript';
+import type { ActTheme } from '../story/ActThemes';
+import { ACT_THEMES } from '../story/ActThemes';
+import { EndingSequence, LoreTapeReader, drawActCard, drawObjectives, drawSubtitle } from '../ui/CampaignOverlays';
+
+/** Dialogue that plays when an act is first entered. */
+const ACT_ENTRY_DIALOGUE: Readonly<Partial<Record<ActId, readonly DialogueId[]>>> = {
+  sortingHalls: ['act2.enter', 'act2.foreman'],
+  choirNursery: ['act3.enter', 'act3.foreman'],
+  drownedArchive: ['act4.enter'],
+  assemblyHeart: ['act5.enter'],
+};
+/** Lethal cinematic per killer. */
+const KILLER_CINEMATICS: Readonly<Record<ThreatKind, CinematicId>> = {
+  jester: 'jesterJumpscare',
+  tallyman: 'tallymanJumpscare',
+  choirMother: 'choirMotherJumpscare',
+  hushling: 'hushlingSwarm',
+};
+const WADING_DEPTH: number = 0.12;
+const WADING_SPEED_MULTIPLIER: number = 0.62;
+const MUSIC_BOX_CHIME_SECONDS: number = 2.6;
 
 const LEVEL_WORLD_SEED: number = 0x5eed_0006;
 const LEVEL_ENVIRONMENT: SceneEnvironment = { ambientColor: [0.012, 0.011, 0.016], clearColor: [0, 0, 0] };
@@ -70,7 +98,7 @@ interface AimInfo {
 
 interface PendingDeath {
   readonly cause: DeathCause;
-  readonly threat: ThreatKind | null;
+  readonly threat: KillerId | null;
 }
 
 /**
@@ -118,6 +146,16 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private pointerWasLocked: boolean = false;
   private autosaveTimer: number = 0;
   private leavingLevel: boolean = false;
+  private campaign: CampaignDirector | null = null;
+  private pip: PipCompanion | null = null;
+  private foreman: ForemanEncounter | null = null;
+  private readonly loreReader: LoreTapeReader = new LoreTapeReader();
+  private lastTape: LoreTape | null = null;
+  private readonly ending: EndingSequence;
+  private endingCountdown: number = -1;
+  private musicBoxInView: MusicBoxRecord | null = null;
+  private ventInView: VentRecord | null = null;
+  private chimeTimer: number = 0;
 
   public constructor(private readonly services: GameServices, private readonly backdrop: MenuBackdropScene) {
     this.pauseMenu = new PauseMenu(
@@ -129,6 +167,11 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         saveAndQuit: () => this.saveAndQuit(),
       },
       (cue) => services.audio.playUiCue(cue),
+    );
+    this.ending = new EndingSequence(
+      (cue) => services.audio.playUiCue(cue),
+      (endingId: EndingId) => this.chooseEnding(endingId),
+      () => this.finishCampaign(),
     );
   }
 
@@ -154,6 +197,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       streamer.markPickupCollected(MASK_STATION_PICKUP_ID);
     }
     streamer.restoreSolvedState(save.world.poweredPlateIds, save.world.solvedSequenceIds);
+    streamer.restoreCampaignState(save.world.silencedMusicBoxIds, save.world.openedVentIds);
 
     // Player: exact session resume, or checkpoint spawn.
     const resume: PlayerStateSnapshot | null = payload.mode === 'continue' && save.kind === 'session' ? save.player : null;
@@ -180,6 +224,30 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     const worldEvents = new WorldEventSystem(streamer, this, LEVEL_TRIGGER_RULES);
     worldEvents.restoreFlags(save.questFlags as Partial<Record<QuestFlagId, number>>);
     this.worldEvents = worldEvents;
+    this.campaign = new CampaignDirector({
+      flag: (flag: QuestFlagId) => worldEvents.flag(flag),
+      setFlag: (flag: QuestFlagId, value: number) => worldEvents.setFlag(flag, value),
+      onLineStarted: (line: DialogueLine) => {
+        const camera = services.camera;
+        services.audio.playSpatialCue(line.speaker === 'pip' ? 'pipChirp' : 'radioCrackle', line.speaker === 'pip' && this.pip !== null ? this.pip.position : camera.position, 0.8);
+      },
+    });
+    this.pip = new PipCompanion(services.meshes, services.lighting, {
+      ventOpened: (vent: VentRecord) => {
+        if (streamer.openVent(vent.id)) {
+          this.campaign?.say('pip.vent', { allowRepeat: true });
+          services.audio.playSpatialCue('breakerClunk', vent.position, 1);
+          this.threats?.emitNoise('gateMoving', vent.position, 0.8);
+        }
+      },
+    });
+    if (worldEvents.flag('pipRecruited') >= 1) {
+      this.pip.activate([this.motor.position[0] + 0.7, 0, this.motor.position[2] + 1.2], this.yawRadians);
+    }
+    this.foreman = null;
+    this.endingCountdown = -1;
+    this.chimeTimer = 0;
+    this.lastTape = null;
     this.subscribeFeedback();
     if (resume !== null && save.threats.jesterAwake) {
       // Restored silently: the reveal rule already fired in the original session (flag set).
@@ -208,10 +276,14 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     services.audio.setMaskAudioMix(this.gasMask.coverage);
     this.placeCamera(0);
 
+    this.campaign.updateChunk(this.currentChunk, ACT_ENTRY_DIALOGUE);
     if (payload.mode === 'newGame' && worldEvents.flag('elevatorIntroSeen') < 1) {
       worldEvents.setFlag('elevatorIntroSeen', 1);
       this.playCinematic('elevatorArrival');
       this.showToast('FOLLOW THE LIGHTS DOWN', 4, 'info');
+      this.campaign.say('intro.wake');
+      this.campaign.say('intro.mabel');
+      this.campaign.say('pip.found');
     } else {
       this.showToast(resume !== null ? 'SHIFT RESUMED' : payload.mode === 'retry' ? 'RESUMING FROM LAST CHECKPOINT' : 'SHIFT RECORD RESTORED', 3.5, 'info');
     }
@@ -224,6 +296,11 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.eventUnsubscribers.length = 0;
     this.cinematics.stop();
     this.pauseMenu.close();
+    this.pip?.dispose();
+    this.pip = null;
+    this.foreman?.dispose();
+    this.foreman = null;
+    this.campaign = null;
     this.worldEvents?.dispose();
     this.worldEvents = null;
     this.threats?.dispose();
@@ -303,7 +380,13 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         worldEvents.notify('threatSpotted', { kind: event.kind, position: event.position });
       }),
       threats.events.on('playerCaught', (event: ThreatEventMap['playerCaught']) => {
-        this.beginLethalCinematic(event.kind === 'tallyman' ? 'tallymanJumpscare' : 'jesterJumpscare', { cause: 'entity', threat: event.kind }, threats.threat(event.id));
+        this.beginLethalCinematic(KILLER_CINEMATICS[event.kind], { cause: 'entity', threat: event.kind }, threats.threat(event.id));
+      }),
+      worldEvents.events.on('zoneEntered', (event) => {
+        if (event.zone.kind === 'foremanArena' && this.foreman !== null && this.foreman.state === 'dormant' && worldEvents.flag('foremanPhasesCleared') < 3) {
+          worldEvents.setFlag('foremanEncountered', 1);
+          this.foreman.begin();
+        }
       }),
     );
   }
@@ -332,6 +415,10 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
   public playSpatialCue(cue: SpatialCueId, position: Vec3, intensity: number): void {
     this.services.audio.playSpatialCue(cue, position, intensity);
+  }
+
+  public playDialogue(dialogueId: DialogueId): void {
+    this.campaign?.say(dialogueId);
   }
 
   public saveCheckpoint(): void {
@@ -460,6 +547,8 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         poweredPlateIds: this.streamer?.poweredPlates ?? previous.world.poweredPlateIds,
         solvedSequenceIds: this.streamer?.solvedSequences ?? previous.world.solvedSequenceIds,
         collectedPickupIds: this.streamer?.collectedPickups ?? previous.world.collectedPickupIds,
+        silencedMusicBoxIds: this.streamer?.silencedMusicBoxes ?? previous.world.silencedMusicBoxIds,
+        openedVentIds: this.streamer?.openedVents ?? previous.world.openedVentIds,
       },
       threats: {
         jesterAwake: kind === 'session' && jester !== null,
@@ -696,7 +785,10 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       this.aim = { kind: 'surface', polarity: null, distance: hit.distance };
     }
     this.pickupInView = streamer.findPickupInView(camera.position, camera.forward, INTERACT_REACH_METERS);
-    this.switchInView = this.pickupInView === null ? streamer.findSwitchInView(camera.position, camera.forward, INTERACT_REACH_METERS) : null;
+    this.musicBoxInView = this.pickupInView === null ? streamer.findMusicBoxInView(camera.position, camera.forward, INTERACT_REACH_METERS) : null;
+    this.ventInView = this.pickupInView === null && this.musicBoxInView === null ? streamer.findVentInView(camera.position, camera.forward, INTERACT_REACH_METERS + 0.6) : null;
+    this.switchInView =
+      this.pickupInView === null && this.musicBoxInView === null && this.ventInView === null ? streamer.findSwitchInView(camera.position, camera.forward, INTERACT_REACH_METERS) : null;
   }
 
   private buildPlayerSignature(): PlayerSignature {
@@ -731,11 +823,90 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       this.inventory.add('gasMask');
       this.gasMask.grant();
       this.services.audio.playMaskSeal(false);
-    } else {
+    } else if (collected.kind === 'filterCartridge') {
       this.inventory.add('filterCartridge');
       this.services.audio.playUiCue('confirm');
+    } else if (collected.kind === 'pipCompanion') {
+      this.pip?.activate(collected.position, this.yawRadians + Math.PI);
+      worldEvents.setFlag('pipRecruited', 1);
+      this.campaign?.say('pip.recruited');
+      this.services.audio.playSpatialCue('pipChirp', collected.position, 1.2);
+    } else if (collected.kind === 'loreTape' && collected.tapeId !== null) {
+      const tape: LoreTape | undefined = LORE_TAPES.find((candidate: LoreTape) => candidate.id === collected.tapeId);
+      if (tape !== undefined) {
+        this.lastTape = tape;
+        this.loreReader.open(tape);
+        this.services.input.releasePointerLock();
+        this.services.audio.playSpatialCue('radioCrackle', collected.position, 1);
+        worldEvents.incrementFlag('loreTapesFound');
+        if (tape.id === ROSTER_TAPE_ID) {
+          worldEvents.setFlag('rosterTapeFound', 1);
+          this.campaign?.say('roster.found');
+        }
+      }
     }
     worldEvents.reportPickup(collected.id, collected.kind, collected.position);
+  }
+
+  private silenceMusicBox(box: MusicBoxRecord, streamer: LevelStreamer, worldEvents: WorldEventSystem): void {
+    if (!streamer.silenceMusicBox(box.id)) {
+      return;
+    }
+    worldEvents.incrementFlag('musicBoxesSilenced');
+    this.services.audio.playSpatialCue('breakerClunk', box.position, 0.6);
+    // The lid snapping shut is audible: the Choir Mother may come to check.
+    this.threats?.emitNoise('breakerSwitch', box.position, 0.7);
+    const remaining: number = streamer.playingMusicBoxes.filter((other: MusicBoxRecord) => other.chunkIndex === box.chunkIndex).length;
+    if (remaining === 0) {
+      this.campaign?.say('musicbox.all');
+      this.showToast('THE SONG STOPS · THE CHAPEL DOORS RELEASE', 3, 'success');
+      this.threats?.emitNoise('gateMoving', box.position, 1);
+    } else {
+      this.campaign?.say('musicbox.silenced', { allowRepeat: true });
+      this.showToast(`MUSIC BOX SILENCED · ${remaining} STILL PLAYING`, 2.2, 'info');
+    }
+  }
+
+  private chooseEnding(endingId: EndingId): void {
+    const worldEvents: WorldEventSystem | null = this.worldEvents;
+    if (worldEvents === null) {
+      return;
+    }
+    worldEvents.setFlag('endingChosen', endingId === 'shutDown' ? 1 : 2);
+    worldEvents.setFlag('campaignComplete', 1);
+    this.services.saves.write(this.buildSave('checkpoint', 'autosave', {}));
+    this.services.audio.playSpatialCue('foremanBoom', this.services.camera.position, endingId === 'shutDown' ? 1 : 0.6);
+  }
+
+  private finishCampaign(): void {
+    this.leavingLevel = true;
+    this.services.lifecycle.requestTransition({ target: GameStateId.TitleScreen, payload: { reason: 'returnFromLevel' } });
+  }
+
+  private ensureForemanEncounter(streamer: LevelStreamer): void {
+    if (this.foreman !== null || streamer.bossArena === null || this.worldEvents === null) {
+      return;
+    }
+    const worldEvents: WorldEventSystem = this.worldEvents;
+    this.foreman = new ForemanEncounter(this.services.gl, streamer, {
+      playerBounds: () => this.motor.boundsAt(this.motor.position),
+      say: (dialogueId: DialogueId) => this.campaign?.say(dialogueId),
+      playCue: (cue: SpatialCueId, position: Vec3, intensity: number) => this.services.audio.playSpatialCue(cue, position, intensity),
+      spawnHushling: (position: Vec3) => {
+        this.threats?.spawnHunter(`threat.hushling.boss.${Math.floor(this.sessionSeconds * 1000)}`, 'hushling', position, this.playerPosition());
+      },
+      setPhasesCleared: (count: number) => worldEvents.setFlag('foremanPhasesCleared', count),
+      onBeamHit: () => this.beginLethalCinematic('foremanBeam', { cause: 'entity', threat: 'foreman' }, null),
+      onDefeated: () => {
+        this.endingCountdown = 5;
+      },
+    });
+    if (worldEvents.flag('foremanPhasesCleared') >= 3) {
+      this.foreman.restoreDefeated();
+      if (worldEvents.flag('campaignComplete') < 1) {
+        this.endingCountdown = 1;
+      }
+    }
   }
 
   // ---- Frame update -------------------------------------------------------------------------------------------------
@@ -761,6 +932,17 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (this.paused) {
       input.consumeMouseDelta();
       this.pauseMenu.update(services.ui.context, buildUiFrameInput(services, frame.inputEnabled), deltaSeconds);
+      return;
+    }
+    if (this.loreReader.isOpen) {
+      input.consumeMouseDelta();
+      this.loreReader.update(buildUiFrameInput(services, frame.inputEnabled), deltaSeconds);
+      return;
+    }
+    if (this.ending.isActive) {
+      input.consumeMouseDelta();
+      this.campaign?.update(deltaSeconds);
+      this.ending.update(services.ui.context, buildUiFrameInput(services, frame.inputEnabled), deltaSeconds);
       return;
     }
     const canPause: boolean = frame.inputEnabled && !dying && !this.cinematics.locksControls && !this.leavingLevel;
@@ -799,6 +981,8 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     // 1–3. Look, intent, provisional camera so launcher sockets track the view.
     this.applyLook(input, deltaSeconds, controlsEnabled);
     const intent: MotorIntent = this.buildMotorIntent(input, controlsEnabled);
+    const wading: boolean = streamer.waterDepthAt(this.motor.position) > WADING_DEPTH;
+    this.motor.speedMultiplier = wading ? WADING_SPEED_MULTIPLIER : 1;
     if (!this.cinematics.ownsCamera) {
       this.placeCamera(0);
     }
@@ -825,7 +1009,11 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       if (this.motor.horizontalSpeed > 0.6 && stepPhase !== this.lastFootstepPhase) {
         services.audio.playFootstep(this.motor.stance === 'run');
         const stepNoise: NoiseSource = this.motor.stance === 'run' ? 'footstepRun' : this.motor.stance === 'crouch' ? 'footstepCrouch' : 'footstepWalk';
-        threats.emitNoise(stepNoise, this.playerPosition());
+        threats.emitNoise(stepNoise, this.playerPosition(), wading ? 1.6 : 1);
+        if (wading) {
+          // Water carries every step: louder, and audible as a splash.
+          services.audio.playSpatialCue('splash', this.playerPosition(), 0.6);
+        }
       }
       this.lastFootstepPhase = stepPhase;
     }
@@ -850,6 +1038,15 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (controlsEnabled && input.wasKeyPressed('KeyE')) {
       if (this.pickupInView !== null) {
         this.collectPickupInView(streamer, worldEvents);
+      } else if (this.musicBoxInView !== null) {
+        this.silenceMusicBox(this.musicBoxInView, streamer, worldEvents);
+      } else if (this.ventInView !== null) {
+        if (this.pip === null || !this.pip.isActive) {
+          this.showToast('TOO SMALL FOR YOU · SOMETHING SMALLER COULD FIT', 2.2, 'info', UI_COLORS.textDim);
+        } else if (this.pip.sendToVent(this.ventInView)) {
+          this.showToast('PIP SCURRIES INTO THE VENT', 2, 'info');
+          services.audio.playSpatialCue('pipChirp', this.pip.position, 1);
+        }
       } else if (this.switchInView !== null) {
         worldEvents.pressSwitch(this.switchInView);
       }
@@ -898,6 +1095,31 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     }
     streamer.update(this.currentChunk, deltaSeconds);
     worldEvents.update(deltaSeconds, this.motor.boundsAt(this.motor.position));
+    this.campaign?.updateChunk(this.currentChunk, ACT_ENTRY_DIALOGUE);
+    this.campaign?.update(deltaSeconds);
+    this.pip?.update(deltaSeconds, this.playerPosition(), this.yawRadians, streamer, this.sessionSeconds);
+    this.ensureForemanEncounter(streamer);
+    this.foreman?.update(deltaSeconds);
+    if (this.endingCountdown > 0) {
+      this.endingCountdown -= deltaSeconds;
+      if (this.endingCountdown <= 0) {
+        this.endingCountdown = -1;
+        services.input.releasePointerLock();
+        this.campaign?.say('ending.prompt');
+        this.ending.beginChoice();
+      }
+    }
+    // Chapel music boxes chime in space while they play.
+    this.chimeTimer -= deltaSeconds;
+    if (this.chimeTimer <= 0) {
+      this.chimeTimer = MUSIC_BOX_CHIME_SECONDS;
+      for (const box of streamer.playingMusicBoxes) {
+        const distance: number = Math.hypot(box.position[0] - this.motor.position[0], box.position[2] - this.motor.position[2]);
+        if (distance < 16) {
+          services.audio.playSpatialCue('musicBoxChime', box.position, 0.8);
+        }
+      }
+    }
 
     // 13. Threats: awaken the Jester, then tick every brain.
     if (!threats.isJesterAwake) {
@@ -969,8 +1191,22 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       phase: rig?.claws[side].phase ?? 'holstered',
       binding,
     });
+    const pickupPrompts: Readonly<Record<PickupRecord['kind'], string>> = {
+      gasMask: '[E] TAKE GAS MASK',
+      filterCartridge: '[E] TAKE FILTER CARTRIDGE',
+      loreTape: '[E] PLAY SHIFT TAPE',
+      pipCompanion: '[E] WIND UP THE REPAIR MOUSE',
+    };
     const pickupPrompt: string | null =
-      this.pickupInView === null ? null : this.pickupInView.kind === 'gasMask' ? '[E] TAKE GAS MASK' : '[E] TAKE FILTER CARTRIDGE';
+      this.pickupInView !== null
+        ? pickupPrompts[this.pickupInView.kind]
+        : this.musicBoxInView !== null
+          ? '[E] CLOSE THE MUSIC BOX'
+          : this.ventInView !== null
+            ? this.pip?.isActive
+              ? '[E] SEND PIP INTO THE VENT'
+              : 'A VENT · TOO SMALL FOR YOU'
+            : null;
     return {
       crosshair: {
         kind: this.aim.kind,
@@ -1015,14 +1251,23 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
   public render(frame: FrameContext, request: FrameRenderRequest, context: CanvasRenderingContext2D): void {
     request.renderScene = true;
-    request.environment = LEVEL_ENVIRONMENT;
+    const act: ActDefinition | null = this.campaign?.act ?? null;
+    const theme: ActTheme | null = act !== null ? ACT_THEMES[act.id] : null;
+    request.environment = theme !== null ? { ambientColor: theme.sceneAmbient, clearColor: [0, 0, 0] } : LEVEL_ENVIRONMENT;
     this.streamer?.collectDrawItems(request.drawItems, frame.elapsedSeconds);
     this.threats?.collectDrawItems(request.drawItems);
+    this.pip?.collectDrawItems(request.drawItems);
+    this.foreman?.collectDrawItems(request.drawItems);
     if (!this.cinematics.hidesHud) {
       this.rig?.collectDrawItems(request.drawItems, frame.elapsedSeconds);
     }
 
     const post = this.services.postParameters;
+    if (theme !== null) {
+      post.fog.density *= theme.fogDensityScale;
+      post.fog.albedo = theme.fogAlbedo;
+      post.fog.ambientColor = theme.fogAmbient;
+    }
     const dreadCurve: number = smoothstep(0.2, 1, this.dread);
     post.crt.chromaticAberration *= 1 + dreadCurve * 2.5 + this.gasMask.exposure * 1.5;
     post.crt.noiseIntensity += dreadCurve * 0.08;
@@ -1033,6 +1278,16 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       post.fog.toxicVolume = { ...post.fog.toxicVolume, minimum: zone.bounds.minimum, maximum: zone.bounds.maximum, density: 0.11 * zone.concentration };
     }
     this.hud.draw(context, this.buildHudSnapshot(frame.elapsedSeconds));
+    const campaign: CampaignDirector | null = this.campaign;
+    if (campaign !== null) {
+      if (act !== null) {
+        drawObjectives(context, `ACT ${act.numeral} · ${act.title}`, campaign.objectives, (1 - this.letterbox) * (this.paused ? 0 : 0.9));
+      }
+      drawSubtitle(context, campaign.subtitle);
+      drawActCard(context, campaign.actCardSnapshot);
+    }
+    this.loreReader.draw(context, this.lastTape);
+    this.ending.draw(context, frame.elapsedSeconds);
     this.pauseMenu.draw(context, frame.elapsedSeconds);
   }
 }
