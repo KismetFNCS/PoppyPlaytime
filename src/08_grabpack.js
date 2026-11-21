@@ -13,7 +13,7 @@ function makeHand(side) {
     side, state: HAND.DOCKED, pos: V3.create(), vel: V3.create(), prev: V3.create(), dir: V3.create(0, 0, -1),
     travelled: 0, latchTime: 0, latchKind: '', latchRef: null, latchNormal: V3.create(0, 0, 1), cooldown: 0,
     tethered: false, wraps: new Int32Array(MAX_WRAPS), wrapSign: new Int8Array(MAX_WRAPS), wrapCount: 0,
-    cableLen: 0, recoil: 0, grip: 0,
+    cableLen: 0, recoil: 0, grip: 0, wrenchIdle: 0, prevPitch: 0, prevDist: 0,
     // Verlet cable
     nodes: new Float32Array(N * 3), old: new Float32Array(N * 3), pinned: new Int8Array(N), pinX: new Float32Array(N * 3),
     cableActive: false, energized: 0
@@ -37,6 +37,7 @@ const GrabPack = {
   },
 
   dock(h) {
+    if (h.latchKind === 'lever' && h.latchRef) h.latchRef.grab = null;
     h.state = HAND.DOCKED; h.tethered = false; h.wrapCount = 0; h.cableActive = false; h.energized = 0;
     h.latchRef = null; h.latchKind = ''; h.travelled = 0; h.cooldown = 0; h.recoil = 0;
     V3.set(h.vel, 0, 0, 0);
@@ -90,6 +91,7 @@ const GrabPack = {
     if (h.tethered) {
       for (const p of Level.pegs) if (!p.locked) p.linked = false;
     }
+    if (h.latchKind === 'lever' && h.latchRef) h.latchRef.grab = null;
     h.tethered = false; h.wrapCount = 0; h.energized = 0;
     h.state = HAND.RETRACTING; h.latchRef = null; h.latchKind = '';
     if (playSound) sfx('retract', h.pos);
@@ -118,7 +120,7 @@ const GrabPack = {
     this.updateWraps();
     for (const h of this.hands) {
       if (h.cableActive) this.simulateCable(h, dt);
-      h.energized = damp(h.energized, h.tethered ? 1 : 0, 6, dt);
+      h.energized = damp(h.energized, h.tethered || h.latchKind === 'staff' ? 1 : 0, 6, dt);
     }
     if (this.hintTimer > 0) this.hintTimer -= dt;
   },
@@ -139,7 +141,7 @@ const GrabPack = {
       if (Monster.visible && Monster.hitTest(h.prev, this.tmp, len + 0.1)) {
         V3.copy(h.pos, Monster.hitPoint);
         if (Boss.active && Boss.tryShock(h)) { h.state = HAND.RETRACTING; return; }
-        Monster.flinch(h.side);
+        if (!Boss.active) Monster.fightBack(h); else Monster.flinch(h.side);
         sfx('handHitFlesh', h.pos);
         Particles.burst(h.pos, 10, 'spark');
         h.state = HAND.RETRACTING;
@@ -157,7 +159,14 @@ const GrabPack = {
 
   onImpact(h, col) {
     const kind = col.kind || 'world';
-    h.state = HAND.LATCHED; h.latchTime = 0; h.latchKind = kind; h.latchRef = col.ref || null; h.grip = 1;
+    // the fingers arrive open and snap shut around whatever they hit (see latched)
+    h.state = HAND.LATCHED; h.latchTime = 0; h.latchKind = kind; h.latchRef = col.ref || null; h.grip = 0;
+    sfx('clamp', h.pos);
+    // clamping onto metal throws a spray of electric sparks and a quick blue-white flash
+    if (col.surface === SURFACE.METAL || kind !== 'world') {
+      Particles.burst(h.pos, 18, 'spark');
+      Lights.pulse(h.pos, 0.55, 0.8, 1.0, 2.6, 2.2, 0.18, 0);
+    }
     EventBus.emit(EV.HAND_HIT, h.pos[0], h.pos[1], h.pos[2], 10, h.side);
     EventBus.emit(EV.NOISE, h.pos[0], h.pos[1], h.pos[2], 10, 0);
     Particles.burst(h.pos, 12, 'spark');
@@ -175,12 +184,19 @@ const GrabPack = {
       this.prevPlayerXZ[0] = Player.body.pos[0]; this.prevPlayerXZ[1] = Player.body.pos[2];
       sfx('tether', h.pos);
       this.showHint('TETHER LIVE - route the cable around the amber relays, then fire your other hand at the receptacle');
+    } else if (kind === 'staff') {
+      // clamped onto Mister Thimble's needle staff: hold to ground the overload through the pack
+      this.showHint('HOLD to ground the surge through your pack');
     } else if (kind === 'receptacle') {
       this.tryReceptacle(h, h.latchRef);
     } else if (kind === 'lever') {
+      // clamp onto the handle: hold the fire button and drag the view down (or back away) to wrench it
       const lv = h.latchRef;
-      if (!lv.pulled) { lv.pulled = true; Game.action(lv.action); sfx('lever', lv.pos); EventBus.emit(EV.LEVER, lv.pos[0], lv.pos[1], lv.pos[2], 0, 0); }
-      else sfx('handHit', h.pos, col.surface);
+      if (!lv.pulled && !lv.grab) {
+        lv.grab = h; h.wrenchIdle = 0; h.prevPitch = Player.pitch; h.prevDist = V3.dist(Player.eyePos, lv.pos);
+        Level.leverKnob(lv, h.pos);
+        this.showHint('HOLD to keep your grip - drag your view DOWN to wrench the lever');
+      } else { h.latchKind = 'world'; sfx('handHit', h.pos, col.surface); }
     } else {
       sfx('handHit', h.pos, col.surface);
     }
@@ -226,9 +242,62 @@ const GrabPack = {
     return false;
   },
 
+  // is this hand's fire input still held down?
+  held(side) {
+    const K = Input.keys, P = Input.pad.buttons;
+    return side === 0 ? !!(Input.mouse[0] || K.KeyQ || P[6] || P[4]) : !!(Input.mouse[1] || K.KeyR || P[7] || P[5]);
+  },
+
+  wrench(h, dt) {
+    const lv = h.latchRef;
+    const dPitch = h.prevPitch - Player.pitch, dist = V3.dist(Player.eyePos, lv.pos), dDist = dist - h.prevDist;
+    h.prevPitch = Player.pitch; h.prevDist = dist;
+    const before = lv.wrench;
+    if (this.held(h.side)) {
+      h.wrenchIdle = 0;
+      lv.wrench = Math.min(1, lv.wrench + Math.max(0, dPitch) * 1.2 + Math.max(0, dDist) * 0.6 + dt * 0.55);
+      Player.chaseShake = Math.max(Player.chaseShake, 0.12);
+    } else {
+      h.wrenchIdle += dt;
+      lv.wrench = Math.max(0, lv.wrench - dt * 0.8);
+      if (h.wrenchIdle > 0.9) { this.release(h, true); this.showHint('GRIP LOST - hold the button while you pull'); return; }
+    }
+    if (Math.floor(before * 4) !== Math.floor(lv.wrench * 4)) sfx('wrap', lv.pos);
+    lv.angle = 0.9 - 1.8 * lv.wrench;
+    Level.leverKnob(lv, h.pos);
+    if (lv.wrench >= 1) {
+      lv.pulled = true; lv.grab = null; lv.angle = -0.9;
+      Game.action(lv.action);
+      sfx('lever', lv.pos);
+      Particles.burst(lv.pos, 18, 'steam');
+      EventBus.emit(EV.LEVER, lv.pos[0], lv.pos[1], lv.pos[2], 0, 0);
+      Player.addTrauma(0.15);
+      h.latchKind = 'world'; h.latchRef = null; h.latchTime = 0.3;
+      this.showHint('LEVER THROWN');
+    }
+  },
+
+  // small electrical arcs travelling along a cable stretched close to its limit
+  arcCable(h, dt) {
+    if (!h.tethered || h.cableLen < FEEL.cableMax * 0.82 || gameRng() > dt * 16) return;
+    const N = FEEL.cableNodes, i = 1 + ((gameRng() * (N - 2)) | 0);
+    V3.set(this.tmp3, h.nodes[i * 3], h.nodes[i * 3 + 1], h.nodes[i * 3 + 2]);
+    Particles.burst(this.tmp3, 3, 'spark');
+    if (gameRng() < 0.25) sfx('wrap', this.tmp3);
+  },
+
   latched(h, dt) {
     h.latchTime += dt;
-    h.grip = damp(h.grip, 1, 12, dt);
+    this.arcCable(h, dt);
+    h.grip = damp(h.grip, 1, 24, dt);
+    if (h.latchKind === 'lever' && h.latchRef) { this.wrench(h, dt); return; }
+    if (h.latchKind === 'staff') {
+      const held = this.held(h.side);
+      h.energized = 1;
+      if (held && gameRng() < dt * 14) Particles.burst(h.pos, 2, 'spark');
+      if (Cast.groundPlush(dt, held)) { h.latchKind = 'world'; h.latchTime = 0.3; }
+      return;
+    }
     if (h.tethered) {
       if (h.cableLen > FEEL.cableMax) {
         this.release(h, false);
@@ -239,7 +308,8 @@ const GrabPack = {
       }
       return;
     }
-    if (h.latchTime > 0.32) h.state = HAND.RETRACTING;
+    // a plain clamp holds on for a moment before letting go
+    if (h.latchTime > 0.6) h.state = HAND.RETRACTING;
   },
 
   retract(h, dt) {

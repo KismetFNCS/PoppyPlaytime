@@ -168,12 +168,18 @@ const Level = {
   },
   lever(sector, x, y, z, nx, nz, action) {
     const e = World.create();
-    const l = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), pulled: false, angle: 0.9, action };
+    const l = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), pulled: false, angle: 0.9, action, wrench: 0, grab: null };
     l.collider = Physics.addBox(x - 0.32 + nx * 0.3, y - 0.32, z - 0.32 + nz * 0.3, x + 0.32 + nx * 0.3, y + 0.42, z + 0.32 + nz * 0.3, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, e, false, sector);
     l.collider.kind = 'lever'; l.collider.ref = l;
     World.add(e, 'lever', l);
     this.levers.push(l);
     return l;
+  },
+  // world position of a lever's handle knob for its current angle
+  leverKnob(l, out) {
+    const p = l.pos, n = l.n;
+    out[0] = p[0] + n[0] * (0.1 + Math.sin(l.angle) * 0.5); out[1] = p[1] + Math.cos(l.angle) * 0.5; out[2] = p[2] + n[2] * (0.1 + Math.sin(l.angle) * 0.5);
+    return out;
   },
   tape(sector, x, y, z, tapeId) {
     const e = World.create();

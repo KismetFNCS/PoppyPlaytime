@@ -28,11 +28,20 @@ Open `index.html` in a current desktop Chrome, Edge or Firefox (WebGL2 required)
 **How the circuit puzzles work:** fire a hand into a glowing power node to latch it. The cable from your
 pack to that node goes live. Walk so the cable wraps around the amber relay pegs; they turn green as they link.
 Then fire your *other* hand into the door receptacle. Firing the latched hand again releases the tether.
-Overstretching the cable (42 m) snaps it.
+Overstretching the cable (42 m) snaps it, and arcs crawl along it as it nears the limit.
 
-Route: Intake Lift → Reclamation Hall (circuit puzzle 1, a found tape) → Pressure Gallery (the Spoolwright
-stalks the ducts and hunts by sound; a steam lever and circuit puzzle 2) → Spool Foundry (scripted chase, a
-high shutter lever) → Freight Lift (ending tape).
+**Clamping and levers:** a hand that hits something snaps its fingers shut around it with a ratchet clink
+(and a spray of sparks and a blue flash on metal). On a lever it stays clamped: **hold** the fire button and
+drag your view **down** (or back away) to wrench the handle over; let go too early and it springs back.
+
+**Fighting back:** you can't kill the Spoolwright until the Loom, but you can stop it. A plain hand hit
+staggers it for a moment; a *charged* hit (your other hand tethered to a live node) shocks it for a long stun,
+and a stalker then slinks back into the vents. Only in the Loom boss fight can it actually be beaten.
+
+Route: Intake Lift → Reclamation Hall (circuit puzzle 1, a found tape) → Pressure Gallery (you meet Mister
+Thimble, who comes along; the Spoolwright stalks the ducts and hunts by sound; a steam lever and circuit
+puzzle 2) → Spool Foundry (the Spoolwright ambushes you both, then the chase: Thimble's overloaded socket or the
+high shutter lever) → Freight Lift → the Loom (boss fight).
 
 ## Cast
 
@@ -41,13 +50,23 @@ All original designs, built to read like the genre without copying any existing 
 - **The Spoolwright** (Experiment 6-06): the stalker. A spool-bodied machine under a shaggy violet fur mantle, with an open bone ribcage full of swirling red gas that throws red light around it, red pressure canisters on its back and flanks, and six better-built legs (plated I-beam femurs with hip drums, lightening holes and copper hydraulic rams; segmented shins with copper collars ending in flat hooked blades; red tendon cables). Its upper body is a skeletal frame in a tattered wine tailor's coat with black lapels, frayed tails and a measuring tape around the neck; its long needle-fingered arms wear ragged sleeves. Three stolen plush arms dangle from under its chest (teal, rose with a teal ring on one finger, and pink). Its shattered porcelain mask has an ear-to-ear grin of needle teeth and one solid glowing amber eye, under a battered black top hat with a measuring-tape band and a spool of red thread. A plush pincushion bristling with novelty pins is strapped to its back, and a yellow measuring tape trails behind it like a tail.
 - **The Usher**: a hooded, robed watcher on spindly black machine limbs whose face is a CRT lens showing one roving teal eye. It speaks to you over the factory PA when it appears at a vantage point in each area, then glitches out of existence if you stare at it or walk up to it.
 - **Marigold**: a shattered porcelain display doll (matted raven hair, dusty wine dress with a torn hem, half her cheek broken away into a hollow head, one milky glass eye) who acts as your guide. She introduces herself near the first tape, talks you through each area, moves ahead of you through the factory while you aren't looking, and waits in the freight lift at the end. Look away and her head is already turned toward you; catch her and she ticks.
-- **Mister Thimble**: a big, soft, well-loved plush bear and your ally in the Spool Foundry. Round and chubby, in auburn and chestnut fur with a pale belly, a faded slate-grey vest with brass buttons, sewn-on patches and yellow and red cross-stitched seams, chubby legs with bean-toed feet, one ear standing and one drooping, a copper thimble cap and one softly glowing purple glass eye. He wears a gentle stitched smile; his mouth only opens (friendly, with small rounded teeth) while he is talking, and he waves hello. He leans on a giant ivory sewing-needle staff with a brass eye: once the Spoolwright is loose, he jams the needle into the broken power socket beside the shutter, his eye pulses, and the shutter rises for you (the high lever still works too).
+- **Mister Thimble**: a big, soft, well-loved plush bear and your companion. Round and chubby, in auburn and chestnut fur with a pale belly, a faded slate-grey vest with brass buttons, sewn-on patches and yellow and red cross-stitched seams, chubby legs with bean-toed feet, one ear standing and one drooping, a copper thimble cap and one softly glowing purple glass eye. He wears a gentle stitched smile; his mouth only opens (friendly, with small rounded teeth) while he is talking. He leans on a giant ivory sewing-needle staff with a brass eye.
+  - You meet him at the start of the Pressure Gallery. You never speak; he talks to you anyway, following your trail with a waddle: ambient chatter, remarks when you sprint ahead, stand still looking around, bump into things or switch your flashlight off (his eye then lights the way in violet), hints if you are stuck on the gallery puzzle for 45 s, and a warning before he dives into the vents when the Spoolwright prowls close (he comes back once it has gone). The Spoolwright taunts you both over the PA.
+  - At the start of the foundry chase the Spoolwright drops in front of you; you are pinned while it and Thimble trade words, until Thimble slams his needle into the floor and a purple blast stuns it ([SPACE] skips the scene). At the shutter he jams the needle into a broken socket; the surge overloads, and you clamp a hand on his staff and **hold** to ground it through your pack, which raises the shutter (the high lever still works too).
+  - Down in the Loom he waits with Marigold, and once the Spoolwright is beaten the two of them talk about the sky.
 - **PIP**: your pocket companion on the HUD. A cog-shaped device with an LED dot-matrix face that talks with the hints, cheers when a circuit closes, sulks when one is refused, winks at relays, panics in chases and fills with static when you're caught.
 - **The LIFELINE pack**: two big sculpted padded gloves (teal left, rose right) with stitched seams and brass cuff rings, held up in view on corrugated hoses and fired with the mouse buttons; they switch to a clenched mesh when gripping.
 
 The supporting characters and the Spoolwright's mask, hood and torso are sculpted: each is described as smoothly blended shapes with carved details (eye sockets, grins, teeth, cracks, ringlets, stitches), and turned into a single smooth, multi-material mesh while the game loads (`src/19_sculpt.js`).
 
 Characters speak through on-screen dialogue with a name label and their own synthesized voice.
+
+**Music** is an adaptive score on one shared tempo grid whose layers crossfade with the situation: a warped,
+detuned piano over a cello pad while exploring ("Faded Threads"); a loom-press thud and arpeggio while a live
+tether is out ("The Looming Rhythm"); the chase percussion; strings, brass and a carousel tune that bends out of
+tune as the Spoolwright closes in during the boss fight ("Pins and Needles"); and a solo violin over a sub drone
+after it ("Shattered Porcelain"), with the drone dropping out while Marigold speaks. Whenever anyone speaks the
+music ducks by 6 dB behind a 4 kHz low-pass, and Thimble's blasts land with a bass-drum hit and a minor chord.
 
 ## Custom models
 
@@ -78,13 +97,14 @@ src/07_level.js     sector layout, doors, puzzle entities, lights, vents, nav gr
 src/08_grabpack.js  LIFELINE hands, Verlet cables, peg wrapping, circuit closure, cable tube mesh
 src/09_world.js     particles, light flicker models, doors, steam, triggers, sector streaming
 src/10_ai.js        Spoolwright behavior tree + FSM, perception, locomotion, 6-leg IK rig
-src/11_audio.js     Web Audio engine: FM threat drone, chase score, HRTF emitters, synthesized SFX
+src/11_audio.js     Web Audio engine: FM threat drone, adaptive score + dialogue ducking, HRTF emitters, SFX
 src/12_player.js    input (keyboard/mouse/pointer-lock/gamepad/touch), player controller + camera
 src/13_vhs_ui.js    VHS transmission archive, settings, menus, HUD, F1/F2 overlays
 src/14_game.js      global state machine, director, checkpoints, jumpscare/failure/victory, scene submit
 src/15_harness.js   __TEST__ / __TEST_FIDELITY__ hooks and the embedded self-test (F9)
 src/19_sculpt.js    signed-distance-field sculpting + Surface Nets meshing for the characters
 src/20_boss.js      the Spoolwright boss fight in the Loom (phases, shocks, pounce, defeat)
+src/21_companion.js Thimble's companion chatter and reactions, the foundry ambush scene, Loom banter
 src/18_characters.js  the Usher, Marigold, Mister Thimble and the PIP HUD companion
 src/16_assets.js    .glb loader, model slots, assets/ folder manifest
 src/17_boot.js      main loop, error resilience, resize/DPI, input wiring

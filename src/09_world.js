@@ -119,6 +119,17 @@ const Lights = {
   // soft fill carried with the camera so the gauntlets read when the flashlight points past them
   viewFill: { pos: V3.create(), color: hexToLinear(LIGHTING.flashColor), current: 0, base: 0.55, radius: 1.3, scatter: 0, fixture: 'none', sector: 0 },
   // red glow from the gas inside the Spoolwright's ribcage (linear RGB, deep red)
+  // violet glow from Mister Thimble's eye while your flashlight is off (linear RGB)
+  thimbleGlow: { pos: V3.create(), color: new Float32Array([0.5, 0.1, 1.0]), current: 0, base: 1.4, radius: 4.5, scatter: 0.15, fixture: 'none', sector: 0 },
+  // short-lived light flashes (clamp sparks, shocks, Thimble's grounding burst)
+  pulses: Array.from({ length: 8 }, () => ({ pos: V3.create(), color: new Float32Array(3), current: 0, base: 0, radius: 3, scatter: 0.2, fixture: 'none', sector: 0, t: 0, dur: 0, flicker: 0, alive: false })),
+  pulse(pos, r, g, b, radius, intensity, dur, flicker) {
+    let L = this.pulses[0];
+    for (const p of this.pulses) { if (!p.alive) { L = p; break; } if (p.t / p.dur > L.t / L.dur) L = p; }
+    V3.copy(L.pos, pos); L.color[0] = r; L.color[1] = g; L.color[2] = b;
+    L.radius = radius; L.base = intensity; L.dur = dur; L.t = 0; L.flicker = flicker || 0; L.alive = true;
+    L.sector = Level.sectorAt(pos[0], pos[2]);
+  },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
@@ -150,6 +161,23 @@ const Lights = {
       V3.addScaled(F.pos, F.pos, Renderer.camFwd, 0.1);
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = F;
+    }
+    for (const L of this.pulses) {
+      if (!L.alive) continue;
+      L.t += dt;
+      if (L.t >= L.dur) { L.alive = false; continue; }
+      const k = 1 - L.t / L.dur;
+      L.current = L.base * k * k * (L.flicker ? 0.55 + 0.45 * Math.sign(Math.sin(time * 47 + L.t * 31)) * (gameRng() > 0.3 ? 1 : 0.2) : 1);
+      if (!sectorVisible[L.sector]) continue;
+      if (list.count >= list.items.length) list.items.push(null);
+      list.items[list.count++] = L;
+    }
+    const TG = this.thimbleGlow, TP = Cast.plush;
+    if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
+      V3.set(TG.pos, TP.pos[0], 1.95, TP.pos[2]); TG.sector = TP.sector;
+      TG.current = TG.base * (0.9 + 0.1 * Math.sin(time * 3));
+      if (list.count >= list.items.length) list.items.push(null);
+      list.items[list.count++] = TG;
     }
     const G = this.monsterGlow;
     if (Monster.visible && !Assets.slot('monster') && Game.isGameplay()) {

@@ -3011,12 +3011,18 @@ const Level = {
   },
   lever(sector, x, y, z, nx, nz, action) {
     const e = World.create();
-    const l = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), pulled: false, angle: 0.9, action };
+    const l = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), pulled: false, angle: 0.9, action, wrench: 0, grab: null };
     l.collider = Physics.addBox(x - 0.32 + nx * 0.3, y - 0.32, z - 0.32 + nz * 0.3, x + 0.32 + nx * 0.3, y + 0.42, z + 0.32 + nz * 0.3, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, e, false, sector);
     l.collider.kind = 'lever'; l.collider.ref = l;
     World.add(e, 'lever', l);
     this.levers.push(l);
     return l;
+  },
+  // world position of a lever's handle knob for its current angle
+  leverKnob(l, out) {
+    const p = l.pos, n = l.n;
+    out[0] = p[0] + n[0] * (0.1 + Math.sin(l.angle) * 0.5); out[1] = p[1] + Math.cos(l.angle) * 0.5; out[2] = p[2] + n[2] * (0.1 + Math.sin(l.angle) * 0.5);
+    return out;
   },
   tape(sector, x, y, z, tapeId) {
     const e = World.create();
@@ -3418,7 +3424,7 @@ function makeHand(side) {
     side, state: HAND.DOCKED, pos: V3.create(), vel: V3.create(), prev: V3.create(), dir: V3.create(0, 0, -1),
     travelled: 0, latchTime: 0, latchKind: '', latchRef: null, latchNormal: V3.create(0, 0, 1), cooldown: 0,
     tethered: false, wraps: new Int32Array(MAX_WRAPS), wrapSign: new Int8Array(MAX_WRAPS), wrapCount: 0,
-    cableLen: 0, recoil: 0, grip: 0,
+    cableLen: 0, recoil: 0, grip: 0, wrenchIdle: 0, prevPitch: 0, prevDist: 0,
     // Verlet cable
     nodes: new Float32Array(N * 3), old: new Float32Array(N * 3), pinned: new Int8Array(N), pinX: new Float32Array(N * 3),
     cableActive: false, energized: 0
@@ -3442,6 +3448,7 @@ const GrabPack = {
   },
 
   dock(h) {
+    if (h.latchKind === 'lever' && h.latchRef) h.latchRef.grab = null;
     h.state = HAND.DOCKED; h.tethered = false; h.wrapCount = 0; h.cableActive = false; h.energized = 0;
     h.latchRef = null; h.latchKind = ''; h.travelled = 0; h.cooldown = 0; h.recoil = 0;
     V3.set(h.vel, 0, 0, 0);
@@ -3495,6 +3502,7 @@ const GrabPack = {
     if (h.tethered) {
       for (const p of Level.pegs) if (!p.locked) p.linked = false;
     }
+    if (h.latchKind === 'lever' && h.latchRef) h.latchRef.grab = null;
     h.tethered = false; h.wrapCount = 0; h.energized = 0;
     h.state = HAND.RETRACTING; h.latchRef = null; h.latchKind = '';
     if (playSound) sfx('retract', h.pos);
@@ -3523,7 +3531,7 @@ const GrabPack = {
     this.updateWraps();
     for (const h of this.hands) {
       if (h.cableActive) this.simulateCable(h, dt);
-      h.energized = damp(h.energized, h.tethered ? 1 : 0, 6, dt);
+      h.energized = damp(h.energized, h.tethered || h.latchKind === 'staff' ? 1 : 0, 6, dt);
     }
     if (this.hintTimer > 0) this.hintTimer -= dt;
   },
@@ -3544,7 +3552,7 @@ const GrabPack = {
       if (Monster.visible && Monster.hitTest(h.prev, this.tmp, len + 0.1)) {
         V3.copy(h.pos, Monster.hitPoint);
         if (Boss.active && Boss.tryShock(h)) { h.state = HAND.RETRACTING; return; }
-        Monster.flinch(h.side);
+        if (!Boss.active) Monster.fightBack(h); else Monster.flinch(h.side);
         sfx('handHitFlesh', h.pos);
         Particles.burst(h.pos, 10, 'spark');
         h.state = HAND.RETRACTING;
@@ -3562,7 +3570,14 @@ const GrabPack = {
 
   onImpact(h, col) {
     const kind = col.kind || 'world';
-    h.state = HAND.LATCHED; h.latchTime = 0; h.latchKind = kind; h.latchRef = col.ref || null; h.grip = 1;
+    // the fingers arrive open and snap shut around whatever they hit (see latched)
+    h.state = HAND.LATCHED; h.latchTime = 0; h.latchKind = kind; h.latchRef = col.ref || null; h.grip = 0;
+    sfx('clamp', h.pos);
+    // clamping onto metal throws a spray of electric sparks and a quick blue-white flash
+    if (col.surface === SURFACE.METAL || kind !== 'world') {
+      Particles.burst(h.pos, 18, 'spark');
+      Lights.pulse(h.pos, 0.55, 0.8, 1.0, 2.6, 2.2, 0.18, 0);
+    }
     EventBus.emit(EV.HAND_HIT, h.pos[0], h.pos[1], h.pos[2], 10, h.side);
     EventBus.emit(EV.NOISE, h.pos[0], h.pos[1], h.pos[2], 10, 0);
     Particles.burst(h.pos, 12, 'spark');
@@ -3580,12 +3595,19 @@ const GrabPack = {
       this.prevPlayerXZ[0] = Player.body.pos[0]; this.prevPlayerXZ[1] = Player.body.pos[2];
       sfx('tether', h.pos);
       this.showHint('TETHER LIVE - route the cable around the amber relays, then fire your other hand at the receptacle');
+    } else if (kind === 'staff') {
+      // clamped onto Mister Thimble's needle staff: hold to ground the overload through the pack
+      this.showHint('HOLD to ground the surge through your pack');
     } else if (kind === 'receptacle') {
       this.tryReceptacle(h, h.latchRef);
     } else if (kind === 'lever') {
+      // clamp onto the handle: hold the fire button and drag the view down (or back away) to wrench it
       const lv = h.latchRef;
-      if (!lv.pulled) { lv.pulled = true; Game.action(lv.action); sfx('lever', lv.pos); EventBus.emit(EV.LEVER, lv.pos[0], lv.pos[1], lv.pos[2], 0, 0); }
-      else sfx('handHit', h.pos, col.surface);
+      if (!lv.pulled && !lv.grab) {
+        lv.grab = h; h.wrenchIdle = 0; h.prevPitch = Player.pitch; h.prevDist = V3.dist(Player.eyePos, lv.pos);
+        Level.leverKnob(lv, h.pos);
+        this.showHint('HOLD to keep your grip - drag your view DOWN to wrench the lever');
+      } else { h.latchKind = 'world'; sfx('handHit', h.pos, col.surface); }
     } else {
       sfx('handHit', h.pos, col.surface);
     }
@@ -3631,9 +3653,62 @@ const GrabPack = {
     return false;
   },
 
+  // is this hand's fire input still held down?
+  held(side) {
+    const K = Input.keys, P = Input.pad.buttons;
+    return side === 0 ? !!(Input.mouse[0] || K.KeyQ || P[6] || P[4]) : !!(Input.mouse[1] || K.KeyR || P[7] || P[5]);
+  },
+
+  wrench(h, dt) {
+    const lv = h.latchRef;
+    const dPitch = h.prevPitch - Player.pitch, dist = V3.dist(Player.eyePos, lv.pos), dDist = dist - h.prevDist;
+    h.prevPitch = Player.pitch; h.prevDist = dist;
+    const before = lv.wrench;
+    if (this.held(h.side)) {
+      h.wrenchIdle = 0;
+      lv.wrench = Math.min(1, lv.wrench + Math.max(0, dPitch) * 1.2 + Math.max(0, dDist) * 0.6 + dt * 0.55);
+      Player.chaseShake = Math.max(Player.chaseShake, 0.12);
+    } else {
+      h.wrenchIdle += dt;
+      lv.wrench = Math.max(0, lv.wrench - dt * 0.8);
+      if (h.wrenchIdle > 0.9) { this.release(h, true); this.showHint('GRIP LOST - hold the button while you pull'); return; }
+    }
+    if (Math.floor(before * 4) !== Math.floor(lv.wrench * 4)) sfx('wrap', lv.pos);
+    lv.angle = 0.9 - 1.8 * lv.wrench;
+    Level.leverKnob(lv, h.pos);
+    if (lv.wrench >= 1) {
+      lv.pulled = true; lv.grab = null; lv.angle = -0.9;
+      Game.action(lv.action);
+      sfx('lever', lv.pos);
+      Particles.burst(lv.pos, 18, 'steam');
+      EventBus.emit(EV.LEVER, lv.pos[0], lv.pos[1], lv.pos[2], 0, 0);
+      Player.addTrauma(0.15);
+      h.latchKind = 'world'; h.latchRef = null; h.latchTime = 0.3;
+      this.showHint('LEVER THROWN');
+    }
+  },
+
+  // small electrical arcs travelling along a cable stretched close to its limit
+  arcCable(h, dt) {
+    if (!h.tethered || h.cableLen < FEEL.cableMax * 0.82 || gameRng() > dt * 16) return;
+    const N = FEEL.cableNodes, i = 1 + ((gameRng() * (N - 2)) | 0);
+    V3.set(this.tmp3, h.nodes[i * 3], h.nodes[i * 3 + 1], h.nodes[i * 3 + 2]);
+    Particles.burst(this.tmp3, 3, 'spark');
+    if (gameRng() < 0.25) sfx('wrap', this.tmp3);
+  },
+
   latched(h, dt) {
     h.latchTime += dt;
-    h.grip = damp(h.grip, 1, 12, dt);
+    this.arcCable(h, dt);
+    h.grip = damp(h.grip, 1, 24, dt);
+    if (h.latchKind === 'lever' && h.latchRef) { this.wrench(h, dt); return; }
+    if (h.latchKind === 'staff') {
+      const held = this.held(h.side);
+      h.energized = 1;
+      if (held && gameRng() < dt * 14) Particles.burst(h.pos, 2, 'spark');
+      if (Cast.groundPlush(dt, held)) { h.latchKind = 'world'; h.latchTime = 0.3; }
+      return;
+    }
     if (h.tethered) {
       if (h.cableLen > FEEL.cableMax) {
         this.release(h, false);
@@ -3644,7 +3719,8 @@ const GrabPack = {
       }
       return;
     }
-    if (h.latchTime > 0.32) h.state = HAND.RETRACTING;
+    // a plain clamp holds on for a moment before letting go
+    if (h.latchTime > 0.6) h.state = HAND.RETRACTING;
   },
 
   retract(h, dt) {
@@ -3977,6 +4053,17 @@ const Lights = {
   // soft fill carried with the camera so the gauntlets read when the flashlight points past them
   viewFill: { pos: V3.create(), color: hexToLinear(LIGHTING.flashColor), current: 0, base: 0.55, radius: 1.3, scatter: 0, fixture: 'none', sector: 0 },
   // red glow from the gas inside the Spoolwright's ribcage (linear RGB, deep red)
+  // violet glow from Mister Thimble's eye while your flashlight is off (linear RGB)
+  thimbleGlow: { pos: V3.create(), color: new Float32Array([0.5, 0.1, 1.0]), current: 0, base: 1.4, radius: 4.5, scatter: 0.15, fixture: 'none', sector: 0 },
+  // short-lived light flashes (clamp sparks, shocks, Thimble's grounding burst)
+  pulses: Array.from({ length: 8 }, () => ({ pos: V3.create(), color: new Float32Array(3), current: 0, base: 0, radius: 3, scatter: 0.2, fixture: 'none', sector: 0, t: 0, dur: 0, flicker: 0, alive: false })),
+  pulse(pos, r, g, b, radius, intensity, dur, flicker) {
+    let L = this.pulses[0];
+    for (const p of this.pulses) { if (!p.alive) { L = p; break; } if (p.t / p.dur > L.t / L.dur) L = p; }
+    V3.copy(L.pos, pos); L.color[0] = r; L.color[1] = g; L.color[2] = b;
+    L.radius = radius; L.base = intensity; L.dur = dur; L.t = 0; L.flicker = flicker || 0; L.alive = true;
+    L.sector = Level.sectorAt(pos[0], pos[2]);
+  },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
@@ -4008,6 +4095,23 @@ const Lights = {
       V3.addScaled(F.pos, F.pos, Renderer.camFwd, 0.1);
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = F;
+    }
+    for (const L of this.pulses) {
+      if (!L.alive) continue;
+      L.t += dt;
+      if (L.t >= L.dur) { L.alive = false; continue; }
+      const k = 1 - L.t / L.dur;
+      L.current = L.base * k * k * (L.flicker ? 0.55 + 0.45 * Math.sign(Math.sin(time * 47 + L.t * 31)) * (gameRng() > 0.3 ? 1 : 0.2) : 1);
+      if (!sectorVisible[L.sector]) continue;
+      if (list.count >= list.items.length) list.items.push(null);
+      list.items[list.count++] = L;
+    }
+    const TG = this.thimbleGlow, TP = Cast.plush;
+    if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
+      V3.set(TG.pos, TP.pos[0], 1.95, TP.pos[2]); TG.sector = TP.sector;
+      TG.current = TG.base * (0.9 + 0.1 * Math.sin(time * 3));
+      if (list.count >= list.items.length) list.items.push(null);
+      list.items[list.count++] = TG;
     }
     const G = this.monsterGlow;
     if (Monster.visible && !Assets.slot('monster') && Game.isGameplay()) {
@@ -4231,6 +4335,8 @@ const Monster = {
     this.tree = btSelector([
       btSequence([btCondition(() => M.state === MSTATE.JUMPSCARE_EXECUTION), btAction(() => BT.RUNNING)]),
       btSequence([btCondition(() => M.stunTimer > 0), btAction(() => { M.setState(MSTATE.STUNNED); return BT.RUNNING; })]),
+      // shocked off: it slinks back into the vents for a while and leaves you alone
+      btSequence([btCondition(() => M.retreatTimer > 0 && !M.inVent && !M.scripted && !M.boss), btAction(() => M.doReturn())]),
       btSequence([btCondition(() => M.canCatch()), btAction(() => { M.setState(MSTATE.JUMPSCARE_EXECUTION); return BT.SUCCESS; })]),
       btSequence([btCondition(() => !!Player.hidden && M.sawHide && !M.inVent), btAction(() => M.doLockerHunt())]),
       btSequence([btCondition(() => M.scripted && !Player.hidden), btAction(() => M.doChase(true))]),
@@ -4247,7 +4353,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
-    this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0;
+    this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0; this.stunImmune = 0; this.retreatAfterStun = false; this.retreatTimer = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
     for (const l of this.legs) { l.stepping = false; l.t = 1; }
@@ -4445,6 +4551,37 @@ const Monster = {
     this.setState(MSTATE.EMERGE);
   },
 
+  // Fighting back outside the boss fight: you can only stun it, never finish it.
+  //   charged hit (your other hand tethered to a live node): a shock that stuns it for 3.5 s, and a
+  //   stalker then slinks back into the vents; plain hit: a 1.3 s stagger, then 4 s before it can be
+  //   staggered again; otherwise just a flinch.
+  fightBack(h) {
+    if (this.state === MSTATE.JUMPSCARE_EXECUTION || this.state === MSTATE.MENU_POSE) return 'none';
+    const t = GrabPack.tetheredHand();
+    if (t && t !== h) {
+      GrabPack.release(t, false);
+      this.stunTimer = 3.5; this.flinchAmt = 1; this.jaw = 1; this.stunImmune = 5; this.retreatAfterStun = true;
+      this.setState(MSTATE.STUNNED);
+      sfx('shock', this.hitPoint); sfx('monsterHurt', this.pos);
+      Particles.burst(this.hitPoint, 40, 'spark'); Particles.burst(this.hitPoint, 12, 'ember');
+      Lights.pulse(this.hitPoint, 0.45, 0.85, 1.0, 6, 3.5, 0.5);
+      const P = Renderer.post; P.flash = 0.3; P.flashTint[0] = 0.4; P.flashTint[1] = 0.85; P.flashTint[2] = 1.0;
+      Player.addTrauma(0.3);
+      Pip.react('happy', 2);
+      GrabPack.showHint('SHOCKED! It is stunned - move! (you can only finish it in the Loom)');
+      return 'shock';
+    }
+    if (this.stunImmune <= 0) {
+      this.stunTimer = 1.3; this.flinchAmt = 1; this.stunImmune = 4;
+      this.setState(MSTATE.STUNNED);
+      sfx('monsterHurt', this.pos);
+      GrabPack.showHint('STAGGERED! A charged hand (tethered to a live node) stuns it for longer');
+      return 'stagger';
+    }
+    this.flinch(h.side);
+    return 'flinch';
+  },
+
   flinch(side) {
     if (this.state === MSTATE.JUMPSCARE_EXECUTION || this.state === MSTATE.MENU_POSE) return;
     this.stunTimer = 0.55; this.flinchAmt = 1;
@@ -4475,6 +4612,8 @@ const Monster = {
     this.catchCooldown = Math.max(0, this.catchCooldown - dt);
     this.roarCooldown = Math.max(0, this.roarCooldown - dt);
     this.stunTimer = Math.max(0, this.stunTimer - dt);
+    this.stunImmune = Math.max(0, this.stunImmune - dt);
+    this.retreatTimer = Math.max(0, this.retreatTimer - dt);
     this.flinchAmt = damp(this.flinchAmt, 0, 5, dt);
     this.stateTime += dt;
     if (!this.active) { this.visible = false; return; }
@@ -4489,7 +4628,10 @@ const Monster = {
     switch (this.state) {
       case MSTATE.VENT_PATROL: this.updateVent(dt); break;
       case MSTATE.EMERGE: this.updateEmerge(dt); break;
-      case MSTATE.STUNNED: this.targetSpeed = 0; this.locomote(dt, false); if (this.stunTimer <= 0) this.setState(MSTATE.STALK_LOCAL); break;
+      case MSTATE.STUNNED:
+        this.targetSpeed = 0; this.locomote(dt, false);
+        if (this.stunTimer <= 0) { const back = this.retreatAfterStun && !this.scripted && !this.boss; this.retreatAfterStun = false; if (back) this.retreatTimer = 9; this.setState(back ? MSTATE.RETURN_TO_VENT : MSTATE.STALK_LOCAL); }
+        break;
       default: this.locomote(dt, true); break;
     }
     this.visible = !this.inVent;
@@ -4887,7 +5029,7 @@ const sfxLog = [];
 const Audio = {
   ctx: null, master: null, comp: null, buses: {}, noiseBuf: null, ready: false,
   drone: null, chase: null, emitters: [], lastPlay: Object.create(null), voices: 0,
-  threat: 0, chaseOn: 0, nextBeat: 0, beatIdx: 0, windowT: 0, windowCount: 0, gates: Object.create(null),
+  threat: 0, chaseOn: 0, nextBeat: 0, beatIdx: 0, score: { calm: 0, puzzle: 0, boss: 0, end: 0 }, ducked: false, windowT: 0, windowCount: 0, gates: Object.create(null),
   // AudioParam automation only when the audio clock has advanced since the last write for this key:
   // bounds the automation timeline even when the simulation runs faster than real time.
   gate(key) {
@@ -4912,6 +5054,15 @@ const Audio = {
     for (const b of ['music', 'sfx', 'ambience', 'ui', 'voice']) { const g = ctx.createGain(); g.connect(this.master); this.buses[b] = g; }
     // scream bus bypasses the music/sfx mix but still obeys the master/mute
     this.buses.scare = ctx.createGain(); this.buses.scare.connect(this.master);
+    // music ducking: while someone speaks the score drops 6 dB and loses everything above 4 kHz
+    this.duckLP = ctx.createBiquadFilter(); this.duckLP.type = 'lowpass'; this.duckLP.frequency.value = 20000; this.duckLP.Q.value = 0.5;
+    this.duckGain = ctx.createGain();
+    this.buses.music.disconnect(); this.buses.music.connect(this.duckLP); this.duckLP.connect(this.duckGain); this.duckGain.connect(this.master);
+    // a dark feedback delay that gives the score its warped, reverberant room
+    this.verbIn = ctx.createGain(); this.verbIn.gain.value = 0.5;
+    const dl = ctx.createDelay(1.0), fb = ctx.createGain(), dlp = ctx.createBiquadFilter();
+    dl.delayTime.value = 0.31; fb.gain.value = 0.42; dlp.type = 'lowpass'; dlp.frequency.value = 2400;
+    this.verbIn.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(this.buses.music);
     this.noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -4977,22 +5128,122 @@ const Audio = {
     }
   },
 
-  // ---------- chase score (lookahead scheduler) ----------
+  // ---------- adaptive score (one lookahead scheduler, one 84 bpm sixteenth-note grid) ----------
+  // Layers crossfade by weight, never hard-cut:
+  //   calm   "Faded Threads"        detuned, warped piano over a humming cello pad (exploration)
+  //   puzzle "The Looming Rhythm"   hydraulic loom-press thud + tense arpeggio (a live tether is out)
+  //   chase                          the pursuit percussion (scripted chase / line-of-sight chase)
+  //   boss   "Pins and Needles"     staccato strings, brass swells, a carousel tune that bends out of
+  //                                  tune the closer the Spoolwright gets
+  //   end    "Shattered Porcelain"  solo violin over a sub drone that drops out while Marigold speaks
   updateChase(on) {
     if (!this.ctx) return;
-    const ctx = this.ctx;
-    this.chaseOn = damp(this.chaseOn, on ? 1 : 0, on ? 6 : 1.5, 1 / 60);
-    if (this.chaseOn < 0.02 || ctx.state !== 'running') { this.nextBeat = ctx.currentTime + 0.05; return; }
+    const ctx = this.ctx, S = this.score, k = 1 / 60;
+    const boss = Boss.active, puzzle = !on && state === STATE.INTERACTIVE_PUZZLE, end = Game.stage >= 5 && !boss;
+    const calm = !on && !boss && !puzzle && !end && Game.isGameplay();
+    this.chaseOn = damp(this.chaseOn, on && !boss ? 1 : 0, on ? 6 : 1.5, k);
+    S.calm = damp(S.calm, calm ? 1 : 0, 0.7, k); S.puzzle = damp(S.puzzle, puzzle ? 1 : 0, 1.2, k);
+    S.boss = damp(S.boss, boss ? 1 : 0, 1.5, k); S.end = damp(S.end, end ? 1 : 0, 0.5, k);
+    this.updateDuck();
+    const any = Math.max(this.chaseOn, S.calm, S.puzzle, S.boss, S.end);
+    if (any < 0.02 || ctx.state !== 'running') { this.nextBeat = ctx.currentTime + 0.05; return; }
     if (this.nextBeat < ctx.currentTime - 0.2) this.nextBeat = ctx.currentTime + 0.02;
-    const bpm = 168, step = 60 / bpm / 2;
+    const step = 60 / 168 / 2;
     while (this.nextBeat < ctx.currentTime + 0.12) {
-      const t = this.nextBeat, i = this.beatIdx % 16, v = this.chaseOn;
-      if (i % 4 === 0) this.kick(t, 0.9 * v);
-      if (i === 4 || i === 12) this.metalHit(t, 0.45 * v, 1);
-      if (i % 2 === 1) this.hat(t, 0.12 * v);
-      if (i === 0 || i === 7 || i === 10) this.stab(t, 0.18 * v, [55, 58.27, 82.4][this.beatIdx % 3]);
+      const t = this.nextBeat, i = this.beatIdx % 16, bar = (this.beatIdx / 16) | 0, v = this.chaseOn;
+      if (v > 0.02) {
+        if (i % 4 === 0) this.kick(t, 0.9 * v);
+        if (i === 4 || i === 12) this.metalHit(t, 0.45 * v, 1);
+        if (i % 2 === 1) this.hat(t, 0.12 * v);
+        if (i === 0 || i === 7 || i === 10) this.stab(t, 0.18 * v, [55, 58.27, 82.4][this.beatIdx % 3]);
+      }
+      if (S.calm > 0.02) this.calmStep(t, i, bar, S.calm);
+      if (S.puzzle > 0.02) this.puzzleStep(t, i, bar, S.puzzle);
+      if (S.boss > 0.02) this.bossStep(t, i, bar, S.boss);
+      if (S.end > 0.02) this.endStep(t, i, bar, S.end);
       this.nextBeat += step; this.beatIdx++;
     }
+  },
+  updateDuck() {
+    if (!this.duckGain || !this.gate('duck')) return;
+    const speaking = !!Dialogue.current;
+    if (speaking === this.ducked) return;
+    this.ducked = speaking;
+    const t = this.ctx.currentTime;
+    this.duckGain.gain.setTargetAtTime(speaking ? 0.5 : 1, t, 0.12);
+    this.duckLP.frequency.setTargetAtTime(speaking ? 4000 : 20000, t, 0.12);
+  },
+  // one enveloped oscillator note into the music bus (and the delay room)
+  note(t, type, f, dur, vol, cutoff, attack, detune, verb) {
+    const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+    o.type = type; o.frequency.value = f; if (detune) o.detune.value = detune;
+    lp.type = 'lowpass'; lp.frequency.value = cutoff;
+    const a = attack || 0.005;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(lp); lp.connect(g); g.connect(this.buses.music); if (verb) g.connect(this.verbIn);
+    o.start(t); o.stop(t + dur + 0.05);
+    return o;
+  },
+  calmStep(t, i, bar, v) {
+    const warp = Math.sin(bar * 0.7) * 14;   // slow vinyl-like pitch warp, in cents
+    const SCALE_A = [220, 246.9, 261.6, 293.7, 329.6, 349.2, 392];
+    if (i === 0 || (i === 8 && (bar * 7 + 3) % 3 !== 0) || (i === 12 && bar % 4 === 1)) {
+      const f = SCALE_A[(bar * 5 + i * 3) % SCALE_A.length] * (i === 0 ? 1 : 2) * 0.5;
+      const det = warp + ((bar * 13 + i) % 7 - 3) * 6;   // microtonal, slightly out-of-tune upright
+      this.note(t, 'sine', f, 2.6, 0.09 * v, 3000, 0.004, det, true);
+      this.note(t, 'triangle', f * 2, 1.2, 0.025 * v, 2500, 0.004, det + 9, true);
+    }
+    if (i === 0 && bar % 2 === 0) {
+      const root = [110, 87.31, 130.8, 98][(bar >> 1) % 4];
+      this.note(t, 'sawtooth', root * 0.5, 5.4, 0.045 * v, 380, 1.4, warp, true);
+    }
+  },
+  puzzleStep(t, i, bar, v) {
+    if (i % 4 === 0) {
+      const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(80, t); o.frequency.exponentialRampToValueAtTime(32, t + 0.3);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7 * v, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g); g.connect(this.buses.music); o.start(t); o.stop(t + 0.55);
+      this.noise(t, 0.12, 0.25 * v, 420, 'lowpass', this.buses.music);
+    }
+    if (i === 8) this.metalHit(t, 0.25 * v, 0.5);
+    const ARP = [220, 261.6, 329.6, 440];
+    this.note(t, 'square', ARP[i % 4] * (bar % 2 ? 2 : 1), 0.14, 0.035 * v, 1800, 0.003, 0, false);
+  },
+  bossStep(t, i, bar, v) {
+    const d = Monster.active ? V3.dist(Monster.pos, Player.body.pos) : 30;
+    const near = clamp((14 - d) / 12, 0, 1);
+    if (i % 2 === 0) this.note(t, 'sawtooth', [146.8, 155.6, 146.8, 174.6][(i >> 1) % 4] * 2, 0.09, 0.05 * v, 2600, 0.002, 0, false);
+    if (i === 0 && bar % 2 === 0) for (const m of [1, 1.5, 2]) this.note(t, 'sawtooth', 73.4 * m, 2.6, 0.05 * v, 900, 0.6, 0, true);
+    if (i % 4 === 0) {
+      // carousel tune, bending flat and wobbling as it closes in
+      const MEL = [587.3, 659.3, 698.5, 659.3, 587.3, 523.3, 587.3, 440];
+      const o = this.note(t, 'triangle', MEL[((bar * 4) + (i >> 2)) % MEL.length], 0.32, 0.06 * v, 3500, 0.004, 0, true);
+      o.detune.setValueAtTime(0, t); o.detune.linearRampToValueAtTime(-160 * near + Math.sin(bar + i) * 60 * near, t + 0.3);
+    }
+    if (i === 4 || i === 12) this.kick(t, 0.5 * v);
+  },
+  endStep(t, i, bar, v) {
+    const marigold = Dialogue.current && Dialogue.current.speaker === 'MARIGOLD';
+    if (i === 0 && !marigold) this.note(t, 'sine', 41.2, 3.4, 0.2 * v, 200, 1.0, 0, false);
+    if (i === 0 && bar % 4 === 3) this.noise(t, 1.2, 0.05 * v, 900, 'bandpass', this.buses.music);   // reverse-like swell
+    if (i === 0 || i === 8) {
+      const VIOLIN = [440, 523.3, 493.9, 440, 392, 349.2, 329.6, 349.2];
+      const f = VIOLIN[(bar * 2 + (i >> 3)) % VIOLIN.length];
+      const o = this.note(t, 'sawtooth', f, 1.5, 0.05 * v, 1400, 0.35, 0, true);
+      const lfo = this.ctx.createOscillator(), lg = this.ctx.createGain();
+      lfo.frequency.value = 5.5; lg.gain.value = 5; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t + 1.6);
+    }
+  },
+  // one booming orchestral bass-drum hit with a tragic minor chord swelling out of it
+  boom() {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    const ctx = this.ctx, t = ctx.currentTime + 0.01, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(64, t); o.frequency.exponentialRampToValueAtTime(30, t + 0.9);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1.0, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.7);
+    o.connect(g); g.connect(this.buses.scare); o.start(t); o.stop(t + 1.8);
+    this.noise(t, 0.4, 0.4, 220, 'lowpass', this.buses.scare);
+    for (const f of [220, 261.6, 329.6, 440]) this.note(t + 0.15, 'sawtooth', f, 3.2, 0.035, 1500, 0.5, 0, true);
   },
   kick(t, vol) {
     const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain();
@@ -5185,6 +5436,14 @@ const SFX = {
     Audio.noise(t, 0.05, 0.4, 3500, 'highpass', out);
     if (surface === SURFACE.METAL) Audio.ring(t, [Audio.vary(620), Audio.vary(1490), Audio.vary(3100)], 0.35, 0.16, out);
     else Audio.tone(t, 'sine', Audio.vary(160), 60, 0.12, 0.3, out);
+  },
+  // gauntlet fingers snapping shut around something: two ratchet ticks and a bright metal clink
+  clamp(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 2, 0.9);
+    Audio.noise(t, 0.025, 0.35, 5200, 'highpass', out);
+    Audio.noise(t + 0.045, 0.025, 0.3, 4300, 'highpass', out);
+    Audio.ring(t + 0.06, [Audio.vary(1850), Audio.vary(3900)], 0.16, 0.12, out);
+    Audio.tone(t + 0.04, 'square', 2300, 1700, 0.03, 0.05, out);
   },
   handHitFlesh(t, pos) { const out = Audio.dest(pos); Audio.noise(t, 0.15, 0.4, 600, 'lowpass', out); Audio.tone(t, 'sine', 90, 40, 0.2, 0.3, out); },
   retract(t, pos) { const out = Audio.dest(pos); Audio.noise(t, 0.35, 0.1, 5000, 'bandpass', out, 2); Audio.tone(t, 'sawtooth', 160, 420, 0.3, 0.06, out); },
@@ -6314,7 +6573,7 @@ const Game = {
     this.failTimer = 0; this.jumpTimer = 0; this.fadeIn = 1;
     for (const d of Level.doors) { d.open = d.initialOpen; d.target = d.initialOpen; d.locked = false; d.slam = false; d.speed = 0.55; d.moving = false; d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height; }
     for (const r of Level.receptacles) { r.powered = false; r.denyFlash = 0; }
-    for (const l of Level.levers) l.pulled = false;
+    for (const l of Level.levers) { l.pulled = false; l.wrench = 0; l.grab = null; l.angle = 0.9; }
     for (const p of Level.pegs) { p.linked = false; p.locked = false; }
     for (const t of Level.tapes) t.collected = false;
     for (const t of Level.triggers) t.fired = false;
@@ -6395,7 +6654,7 @@ const Game = {
       d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height;
     }
     for (let i = 0; i < Level.receptacles.length; i++) { Level.receptacles[i].powered = !!cp.receptacles[i]; Level.receptacles[i].denyFlash = 0; }
-    for (let i = 0; i < Level.levers.length; i++) Level.levers[i].pulled = !!cp.levers[i];
+    for (let i = 0; i < Level.levers.length; i++) { const l = Level.levers[i]; l.pulled = !!cp.levers[i]; l.wrench = l.pulled ? 1 : 0; l.grab = null; l.angle = l.pulled ? -0.9 : 0.9; }
     for (let i = 0; i < Level.pegs.length; i++) { Level.pegs[i].locked = !!cp.pegsLocked[i]; Level.pegs[i].linked = Level.pegs[i].locked; }
     for (let i = 0; i < Level.tapes.length; i++) Level.tapes[i].collected = !!cp.tapes[i];
     for (let i = 0; i < Level.triggers.length; i++) Level.triggers[i].fired = !!cp.triggers[i];
@@ -6456,7 +6715,7 @@ const Game = {
         V3.set(_g.v, Level.vents[v].pos[0], Level.vents[v].pos[1], Level.vents[v].pos[2]);
         this.fracture[0] = _g.v[0]; this.fracture[1] = _g.v[1]; this.fracture[2] = _g.v[2]; this.fracture[3] = 4.5; this.fractureAmt = 1;
         Player.addTrauma(0.8);
-        GrabPack.showHint('RUN! Fire a hand at the high lever to raise the shutter.');
+        Ambush.start();
         UI.setObjective(OBJECTIVES[3]);
         break;
       }
@@ -6522,13 +6781,16 @@ const Game = {
       V3.set(Player.body.pos, L.pos[0] - Math.sin(L.yaw) * 0.12, 0, L.pos[2] - Math.cos(L.yaw) * 0.12);
       V3.set(Player.body.vel, 0, 0, 0);
       if (usePressed) this.leaveLocker();
+    } else if (Ambush.active) {
+      // pinned in place while the Spoolwright and Thimble have words
+      V3.copy(Player.body.pos, Ambush.pin); V3.set(Player.body.vel, 0, 0, 0);
     } else {
       Player.update(dt);
     }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    if (!Player.hidden && !wasHidden) {
+    if (!Player.hidden && !wasHidden && !Ambush.active) {
       if (Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4)) GrabPack.fire(0, Player.cam);
       if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) GrabPack.fire(1, Player.cam);
       const locker = Player.findLocker();
@@ -6856,12 +7118,15 @@ const Game = {
     for (const l of Level.levers) {
       if (!vis[l.sector]) continue;
       const p = l.pos, n = l.n, yaw = Math.atan2(n[0], n[2]);
-      l.angle = damp(l.angle, l.pulled ? -0.9 : 0.9, 6, 1 / 60);
+      // while a hand is clamped on it the handle follows the wrench; otherwise it springs back or stays thrown
+      l.angle = l.grab ? 0.9 - 1.8 * l.wrench : damp(l.angle, l.pulled ? -0.9 : 0.9 - 1.8 * l.wrench, 6, 1 / 60);
       R.trs('box', MAT.steel, p[0] - n[0] * 0.04, p[1], p[2] - n[2] * 0.04, yaw, 0, 0, 0.5, 0.7, 0.12);
       const it = R.push('cyl', MAT.hazard);
       if (it) { M4.compose(it.model, p[0] + n[0] * 0.1, p[1], p[2] + n[2] * 0.1, yaw, l.angle, 0, 0.05, 0.5, 0.05); }
       const hx = p[0] + n[0] * (0.1 + Math.sin(l.angle) * 0.5) , hy = p[1] + Math.cos(l.angle) * 0.5, hz = p[2] + n[2] * (0.1 + Math.sin(l.angle) * 0.5);
       R.trs('sphere', MAT.rubber, hx, hy, hz, 0, 0, 0, 0.09, 0.09, 0.09);
+      // progress gauge while it is being wrenched
+      if (l.grab && !l.pulled) { const g = R.trs('box', MAT.screen, p[0] + n[0] * 0.075, p[1] - 0.3, p[2] + n[2] * 0.075, yaw, 0, 0, 0.36 * l.wrench + 0.01, 0.035, 0.02, false); if (g) { g.emis[0] = 2.2 * (1 - l.wrench); g.emis[1] = 2.2 * l.wrench; g.emis[2] = 0.2; } }
       const lamp = R.trs('sphereLow', MAT.rubber, p[0] + n[0] * 0.08, p[1] - 0.45, p[2] + n[2] * 0.08, 0, 0, 0, 0.05, 0.05, 0.05, false);
       if (lamp) { if (l.pulled) { lamp.emis[1] = 2.5; } else { lamp.emis[0] = 2.5; lamp.emis[1] = 0.6 + Math.sin(t * 6) * 0.5; } }
     }
@@ -6908,10 +7173,22 @@ const Game = {
         V3.copy(_g.b, m);
         this.drawHose(_g.a, _g.b, up, h);
         // out in the world: flying -> along velocity; latched -> palm pressed into the surface
-        if (h.state === HAND.LATCHED) V3.scale(_g.e, h.latchNormal, -1); else V3.copy(_g.e, h.dir);
-        if (V3.len(_g.e) < 0.5) V3.copy(_g.e, fwd);
-        const upRef = Math.abs(_g.e[1]) > 0.9 ? right : _g.up;
-        this.drawHand(h.pos, _g.e, upRef, s, h.state === HAND.LATCHED ? h.grip * 0.6 : 0.05, 1.15, true, h, false);
+        if (h.state === HAND.LATCHED) {
+          // clamped: back of the hand out of the surface, fingers laid along it and curled shut around the edge
+          const nrm = h.latchNormal;
+          if (Math.abs(nrm[1]) < 0.7) V3.set(_g.e, 0, 1, 0); else V3.copy(_g.e, Math.abs(h.dir[1]) < 0.95 ? h.dir : fwd);
+          V3.addScaled(_g.e, _g.e, nrm, -V3.dot(_g.e, nrm));
+          if (V3.len(_g.e) < 0.1) V3.copy(_g.e, right);
+          V3.normalize(_g.e, _g.e);
+          V3.addScaled(_g.hp, h.pos, nrm, 0.035);
+          V3.addScaled(_g.hp, _g.hp, _g.e, -0.03);
+          this.drawHand(_g.hp, _g.e, nrm, s, h.grip, 1.15 * (1 + 0.08 * Math.max(0, 1 - h.latchTime * 8)), true, h, false);
+        } else {
+          V3.copy(_g.e, h.dir);
+          if (V3.len(_g.e) < 0.5) V3.copy(_g.e, fwd);
+          const upRef = Math.abs(_g.e[1]) > 0.9 ? right : _g.up;
+          this.drawHand(h.pos, _g.e, upRef, s, 0.05, 1.15, true, h, false);
+        }
       }
     }
   },
@@ -6937,8 +7214,9 @@ const Game = {
   },
   drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
     const R = RenderQueue, mat = side === 0 ? MAT.handTeal : MAT.handRose;
-    V3.cross(_g.r, f, upRef); V3.normalize(_g.r, _g.r);
-    V3.cross(_g.u, _g.r, f); V3.normalize(_g.u, _g.u);
+    // right-handed basis (r = up x f) so back-face culling keeps the outside of the glove
+    V3.cross(_g.r, upRef, f); V3.normalize(_g.r, _g.r);
+    V3.cross(_g.u, f, _g.r); V3.normalize(_g.u, _g.u);
     const r = _g.r, u = _g.u, s = scale;
     const glow = h.tethered ? h.energized : 0;
     const lift = viewModel ? 0.1 : 0;
@@ -6951,13 +7229,14 @@ const Game = {
       return;
     }
     // sculpted glove meshes (open / gripping), coloured per hand by the draw material
-    const gm = (side === 0 ? 'glove_L_' : 'glove_R_') + (curl > 0.5 ? 'grip' : 'open');
+    // (with r = up x f the sculpt's x axis is mirrored, so each hand uses the opposite-handed sculpt)
+    const gm = (side === 0 ? 'glove_R_' : 'glove_L_') + (curl > 0.5 ? 'grip' : 'open');
     if (Sculpt.ready(gm)) {
       const it = R.push(gm, mat, shadow);
       if (it) { basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[3] = lift; it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow; }
       return;
     }
-    const mirror = side === 0 ? -1 : 1;   // thumb on the inside of each hand
+    const mirror = side === 0 ? 1 : -1;   // thumb on the inside of each hand
     // wrist cuff with clamp rings
     V3.addScaled(_g.p0, pos, f, -0.115 * s); V3.addScaled(_g.p1, pos, f, -0.03 * s);
     const cuff = R.seg('cyl', mat, _g.p0, _g.p1, 0.04 * s, shadow);
@@ -7548,8 +7827,19 @@ async function runAll() {
     check('steam: jets scald and knock back', scalded, Player.health.toFixed(1));
     Monster.reset();
     T.setPlayerPose(6, 0, -44, -Math.PI / 2, 0); T.aimAt(9.85 - 0.3, 3.05, -44); T.step(DT, 1);
-    click(1); T.step(DT, 20);
-    check('lever: hand pulls the steam lever', Level.levers[0].pulled && !Level.steam[0].active, '');
+    T.simulateMouse(1, true); T.step(DT, 14);
+    check('clamp: hand clamps onto the lever (fingers shut, clink)', Level.levers[0].grab === GrabPack.hands[1] && GrabPack.hands[1].grip > 0.8 && T.getSfxLog().includes('clamp'), 'grip ' + GrabPack.hands[1].grip.toFixed(2));
+    check('lever: not thrown by the clamp alone', !Level.levers[0].pulled, Level.levers[0].wrench.toFixed(2));
+    // let go early: the grip is lost and the handle springs back
+    T.simulateMouse(1, false); T.step(DT, 70);
+    check('lever: letting go early loses the grip', !Level.levers[0].grab && !Level.levers[0].pulled && GrabPack.hands[1].state !== HAND.LATCHED, GrabPack.hands[1].state);
+    T.step(DT, 40);
+    // clamp again, hold and drag the view down to wrench it
+    T.aimAt(9.85 - 0.3, 3.05, -44); T.step(DT, 1);
+    T.simulateMouse(1, true);
+    for (let i = 0; i < 40 && !Level.levers[0].pulled; i++) { T.step(DT, 1); if (Level.levers[0].grab) Player.pitch -= 0.02; }
+    T.simulateMouse(1, false); T.step(DT, 4);
+    check('lever: hold + drag down wrenches the steam lever', Level.levers[0].pulled && !Level.steam[0].active, Level.levers[0].wrench.toFixed(2));
     // gallery gate via scripted tether
     T.setPlayerPose(8, 0, -29, -Math.PI / 2, 0); T.aimAt(9.85, 1.5, -29); click(0); T.step(DT, 20);
     check('puzzle 2: tether on the gallery node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
@@ -7567,8 +7857,15 @@ async function runAll() {
     T.step(DT, 30);
     check('chase: camera shake engaged', Player.chaseShake > 0.3, Player.chaseShake.toFixed(2));
     check('chase: fracture map driven by the burst', Game.fractureAmt > 0.3, Game.fractureAmt.toFixed(2));
+    check('ambush: you are pinned and the view locks while they talk', Ambush.active && Player.lockAmt > 0.3 && Dialogue.busy() && ['SPOOLWRIGHT', 'THIMBLE'].includes(Dialogue.current.speaker), Dialogue.current ? Dialogue.current.speaker : 'none');
+    T.step(DT, 60);
+    check('ambush: the Spoolwright holds still for the scene', Monster.bossHold || Monster.state === MSTATE.EMERGE, Monster.state);
+    Ambush.skip(); T.step(DT, 3);
+    check('ambush: Thimble\'s purple blast stuns it and frees you', !Ambush.active && Monster.stunTimer > 0 && !Monster.bossHold && Cast.plush.mode === 'SHUTTER' && Player.lockAmt === 0, Monster.stunTimer.toFixed(2));
     Game.invulnerable = true;
-    T.setPlayerPose(3, 0, -67, 0, 0); T.aimAt(5.85 - 0.3, 3.45, -69); T.step(DT, 1); click(0); T.step(DT, 20);
+    T.setPlayerPose(3, 0, -67, 0, 0); T.aimAt(5.85 - 0.3, 3.45, -69); T.step(DT, 1);
+    T.simulateMouse(0, true); for (let i = 0; i < 150 && !Level.levers[1].pulled; i++) T.step(DT, 1);
+    T.simulateMouse(0, false); T.step(DT, 4);
     check('chase: lever raises the shutter', Level.doorById('DS').target === 1, JSON.stringify(T.doors()));
     T.step(DT, 160);
     T.setPlayerPose(0, 0, -95, 0, 0); T.step(DT, 5);
@@ -7706,22 +8003,58 @@ async function runAll() {
       T.step(DT, 300);
       check('dialogue: line clears after its hold time', !Dialogue.busy() && document.getElementById('hudDialog').style.display === 'none');
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
-      Dialogue.clear();
-      T.setPlayerPose(-1.5, 0, -64, 0, 0); T.step(DT, 4);
-      check('thimble: greets you as a friend', Cast.plush.talked && Dialogue.busy() && Dialogue.current.speaker === 'THIMBLE', '');
+      // Mister Thimble: meet him in the gallery; he follows and talks to you
+      Dialogue.clear(); Game.stage = 2; Monster.reset(); Cast.resetPlush(); Steam.setAll(false); Player.health = 100;
+      for (const tr of Level.triggers) if (tr.action === 'enterGallery') tr.fired = true;
+      T.setPlayerPose(1.6, 0, -24.9, 0, 0); T.step(DT, 4);
+      check('thimble: greets you as a friend in the gallery', Cast.plush.mode === 'FOLLOW' && Dialogue.busy() && (Dialogue.current.speaker === 'THIMBLE' || Dialogue.queue.some(q => q.speaker === 'THIMBLE')), Cast.plush.mode + ' ' + (Dialogue.current ? Dialogue.current.speaker + ': ' + Dialogue.current.text : 'none'));
+      while (Dialogue.current && Dialogue.current.speaker !== 'THIMBLE' && Dialogue.busy()) { Dialogue.current = null; T.step(DT, 1); }
       check('thimble: no lunge / scare on meeting', Player.trauma < 0.3, String(Player.trauma));
       let opened = 0;
       for (let i = 0; i < 20; i++) { T.step(DT, 1); if (Cast.plush.talking) opened++; }
       check('thimble: mouth opens while he talks', opened > 3 && Sculpt.ready('th_head_talk'), opened + '/20 frames');
       Dialogue.clear(); T.step(DT, 2);
       check('thimble: closed smile when quiet', !Cast.plush.talking, '');
-      // during the chase he plugs his needle staff into the socket and the shutter rises
+      const tp0 = V3.clone ? V3.clone(Cast.plush.pos) : V3.create(Cast.plush.pos[0], 0, Cast.plush.pos[2]);
+      for (const wp of [[0, -30], [-3, -34], [-3, -39]]) T.walkTo(wp[0], wp[1], 0.06);
+      T.step(DT, 60);
+      const tdist = Math.hypot(Cast.plush.pos[0] - Player.body.pos[0], Cast.plush.pos[2] - Player.body.pos[2]);
+      check('thimble: follows you along your trail', tdist < 4.5 && Math.hypot(Cast.plush.pos[0] - tp0[0], Cast.plush.pos[2] - tp0[2]) > 6, 'gap ' + tdist.toFixed(2));
+      Dialogue.clear(); Companion.cool = 0; Companion.lineCool.dark = 0; Player.flashOn = false; T.step(DT, 100);
+      check('thimble: speaks up and lights the way when your flashlight is off', Lights.thimbleGlow.current > 0 && Dialogue.busy() && Dialogue.current.speaker === 'THIMBLE', Lights.thimbleGlow.current.toFixed(2));
+      Player.flashOn = true; Dialogue.clear();
+      Companion.cool = 0; Companion.stageTime = 50; Companion.lineCool.hint = 0; T.step(DT, 2);
+      check('thimble: hints at the puzzle when you are stuck', Dialogue.busy() && Dialogue.current.speaker === 'THIMBLE' && /lever|gate/.test(Dialogue.current.text), Dialogue.current ? Dialogue.current.text : '');
+      Dialogue.clear(); Companion.cool = 0; Companion.lineCool.threat = 0;
+      Game.invulnerable = true; T.spawnMonsterNear(9); Monster.targetSpeed = 0; T.step(DT, 3);
+      check('thimble: warns you and hides when the Spoolwright is near', Cast.plush.mode === 'HIDE' && Cast.plush.hidden && Dialogue.current.speaker === 'THIMBLE', Cast.plush.mode);
+      Monster.reset(); T.step(DT, 300);
+      check('thimble: comes back once it is gone', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
+      // fighting back outside the boss fight: a plain hit staggers it, a charged hit shocks it into the vents
+      GrabPack.reset(); T.setPlayerPose(0, 0, -36, 0, 0); T.spawnMonsterNear(5); Monster.targetSpeed = 0; Monster.stunImmune = 0; T.step(DT, 2);
+      T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(0); T.step(DT, 12);
+      check('fight back: a plain hand hit staggers it', Monster.state === MSTATE.STUNNED && Monster.stunTimer > 0.5 && Monster.active, Monster.state + ' ' + Monster.stunTimer.toFixed(2));
+      T.step(DT, 90); GrabPack.reset();
+      { const h0 = GrabPack.hands[0]; h0.state = HAND.LATCHED; h0.tethered = true; h0.latchKind = 'source'; }
+      Monster.stunTimer = 0; Monster.setState(MSTATE.LINE_OF_SIGHT_CHASE); Monster.targetSpeed = 0;
+      T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
+      check('fight back: a charged hand shocks it for a long stun', Monster.stunTimer > 2.5 && Monster.retreatAfterStun && !GrabPack.hands[0].tethered, Monster.stunTimer.toFixed(2));
+      T.step(DT, 230);
+      check('fight back: once the shock wears off a stalker slinks back to the vents (not killed)', Monster.state === MSTATE.RETURN_TO_VENT || Monster.inVent, Monster.state);
+      Monster.reset(); GrabPack.reset();
+      Game.invulnerable = false; Steam.setAll(true);
+      // foundry shutter: he plugs his staff in, the surge overloads, you clamp his staff and ground it
       { const ds = Level.doorById('DS'); ds.open = 0; ds.target = 0; ds.collider.enabled = true; }
-      Game.chaseActive = true; Cast.plush.plugState = 0;
+      { const s = Cast.PLUSH_SHUTTER; Cast.plush.mode = 'SHUTTER'; V3.set(Cast.plush.pos, s[0], 0, s[1]); Cast.plush.yaw = s[2]; }
+      Game.chaseActive = true; Cast.plush.plugState = 0; Dialogue.clear();
       T.setPlayerPose(-2.4, 0, -67.6, 0, 0); T.step(DT, 70);
-      check('thimble: plugs his staff into the socket during the chase', Cast.plush.plugState === 2 && Level.doorById('DS').target === 1, 'state ' + Cast.plush.plugState);
+      check('thimble: plugs his staff into the socket during the chase', Cast.plush.plugState === 2, 'state ' + Cast.plush.plugState);
       check('thimble: staff tip lands in the socket', V3.dist(Cast.staff.tip, Cast.plushSocket) < 0.05, V3.dist(Cast.staff.tip, Cast.plushSocket).toFixed(3));
-      check('thimble: purple eye pulses with power', Cast.plush.eyeGlow > 0.9, Cast.plush.eyeGlow.toFixed(2));
+      check('thimble: the surge overloads - shutter still shut', Level.doorById('DS').target === 0 && Cast.plushCollider.enabled, '');
+      T.aimAt(-2.85, 1.45, -71.42); T.step(DT, 1);
+      T.simulateMouse(0, true); T.step(DT, 130); T.simulateMouse(0, false); T.step(DT, 4);
+      check('thimble: clamping his staff and holding grounds the surge, shutter rises', Cast.plush.plugState === 4 && Level.doorById('DS').target === 1, 'state ' + Cast.plush.plugState + ' ground ' + Cast.plush.ground.toFixed(2));
+      check('thimble: purple eye pulses with power', Cast.plush.eyeGlow > 0.8, Cast.plush.eyeGlow.toFixed(2));
       Game.chaseActive = false;
       Game.stage = 3; T.setPlayerPose(0, 0, -60, -Math.PI / 2, 0); T.step(DT, 3);
       check('marigold: relocates to the freight lift for the ending', Math.abs(Cast.doll.pos[2] - (-96.9)) < 0.01, Cast.doll.pos[2]);
@@ -8435,7 +8768,11 @@ const Cast = {
     eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
   },
   doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
-  plush: { pos: V3.create(-3.6, 0, -70.9), yaw: -2.84, headYaw: 0, eyeGlow: 0.5, eyePulse: 0, talked: false, plugState: 0, plugTimer: 0, plug: 0, wave: 0, cheered: false, talking: false },
+  plush: { pos: V3.create(3.0, 0, -27.5), yaw: 2.43, headYaw: 0, eyeGlow: 0.5, eyePulse: 0, talked: false, plugState: 0, plugTimer: 0, plug: 0, wave: 0, cheered: false, talking: false,
+    mode: 'WAIT', sector: 2, hidden: false, walk: 0, phase: 0, ground: 0, groundIdle: 0, overload: 0 },
+  // where Mister Thimble waits in the gallery, and where he stands by the shutter socket
+  PLUSH_WAIT: [3.0, -27.5, 2.43], PLUSH_SHUTTER: [-3.6, -70.9, -2.84], PLUSH_LOOM: [-2.2, -107.4, Math.PI],
+  plushCollider: null,
   // broken power socket on the shutter wall that Mister Thimble jams his needle staff into
   plushSocket: V3.create(-2.5, 1.05, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
@@ -8468,6 +8805,27 @@ const Cast = {
     mat.tex = tex;
     this.screen = asset;
   },
+  // hand target on Thimble's staff (enabled only while the socket is overloading)
+  makePlushCollider() {
+    if (this.plushCollider) return;
+    const c = Physics.addBox(-3.05, 1.2, -71.65, -2.6, 1.75, -71.2, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, -1, true, 3);
+    c.kind = 'staff'; c.ref = this.plush; c.enabled = false;
+    this.plushCollider = c;
+  },
+  resetPlush() {
+    const T = this.plush;
+    T.headYaw = 0; T.eyeGlow = 0.5; T.eyePulse = 0; T.talked = false; T.plugState = 0; T.plugTimer = 0; T.plug = 0; T.wave = 0;
+    T.cheered = false; T.talking = false; T.hidden = false; T.walk = 0; T.ground = 0; T.groundIdle = 0; T.overload = 0;
+    // where he is depends on how far the story has got (checkpoint restarts)
+    const st = Game.stage;
+    const spot = st >= 4 ? this.PLUSH_LOOM : st === 3 ? null : this.PLUSH_WAIT;
+    T.mode = st >= 4 ? 'LOOM' : st === 3 ? 'FOLLOW' : 'WAIT';
+    if (spot) { V3.set(T.pos, spot[0], 0, spot[1]); T.yaw = spot[2]; }
+    else { const b = Player.body.pos; V3.set(T.pos, b[0] + 1.2, 0, b[2] + 1.6); T.yaw = Math.PI; T.talked = true; }
+    T.sector = Level.sectorAt(T.pos[0], T.pos[2]);
+    if (this.plushCollider) this.plushCollider.enabled = false;
+    if (typeof Companion !== 'undefined') Companion.reset();
+  },
   // context restore: rebuild the screen texture and quad
   reupload() { if (this.screen) { this.screen.prims[0].gpu = null; this.init(); } },
 
@@ -8478,7 +8836,7 @@ const Cast = {
     const D = this.doll; D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0; D.met = false; D.farewell = false;
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
-    const T = this.plush; T.headYaw = 0; T.eyeGlow = 0.5; T.eyePulse = 0; T.talked = false; T.plugState = 0; T.plugTimer = 0; T.plug = 0; T.wave = 0; T.cheered = false; T.talking = false;
+    this.resetPlush();
     Dialogue.clear();
     Pip.reset();
   },
@@ -8487,6 +8845,7 @@ const Cast = {
     this.updateUsher(dt);
     this.updateDoll(dt);
     this.updatePlush(dt);
+    Companion.update(dt);
     // CRT face animation at ~15 fps
     this.screenTimer -= dt;
     if (this.screenTimer <= 0 && this.usher.state !== 'HIDDEN') {
@@ -8592,33 +8951,76 @@ const Cast = {
     if (gameRng() < dt * 0.12) D.blink = 1;
   },
 
-  // Mister Thimble is an ally: he greets you warmly, and once the Spoolwright is loose he jams his needle
-  // staff into the broken socket on the shutter wall, his eye pulses, and the shutter rises for you.
+  // Mister Thimble is an ally. WAIT: standing in the gallery until you meet him. FOLLOW: walks along your
+  // trail and chats (see Companion). HIDE: slipped into the vents while the Spoolwright prowls. SHUTTER: by
+  // the foundry shutter, where he jams his needle staff into the socket. LOOM: waits by Marigold below.
   updatePlush(dt) {
     const P = this.plush;
-    if (!Streaming.visible[3]) return;
+    this.makePlushCollider();
     const eye = Player.eyePos, sk = this.plushSocket;
     const d = Math.hypot(eye[0] - P.pos[0], eye[2] - P.pos[2]);
     const ds = Level.doorById('DS');
+    if (P.mode === 'FOLLOW') this.followPlayer(dt);
+    else P.walk = damp(P.walk, 0, 8, dt);
+    P.sector = Level.sectorAt(P.pos[0], P.pos[2]);
+    P.phase += dt * (2 + P.walk * 9);
     // he looks at you; while plugging he glances at the socket
     const tx = P.plugState === 1 ? sk[0] : eye[0], tz = P.plugState === 1 ? sk[2] : eye[2];
     const want = clamp(wrapAngle(Math.atan2(-(tx - P.pos[0]), -(tz - P.pos[2])) - P.yaw), -1.3, 1.3);
     P.headYaw = damp(P.headYaw, d < 16 || P.plugState === 1 ? want : 0, 3, dt);
-    if (!P.talked && d < 10) {
-      P.talked = true; P.wave = 1;
-      if (Game.chaseActive && ds && ds.target === 0) {
-        Dialogue.say('THIMBLE', 'Over here, friend! Don\'t be scared - I\'m Mister Thimble.');
-        Dialogue.say('THIMBLE', 'Come close and I\'ll get this old shutter open for you!');
-      } else {
-        Dialogue.say('THIMBLE', 'Oh! A visitor! Hello, friend - I\'m Mister Thimble.');
-        Dialogue.say('THIMBLE', 'Stay close to the light. I\'ll help however I can.');
-      }
+    if (P.mode === 'WAIT' && Game.stage >= 2 && d < 8 && Streaming.visible[P.sector]) {
+      P.talked = true; P.wave = 1; P.mode = 'FOLLOW';
+      Dialogue.say('THIMBLE', 'Oh! A visitor! Hello there, friend - I\'m Mister Thimble.');
+      Dialogue.say('THIMBLE', 'You don\'t talk much, huh? That\'s okay. I\'ll tag along - it\'s safer in twos.');
       Pip.react('happy', 2);
     }
+    if (P.mode === 'SHUTTER') this.updateShutter(dt, d, ds);
+    // mouth flaps open only while his line is being spoken; otherwise the closed smile
+    const c = Dialogue.current;
+    P.talking = !!(c && c.speaker === 'THIMBLE' && Dialogue.chars < c.text.length && Math.sin(Game.time * 15) > -0.3);
+    P.wave = Math.max(0, P.wave - dt * 0.45);
+    P.eyePulse = Math.max(0, P.eyePulse - dt * 0.6);
+    const pulse = P.plugState === 2 ? 0.6 + 0.5 * Math.sin(Game.time * 19) : P.plugState === 4 ? 0.3 + 0.3 * Math.sin(Game.time * 7) : 0;
+    const dark = P.mode === 'FOLLOW' && !Player.flashOn ? 1.2 : 0;
+    P.eyeGlow = damp(P.eyeGlow, 0.55 + 0.12 * Math.sin(Game.time * 2) + pulse + dark + P.eyePulse * 1.4, 6, dt);
+    if (this.plushCollider) this.plushCollider.enabled = P.mode === 'SHUTTER' && P.plugState === 2;
+    this.poseStaff();
+  },
+
+  // walk along the player's breadcrumb trail, a couple of metres behind them
+  followPlayer(dt) {
+    const P = this.plush, T = Companion.trail, b = Player.body.pos;
+    const target = Companion.trailPoint(2.4, this.tmp);
+    const dx = target[0] - P.pos[0], dz = target[2] - P.pos[2], dist = Math.hypot(dx, dz);
+    const dp = Math.hypot(b[0] - P.pos[0], b[2] - P.pos[2]);
+    // fell far behind and you can't see him: he catches up out of sight (through the vents)
+    V3.set(this.tmp2, P.pos[0] - Player.eyePos[0], 0.9, P.pos[2] - Player.eyePos[2]);
+    const seen = V3.dot(this.tmp2, Renderer.camFwd) / (Math.hypot(this.tmp2[0], this.tmp2[2]) || 1) > 0.35 && Streaming.visible[P.sector];
+    if ((dp > 11 && !seen) || dp > 24) {
+      const back = Companion.trailPoint(3.5, this.tmp2);
+      V3.set(P.pos, back[0], 0, back[2]);
+      return;
+    }
+    let speed = 0;
+    if (dist > 0.25 && dp > 1.5) {
+      speed = Math.min(dist * 2.2, dp > 6 ? 6.2 : 4.0);
+      P.pos[0] += dx / dist * speed * dt; P.pos[2] += dz / dist * speed * dt;
+      P.yaw = P.yaw + wrapAngle(Math.atan2(-dx, -dz) - P.yaw) * Math.min(1, dt * 8);
+    } else {
+      P.yaw = P.yaw + wrapAngle(Math.atan2(-(b[0] - P.pos[0]), -(b[2] - P.pos[2])) - P.yaw) * Math.min(1, dt * 3);
+    }
+    // personal space
+    if (dp < 1.1 && dp > 1e-3) { const k = (1.1 - dp) / dp; P.pos[0] -= (b[0] - P.pos[0]) * k; P.pos[2] -= (b[2] - P.pos[2]) * k; }
+    P.walk = damp(P.walk, clamp(speed / 4, 0, 1), 8, dt);
+  },
+
+  // by the foundry shutter during the chase: plug the needle into the broken socket; the surge overloads
+  // and you have to clamp onto his staff and ground it before the shutter will rise
+  updateShutter(dt, d, ds) {
+    const P = this.plush, sk = this.plushSocket;
     if (P.plugState === 0 && ds && ds.target === 1) {
-      // you beat him to it with the lever
       P.plugState = 3;
-      if (P.talked && !P.cheered) { P.cheered = true; Dialogue.say('THIMBLE', 'Ha! Good shot, friend! Now run!'); }
+      if (!P.cheered) { P.cheered = true; Dialogue.say('THIMBLE', 'Ha! Good shot, friend! Now run!'); }
     }
     if (P.plugState === 0 && Game.chaseActive && d < 6) {
       P.plugState = 1; P.plugTimer = 0;
@@ -8628,22 +9030,42 @@ const Cast = {
       P.plugTimer += dt;
       P.plug = smoothstep(0, 1, P.plugTimer / 0.9);
       if (P.plugTimer >= 0.9) {
-        P.plugState = 2; P.plug = 1; P.eyePulse = 1;
+        P.plugState = 2; P.plug = 1; P.eyePulse = 1; P.overload = 0;
         Particles.burst(sk, 22, 'spark');
+        Companion.plasmaBurst(sk);
+        Audio.boom();
         sfx('power', sk);
-        Game.action('L2');
-        Dialogue.say('THIMBLE', 'There we go! Run, friend - go, go!');
-        Pip.react('happy', 2.5);
+        Dialogue.say('THIMBLE', 'Ah! The voltage is too high - it\'s backing up into my stitches!');
+        Dialogue.say('THIMBLE', 'Clamp onto my staff and hold on - ground it through your pack!');
+        GrabPack.showHint('OVERLOAD - clamp a hand on Thimble\'s staff and HOLD to ground it');
+        Pip.react('scared', 2);
       }
     }
-    // mouth flaps open only while his line is being spoken; otherwise the closed smile
-    const c = Dialogue.current;
-    P.talking = !!(c && c.speaker === 'THIMBLE' && Dialogue.chars < c.text.length && Math.sin(Game.time * 15) > -0.3);
-    P.wave = Math.max(0, P.wave - dt * 0.45);
-    P.eyePulse = Math.max(0, P.eyePulse - dt * 0.6);
-    const pulse = P.plugState === 2 ? 0.35 + 0.35 * Math.sin(Game.time * 7) : 0;
-    P.eyeGlow = damp(P.eyeGlow, 0.55 + 0.12 * Math.sin(Game.time * 2) + pulse + P.eyePulse * 1.4, 6, dt);
-    this.poseStaff();
+    if (P.plugState === 2) {
+      P.overload += dt;
+      if (gameRng() < dt * 9) { Particles.burst(this.staff.paw, 3, 'spark'); if (gameRng() < 0.3) Lights.pulse(this.staff.paw, 0.55, 0.12, 1.0, 3.5, 2.0, 0.15, 1); }
+      if (ds && ds.target === 1) { P.plugState = 3; P.plug = 0; }
+    }
+    if (P.plugState === 3) P.plug = damp(P.plug, 0, 4, dt);
+  },
+  // called by the gauntlet while it is clamped on the staff; returns true once the surge is grounded
+  groundPlush(dt, held) {
+    const P = this.plush;
+    if (P.plugState !== 2) return true;
+    if (held) { P.ground = Math.min(1, P.ground + dt / 1.4); P.groundIdle = 0; }
+    else { P.ground = Math.max(0, P.ground - dt * 0.5); P.groundIdle += dt; }
+    if (P.ground >= 1) {
+      P.plugState = 4; P.eyePulse = 1;
+      Particles.burst(this.plushSocket, 30, 'spark');
+      Companion.plasmaBurst(this.plushSocket);
+      Audio.boom();
+      sfx('power', this.plushSocket);
+      Game.action('L2');
+      Dialogue.say('THIMBLE', 'Yes... yes, it\'s draining! Whew... my stitches almost blew out there. Good job, friend!');
+      Pip.react('happy', 2.5);
+      return true;
+    }
+    return P.groundIdle > 0.9;
   },
 
   // ---------- CRT face ----------
@@ -8689,7 +9111,8 @@ const Cast = {
   submit(vis) {
     if (this.usher.state !== 'HIDDEN' && vis[Level.sectorAt(this.usher.pos[0], this.usher.pos[2])]) this.submitUsher();
     if (vis[this.doll.sector]) this.submitDoll();
-    if (vis[3]) this.submitPlush();
+    if (vis[3]) this.submitSocket();
+    if (!this.plush.hidden && vis[this.plush.sector]) this.submitPlush();
   },
 
   // local (x right, y up, z back) -> world for a root at p with yaw
@@ -8784,7 +9207,8 @@ const Cast = {
     const P = this.plush, p = P.pos, yaw = P.yaw, S = 1.2, st = this.staff, sk = this.plushSocket;
     const e = P.plug;
     const rx = -0.66 * S, ry = 0.78 * S, rz = -0.18 * S, qx = -0.7 * S, qy = 1.25 * S, qz = 0.25 * S;
-    this.pt(st.paw, p, yaw, rx + (qx - rx) * e, ry + (qy - ry) * e + Math.sin(Game.time * 1.6) * 0.012 * S, rz + (qz - rz) * e);
+    const swing = Math.sin(P.phase) * 0.14 * P.walk * S;
+    this.pt(st.paw, p, yaw, rx + (qx - rx) * e, ry + (qy - ry) * e + Math.sin(Game.time * 1.6) * 0.012 * S, rz + (qz - rz) * e + swing);
     V3.set(this.local, sk[0] - st.paw[0], sk[1] - st.paw[1], sk[2] - st.paw[2]);
     const reach = Math.hypot(this.local[0], this.local[1], this.local[2]) || 1;
     const dx = this.local[0] / reach * e, dy = -(1 - e) + this.local[1] / reach * e, dz = this.local[2] / reach * e;
@@ -8795,21 +9219,25 @@ const Cast = {
     V3.set(st.top, st.tip[0] - st.dir[0] * LEN, st.tip[1] - st.dir[1] * LEN, st.tip[2] - st.dir[2] * LEN);
   },
 
+  // the broken socket box on the shutter wall (lamp red until it is powered, then violet)
+  submitSocket() {
+    const P = this.plush, R = RenderQueue, sk = this.plushSocket;
+    R.trs('box', MAT.rustIron, sk[0], sk[1], sk[2] - 0.04, 0, 0, 0, 0.34, 0.42, 0.12, false);
+    R.trs('box', MAT.hazard, sk[0], sk[1] + 0.25, sk[2] - 0.035, 0, 0, 0, 0.34, 0.06, 0.12, false);
+    R.trs('box', MAT.rubber, sk[0], sk[1], sk[2] + 0.025, 0, 0, 0, 0.16, 0.16, 0.02, false);
+    const it = R.trs('sphereLow', MAT.screen, sk[0] + 0.12, sk[1] + 0.15, sk[2] + 0.03, 0, 0, 0, 0.025, 0.025, 0.02, false);
+    if (it) { const on = P.plugState >= 2 && P.plugState !== 3; it.emis[0] = on ? 0.5 * P.eyeGlow : 0.9; it.emis[1] = on ? 0.08 : 0.05; it.emis[2] = on ? 1.0 * P.eyeGlow : 0.03; }
+  },
   submitPlush() {
     const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw, S = 1.2;
     const a = this.tmp, b = this.tmp2, st = this.staff, sk = this.plushSocket;
     if (!Sculpt.ready('th_body')) return;
-    // the broken socket box on the wall (lamp turns from red to violet once powered)
-    R.trs('box', MAT.rustIron, sk[0], sk[1], sk[2] - 0.04, 0, 0, 0, 0.34, 0.42, 0.12, false);
-    R.trs('box', MAT.hazard, sk[0], sk[1] + 0.25, sk[2] - 0.035, 0, 0, 0, 0.34, 0.06, 0.12, false);
-    R.trs('box', MAT.rubber, sk[0], sk[1], sk[2] + 0.025, 0, 0, 0, 0.16, 0.16, 0.02, false);
-    let it = R.trs('sphereLow', MAT.screen, sk[0] + 0.12, sk[1] + 0.15, sk[2] + 0.03, 0, 0, 0, 0.025, 0.025, 0.02, false);
-    if (it) { const on = P.plugState === 2; it.emis[0] = on ? 0.5 * P.eyeGlow : 0.9; it.emis[1] = on ? 0.08 : 0.05; it.emis[2] = on ? 1.0 * P.eyeGlow : 0.03; }
-    // gentle breathing bob
-    const bob = Math.sin(Game.time * 1.6) * 0.012;
+    // gentle breathing bob; a side-to-side waddle while he walks
+    const bob = Math.sin(Game.time * 1.6) * 0.012 + Math.abs(Math.sin(P.phase)) * 0.045 * P.walk;
+    const waddle = Math.sin(P.phase) * 0.11 * P.walk;
     this.pt(a, p, yaw, 0, bob * S, 0);
-    it = R.push('th_body', MAT.burnt);
-    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, 0, 0, S, S, S);
+    let it = R.push('th_body', MAT.burnt);
+    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, 0.06 * P.walk, waddle, S, S, S);
     // arms: left holds the staff, right hangs relaxed and waves when he greets you
     for (const sx of [-1, 1]) {
       this.pt(a, p, yaw, sx * 0.42 * S, 1.33 * S + bob * S, 0);
@@ -8842,7 +9270,7 @@ const Cast = {
     V3.set(a, st.paw[0] - n[0] * 0.09, st.paw[1] - n[1] * 0.09, st.paw[2] - n[2] * 0.09);
     V3.set(b, st.paw[0] + n[0] * 0.09, st.paw[1] + n[1] * 0.09, st.paw[2] + n[2] * 0.09);
     R.seg('cyl', MAT.rubber, a, b, 0.05 * S);
-    if (P.plugState === 2 && Math.sin(Game.time * 23) > 0.6) {
+    if ((P.plugState === 2 || P.plugState === 4) && Math.sin(Game.time * 23) > 0.6) {
       it = R.trs('sphereLow', MAT.screen, sk[0], sk[1], sk[2] + 0.05, 0, 0, 0, 0.05, 0.05, 0.05, false);
       if (it) { it.emis[0] = 0.8; it.emis[1] = 0.5; it.emis[2] = 1.6; }
     }
@@ -8871,9 +9299,10 @@ const SPEAKERS = {
   MARIGOLD: { name: 'MARIGOLD', color: '#e8c35a', pitch: 430, wobble: 0.1 },
   USHER: { name: 'THE USHER  (PA)', color: '#3fd4a8', pitch: 105, wobble: 0.04 },
   THIMBLE: { name: 'MISTER THIMBLE', color: '#b98cff', pitch: 170, wobble: 0.25 },
-  PIP: { name: 'PIP', color: '#7dff6a', pitch: 620, wobble: 0.15 }
+  PIP: { name: 'PIP', color: '#7dff6a', pitch: 620, wobble: 0.15 },
+  SPOOLWRIGHT: { name: 'THE SPOOLWRIGHT', color: '#ff3b2e', pitch: 72, wobble: 0.35 }
 };
-// Source: [ASSUMED] speaker label colours reuse documented cast/VHS palette entries (#e8c35a, #3fd4a8, #b98cff, #7dff6a).
+// Source: [ASSUMED] speaker label colours reuse documented cast/VHS palette entries (#e8c35a, #3fd4a8, #b98cff, #7dff6a, #ff3b2e).
 const Dialogue = {
   queue: [], current: null, chars: 0, acc: 0, hold: 0, el: null, nameEl: null, textEl: null, shown: '',
   init() { this.el = document.getElementById('hudDialog'); this.nameEl = document.getElementById('hudDialogName'); this.textEl = document.getElementById('hudDialogText'); },
@@ -9826,6 +10255,278 @@ const Boss = {
     h.state = HAND.LATCHED; h.tethered = true; h.latchRef = node; h.latchKind = 'source';
     Monster.stunTimer = 0;
     return this.tryShock(GrabPack.hands[1]);
+  }
+};
+
+// ===== module: 21_companion.js =====
+// =====================================================================================
+// COMPANION: Mister Thimble talks to you (the silent player) while he follows you.
+//   - breadcrumb trail he walks along
+//   - ambient chatter, reactions to how you move (sprinting ahead, standing still and looking
+//     around, killing the flashlight, bumping into things), stuck-puzzle hints, threat warnings
+//     (he hides in the vents while the Spoolwright prowls), the Spoolwright's PA taunts
+//   - AMBUSH: the scripted scene at the start of the foundry chase
+//   - banter between Thimble and Marigold in the Loom once the Spoolwright is down
+// =====================================================================================
+const TRAIL_N = 96;
+
+const COMPANION_LINES = {
+  ambient: [
+    ['So... uh... you don\'t talk much, do you? No, no, it\'s fine! Honestly, it\'s kind of nice.',
+      'Around here most things only open their mouths to screech or grind their gears. You\'re a fantastic listener, partner.'],
+    ['Hey, are those straps on your back holding up okay? That pack looks heavy as a forge.',
+      'If you ever need to rest your shoulders, just... tap your foot or something. You know what I mean.'],
+    ['Man... look at the size of this place. Sometimes I forget how small we are next to all these lines.',
+      'Ever wonder what it was like when the lights were bright and people were actually walking around? Must\'ve been something else.'],
+    ['Hey, friend? Thanks for sticking around. It gets pretty lonely wandering the vents by yourself.',
+      'Having you here makes the ticking in my chest feel a whole lot lighter.']
+  ],
+  sprint: ['Hey - wait up! These legs are mostly stuffing, partner!', 'Slow down a little? I can\'t run that fast with a needle this big!'],
+  dark: ['Wait! Stop... it\'s too dark like this. Stick close behind me - my eye can throw enough purple light to show the floor.'],
+  idle: ['Find anything interesting back there? Let me guess... rusted screws and old lint? Yeah. This place is a goldmine for junk.'],
+  bump: ['Whoa - easy! You okay? That one sounded like it hurt.', 'Careful! The floors in here bite back.'],
+  threat: ['Shh! Do you hear that scraping up in the rafters? It\'s tracking the sound of your cables!',
+    'Hide in a locker - quickly! I\'ll slip into the vents!'],
+  safe: ['...Is it gone? Phew. My stuffing nearly jumped out of my seams.'],
+  hintLever: ['Hey... see that lever up on the right wall, past the steam? Clamp it with a hand, hold on tight, and pull it down hard!'],
+  hintGate: ['That gate\'s dead without current. Latch a hand onto the power node, loop the cable around the amber relays, then hit the receptacle!'],
+  taunts: [
+    'Run along the seams, little thread! But mind your step... my needles drop on the beat, and your stitching is dreadfully messy today!',
+    'Testing, one, two... is this dusty old microphone still wired? Ah, there we are! To our silent little guest: why not take a shortcut through the cutting room? I promise my shears don\'t bite... too hard!',
+    'I see you, little thread! And you brought the matching set along! Thimble, my boy, you really must get that head restitched... it\'s sagging lower every time you cross my monitors!'
+  ],
+  ambush: [
+    ['SPOOLWRIGHT', 'Well, well... look what dragged itself out of the rag bin. And it brought the silent little employee along for the ride!'],
+    ['THIMBLE', 'Leave them alone, Spoolwright! They... they don\'t talk, but they\'re fixing the power! They\'re putting this place back together!'],
+    ['SPOOLWRIGHT', 'Fixing it? Or winding the gears tight enough to snap every mainspring we have? That broken doll already cries in the dark because of their cables!'],
+    ['THIMBLE', '(whispering) When I strike the floor with my needle... you run. Don\'t answer me - just watch for the sparks!'],
+    ['SPOOLWRIGHT', 'Whispering in patches won\'t save your seams! Let\'s see how your stitching holds under pressure!']
+  ],
+  banter: [
+    ['THIMBLE', 'I\'m just saying, Marigold... if we get to the main lift, we might actually see the sky. Real light. Not these humming tubes.'],
+    ['MARIGOLD', 'Is the sky as wide as the showroom floor, Thimble? I don\'t remember the colour of the outside... only the white tiles.'],
+    ['THIMBLE', 'Oh, it\'s bigger... way bigger. Right, friend? Tell her! ...Well, you know what I mean. She doesn\'t believe me.'],
+    ['MARIGOLD', 'I believe our friend. Their hands are strong... and careful. If they say the sky is out there, I\'ll walk with you.'],
+    ['THIMBLE', 'See? Teamwork! Keep those gauntlets ready, partner.']
+  ]
+};
+
+const Companion = {
+  trail: new Float32Array(TRAIL_N * 3), head: 0, count: 0,
+  cool: 0, lineCool: { sprint: 0, dark: 0, idle: 0, bump: 0, threat: 0, hint: 0 },
+  ambientIdx: 0, calm: 0, tauntIdx: 0, tauntTimer: 60, stageTime: 0, lastStage: -1,
+  idleTime: 0, lookAmt: 0, lastYaw: 0, darkTime: 0, hideTimer: 0, banterDone: false, loomGreeted: false,
+  tmp: V3.create(),
+
+  reset() {
+    this.head = 0; this.count = 0;
+    this.cool = 4; for (const k in this.lineCool) this.lineCool[k] = 0;
+    this.calm = 0; this.tauntTimer = 60; this.stageTime = 0; this.lastStage = Game.stage;
+    this.idleTime = 0; this.lookAmt = 0; this.lastYaw = Player.yaw; this.darkTime = 0; this.hideTimer = 0;
+    this.banterDone = false; this.loomGreeted = false;
+    this.record(true);
+    Ambush.reset();
+  },
+
+  // drop a breadcrumb whenever the player has moved a little
+  record(force) {
+    const b = Player.body.pos, T = this.trail;
+    if (!force && this.count > 0) {
+      const i = ((this.head - 1 + TRAIL_N) % TRAIL_N) * 3;
+      if (Math.hypot(b[0] - T[i], b[2] - T[i + 2]) < 0.35) return;
+    }
+    const i = this.head * 3;
+    T[i] = b[0]; T[i + 1] = 0; T[i + 2] = b[2];
+    this.head = (this.head + 1) % TRAIL_N; this.count = Math.min(TRAIL_N, this.count + 1);
+  },
+  // the point `dist` metres back along the trail from the player
+  trailPoint(dist, out) {
+    const b = Player.body.pos, T = this.trail;
+    let px = b[0], pz = b[2], acc = 0;
+    for (let k = 1; k <= this.count; k++) {
+      const i = ((this.head - k + TRAIL_N) % TRAIL_N) * 3;
+      const seg = Math.hypot(T[i] - px, T[i + 2] - pz);
+      if (acc + seg >= dist && seg > 1e-4) {
+        const f = (dist - acc) / seg;
+        return V3.set(out, px + (T[i] - px) * f, 0, pz + (T[i + 2] - pz) * f);
+      }
+      acc += seg; px = T[i]; pz = T[i + 2];
+    }
+    return V3.set(out, px, 0, pz);
+  },
+
+  // Thimble's grounding burst: a ring of plasma sparks and a flickering violet light
+  plasmaBurst(pos) {
+    for (let k = 0; k < 16; k++) {
+      const a = k / 16 * Math.PI * 2;
+      V3.set(this.tmp, pos[0] + Math.cos(a) * 0.6, pos[1] + 0.2, pos[2] + Math.sin(a) * 0.6);
+      Particles.burst(this.tmp, 3, 'spark');
+    }
+    Lights.pulse(pos, 0.55, 0.12, 1.0, 7.5, 5.0, 1.1, 1);
+  },
+  sayLines(speaker, lines) { for (const l of lines) Dialogue.say(speaker, l); this.cool = 10; },
+  ready() { return this.cool <= 0 && !Dialogue.busy(); },
+
+  update(dt) {
+    const P = Cast.plush;
+    Ambush.update(dt);
+    if (Game.stage !== this.lastStage) { this.lastStage = Game.stage; this.stageTime = 0; }
+    this.stageTime += dt;
+    this.cool -= dt;
+    for (const k in this.lineCool) this.lineCool[k] -= dt;
+    this.record(false);
+    // below in the Loom he waits by Marigold
+    if (Game.stage >= 4 && P.mode !== 'LOOM' && !Ambush.active) {
+      const s = Cast.PLUSH_LOOM; P.mode = 'LOOM'; P.hidden = false; V3.set(P.pos, s[0], 0, s[1]); P.yaw = s[2];
+    }
+    if (P.mode === 'LOOM') { this.updateLoom(); return; }
+    if (P.mode === 'HIDE') { this.updateHide(dt); return; }
+    if (P.mode !== 'FOLLOW' || Ambush.active || !Game.isGameplay()) return;
+    const b = Player.body.pos, d = Math.hypot(b[0] - P.pos[0], b[2] - P.pos[2]);
+    // the Spoolwright is close: warn, then hide in the vents
+    const M = Monster;
+    const threat = M.active && M.visible && !M.inVent && !Game.chaseActive && V3.dist(M.pos, b) < 14;
+    if (threat && this.lineCool.threat <= 0) {
+      this.lineCool.threat = 30; Dialogue.clear(); this.sayLines('THIMBLE', COMPANION_LINES.threat);
+      P.mode = 'HIDE'; P.hidden = true; this.hideTimer = 0;
+      Particles.burst(P.pos, 8, 'debris');
+      return;
+    }
+    this.calm = threat ? 0 : this.calm + dt;
+    this.tauntTimer -= dt;
+    // reactions to how you move
+    const spd = Math.hypot(Player.body.vel[0], Player.body.vel[2]);
+    if (spd < 0.3) { this.idleTime += dt; this.lookAmt += Math.abs(wrapAngle(Player.yaw - this.lastYaw)); } else { this.idleTime = 0; this.lookAmt = 0; }
+    this.lastYaw = Player.yaw;
+    this.darkTime = Player.flashOn ? 0 : this.darkTime + dt;
+    if (!this.ready()) return;
+    const C = COMPANION_LINES, LC = this.lineCool;
+    if (this.darkTime > 1.2 && LC.dark <= 0) { LC.dark = 45; this.sayLines('THIMBLE', C.dark); return; }
+    if (Player.sprinting && d > 6 && LC.sprint <= 0) { LC.sprint = 40; this.sayLines('THIMBLE', [C.sprint[(gameRng() * C.sprint.length) | 0]]); return; }
+    if (Player.body.bumpSpeed > 3 && LC.bump <= 0) { LC.bump = 30; this.sayLines('THIMBLE', [C.bump[(gameRng() * C.bump.length) | 0]]); return; }
+    if (this.idleTime > 5 && this.lookAmt > 1.2 && LC.idle <= 0) { LC.idle = 70; this.sayLines('THIMBLE', C.idle); return; }
+    // stuck on the gallery puzzle for a while: point at the next step
+    if (Game.stage === 2 && this.stageTime > 45 && LC.hint <= 0) {
+      LC.hint = 50;
+      const lever = Level.levers.find(l => l.action === 'L1');
+      this.sayLines('THIMBLE', lever && !lever.pulled ? C.hintLever : C.hintGate);
+      return;
+    }
+    // the Spoolwright taunts over the PA now and then
+    if (this.tauntTimer <= 0 && !threat && (Game.stage === 2 || Game.stage === 3)) {
+      this.tauntTimer = 75 + gameRng() * 30;
+      const k = this.tauntIdx++ % C.taunts.length;
+      Dialogue.say('SPOOLWRIGHT', C.taunts[k]);
+      if (k === 2) Dialogue.say('THIMBLE', '...Hey! My head is fine. ...Is my head fine?');
+      this.cool = 12;
+      return;
+    }
+    if (this.calm > 38) {
+      this.calm = 0;
+      this.sayLines('THIMBLE', C.ambient[this.ambientIdx++ % C.ambient.length]);
+    }
+  },
+
+  updateHide(dt) {
+    const P = Cast.plush, M = Monster;
+    const gone = !M.active || M.inVent || V3.dist(M.pos, Player.body.pos) > 22;
+    this.hideTimer = gone ? this.hideTimer + dt : 0;
+    if (this.hideTimer > 4 && !Player.hidden) {
+      const back = this.trailPoint(3, this.tmp);
+      V3.set(P.pos, back[0], 0, back[2]);
+      P.mode = 'FOLLOW'; P.hidden = false;
+      this.lineCool.threat = 20;
+      if (!Dialogue.busy()) this.sayLines('THIMBLE', COMPANION_LINES.safe);
+    }
+  },
+
+  updateLoom() {
+    const P = Cast.plush, b = Player.body.pos;
+    const d = Math.hypot(b[0] - P.pos[0], b[2] - P.pos[2]);
+    if (Game.stage === 4 && !this.loomGreeted && !Dialogue.busy() && !Boss.active) {
+      this.loomGreeted = true;
+      Dialogue.say('THIMBLE', 'We made it down! I\'ll keep out from under its feet - you show it what those gauntlets can do!');
+    }
+    if (Game.stage >= 5 && !this.banterDone && d < 7 && !Dialogue.busy()) {
+      this.banterDone = true;
+      for (const [who, line] of COMPANION_LINES.banter) Dialogue.say(who, line);
+    }
+  }
+};
+
+// =====================================================================================
+// AMBUSH: the Spoolwright drops in at the start of the foundry chase. You can't move; it
+// and Thimble trade words, then Thimble slams his needle into the floor, the purple blast
+// stuns it, and the chase is on. [SPACE] / [E] skips.
+// =====================================================================================
+const Ambush = {
+  active: false, t: 0, pin: V3.create(), spot: V3.create(), look: V3.create(), prevInv: false, held: false,
+
+  reset() {
+    if (this.active) { Player.lockAmt = 0; Player.lockTarget = null; Monster.bossHold = false; }
+    this.active = false; this.t = 0; this.held = false;
+  },
+
+  start() {
+    const P = Cast.plush;
+    this.active = true; this.t = 0; this.held = false;
+    V3.copy(this.pin, Player.body.pos);
+    this.prevInv = Game.invulnerable; Game.invulnerable = true;
+    // it lands a few metres ahead, between you and the shutter, facing you
+    Player.yaw = 0;
+    V3.set(this.spot, this.pin[0] * 0.3, 0, this.pin[2] - 4.6);
+    V3.copy(Monster.emergeTo, this.spot);
+    // Thimble steps in front of you, staff raised, facing the drop
+    V3.set(P.pos, this.pin[0] + 1.1, 0, this.pin[2] - 1.7);
+    P.yaw = Player.yaw; P.mode = 'CUTSCENE'; P.hidden = false; P.walk = 0;
+    V3.copy(this.look, Monster.pos);
+    Player.lockTarget = this.look; Player.lockAmt = 0;
+    Dialogue.clear();
+    for (const [who, line] of COMPANION_LINES.ambush) Dialogue.say(who, line);
+    GrabPack.showHint('[SPACE] skip scene');
+  },
+
+  update(dt) {
+    if (!this.active) return;
+    this.t += dt;
+    const M = Monster, P = Cast.plush;
+    // once it has dropped out of the vent it stays put, glaring at you
+    if (M.state !== MSTATE.EMERGE && !this.held) { this.held = true; M.bossHold = true; }
+    if (this.held) { M.pos[0] = damp(M.pos[0], this.spot[0], 3, dt); M.pos[2] = damp(M.pos[2], this.spot[2], 3, dt); }
+    if (this.held) M.yaw = M.yaw + wrapAngle(Math.atan2(-(this.pin[0] - M.pos[0]), -(this.pin[2] - M.pos[2])) - M.yaw) * Math.min(1, dt * 4);
+    // the camera turns toward whoever is speaking
+    const c = Dialogue.current;
+    if (c && c.speaker === 'THIMBLE') V3.set(Cast.tmp2, P.pos[0], 1.9, P.pos[2]); else V3.copy(Cast.tmp2, M.head);
+    for (let i = 0; i < 3; i++) this.look[i] = damp(this.look[i], Cast.tmp2[i], 3, dt);
+    Player.lockAmt = Math.min(0.9, Player.lockAmt + dt * 2);
+    P.yaw = P.yaw + wrapAngle(Math.atan2(-(M.pos[0] - P.pos[0]), -(M.pos[2] - P.pos[2])) - P.yaw) * Math.min(1, dt * 4);
+    P.wave = c && c.speaker === 'THIMBLE' ? 0.35 : P.wave;
+    const skip = this.t > 1 && (Input.justPressed.has('Space') || Input.justPressed.has('KeyE') || Input.padJust(0));
+    if (skip || (this.t > 3 && !Dialogue.busy()) || this.t > 40) this.blast(skip);
+  },
+  skip() { if (this.active) this.blast(true); },
+
+  // Thimble drives the needle into the floor: a purple blast blinds and stuns the Spoolwright
+  blast(skipped) {
+    const P = Cast.plush, M = Monster;
+    this.active = false;
+    if (skipped) Dialogue.clear();
+    V3.set(Cast.tmp, P.pos[0], 0.2, P.pos[2]);
+    Particles.burst(Cast.tmp, 46, 'spark');
+    Particles.burst(Cast.tmp, 14, 'ember');
+    sfx('shock', Cast.tmp); sfx('power', Cast.tmp);
+    const post = Renderer.post; post.flash = 0.7; post.flashTint[0] = 0.75; post.flashTint[1] = 0.3; post.flashTint[2] = 1.0;
+    Game.pulseLightsNear(P.pos[0], 1, P.pos[2], 2.0);
+    Companion.plasmaBurst(Cast.tmp);
+    Audio.boom();
+    M.bossHold = false; M.stunTimer = 3.0; M.flinchAmt = 1;
+    Player.addTrauma(0.5); Player.lockAmt = 0; Player.lockTarget = null;
+    Game.invulnerable = this.prevInv;
+    // he takes the vents to the shutter and waits there
+    const s = Cast.PLUSH_SHUTTER; P.mode = 'SHUTTER'; V3.set(P.pos, s[0], 0, s[1]); P.yaw = s[2]; P.plugState = 0; P.plug = 0;
+    Dialogue.say('THIMBLE', 'Run, friend! I\'ll meet you at the shutter!');
+    GrabPack.showHint('RUN! Get to the shutter - Thimble will meet you there (or wrench the high lever)');
+    Pip.react('scared', 2);
   }
 };
 </script>

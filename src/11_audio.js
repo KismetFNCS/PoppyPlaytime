@@ -10,7 +10,7 @@ const sfxLog = [];
 const Audio = {
   ctx: null, master: null, comp: null, buses: {}, noiseBuf: null, ready: false,
   drone: null, chase: null, emitters: [], lastPlay: Object.create(null), voices: 0,
-  threat: 0, chaseOn: 0, nextBeat: 0, beatIdx: 0, windowT: 0, windowCount: 0, gates: Object.create(null),
+  threat: 0, chaseOn: 0, nextBeat: 0, beatIdx: 0, score: { calm: 0, puzzle: 0, boss: 0, end: 0 }, ducked: false, windowT: 0, windowCount: 0, gates: Object.create(null),
   // AudioParam automation only when the audio clock has advanced since the last write for this key:
   // bounds the automation timeline even when the simulation runs faster than real time.
   gate(key) {
@@ -35,6 +35,15 @@ const Audio = {
     for (const b of ['music', 'sfx', 'ambience', 'ui', 'voice']) { const g = ctx.createGain(); g.connect(this.master); this.buses[b] = g; }
     // scream bus bypasses the music/sfx mix but still obeys the master/mute
     this.buses.scare = ctx.createGain(); this.buses.scare.connect(this.master);
+    // music ducking: while someone speaks the score drops 6 dB and loses everything above 4 kHz
+    this.duckLP = ctx.createBiquadFilter(); this.duckLP.type = 'lowpass'; this.duckLP.frequency.value = 20000; this.duckLP.Q.value = 0.5;
+    this.duckGain = ctx.createGain();
+    this.buses.music.disconnect(); this.buses.music.connect(this.duckLP); this.duckLP.connect(this.duckGain); this.duckGain.connect(this.master);
+    // a dark feedback delay that gives the score its warped, reverberant room
+    this.verbIn = ctx.createGain(); this.verbIn.gain.value = 0.5;
+    const dl = ctx.createDelay(1.0), fb = ctx.createGain(), dlp = ctx.createBiquadFilter();
+    dl.delayTime.value = 0.31; fb.gain.value = 0.42; dlp.type = 'lowpass'; dlp.frequency.value = 2400;
+    this.verbIn.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(this.buses.music);
     this.noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -100,22 +109,122 @@ const Audio = {
     }
   },
 
-  // ---------- chase score (lookahead scheduler) ----------
+  // ---------- adaptive score (one lookahead scheduler, one 84 bpm sixteenth-note grid) ----------
+  // Layers crossfade by weight, never hard-cut:
+  //   calm   "Faded Threads"        detuned, warped piano over a humming cello pad (exploration)
+  //   puzzle "The Looming Rhythm"   hydraulic loom-press thud + tense arpeggio (a live tether is out)
+  //   chase                          the pursuit percussion (scripted chase / line-of-sight chase)
+  //   boss   "Pins and Needles"     staccato strings, brass swells, a carousel tune that bends out of
+  //                                  tune the closer the Spoolwright gets
+  //   end    "Shattered Porcelain"  solo violin over a sub drone that drops out while Marigold speaks
   updateChase(on) {
     if (!this.ctx) return;
-    const ctx = this.ctx;
-    this.chaseOn = damp(this.chaseOn, on ? 1 : 0, on ? 6 : 1.5, 1 / 60);
-    if (this.chaseOn < 0.02 || ctx.state !== 'running') { this.nextBeat = ctx.currentTime + 0.05; return; }
+    const ctx = this.ctx, S = this.score, k = 1 / 60;
+    const boss = Boss.active, puzzle = !on && state === STATE.INTERACTIVE_PUZZLE, end = Game.stage >= 5 && !boss;
+    const calm = !on && !boss && !puzzle && !end && Game.isGameplay();
+    this.chaseOn = damp(this.chaseOn, on && !boss ? 1 : 0, on ? 6 : 1.5, k);
+    S.calm = damp(S.calm, calm ? 1 : 0, 0.7, k); S.puzzle = damp(S.puzzle, puzzle ? 1 : 0, 1.2, k);
+    S.boss = damp(S.boss, boss ? 1 : 0, 1.5, k); S.end = damp(S.end, end ? 1 : 0, 0.5, k);
+    this.updateDuck();
+    const any = Math.max(this.chaseOn, S.calm, S.puzzle, S.boss, S.end);
+    if (any < 0.02 || ctx.state !== 'running') { this.nextBeat = ctx.currentTime + 0.05; return; }
     if (this.nextBeat < ctx.currentTime - 0.2) this.nextBeat = ctx.currentTime + 0.02;
-    const bpm = 168, step = 60 / bpm / 2;
+    const step = 60 / 168 / 2;
     while (this.nextBeat < ctx.currentTime + 0.12) {
-      const t = this.nextBeat, i = this.beatIdx % 16, v = this.chaseOn;
-      if (i % 4 === 0) this.kick(t, 0.9 * v);
-      if (i === 4 || i === 12) this.metalHit(t, 0.45 * v, 1);
-      if (i % 2 === 1) this.hat(t, 0.12 * v);
-      if (i === 0 || i === 7 || i === 10) this.stab(t, 0.18 * v, [55, 58.27, 82.4][this.beatIdx % 3]);
+      const t = this.nextBeat, i = this.beatIdx % 16, bar = (this.beatIdx / 16) | 0, v = this.chaseOn;
+      if (v > 0.02) {
+        if (i % 4 === 0) this.kick(t, 0.9 * v);
+        if (i === 4 || i === 12) this.metalHit(t, 0.45 * v, 1);
+        if (i % 2 === 1) this.hat(t, 0.12 * v);
+        if (i === 0 || i === 7 || i === 10) this.stab(t, 0.18 * v, [55, 58.27, 82.4][this.beatIdx % 3]);
+      }
+      if (S.calm > 0.02) this.calmStep(t, i, bar, S.calm);
+      if (S.puzzle > 0.02) this.puzzleStep(t, i, bar, S.puzzle);
+      if (S.boss > 0.02) this.bossStep(t, i, bar, S.boss);
+      if (S.end > 0.02) this.endStep(t, i, bar, S.end);
       this.nextBeat += step; this.beatIdx++;
     }
+  },
+  updateDuck() {
+    if (!this.duckGain || !this.gate('duck')) return;
+    const speaking = !!Dialogue.current;
+    if (speaking === this.ducked) return;
+    this.ducked = speaking;
+    const t = this.ctx.currentTime;
+    this.duckGain.gain.setTargetAtTime(speaking ? 0.5 : 1, t, 0.12);
+    this.duckLP.frequency.setTargetAtTime(speaking ? 4000 : 20000, t, 0.12);
+  },
+  // one enveloped oscillator note into the music bus (and the delay room)
+  note(t, type, f, dur, vol, cutoff, attack, detune, verb) {
+    const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+    o.type = type; o.frequency.value = f; if (detune) o.detune.value = detune;
+    lp.type = 'lowpass'; lp.frequency.value = cutoff;
+    const a = attack || 0.005;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(lp); lp.connect(g); g.connect(this.buses.music); if (verb) g.connect(this.verbIn);
+    o.start(t); o.stop(t + dur + 0.05);
+    return o;
+  },
+  calmStep(t, i, bar, v) {
+    const warp = Math.sin(bar * 0.7) * 14;   // slow vinyl-like pitch warp, in cents
+    const SCALE_A = [220, 246.9, 261.6, 293.7, 329.6, 349.2, 392];
+    if (i === 0 || (i === 8 && (bar * 7 + 3) % 3 !== 0) || (i === 12 && bar % 4 === 1)) {
+      const f = SCALE_A[(bar * 5 + i * 3) % SCALE_A.length] * (i === 0 ? 1 : 2) * 0.5;
+      const det = warp + ((bar * 13 + i) % 7 - 3) * 6;   // microtonal, slightly out-of-tune upright
+      this.note(t, 'sine', f, 2.6, 0.09 * v, 3000, 0.004, det, true);
+      this.note(t, 'triangle', f * 2, 1.2, 0.025 * v, 2500, 0.004, det + 9, true);
+    }
+    if (i === 0 && bar % 2 === 0) {
+      const root = [110, 87.31, 130.8, 98][(bar >> 1) % 4];
+      this.note(t, 'sawtooth', root * 0.5, 5.4, 0.045 * v, 380, 1.4, warp, true);
+    }
+  },
+  puzzleStep(t, i, bar, v) {
+    if (i % 4 === 0) {
+      const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(80, t); o.frequency.exponentialRampToValueAtTime(32, t + 0.3);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7 * v, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g); g.connect(this.buses.music); o.start(t); o.stop(t + 0.55);
+      this.noise(t, 0.12, 0.25 * v, 420, 'lowpass', this.buses.music);
+    }
+    if (i === 8) this.metalHit(t, 0.25 * v, 0.5);
+    const ARP = [220, 261.6, 329.6, 440];
+    this.note(t, 'square', ARP[i % 4] * (bar % 2 ? 2 : 1), 0.14, 0.035 * v, 1800, 0.003, 0, false);
+  },
+  bossStep(t, i, bar, v) {
+    const d = Monster.active ? V3.dist(Monster.pos, Player.body.pos) : 30;
+    const near = clamp((14 - d) / 12, 0, 1);
+    if (i % 2 === 0) this.note(t, 'sawtooth', [146.8, 155.6, 146.8, 174.6][(i >> 1) % 4] * 2, 0.09, 0.05 * v, 2600, 0.002, 0, false);
+    if (i === 0 && bar % 2 === 0) for (const m of [1, 1.5, 2]) this.note(t, 'sawtooth', 73.4 * m, 2.6, 0.05 * v, 900, 0.6, 0, true);
+    if (i % 4 === 0) {
+      // carousel tune, bending flat and wobbling as it closes in
+      const MEL = [587.3, 659.3, 698.5, 659.3, 587.3, 523.3, 587.3, 440];
+      const o = this.note(t, 'triangle', MEL[((bar * 4) + (i >> 2)) % MEL.length], 0.32, 0.06 * v, 3500, 0.004, 0, true);
+      o.detune.setValueAtTime(0, t); o.detune.linearRampToValueAtTime(-160 * near + Math.sin(bar + i) * 60 * near, t + 0.3);
+    }
+    if (i === 4 || i === 12) this.kick(t, 0.5 * v);
+  },
+  endStep(t, i, bar, v) {
+    const marigold = Dialogue.current && Dialogue.current.speaker === 'MARIGOLD';
+    if (i === 0 && !marigold) this.note(t, 'sine', 41.2, 3.4, 0.2 * v, 200, 1.0, 0, false);
+    if (i === 0 && bar % 4 === 3) this.noise(t, 1.2, 0.05 * v, 900, 'bandpass', this.buses.music);   // reverse-like swell
+    if (i === 0 || i === 8) {
+      const VIOLIN = [440, 523.3, 493.9, 440, 392, 349.2, 329.6, 349.2];
+      const f = VIOLIN[(bar * 2 + (i >> 3)) % VIOLIN.length];
+      const o = this.note(t, 'sawtooth', f, 1.5, 0.05 * v, 1400, 0.35, 0, true);
+      const lfo = this.ctx.createOscillator(), lg = this.ctx.createGain();
+      lfo.frequency.value = 5.5; lg.gain.value = 5; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t + 1.6);
+    }
+  },
+  // one booming orchestral bass-drum hit with a tragic minor chord swelling out of it
+  boom() {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    const ctx = this.ctx, t = ctx.currentTime + 0.01, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(64, t); o.frequency.exponentialRampToValueAtTime(30, t + 0.9);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1.0, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.7);
+    o.connect(g); g.connect(this.buses.scare); o.start(t); o.stop(t + 1.8);
+    this.noise(t, 0.4, 0.4, 220, 'lowpass', this.buses.scare);
+    for (const f of [220, 261.6, 329.6, 440]) this.note(t + 0.15, 'sawtooth', f, 3.2, 0.035, 1500, 0.5, 0, true);
   },
   kick(t, vol) {
     const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain();
@@ -308,6 +417,14 @@ const SFX = {
     Audio.noise(t, 0.05, 0.4, 3500, 'highpass', out);
     if (surface === SURFACE.METAL) Audio.ring(t, [Audio.vary(620), Audio.vary(1490), Audio.vary(3100)], 0.35, 0.16, out);
     else Audio.tone(t, 'sine', Audio.vary(160), 60, 0.12, 0.3, out);
+  },
+  // gauntlet fingers snapping shut around something: two ratchet ticks and a bright metal clink
+  clamp(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 2, 0.9);
+    Audio.noise(t, 0.025, 0.35, 5200, 'highpass', out);
+    Audio.noise(t + 0.045, 0.025, 0.3, 4300, 'highpass', out);
+    Audio.ring(t + 0.06, [Audio.vary(1850), Audio.vary(3900)], 0.16, 0.12, out);
+    Audio.tone(t + 0.04, 'square', 2300, 1700, 0.03, 0.05, out);
   },
   handHitFlesh(t, pos) { const out = Audio.dest(pos); Audio.noise(t, 0.15, 0.4, 600, 'lowpass', out); Audio.tone(t, 'sine', 90, 40, 0.2, 0.3, out); },
   retract(t, pos) { const out = Audio.dest(pos); Audio.noise(t, 0.35, 0.1, 5000, 'bandpass', out, 2); Audio.tone(t, 'sawtooth', 160, 420, 0.3, 0.06, out); },

@@ -181,7 +181,7 @@ const Game = {
     this.failTimer = 0; this.jumpTimer = 0; this.fadeIn = 1;
     for (const d of Level.doors) { d.open = d.initialOpen; d.target = d.initialOpen; d.locked = false; d.slam = false; d.speed = 0.55; d.moving = false; d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height; }
     for (const r of Level.receptacles) { r.powered = false; r.denyFlash = 0; }
-    for (const l of Level.levers) l.pulled = false;
+    for (const l of Level.levers) { l.pulled = false; l.wrench = 0; l.grab = null; l.angle = 0.9; }
     for (const p of Level.pegs) { p.linked = false; p.locked = false; }
     for (const t of Level.tapes) t.collected = false;
     for (const t of Level.triggers) t.fired = false;
@@ -262,7 +262,7 @@ const Game = {
       d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height;
     }
     for (let i = 0; i < Level.receptacles.length; i++) { Level.receptacles[i].powered = !!cp.receptacles[i]; Level.receptacles[i].denyFlash = 0; }
-    for (let i = 0; i < Level.levers.length; i++) Level.levers[i].pulled = !!cp.levers[i];
+    for (let i = 0; i < Level.levers.length; i++) { const l = Level.levers[i]; l.pulled = !!cp.levers[i]; l.wrench = l.pulled ? 1 : 0; l.grab = null; l.angle = l.pulled ? -0.9 : 0.9; }
     for (let i = 0; i < Level.pegs.length; i++) { Level.pegs[i].locked = !!cp.pegsLocked[i]; Level.pegs[i].linked = Level.pegs[i].locked; }
     for (let i = 0; i < Level.tapes.length; i++) Level.tapes[i].collected = !!cp.tapes[i];
     for (let i = 0; i < Level.triggers.length; i++) Level.triggers[i].fired = !!cp.triggers[i];
@@ -323,7 +323,7 @@ const Game = {
         V3.set(_g.v, Level.vents[v].pos[0], Level.vents[v].pos[1], Level.vents[v].pos[2]);
         this.fracture[0] = _g.v[0]; this.fracture[1] = _g.v[1]; this.fracture[2] = _g.v[2]; this.fracture[3] = 4.5; this.fractureAmt = 1;
         Player.addTrauma(0.8);
-        GrabPack.showHint('RUN! Fire a hand at the high lever to raise the shutter.');
+        Ambush.start();
         UI.setObjective(OBJECTIVES[3]);
         break;
       }
@@ -389,13 +389,16 @@ const Game = {
       V3.set(Player.body.pos, L.pos[0] - Math.sin(L.yaw) * 0.12, 0, L.pos[2] - Math.cos(L.yaw) * 0.12);
       V3.set(Player.body.vel, 0, 0, 0);
       if (usePressed) this.leaveLocker();
+    } else if (Ambush.active) {
+      // pinned in place while the Spoolwright and Thimble have words
+      V3.copy(Player.body.pos, Ambush.pin); V3.set(Player.body.vel, 0, 0, 0);
     } else {
       Player.update(dt);
     }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    if (!Player.hidden && !wasHidden) {
+    if (!Player.hidden && !wasHidden && !Ambush.active) {
       if (Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4)) GrabPack.fire(0, Player.cam);
       if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) GrabPack.fire(1, Player.cam);
       const locker = Player.findLocker();
@@ -723,12 +726,15 @@ const Game = {
     for (const l of Level.levers) {
       if (!vis[l.sector]) continue;
       const p = l.pos, n = l.n, yaw = Math.atan2(n[0], n[2]);
-      l.angle = damp(l.angle, l.pulled ? -0.9 : 0.9, 6, 1 / 60);
+      // while a hand is clamped on it the handle follows the wrench; otherwise it springs back or stays thrown
+      l.angle = l.grab ? 0.9 - 1.8 * l.wrench : damp(l.angle, l.pulled ? -0.9 : 0.9 - 1.8 * l.wrench, 6, 1 / 60);
       R.trs('box', MAT.steel, p[0] - n[0] * 0.04, p[1], p[2] - n[2] * 0.04, yaw, 0, 0, 0.5, 0.7, 0.12);
       const it = R.push('cyl', MAT.hazard);
       if (it) { M4.compose(it.model, p[0] + n[0] * 0.1, p[1], p[2] + n[2] * 0.1, yaw, l.angle, 0, 0.05, 0.5, 0.05); }
       const hx = p[0] + n[0] * (0.1 + Math.sin(l.angle) * 0.5) , hy = p[1] + Math.cos(l.angle) * 0.5, hz = p[2] + n[2] * (0.1 + Math.sin(l.angle) * 0.5);
       R.trs('sphere', MAT.rubber, hx, hy, hz, 0, 0, 0, 0.09, 0.09, 0.09);
+      // progress gauge while it is being wrenched
+      if (l.grab && !l.pulled) { const g = R.trs('box', MAT.screen, p[0] + n[0] * 0.075, p[1] - 0.3, p[2] + n[2] * 0.075, yaw, 0, 0, 0.36 * l.wrench + 0.01, 0.035, 0.02, false); if (g) { g.emis[0] = 2.2 * (1 - l.wrench); g.emis[1] = 2.2 * l.wrench; g.emis[2] = 0.2; } }
       const lamp = R.trs('sphereLow', MAT.rubber, p[0] + n[0] * 0.08, p[1] - 0.45, p[2] + n[2] * 0.08, 0, 0, 0, 0.05, 0.05, 0.05, false);
       if (lamp) { if (l.pulled) { lamp.emis[1] = 2.5; } else { lamp.emis[0] = 2.5; lamp.emis[1] = 0.6 + Math.sin(t * 6) * 0.5; } }
     }
@@ -775,10 +781,22 @@ const Game = {
         V3.copy(_g.b, m);
         this.drawHose(_g.a, _g.b, up, h);
         // out in the world: flying -> along velocity; latched -> palm pressed into the surface
-        if (h.state === HAND.LATCHED) V3.scale(_g.e, h.latchNormal, -1); else V3.copy(_g.e, h.dir);
-        if (V3.len(_g.e) < 0.5) V3.copy(_g.e, fwd);
-        const upRef = Math.abs(_g.e[1]) > 0.9 ? right : _g.up;
-        this.drawHand(h.pos, _g.e, upRef, s, h.state === HAND.LATCHED ? h.grip * 0.6 : 0.05, 1.15, true, h, false);
+        if (h.state === HAND.LATCHED) {
+          // clamped: back of the hand out of the surface, fingers laid along it and curled shut around the edge
+          const nrm = h.latchNormal;
+          if (Math.abs(nrm[1]) < 0.7) V3.set(_g.e, 0, 1, 0); else V3.copy(_g.e, Math.abs(h.dir[1]) < 0.95 ? h.dir : fwd);
+          V3.addScaled(_g.e, _g.e, nrm, -V3.dot(_g.e, nrm));
+          if (V3.len(_g.e) < 0.1) V3.copy(_g.e, right);
+          V3.normalize(_g.e, _g.e);
+          V3.addScaled(_g.hp, h.pos, nrm, 0.035);
+          V3.addScaled(_g.hp, _g.hp, _g.e, -0.03);
+          this.drawHand(_g.hp, _g.e, nrm, s, h.grip, 1.15 * (1 + 0.08 * Math.max(0, 1 - h.latchTime * 8)), true, h, false);
+        } else {
+          V3.copy(_g.e, h.dir);
+          if (V3.len(_g.e) < 0.5) V3.copy(_g.e, fwd);
+          const upRef = Math.abs(_g.e[1]) > 0.9 ? right : _g.up;
+          this.drawHand(h.pos, _g.e, upRef, s, 0.05, 1.15, true, h, false);
+        }
       }
     }
   },
@@ -804,8 +822,9 @@ const Game = {
   },
   drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
     const R = RenderQueue, mat = side === 0 ? MAT.handTeal : MAT.handRose;
-    V3.cross(_g.r, f, upRef); V3.normalize(_g.r, _g.r);
-    V3.cross(_g.u, _g.r, f); V3.normalize(_g.u, _g.u);
+    // right-handed basis (r = up x f) so back-face culling keeps the outside of the glove
+    V3.cross(_g.r, upRef, f); V3.normalize(_g.r, _g.r);
+    V3.cross(_g.u, f, _g.r); V3.normalize(_g.u, _g.u);
     const r = _g.r, u = _g.u, s = scale;
     const glow = h.tethered ? h.energized : 0;
     const lift = viewModel ? 0.1 : 0;
@@ -818,13 +837,14 @@ const Game = {
       return;
     }
     // sculpted glove meshes (open / gripping), coloured per hand by the draw material
-    const gm = (side === 0 ? 'glove_L_' : 'glove_R_') + (curl > 0.5 ? 'grip' : 'open');
+    // (with r = up x f the sculpt's x axis is mirrored, so each hand uses the opposite-handed sculpt)
+    const gm = (side === 0 ? 'glove_R_' : 'glove_L_') + (curl > 0.5 ? 'grip' : 'open');
     if (Sculpt.ready(gm)) {
       const it = R.push(gm, mat, shadow);
       if (it) { basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[3] = lift; it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow; }
       return;
     }
-    const mirror = side === 0 ? -1 : 1;   // thumb on the inside of each hand
+    const mirror = side === 0 ? 1 : -1;   // thumb on the inside of each hand
     // wrist cuff with clamp rings
     V3.addScaled(_g.p0, pos, f, -0.115 * s); V3.addScaled(_g.p1, pos, f, -0.03 * s);
     const cuff = R.seg('cyl', mat, _g.p0, _g.p1, 0.04 * s, shadow);

@@ -26,7 +26,11 @@ const Cast = {
     eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
   },
   doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
-  plush: { pos: V3.create(-3.6, 0, -70.9), yaw: -2.84, headYaw: 0, eyeGlow: 0.5, eyePulse: 0, talked: false, plugState: 0, plugTimer: 0, plug: 0, wave: 0, cheered: false, talking: false },
+  plush: { pos: V3.create(3.0, 0, -27.5), yaw: 2.43, headYaw: 0, eyeGlow: 0.5, eyePulse: 0, talked: false, plugState: 0, plugTimer: 0, plug: 0, wave: 0, cheered: false, talking: false,
+    mode: 'WAIT', sector: 2, hidden: false, walk: 0, phase: 0, ground: 0, groundIdle: 0, overload: 0 },
+  // where Mister Thimble waits in the gallery, and where he stands by the shutter socket
+  PLUSH_WAIT: [3.0, -27.5, 2.43], PLUSH_SHUTTER: [-3.6, -70.9, -2.84], PLUSH_LOOM: [-2.2, -107.4, Math.PI],
+  plushCollider: null,
   // broken power socket on the shutter wall that Mister Thimble jams his needle staff into
   plushSocket: V3.create(-2.5, 1.05, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
@@ -59,6 +63,27 @@ const Cast = {
     mat.tex = tex;
     this.screen = asset;
   },
+  // hand target on Thimble's staff (enabled only while the socket is overloading)
+  makePlushCollider() {
+    if (this.plushCollider) return;
+    const c = Physics.addBox(-3.05, 1.2, -71.65, -2.6, 1.75, -71.2, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, -1, true, 3);
+    c.kind = 'staff'; c.ref = this.plush; c.enabled = false;
+    this.plushCollider = c;
+  },
+  resetPlush() {
+    const T = this.plush;
+    T.headYaw = 0; T.eyeGlow = 0.5; T.eyePulse = 0; T.talked = false; T.plugState = 0; T.plugTimer = 0; T.plug = 0; T.wave = 0;
+    T.cheered = false; T.talking = false; T.hidden = false; T.walk = 0; T.ground = 0; T.groundIdle = 0; T.overload = 0;
+    // where he is depends on how far the story has got (checkpoint restarts)
+    const st = Game.stage;
+    const spot = st >= 4 ? this.PLUSH_LOOM : st === 3 ? null : this.PLUSH_WAIT;
+    T.mode = st >= 4 ? 'LOOM' : st === 3 ? 'FOLLOW' : 'WAIT';
+    if (spot) { V3.set(T.pos, spot[0], 0, spot[1]); T.yaw = spot[2]; }
+    else { const b = Player.body.pos; V3.set(T.pos, b[0] + 1.2, 0, b[2] + 1.6); T.yaw = Math.PI; T.talked = true; }
+    T.sector = Level.sectorAt(T.pos[0], T.pos[2]);
+    if (this.plushCollider) this.plushCollider.enabled = false;
+    if (typeof Companion !== 'undefined') Companion.reset();
+  },
   // context restore: rebuild the screen texture and quad
   reupload() { if (this.screen) { this.screen.prims[0].gpu = null; this.init(); } },
 
@@ -69,7 +94,7 @@ const Cast = {
     const D = this.doll; D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0; D.met = false; D.farewell = false;
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
-    const T = this.plush; T.headYaw = 0; T.eyeGlow = 0.5; T.eyePulse = 0; T.talked = false; T.plugState = 0; T.plugTimer = 0; T.plug = 0; T.wave = 0; T.cheered = false; T.talking = false;
+    this.resetPlush();
     Dialogue.clear();
     Pip.reset();
   },
@@ -78,6 +103,7 @@ const Cast = {
     this.updateUsher(dt);
     this.updateDoll(dt);
     this.updatePlush(dt);
+    Companion.update(dt);
     // CRT face animation at ~15 fps
     this.screenTimer -= dt;
     if (this.screenTimer <= 0 && this.usher.state !== 'HIDDEN') {
@@ -183,33 +209,76 @@ const Cast = {
     if (gameRng() < dt * 0.12) D.blink = 1;
   },
 
-  // Mister Thimble is an ally: he greets you warmly, and once the Spoolwright is loose he jams his needle
-  // staff into the broken socket on the shutter wall, his eye pulses, and the shutter rises for you.
+  // Mister Thimble is an ally. WAIT: standing in the gallery until you meet him. FOLLOW: walks along your
+  // trail and chats (see Companion). HIDE: slipped into the vents while the Spoolwright prowls. SHUTTER: by
+  // the foundry shutter, where he jams his needle staff into the socket. LOOM: waits by Marigold below.
   updatePlush(dt) {
     const P = this.plush;
-    if (!Streaming.visible[3]) return;
+    this.makePlushCollider();
     const eye = Player.eyePos, sk = this.plushSocket;
     const d = Math.hypot(eye[0] - P.pos[0], eye[2] - P.pos[2]);
     const ds = Level.doorById('DS');
+    if (P.mode === 'FOLLOW') this.followPlayer(dt);
+    else P.walk = damp(P.walk, 0, 8, dt);
+    P.sector = Level.sectorAt(P.pos[0], P.pos[2]);
+    P.phase += dt * (2 + P.walk * 9);
     // he looks at you; while plugging he glances at the socket
     const tx = P.plugState === 1 ? sk[0] : eye[0], tz = P.plugState === 1 ? sk[2] : eye[2];
     const want = clamp(wrapAngle(Math.atan2(-(tx - P.pos[0]), -(tz - P.pos[2])) - P.yaw), -1.3, 1.3);
     P.headYaw = damp(P.headYaw, d < 16 || P.plugState === 1 ? want : 0, 3, dt);
-    if (!P.talked && d < 10) {
-      P.talked = true; P.wave = 1;
-      if (Game.chaseActive && ds && ds.target === 0) {
-        Dialogue.say('THIMBLE', 'Over here, friend! Don\'t be scared - I\'m Mister Thimble.');
-        Dialogue.say('THIMBLE', 'Come close and I\'ll get this old shutter open for you!');
-      } else {
-        Dialogue.say('THIMBLE', 'Oh! A visitor! Hello, friend - I\'m Mister Thimble.');
-        Dialogue.say('THIMBLE', 'Stay close to the light. I\'ll help however I can.');
-      }
+    if (P.mode === 'WAIT' && Game.stage >= 2 && d < 8 && Streaming.visible[P.sector]) {
+      P.talked = true; P.wave = 1; P.mode = 'FOLLOW';
+      Dialogue.say('THIMBLE', 'Oh! A visitor! Hello there, friend - I\'m Mister Thimble.');
+      Dialogue.say('THIMBLE', 'You don\'t talk much, huh? That\'s okay. I\'ll tag along - it\'s safer in twos.');
       Pip.react('happy', 2);
     }
+    if (P.mode === 'SHUTTER') this.updateShutter(dt, d, ds);
+    // mouth flaps open only while his line is being spoken; otherwise the closed smile
+    const c = Dialogue.current;
+    P.talking = !!(c && c.speaker === 'THIMBLE' && Dialogue.chars < c.text.length && Math.sin(Game.time * 15) > -0.3);
+    P.wave = Math.max(0, P.wave - dt * 0.45);
+    P.eyePulse = Math.max(0, P.eyePulse - dt * 0.6);
+    const pulse = P.plugState === 2 ? 0.6 + 0.5 * Math.sin(Game.time * 19) : P.plugState === 4 ? 0.3 + 0.3 * Math.sin(Game.time * 7) : 0;
+    const dark = P.mode === 'FOLLOW' && !Player.flashOn ? 1.2 : 0;
+    P.eyeGlow = damp(P.eyeGlow, 0.55 + 0.12 * Math.sin(Game.time * 2) + pulse + dark + P.eyePulse * 1.4, 6, dt);
+    if (this.plushCollider) this.plushCollider.enabled = P.mode === 'SHUTTER' && P.plugState === 2;
+    this.poseStaff();
+  },
+
+  // walk along the player's breadcrumb trail, a couple of metres behind them
+  followPlayer(dt) {
+    const P = this.plush, T = Companion.trail, b = Player.body.pos;
+    const target = Companion.trailPoint(2.4, this.tmp);
+    const dx = target[0] - P.pos[0], dz = target[2] - P.pos[2], dist = Math.hypot(dx, dz);
+    const dp = Math.hypot(b[0] - P.pos[0], b[2] - P.pos[2]);
+    // fell far behind and you can't see him: he catches up out of sight (through the vents)
+    V3.set(this.tmp2, P.pos[0] - Player.eyePos[0], 0.9, P.pos[2] - Player.eyePos[2]);
+    const seen = V3.dot(this.tmp2, Renderer.camFwd) / (Math.hypot(this.tmp2[0], this.tmp2[2]) || 1) > 0.35 && Streaming.visible[P.sector];
+    if ((dp > 11 && !seen) || dp > 24) {
+      const back = Companion.trailPoint(3.5, this.tmp2);
+      V3.set(P.pos, back[0], 0, back[2]);
+      return;
+    }
+    let speed = 0;
+    if (dist > 0.25 && dp > 1.5) {
+      speed = Math.min(dist * 2.2, dp > 6 ? 6.2 : 4.0);
+      P.pos[0] += dx / dist * speed * dt; P.pos[2] += dz / dist * speed * dt;
+      P.yaw = P.yaw + wrapAngle(Math.atan2(-dx, -dz) - P.yaw) * Math.min(1, dt * 8);
+    } else {
+      P.yaw = P.yaw + wrapAngle(Math.atan2(-(b[0] - P.pos[0]), -(b[2] - P.pos[2])) - P.yaw) * Math.min(1, dt * 3);
+    }
+    // personal space
+    if (dp < 1.1 && dp > 1e-3) { const k = (1.1 - dp) / dp; P.pos[0] -= (b[0] - P.pos[0]) * k; P.pos[2] -= (b[2] - P.pos[2]) * k; }
+    P.walk = damp(P.walk, clamp(speed / 4, 0, 1), 8, dt);
+  },
+
+  // by the foundry shutter during the chase: plug the needle into the broken socket; the surge overloads
+  // and you have to clamp onto his staff and ground it before the shutter will rise
+  updateShutter(dt, d, ds) {
+    const P = this.plush, sk = this.plushSocket;
     if (P.plugState === 0 && ds && ds.target === 1) {
-      // you beat him to it with the lever
       P.plugState = 3;
-      if (P.talked && !P.cheered) { P.cheered = true; Dialogue.say('THIMBLE', 'Ha! Good shot, friend! Now run!'); }
+      if (!P.cheered) { P.cheered = true; Dialogue.say('THIMBLE', 'Ha! Good shot, friend! Now run!'); }
     }
     if (P.plugState === 0 && Game.chaseActive && d < 6) {
       P.plugState = 1; P.plugTimer = 0;
@@ -219,22 +288,42 @@ const Cast = {
       P.plugTimer += dt;
       P.plug = smoothstep(0, 1, P.plugTimer / 0.9);
       if (P.plugTimer >= 0.9) {
-        P.plugState = 2; P.plug = 1; P.eyePulse = 1;
+        P.plugState = 2; P.plug = 1; P.eyePulse = 1; P.overload = 0;
         Particles.burst(sk, 22, 'spark');
+        Companion.plasmaBurst(sk);
+        Audio.boom();
         sfx('power', sk);
-        Game.action('L2');
-        Dialogue.say('THIMBLE', 'There we go! Run, friend - go, go!');
-        Pip.react('happy', 2.5);
+        Dialogue.say('THIMBLE', 'Ah! The voltage is too high - it\'s backing up into my stitches!');
+        Dialogue.say('THIMBLE', 'Clamp onto my staff and hold on - ground it through your pack!');
+        GrabPack.showHint('OVERLOAD - clamp a hand on Thimble\'s staff and HOLD to ground it');
+        Pip.react('scared', 2);
       }
     }
-    // mouth flaps open only while his line is being spoken; otherwise the closed smile
-    const c = Dialogue.current;
-    P.talking = !!(c && c.speaker === 'THIMBLE' && Dialogue.chars < c.text.length && Math.sin(Game.time * 15) > -0.3);
-    P.wave = Math.max(0, P.wave - dt * 0.45);
-    P.eyePulse = Math.max(0, P.eyePulse - dt * 0.6);
-    const pulse = P.plugState === 2 ? 0.35 + 0.35 * Math.sin(Game.time * 7) : 0;
-    P.eyeGlow = damp(P.eyeGlow, 0.55 + 0.12 * Math.sin(Game.time * 2) + pulse + P.eyePulse * 1.4, 6, dt);
-    this.poseStaff();
+    if (P.plugState === 2) {
+      P.overload += dt;
+      if (gameRng() < dt * 9) { Particles.burst(this.staff.paw, 3, 'spark'); if (gameRng() < 0.3) Lights.pulse(this.staff.paw, 0.55, 0.12, 1.0, 3.5, 2.0, 0.15, 1); }
+      if (ds && ds.target === 1) { P.plugState = 3; P.plug = 0; }
+    }
+    if (P.plugState === 3) P.plug = damp(P.plug, 0, 4, dt);
+  },
+  // called by the gauntlet while it is clamped on the staff; returns true once the surge is grounded
+  groundPlush(dt, held) {
+    const P = this.plush;
+    if (P.plugState !== 2) return true;
+    if (held) { P.ground = Math.min(1, P.ground + dt / 1.4); P.groundIdle = 0; }
+    else { P.ground = Math.max(0, P.ground - dt * 0.5); P.groundIdle += dt; }
+    if (P.ground >= 1) {
+      P.plugState = 4; P.eyePulse = 1;
+      Particles.burst(this.plushSocket, 30, 'spark');
+      Companion.plasmaBurst(this.plushSocket);
+      Audio.boom();
+      sfx('power', this.plushSocket);
+      Game.action('L2');
+      Dialogue.say('THIMBLE', 'Yes... yes, it\'s draining! Whew... my stitches almost blew out there. Good job, friend!');
+      Pip.react('happy', 2.5);
+      return true;
+    }
+    return P.groundIdle > 0.9;
   },
 
   // ---------- CRT face ----------
@@ -280,7 +369,8 @@ const Cast = {
   submit(vis) {
     if (this.usher.state !== 'HIDDEN' && vis[Level.sectorAt(this.usher.pos[0], this.usher.pos[2])]) this.submitUsher();
     if (vis[this.doll.sector]) this.submitDoll();
-    if (vis[3]) this.submitPlush();
+    if (vis[3]) this.submitSocket();
+    if (!this.plush.hidden && vis[this.plush.sector]) this.submitPlush();
   },
 
   // local (x right, y up, z back) -> world for a root at p with yaw
@@ -375,7 +465,8 @@ const Cast = {
     const P = this.plush, p = P.pos, yaw = P.yaw, S = 1.2, st = this.staff, sk = this.plushSocket;
     const e = P.plug;
     const rx = -0.66 * S, ry = 0.78 * S, rz = -0.18 * S, qx = -0.7 * S, qy = 1.25 * S, qz = 0.25 * S;
-    this.pt(st.paw, p, yaw, rx + (qx - rx) * e, ry + (qy - ry) * e + Math.sin(Game.time * 1.6) * 0.012 * S, rz + (qz - rz) * e);
+    const swing = Math.sin(P.phase) * 0.14 * P.walk * S;
+    this.pt(st.paw, p, yaw, rx + (qx - rx) * e, ry + (qy - ry) * e + Math.sin(Game.time * 1.6) * 0.012 * S, rz + (qz - rz) * e + swing);
     V3.set(this.local, sk[0] - st.paw[0], sk[1] - st.paw[1], sk[2] - st.paw[2]);
     const reach = Math.hypot(this.local[0], this.local[1], this.local[2]) || 1;
     const dx = this.local[0] / reach * e, dy = -(1 - e) + this.local[1] / reach * e, dz = this.local[2] / reach * e;
@@ -386,21 +477,25 @@ const Cast = {
     V3.set(st.top, st.tip[0] - st.dir[0] * LEN, st.tip[1] - st.dir[1] * LEN, st.tip[2] - st.dir[2] * LEN);
   },
 
+  // the broken socket box on the shutter wall (lamp red until it is powered, then violet)
+  submitSocket() {
+    const P = this.plush, R = RenderQueue, sk = this.plushSocket;
+    R.trs('box', MAT.rustIron, sk[0], sk[1], sk[2] - 0.04, 0, 0, 0, 0.34, 0.42, 0.12, false);
+    R.trs('box', MAT.hazard, sk[0], sk[1] + 0.25, sk[2] - 0.035, 0, 0, 0, 0.34, 0.06, 0.12, false);
+    R.trs('box', MAT.rubber, sk[0], sk[1], sk[2] + 0.025, 0, 0, 0, 0.16, 0.16, 0.02, false);
+    const it = R.trs('sphereLow', MAT.screen, sk[0] + 0.12, sk[1] + 0.15, sk[2] + 0.03, 0, 0, 0, 0.025, 0.025, 0.02, false);
+    if (it) { const on = P.plugState >= 2 && P.plugState !== 3; it.emis[0] = on ? 0.5 * P.eyeGlow : 0.9; it.emis[1] = on ? 0.08 : 0.05; it.emis[2] = on ? 1.0 * P.eyeGlow : 0.03; }
+  },
   submitPlush() {
     const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw, S = 1.2;
     const a = this.tmp, b = this.tmp2, st = this.staff, sk = this.plushSocket;
     if (!Sculpt.ready('th_body')) return;
-    // the broken socket box on the wall (lamp turns from red to violet once powered)
-    R.trs('box', MAT.rustIron, sk[0], sk[1], sk[2] - 0.04, 0, 0, 0, 0.34, 0.42, 0.12, false);
-    R.trs('box', MAT.hazard, sk[0], sk[1] + 0.25, sk[2] - 0.035, 0, 0, 0, 0.34, 0.06, 0.12, false);
-    R.trs('box', MAT.rubber, sk[0], sk[1], sk[2] + 0.025, 0, 0, 0, 0.16, 0.16, 0.02, false);
-    let it = R.trs('sphereLow', MAT.screen, sk[0] + 0.12, sk[1] + 0.15, sk[2] + 0.03, 0, 0, 0, 0.025, 0.025, 0.02, false);
-    if (it) { const on = P.plugState === 2; it.emis[0] = on ? 0.5 * P.eyeGlow : 0.9; it.emis[1] = on ? 0.08 : 0.05; it.emis[2] = on ? 1.0 * P.eyeGlow : 0.03; }
-    // gentle breathing bob
-    const bob = Math.sin(Game.time * 1.6) * 0.012;
+    // gentle breathing bob; a side-to-side waddle while he walks
+    const bob = Math.sin(Game.time * 1.6) * 0.012 + Math.abs(Math.sin(P.phase)) * 0.045 * P.walk;
+    const waddle = Math.sin(P.phase) * 0.11 * P.walk;
     this.pt(a, p, yaw, 0, bob * S, 0);
-    it = R.push('th_body', MAT.burnt);
-    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, 0, 0, S, S, S);
+    let it = R.push('th_body', MAT.burnt);
+    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, 0.06 * P.walk, waddle, S, S, S);
     // arms: left holds the staff, right hangs relaxed and waves when he greets you
     for (const sx of [-1, 1]) {
       this.pt(a, p, yaw, sx * 0.42 * S, 1.33 * S + bob * S, 0);
@@ -433,7 +528,7 @@ const Cast = {
     V3.set(a, st.paw[0] - n[0] * 0.09, st.paw[1] - n[1] * 0.09, st.paw[2] - n[2] * 0.09);
     V3.set(b, st.paw[0] + n[0] * 0.09, st.paw[1] + n[1] * 0.09, st.paw[2] + n[2] * 0.09);
     R.seg('cyl', MAT.rubber, a, b, 0.05 * S);
-    if (P.plugState === 2 && Math.sin(Game.time * 23) > 0.6) {
+    if ((P.plugState === 2 || P.plugState === 4) && Math.sin(Game.time * 23) > 0.6) {
       it = R.trs('sphereLow', MAT.screen, sk[0], sk[1], sk[2] + 0.05, 0, 0, 0, 0.05, 0.05, 0.05, false);
       if (it) { it.emis[0] = 0.8; it.emis[1] = 0.5; it.emis[2] = 1.6; }
     }
@@ -462,9 +557,10 @@ const SPEAKERS = {
   MARIGOLD: { name: 'MARIGOLD', color: '#e8c35a', pitch: 430, wobble: 0.1 },
   USHER: { name: 'THE USHER  (PA)', color: '#3fd4a8', pitch: 105, wobble: 0.04 },
   THIMBLE: { name: 'MISTER THIMBLE', color: '#b98cff', pitch: 170, wobble: 0.25 },
-  PIP: { name: 'PIP', color: '#7dff6a', pitch: 620, wobble: 0.15 }
+  PIP: { name: 'PIP', color: '#7dff6a', pitch: 620, wobble: 0.15 },
+  SPOOLWRIGHT: { name: 'THE SPOOLWRIGHT', color: '#ff3b2e', pitch: 72, wobble: 0.35 }
 };
-// Source: [ASSUMED] speaker label colours reuse documented cast/VHS palette entries (#e8c35a, #3fd4a8, #b98cff, #7dff6a).
+// Source: [ASSUMED] speaker label colours reuse documented cast/VHS palette entries (#e8c35a, #3fd4a8, #b98cff, #7dff6a, #ff3b2e).
 const Dialogue = {
   queue: [], current: null, chars: 0, acc: 0, hold: 0, el: null, nameEl: null, textEl: null, shown: '',
   init() { this.el = document.getElementById('hudDialog'); this.nameEl = document.getElementById('hudDialogName'); this.textEl = document.getElementById('hudDialogText'); },

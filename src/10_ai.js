@@ -65,6 +65,8 @@ const Monster = {
     this.tree = btSelector([
       btSequence([btCondition(() => M.state === MSTATE.JUMPSCARE_EXECUTION), btAction(() => BT.RUNNING)]),
       btSequence([btCondition(() => M.stunTimer > 0), btAction(() => { M.setState(MSTATE.STUNNED); return BT.RUNNING; })]),
+      // shocked off: it slinks back into the vents for a while and leaves you alone
+      btSequence([btCondition(() => M.retreatTimer > 0 && !M.inVent && !M.scripted && !M.boss), btAction(() => M.doReturn())]),
       btSequence([btCondition(() => M.canCatch()), btAction(() => { M.setState(MSTATE.JUMPSCARE_EXECUTION); return BT.SUCCESS; })]),
       btSequence([btCondition(() => !!Player.hidden && M.sawHide && !M.inVent), btAction(() => M.doLockerHunt())]),
       btSequence([btCondition(() => M.scripted && !Player.hidden), btAction(() => M.doChase(true))]),
@@ -81,7 +83,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
-    this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0;
+    this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0; this.stunImmune = 0; this.retreatAfterStun = false; this.retreatTimer = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
     for (const l of this.legs) { l.stepping = false; l.t = 1; }
@@ -279,6 +281,37 @@ const Monster = {
     this.setState(MSTATE.EMERGE);
   },
 
+  // Fighting back outside the boss fight: you can only stun it, never finish it.
+  //   charged hit (your other hand tethered to a live node): a shock that stuns it for 3.5 s, and a
+  //   stalker then slinks back into the vents; plain hit: a 1.3 s stagger, then 4 s before it can be
+  //   staggered again; otherwise just a flinch.
+  fightBack(h) {
+    if (this.state === MSTATE.JUMPSCARE_EXECUTION || this.state === MSTATE.MENU_POSE) return 'none';
+    const t = GrabPack.tetheredHand();
+    if (t && t !== h) {
+      GrabPack.release(t, false);
+      this.stunTimer = 3.5; this.flinchAmt = 1; this.jaw = 1; this.stunImmune = 5; this.retreatAfterStun = true;
+      this.setState(MSTATE.STUNNED);
+      sfx('shock', this.hitPoint); sfx('monsterHurt', this.pos);
+      Particles.burst(this.hitPoint, 40, 'spark'); Particles.burst(this.hitPoint, 12, 'ember');
+      Lights.pulse(this.hitPoint, 0.45, 0.85, 1.0, 6, 3.5, 0.5);
+      const P = Renderer.post; P.flash = 0.3; P.flashTint[0] = 0.4; P.flashTint[1] = 0.85; P.flashTint[2] = 1.0;
+      Player.addTrauma(0.3);
+      Pip.react('happy', 2);
+      GrabPack.showHint('SHOCKED! It is stunned - move! (you can only finish it in the Loom)');
+      return 'shock';
+    }
+    if (this.stunImmune <= 0) {
+      this.stunTimer = 1.3; this.flinchAmt = 1; this.stunImmune = 4;
+      this.setState(MSTATE.STUNNED);
+      sfx('monsterHurt', this.pos);
+      GrabPack.showHint('STAGGERED! A charged hand (tethered to a live node) stuns it for longer');
+      return 'stagger';
+    }
+    this.flinch(h.side);
+    return 'flinch';
+  },
+
   flinch(side) {
     if (this.state === MSTATE.JUMPSCARE_EXECUTION || this.state === MSTATE.MENU_POSE) return;
     this.stunTimer = 0.55; this.flinchAmt = 1;
@@ -309,6 +342,8 @@ const Monster = {
     this.catchCooldown = Math.max(0, this.catchCooldown - dt);
     this.roarCooldown = Math.max(0, this.roarCooldown - dt);
     this.stunTimer = Math.max(0, this.stunTimer - dt);
+    this.stunImmune = Math.max(0, this.stunImmune - dt);
+    this.retreatTimer = Math.max(0, this.retreatTimer - dt);
     this.flinchAmt = damp(this.flinchAmt, 0, 5, dt);
     this.stateTime += dt;
     if (!this.active) { this.visible = false; return; }
@@ -323,7 +358,10 @@ const Monster = {
     switch (this.state) {
       case MSTATE.VENT_PATROL: this.updateVent(dt); break;
       case MSTATE.EMERGE: this.updateEmerge(dt); break;
-      case MSTATE.STUNNED: this.targetSpeed = 0; this.locomote(dt, false); if (this.stunTimer <= 0) this.setState(MSTATE.STALK_LOCAL); break;
+      case MSTATE.STUNNED:
+        this.targetSpeed = 0; this.locomote(dt, false);
+        if (this.stunTimer <= 0) { const back = this.retreatAfterStun && !this.scripted && !this.boss; this.retreatAfterStun = false; if (back) this.retreatTimer = 9; this.setState(back ? MSTATE.RETURN_TO_VENT : MSTATE.STALK_LOCAL); }
+        break;
       default: this.locomote(dt, true); break;
     }
     this.visible = !this.inVent;
