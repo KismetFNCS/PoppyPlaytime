@@ -179,7 +179,7 @@
 //   Verify: harness reads camera position after settling (ANCHORS[4].measure).
 // ANCHOR 6: GPU ambient sky uniform equals contract #1d0e13 (linear, max channel diff).  Target 0  Tol 0.002
 //   Verify: harness getUniform (ANCHORS[5].measure).
-// ANCHOR 7: menu hero shot - focal point (where the creature is later revealed) on screen x%.  Target 62  Tol 10
+// ANCHOR 7: menu hero shot - creature mask on screen x%.  Target 62  Tol 10
 //   Verify: harness projects the head position with the menu camera (ANCHORS[6].measure); final look PENDING menu-1920.png.
 // ============================================================
 
@@ -274,7 +274,7 @@ const FEEL = {
   handSpeed: 42, handGravity: 3.5, handReach: 24, handRetract: 55, handCooldown: 0.18,
   cableMax: 42, cableNodes: 28, cableIters: 8, cableSag: 1.035,
   bobWalkHz: 1.9, bobWalkAmp: 0.035, bobSprintHz: 2.7, bobSprintAmp: 0.065, sprintLeanDeg: 2.2,
-  breathHz: 0.25, breathAmp: 0.006, chaseTrauma: 0.55, jumpscareLock: 3.4, failCard: 2.4,
+  breathHz: 0.25, breathAmp: 0.006, chaseTrauma: 0.55, jumpscareLock: 3.6, failCard: 2.4,
   monsterPatrol: 2.2, monsterStalk: 3.1, monsterChase: 5.9, monsterCatch: 1.15,
   bumpFriction: 0.55, fixedStep: 1 / 120
 };
@@ -303,5 +303,5 @@ const ANCHORS = [
   { id: 4, desc: 'menu title center y (%)', target: 19.1, tol: 3, measure: () => anchorDomCy('#menuTitle') },
   { id: 5, desc: 'player eye height (m)', target: 1.62, tol: 0.05, measure: () => anchorEyeHeight() },
   { id: 6, desc: 'GPU ambient sky uniform vs contract (linear diff)', target: 0, tol: 0.002, measure: () => anchorAmbientDiff() },
-  { id: 7, desc: 'menu hero: focal point screen x (%)', target: 62, tol: 10, measure: () => anchorHeroX() }
+  { id: 7, desc: 'menu hero: creature mask screen x (%)', target: 62, tol: 10, measure: () => anchorHeroX() }
 ];

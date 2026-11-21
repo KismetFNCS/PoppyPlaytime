@@ -235,7 +235,7 @@ const Ambush = {
     if (this.held) M.yaw = M.yaw + wrapAngle(Math.atan2(-(this.pin[0] - M.pos[0]), -(this.pin[2] - M.pos[2])) - M.yaw) * Math.min(1, dt * 4);
     // the camera turns toward whoever is speaking
     const c = Dialogue.current;
-    if (c && c.speaker === 'THIMBLE') V3.set(Cast.tmp2, P.pos[0], 1.9, P.pos[2]); else V3.copy(Cast.tmp2, M.head);
+    if (c && c.speaker === 'THIMBLE') V3.set(Cast.tmp2, P.pos[0], 1.0, P.pos[2]); else V3.copy(Cast.tmp2, M.head);
     for (let i = 0; i < 3; i++) this.look[i] = damp(this.look[i], Cast.tmp2[i], 3, dt);
     Player.lockAmt = Math.min(0.9, Player.lockAmt + dt * 2);
     P.yaw = P.yaw + wrapAngle(Math.atan2(-(M.pos[0] - P.pos[0]), -(M.pos[2] - P.pos[2])) - P.yaw) * Math.min(1, dt * 4);

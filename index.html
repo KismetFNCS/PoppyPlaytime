@@ -401,7 +401,7 @@ window.addEventListener('error', function (e) {
 //   Verify: harness reads camera position after settling (ANCHORS[4].measure).
 // ANCHOR 6: GPU ambient sky uniform equals contract #1d0e13 (linear, max channel diff).  Target 0  Tol 0.002
 //   Verify: harness getUniform (ANCHORS[5].measure).
-// ANCHOR 7: menu hero shot - focal point (where the creature is later revealed) on screen x%.  Target 62  Tol 10
+// ANCHOR 7: menu hero shot - creature mask on screen x%.  Target 62  Tol 10
 //   Verify: harness projects the head position with the menu camera (ANCHORS[6].measure); final look PENDING menu-1920.png.
 // ============================================================
 
@@ -496,7 +496,7 @@ const FEEL = {
   handSpeed: 42, handGravity: 3.5, handReach: 24, handRetract: 55, handCooldown: 0.18,
   cableMax: 42, cableNodes: 28, cableIters: 8, cableSag: 1.035,
   bobWalkHz: 1.9, bobWalkAmp: 0.035, bobSprintHz: 2.7, bobSprintAmp: 0.065, sprintLeanDeg: 2.2,
-  breathHz: 0.25, breathAmp: 0.006, chaseTrauma: 0.55, jumpscareLock: 3.4, failCard: 2.4,
+  breathHz: 0.25, breathAmp: 0.006, chaseTrauma: 0.55, jumpscareLock: 3.6, failCard: 2.4,
   monsterPatrol: 2.2, monsterStalk: 3.1, monsterChase: 5.9, monsterCatch: 1.15,
   bumpFriction: 0.55, fixedStep: 1 / 120
 };
@@ -525,7 +525,7 @@ const ANCHORS = [
   { id: 4, desc: 'menu title center y (%)', target: 19.1, tol: 3, measure: () => anchorDomCy('#menuTitle') },
   { id: 5, desc: 'player eye height (m)', target: 1.62, tol: 0.05, measure: () => anchorEyeHeight() },
   { id: 6, desc: 'GPU ambient sky uniform vs contract (linear diff)', target: 0, tol: 0.002, measure: () => anchorAmbientDiff() },
-  { id: 7, desc: 'menu hero: focal point screen x (%)', target: 62, tol: 10, measure: () => anchorHeroX() }
+  { id: 7, desc: 'menu hero: creature mask screen x (%)', target: 62, tol: 10, measure: () => anchorHeroX() }
 ];
 
 // ===== module: 01_core.js =====
@@ -4108,7 +4108,7 @@ const Lights = {
     }
     const TG = this.thimbleGlow, TP = Cast.plush;
     if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
-      V3.set(TG.pos, TP.pos[0], 1.95, TP.pos[2]); TG.sector = TP.sector;
+      V3.set(TG.pos, TP.pos[0], 1.05, TP.pos[2]); TG.sector = TP.sector;
       TG.current = TG.base * (0.9 + 0.1 * Math.sin(time * 3));
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = TG;
@@ -4318,7 +4318,7 @@ const Monster = {
   btTimer: 0, tree: null, intent: '', time: 0, stunTimer: 0, lostTimer: 0, roarCooldown: 0, clickTimer: 0,
   hitPoint: V3.create(), head: V3.create(), chest: V3.create(), eye: V3.create(),
   // kill animation: grab (both hands close round you), join (needle fingers pinch into one spike), stab (-1 wind-up .. 1 thrust)
-  kill: { on: false, grab: 0, join: 0, stab: 0 },
+  kill: { on: false, grab: 0, join: 0, stab: 0, wind: 0 },
   legs: [], bodyBob: 0, lean: 0, armReach: 0, jaw: 0, headTilt: 0, flinchAmt: 0, breathe: 0,
   catchCooldown: 0, sector: -1, sightRange: 20,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
@@ -4357,7 +4357,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
-    this.kill.on = false; this.kill.grab = 0; this.kill.join = 0; this.kill.stab = 0;
+    this.kill.on = false; this.kill.grab = 0; this.kill.join = 0; this.kill.stab = 0; this.kill.wind = 0;
     this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0; this.stunImmune = 0; this.retreatAfterStun = false; this.retreatTimer = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
@@ -4863,7 +4863,7 @@ const Monster = {
     if (Sculpt.ready('sp_coat')) {
       it = R.push('sp_coat', MAT.clothWine);
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
-      if (it) { it.tint[0] = 1.7; it.tint[1] = 1.45; it.tint[2] = 1.45; }
+      if (it) { it.tint[0] = 1.25; it.tint[1] = 1.15; it.tint[2] = 1.05; }
     }
     // three stolen plush arms dangle from under the chest: teal, rose (wearing a teal ring) and pink
     for (let k = 0; k < 3; k++) {
@@ -4904,10 +4904,12 @@ const Monster = {
       this.bodyPoint(H, side * (0.95 - reach * 0.35), 1.75 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
       R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
       R.seg('cyl', MAT.steel, B, H, 0.045);
-      // ragged coat sleeve over the upper arm
+      // ragged motley sleeve over the upper arm (teal on one arm, ruby on the other) with an orange cuff
       V3.lerp(X, B, H, 0.72);
-      R.seg('cyl', MAT.clothWine, B, X, 0.08);
-      R.seg('cone', MAT.canvas, X, H, 0.085);
+      R.seg('cyl', side < 0 ? MAT.handTeal : MAT.clothWine, B, X, 0.08);
+      R.seg('cone', side < 0 ? MAT.clothWine : MAT.handTeal, X, H, 0.085);
+      const cuff = R.push('torus', MAT.copper);
+      if (cuff) { V3.sub(_mh.dir, H, B); V3.normalize(_mh.dir, _mh.dir); ringMatrix(cuff.model, X, _mh.dir, 0.085); }
       this.bodyPoint(X, side * (0.75 - reach * 0.4), 1.2 + reach * 0.9, -1.55 - reach * 0.9);
       R.seg('cyl', MAT.steel, H, X, 0.035);
       R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
@@ -4925,54 +4927,82 @@ const Monster = {
     this.submitLegs();
   },
 
-  // the kill: both hands clamp around your head, then the right hand's needle fingers pinch together into a
-  // single spike that draws back and drives forward into the camera
+  // the kill: it walks up with its claw raised, its bony left hand grabs you and lifts you to its face, it
+  // laughs while slowly winding the claw back (needles pinching into one spike), then stabs
   submitKillArms() {
-    const R = RenderQueue, K = this.kill, B = this.tmp, H = this.tmp2, X = this.tmp3, L = _mh.kl;
-    // where your eyes are in its local space (you are lifted up toward its face during the kill)
-    const ce = Player.cam.eye, cx = 0, cy = ce[1] - this.pos[1] - this.bodyBob, cz = -Math.hypot(ce[0] - this.pos[0], ce[2] - this.pos[2]);
-    for (const side of [-1, 1]) {
-      // hand position in local space: resting reach -> clamped beside your head -> (right) wind-up / thrust
-      let hx = side * 0.75, hy = cy - 0.3, hz = cz + 0.6;
-      const gx = side * 0.36, gy = cy + 0.16, gz = cz + 0.5;
-      hx += (gx - hx) * K.grab; hy += (gy - hy) * K.grab; hz += (gz - hz) * K.grab;
-      if (side > 0 && K.stab < 0) { const w = -K.stab; hx += (0.5 - hx) * w; hy += (cy + 0.32 - hy) * w; hz += (cz + 0.8 - hz) * w; }
-      if (side > 0 && K.stab > 0) { const w = K.stab; hx = 0.5 + (0.03 - 0.5) * w; hy = cy + 0.32 + (-0.3) * w; hz = cz + 0.8 + (-0.45) * w; }
-      this.bodyPoint(B, side * 0.3, 2.14, -0.47);
-      this.bodyPoint(X, hx, hy, hz);
-      this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.32, (2.14 + hy) * 0.5 - 0.15, (-0.47 + hz) * 0.5 + 0.1);
-      R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
-      R.seg('cyl', MAT.steel, B, H, 0.045);
-      V3.lerp(L.a, B, H, 0.72);
-      R.seg('cyl', MAT.clothWine, B, L.a, 0.08);
-      R.seg('cone', MAT.canvas, L.a, H, 0.085);
-      R.seg('cyl', MAT.steel, H, X, 0.035);
-      R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
-      R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.055, 0.055, 0.055);
-      // direction from the hand toward your face, and a sideways axis
-      let dx = cx - hx, dy = cy - hy, dz = cz - hz;
-      const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
-      let lx = -dz, lz = dx; const ll = Math.hypot(lx, lz) || 1; lx /= ll; lz /= ll;
-      const join = side > 0 ? K.join : 0;
-      for (let f = -2; f <= 2; f++) {
-        // grabbing: fingers curl in around your head; joined: every needle meets at one spike point ahead
-        const spread = f * (1 - join);
-        const mx = hx + dx * 0.16 + lx * spread * 0.05, my = hy + dy * 0.16 + 0.07 - Math.abs(spread) * 0.015, mz = hz + dz * 0.16 + lz * spread * 0.05;
-        let tx = hx + (cx - hx) * 0.62 + lx * spread * 0.07, ty = hy + (cy - hy) * 0.62 + spread * 0.03, tz = hz + (cz - hz) * 0.62 + lz * spread * 0.07;
-        if (join > 0) { const sx = hx + dx * 0.55, sy = hy + dy * 0.55, sz = hz + dz * 0.55; tx += (sx - tx) * join; ty += (sy - ty) * join; tz += (sz - tz) * join; }
-        this.bodyPoint(L.b, mx, my, mz);
-        this.bodyPoint(L.c, tx, ty, tz);
-        R.seg('cylLow', MAT.steel, X, L.b, 0.012);
-        R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.02, 0.02, 0.02);
-        const nd = R.seg('cone', MAT.steel, L.b, L.c, 0.011 + join * 0.004);
-        if (nd && join > 0) { nd.emis[0] = 0.5 * join; nd.emis[1] = 0.42 * join; nd.emis[2] = 0.38 * join; }
+    const K = this.kill, L = _mh.kl;
+    // where your eyes are in its local space
+    const ce = Player.cam.eye, cy = ce[1] - this.pos[1] - this.bodyBob, cz = -Math.hypot(ce[0] - this.pos[0], ce[2] - this.pos[2]);
+    // right: the claw hand (raised out to the side -> wound back -> thrust into the camera)
+    let hx = 0.95 + (0.58 - 0.95) * K.wind, hy = cy + 0.3 + 0.32 * K.wind, hz = cz + 1.3 - 0.05 * K.wind;
+    if (K.stab > 0) { hx += (0.03 - hx) * K.stab; hy += (cy + 0.12 - hy) * K.stab; hz += (cz + 0.32 - hz) * K.stab; }
+    this.drawKillArm(1, hx, hy, hz, 0, cy, cz, K.join, false);
+    // left: the bony grabbing hand that clamps beside your head
+    const gx = -0.8 + 0.42 * K.grab, gy = cy - 0.5 + 0.68 * K.grab, gz = cz + 1.0 - 0.52 * K.grab;
+    this.drawKillArm(-1, gx, gy, gz, 0, cy, cz, 0, true, K.grab);
+  },
+  drawKillArm(side, hx, hy, hz, cx, cy, cz, join, bony, grab) {
+    const R = RenderQueue, B = this.tmp, H = this.tmp2, X = this.tmp3, L = _mh.kl;
+    this.bodyPoint(B, side * 0.3, 2.14, -0.47);
+    this.bodyPoint(X, hx, hy, hz);
+    this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.3, (2.14 + hy) * 0.5 - 0.12, (-0.47 + hz) * 0.5 + 0.08);
+    R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
+    R.seg('cyl', MAT.steel, B, H, 0.045);
+    V3.lerp(L.a, B, H, 0.72);
+    R.seg('cyl', side < 0 ? MAT.handTeal : MAT.clothWine, B, L.a, 0.08);
+    R.seg('cone', side < 0 ? MAT.clothWine : MAT.handTeal, L.a, H, 0.085);
+    R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
+    if (bony) {
+      // bone-white forearm wrapped in red cables
+      R.seg('cyl', MAT.porcelain, H, X, 0.042);
+      for (let k = 0; k < 3; k++) {
+        const ph = k * 2.1;
+        V3.lerp(L.b, H, X, 0.15); L.b[1] += Math.cos(ph) * 0.05; L.b[0] += Math.sin(ph) * 0.05;
+        V3.lerp(L.c, H, X, 0.9); L.c[1] += Math.cos(ph + 1.5) * 0.045; L.c[0] += Math.sin(ph + 1.5) * 0.045;
+        const c = R.seg('cylLow', MAT.rubber, L.b, L.c, 0.011);
+        if (c) { c.tint[0] = 4.2; c.tint[1] = 0.55; c.tint[2] = 0.5; }
       }
-      if (side > 0 && join > 0.9) {
-        // the pinched needles glint at the tip
-        this.bodyPoint(L.c, hx + dx * 0.55, hy + dy * 0.55, hz + dz * 0.55);
-        const g = R.trs('sphereLow', MAT.screen, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.009, 0.009, 0.009, false);
-        if (g) { g.emis[0] = 1.6; g.emis[1] = 1.4; g.emis[2] = 1.2; }
+    } else R.seg('cyl', MAT.steel, H, X, 0.038);
+    // palm plate and knuckles, oriented toward your face
+    let dx = cx - hx, dy = cy - hy, dz = cz - hz;
+    const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+    let lx = -dz, lz = dx; const ll = Math.hypot(lx, lz) || 1; lx /= ll; lz /= ll;
+    this.bodyPoint(L.b, hx + dx * 0.05, hy + dy * 0.05, hz + dz * 0.05);
+    let it = R.trs('sphere', bony ? MAT.porcelain : MAT.steel, L.b[0], L.b[1], L.b[2], this.yaw + Math.atan2(-dx, -dz), 0, 0, 0.085, 0.04, 0.085);
+    for (let f = -2; f <= 2; f++) {
+      const spread = f * (1 - join);
+      // knuckle
+      const kx = hx + dx * 0.1 + lx * spread * 0.035, ky = hy + dy * 0.1 + 0.01, kz = hz + dz * 0.1 + lz * spread * 0.035;
+      this.bodyPoint(L.a, kx, ky, kz);
+      R.trs('sphereLow', MAT.copper, L.a[0], L.a[1], L.a[2], 0, 0, 0, 0.022, 0.022, 0.022);
+      // mid joint and tip: long needle blades fanned out; grabbing fingers curl in around your head; joined
+      // needles all meet at a single spike point
+      let mx = kx + dx * 0.16 + lx * spread * 0.05, my = ky + dy * 0.16 + 0.05, mz = kz + dz * 0.16 + lz * spread * 0.05;
+      let tx = kx + dx * 0.42 + lx * spread * 0.11, ty = ky + dy * 0.42 + Math.abs(spread) * -0.02, tz = kz + dz * 0.42 + lz * spread * 0.11;
+      if (bony) {
+        const g = grab || 0;
+        // fingers wrap past the side of your head (toward the edge of view), not into the lens
+        const side2 = Math.sign(hx - cx) || -1;
+        const wx = cx + side2 * (0.22 + f * 0.035), wy = cy + 0.22 - f * 0.05, wz = cz - 0.04;
+        tx += (wx - tx) * g * 0.8; ty += (wy - ty) * g * 0.8; tz += (wz - tz) * g * 0.8;
+        mx += (kx + (wx - kx) * 0.45 - mx) * g; my += (ky + (wy - ky) * 0.45 + 0.04 - my) * g; mz += (kz + (wz - kz) * 0.45 - mz) * g;
       }
+      if (join > 0) {
+        const sx = hx + dx * 0.62, sy = hy + dy * 0.62, sz = hz + dz * 0.62;
+        tx += (sx - tx) * join; ty += (sy - ty) * join; tz += (sz - tz) * join;
+        mx += (hx + dx * 0.3 - mx) * join * 0.7; my += (hy + dy * 0.3 - my) * join * 0.7; mz += (hz + dz * 0.3 - mz) * join * 0.7;
+      }
+      this.bodyPoint(L.b, mx, my, mz);
+      this.bodyPoint(L.c, tx, ty, tz);
+      R.seg('cylLow', bony ? MAT.porcelain : MAT.steel, L.a, L.b, bony ? 0.016 : 0.013);
+      R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.018, 0.018, 0.018);
+      const nd = R.seg('cone', MAT.steel, L.b, L.c, bony ? 0.014 : 0.012 + join * 0.004);
+      if (nd && !bony) { const g = 0.25 + join * 0.5; nd.emis[0] = 0.3 * g; nd.emis[1] = 0.27 * g; nd.emis[2] = 0.25 * g; }
+    }
+    if (!bony && join > 0.9) {
+      this.bodyPoint(L.c, hx + dx * 0.62, hy + dy * 0.62, hz + dz * 0.62);
+      it = R.trs('sphereLow', MAT.screen, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.009, 0.009, 0.009, false);
+      if (it) { it.emis[0] = 1.6; it.emis[1] = 1.4; it.emis[2] = 1.2; }
     }
   },
 
@@ -5026,27 +5056,23 @@ const Monster = {
     let it;
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
-      it = R.push('sp_mask', MAT.porcelain); if (it) it.model.set(m);
-      // the jaw unhinges for the lunge: a dark gullet opening under the grin
-      if (this.jaw > 0.35) {
-        this.headLocal(m, 0, -0.2 - this.jaw * 0.08, -0.25, this.tmp3);
-        R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.17 * s, (0.04 + this.jaw * 0.08) * s, 0.07 * s, false);
-      }
+      // the grin never moves: it is carved into the porcelain. Grimy, yellowed and stained.
+      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.8; it.tint[1] = 0.73; it.tint[2] = 0.6; }
     } else {
       R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }
-    // one solid glowing amber eye in the left socket (no pupil)
-    this.headLocal(m, -0.125, 0.06, -0.255, this.eye);
-    it = R.trs('sphere', MAT.screen, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.066 * s, 0.066 * s, 0.045 * s, false);
-    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.7; it.tint[2] = 0.25; it.emis[0] = 3.6; it.emis[1] = 2.2; it.emis[2] = 0.35; }
-    // a faint ember haze fills the hollow right socket
-    this.headLocal(m, 0.125, 0.055, -0.24, this.tmp3);
-    it = R.trs('sphereLow', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.05 * s, 0.05 * s, 0.03 * s, false);
-    if (it) { it.emis[0] = 0.3; it.emis[1] = 0.06; it.emis[2] = 0.03; }
+    // both sockets are pitch black; the left one holds a single small yellow point of light
+    this.headLocal(m, -0.125, 0.06, -0.25, this.eye);
+    R.trs('sphere', MAT.rubber, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.062 * s, 0.062 * s, 0.035 * s, false);
+    this.headLocal(m, -0.125, 0.058, -0.29, this.eye);
+    it = R.trs('sphereLow', MAT.screen, this.eye[0], this.eye[1], this.eye[2], 0, 0, 0, 0.014 * s, 0.014 * s, 0.014 * s, false);
+    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.2; it.emis[0] = 3.2; it.emis[1] = 2.7; it.emis[2] = 0.25; }
+    this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
+    R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.07 * s, 0.07 * s, 0.035 * s, false);
     // battered tailor's top hat, cocked to one side
     if (Sculpt.ready('sp_hat')) {
       this.headLocal(m, 0.05, 0.36, 0.04, this.tmp3);
-      it = R.push('sp_hat', MAT.canvas);
+      it = R.push('sp_hat', MAT.clothWine);
       if (it) M4.compose(it.model, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw + 0.3, pitch - 0.1, roll - 0.22, s, s, s);
     }
   },
@@ -6533,7 +6559,7 @@ let state = null;
 const HANDLERS = {
   BOOT_LOADING: { enter() { UI.show('loading'); }, exit() { UI.hide('loading'); }, update(dt) { Loader.step(); } },
   MAIN_MENU: {
-    enter() { UI.show('menu'); Input.exitLock(); Monster.reset(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
+    enter() { UI.show('menu'); Input.exitLock(); Monster.setMenuPose(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
     exit() { UI.hide('menu'); },
     update(dt) {
       if (Input.justPressed.has('ArrowDown') || Input.justPressed.has('KeyS')) UI.menuNav(1);
@@ -7111,8 +7137,8 @@ const Game = {
     Player.addTrauma(0.8);
     Renderer.post.redWave = 0.1;
     Monster.jaw = 0.4; Monster.armReach = 1;
-    Monster.kill.on = true; Monster.kill.grab = 0; Monster.kill.join = 0; Monster.kill.stab = 0;
-    this.placeJumpscareMonster(1.7);
+    Monster.kill.on = true; Monster.kill.grab = 0; Monster.kill.join = 0; Monster.kill.stab = 0; Monster.kill.wind = 0;
+    this.placeJumpscareMonster(3.4); Monster.snapLegs();
     Player.lockTarget = Monster.head;
     Player.lockAmt = 0;
     this.fracture[0] = Player.cam.eye[0]; this.fracture[1] = Player.cam.eye[1]; this.fracture[2] = Player.cam.eye[2]; this.fracture[3] = 3; this.fractureAmt = 1;
@@ -7129,37 +7155,39 @@ const Game = {
   updateJumpscare(dt) {
     this.jumpTimer += dt;
     const t = this.jumpTimer;
-    // 0-0.45 s: lunge in and clamp both hands around your head
-    // 0.45-2.3 s: throws its head back and laughs, jaw clattering in time
-    // 2.0-2.6 s: the right hand's needle fingers pinch into one spike and draw back
-    // 2.78 s: it stabs; the screen cracks red and cuts to black
+    // 0-0.95 s: it walks up to you, claw raised out to the side, needles fanned
+    // 0.85-1.2 s: its bony left hand grabs you and lifts you up to its face
+    // 1.2-2.85 s: it laughs while slowly winding the claw back; the needles pinch into one spike
+    // 2.9 s: it stabs; the screen cracks red and cuts to black
     const K = Monster.kill;
-    const lunge = 1.9 - 0.6 * smoothstep(0, 0.3, t);
-    this.placeJumpscareMonster(lunge);
-    K.grab = smoothstep(0.05, 0.42, t);
-    K.join = smoothstep(2.0, 2.45, t);
-    K.stab = t < 2.75 ? -smoothstep(2.1, 2.65, t) : smoothstep(2.75, 2.86, t);
-    const laughing = t > 0.45 && t < 2.3;
-    const ha = Math.abs(Math.sin((t - 0.45) * 13));
+    const walk = smoothstep(0, 0.95, t);
+    this.placeJumpscareMonster(3.4 - 2.1 * walk);
+    Monster.speed = t < 0.95 ? 2.4 : 0;
+    K.grab = smoothstep(0.85, 1.2, t);
+    K.wind = smoothstep(1.25, 2.7, t);
+    K.join = smoothstep(1.95, 2.6, t);
+    K.stab = t < 2.9 ? 0 : smoothstep(2.9, 3.0, t);
+    const laughing = t > 1.2 && t < 2.85;
+    const ha = Math.abs(Math.sin((t - 1.2) * 13));
     Monster.headTilt = laughing ? Math.sin(t * 6.5) * 0.3 : noise1(t * 40) * 0.12;
-    Monster.jaw = laughing ? 0.35 + 0.65 * ha : t < 0.45 ? 0.5 : 0.95;
+    Monster.jaw = laughing ? 0.35 + 0.65 * ha : t < 1.2 ? 0.3 : 0.95;
     Monster.flinchAmt = laughing ? -0.15 * ha : 0;   // head jerks back with each "ha"
     Monster.animateLegs(dt, false);
     Player.lockAmt = Math.min(1, Player.lockAmt + dt * 9);
-    Player.trauma = laughing ? 0.35 + 0.25 * ha : t < 0.45 ? 0.9 : t > 2.75 ? 1 : 0.4;
-    if (this.killCue === 0 && t > 0.45) { this.killCue = 1; sfx('laugh'); }
-    if (this.killCue === 1 && t > 2.78) {
+    Player.trauma = laughing ? 0.3 + 0.2 * ha : t < 0.85 ? 0.25 : t < 1.2 ? 0.9 : t > 2.9 ? 1 : 0.4;
+    if (this.killCue === 0 && t > 1.2) { this.killCue = 1; sfx('laugh'); }
+    if (this.killCue === 1 && t > 2.92) {
       this.killCue = 2; sfx('stab');
       this.fracture[0] = Player.cam.eye[0]; this.fracture[1] = Player.cam.eye[1]; this.fracture[2] = Player.cam.eye[2]; this.fracture[3] = 4; this.fractureAmt = 1;
     }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     // it lifts you off your feet, up to its face
-    Player.cam.eye[1] += 0.5 * smoothstep(0.08, 0.5, t);
+    Player.cam.eye[1] += 0.5 * smoothstep(0.9, 1.3, t);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    Renderer.post.redWave = t < 2.78 ? 0.15 + 0.1 * Math.sin(t * 13) : 1;
+    Renderer.post.redWave = t < 2.92 ? 0.12 + 0.08 * Math.sin(t * 13) : 1;
     Renderer.post.fear = 1;
-    Renderer.post.flash = t < 0.08 ? 0.35 : t > 2.8 && t < 2.9 ? 0.6 : 0;
+    Renderer.post.flash = t > 0.88 && t < 0.95 ? 0.3 : t > 2.93 && t < 3.03 ? 0.6 : 0;
     Renderer.post.flashTint[0] = 1; Renderer.post.flashTint[1] = 0.05; Renderer.post.flashTint[2] = 0.02;
     Renderer.post.fade = smoothstep(FEEL.jumpscareLock - 0.25, FEEL.jumpscareLock, t);
     Lights.update(dt, this.time + t, Streaming.visible);
@@ -7540,8 +7568,7 @@ function anchorAmbientDiff() {
   return Math.max(Math.abs(u[0] / k - want[0]), Math.abs(u[1] / k - want[1]), Math.abs(u[2] / k - want[2]));
 }
 function anchorHeroX() {
-  // the menu's focal point (where the hero shot frames the corridor; the Spoolwright itself is revealed later)
-  const m = Renderer.viewProj, mp = Level.menuMonster.pos, h = [mp[0], mp[1] + 2.5, mp[2]];
+  const m = Renderer.viewProj, h = Monster.head;
   const w = m[3] * h[0] + m[7] * h[1] + m[11] * h[2] + m[15];
   if (w <= 0) return NaN;
   const x = (m[0] * h[0] + m[4] * h[1] + m[8] * h[2] + m[12]) / w;
@@ -7754,7 +7781,7 @@ async function runAll() {
     T.step(DT, 2);
     check('menu: state is MAIN_MENU', T.getState() === 'MAIN_MENU', T.getState());
     checkUI('MAIN_MENU');
-    check('menu: the Spoolwright is not in the menu (he is a later reveal)', !Monster.visible && !Monster.active, Monster.state);
+    check('menu: the Spoolwright looms in the menu backdrop', Monster.visible && Monster.state === MSTATE.MENU_POSE, Monster.state);
     check('menu: arrow navigation moves selection', (() => { const a = UI.menuIndex; tap('ArrowDown'); const b = UI.menuIndex; tap('ArrowUp'); return b !== a; })());
     Game.uiAction('settings'); T.step(DT, 1);
     check('settings: panel opens from menu', T.getState() === 'SETTINGS_PANEL', T.getState());
@@ -7941,11 +7968,11 @@ async function runAll() {
     T.step(DT, 20);
     check('jumpscare: view locked toward the creature', Player.lockAmt > 0.9, Player.lockAmt.toFixed(2));
     check('jumpscare: hands pulled back instantly', GrabPack.hands.every(h => h.state === HAND.DOCKED));
-    T.step(DT, 40);
-    check('kill: both hands clamp around your head, then it laughs', Monster.kill.grab > 0.95 && T.getSfxLog().includes('laugh'), Monster.kill.grab.toFixed(2));
-    T.step(DT, 95);
-    check('kill: needle fingers pinch into one spike and draw back', Monster.kill.join > 0.95 && Monster.kill.stab < -0.5, Monster.kill.join.toFixed(2) + ' ' + Monster.kill.stab.toFixed(2));
-    T.step(DT, 18);
+    T.step(DT, 70);
+    check('kill: it walks up, its bony hand grabs you, then it laughs', Monster.kill.grab > 0.95 && T.getSfxLog().includes('laugh'), Monster.kill.grab.toFixed(2));
+    T.step(DT, 72);
+    check('kill: laughing, it winds the claw back and pinches the needles into a spike', Monster.kill.join > 0.95 && Monster.kill.wind > 0.9 && Monster.kill.stab === 0, Monster.kill.join.toFixed(2) + ' ' + Monster.kill.wind.toFixed(2));
+    T.step(DT, 21);
     check('kill: it stabs - red crack and wave', T.getSfxLog().includes('stab') && Monster.kill.stab > 0.9 && Renderer.post.redWave > 0.5, Monster.kill.stab.toFixed(2));
     check('failure: FAILURE_STATE after the lock', untilState('FAILURE_STATE', 120), T.getState());
     check('kill: pose cleared afterwards', !Monster.kill.on, '');
@@ -8194,7 +8221,7 @@ async function runAll() {
       check('thimble: plugs his staff into the socket during the chase', Cast.plush.plugState === 2, 'state ' + Cast.plush.plugState);
       check('thimble: staff tip lands in the socket', V3.dist(Cast.staff.tip, Cast.plushSocket) < 0.05, V3.dist(Cast.staff.tip, Cast.plushSocket).toFixed(3));
       check('thimble: the surge overloads - shutter still shut', Level.doorById('DS').target === 0 && Cast.plushCollider.enabled, '');
-      T.aimAt(-2.85, 1.45, -71.42); T.step(DT, 1);
+      { const c = Cast.plushCollider; T.aimAt((c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2, (c.min[2] + c.max[2]) / 2); } T.step(DT, 1);
       T.simulateMouse(0, true); T.step(DT, 130); T.simulateMouse(0, false); T.step(DT, 4);
       check('thimble: clamping his staff and holding grounds the surge, shutter rises', Cast.plush.plugState === 4 && Level.doorById('DS').target === 1, 'state ' + Cast.plush.plugState + ' ground ' + Cast.plush.ground.toFixed(2));
       check('thimble: purple eye pulses with power', Cast.plush.eyeGlow > 0.8, Cast.plush.eyeGlow.toFixed(2));
@@ -8255,7 +8282,7 @@ async function runAll() {
       check('assets: prop rendered through the textured G-buffer path', Renderer.stats.assetDraws > 0 && T.getLastError() === null, Renderer.stats.assetDraws);
       const m = await Assets.loadBuffer(glb, 'harness_monster.glb', { slot: 'monster', persist: false });
       check('assets: monster slot auto-fits to 2.9 m', Math.abs(m.size[1] - 2.9) < 1e-3, m.size[1].toFixed(3));
-      T.gotoMenu(); Monster.setMenuPose(); T.step(DT, 2);
+      T.gotoMenu(); T.step(DT, 2);
       check('assets: custom monster replaces the procedural body', Assets.slot('monster') === m && Renderer.stats.assetDraws > 0 && V3.finite(Monster.head), Renderer.stats.assetDraws);
       await Assets.loadBuffer(glb, 'harness_hand_left.glb', { persist: false });
       check('assets: file name picks the slot (hand_left -> handLeft)', !!Assets.slot('handLeft'));
@@ -8905,6 +8932,9 @@ const CAST_COLORS = {
   ledScared: '#b98cff', ledLove: '#ff6aa8', antenna: '#ff3b2e'
 };
 
+// Mister Thimble is a small plush: about a metre tall
+const PLUSH_SCALE = 0.62;
+
 const Cast = {
   usher: {
     pos: V3.create(0, -50, 0), yaw: 0, headYaw: 0, state: 'HIDDEN', timer: 0, stareTime: 0, used: new Uint8Array(4),
@@ -8917,7 +8947,7 @@ const Cast = {
   PLUSH_WAIT: [3.0, -27.5, 2.43], PLUSH_SHUTTER: [-3.6, -70.9, -2.84], PLUSH_LOOM: [-2.2, -107.4, Math.PI],
   plushCollider: null,
   // broken power socket on the shutter wall that Mister Thimble jams his needle staff into
-  plushSocket: V3.create(-2.5, 1.05, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
+  plushSocket: V3.create(-2.75, 0.62, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
@@ -8951,7 +8981,7 @@ const Cast = {
   // hand target on Thimble's staff (enabled only while the socket is overloading)
   makePlushCollider() {
     if (this.plushCollider) return;
-    const c = Physics.addBox(-3.05, 1.2, -71.65, -2.6, 1.75, -71.2, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, -1, true, 3);
+    const c = Physics.addBox(-3.2, 0.4, -71.7, -2.8, 0.9, -71.3, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, -1, true, 3);
     c.kind = 'staff'; c.ref = this.plush; c.enabled = false;
     this.plushCollider = c;
   },
@@ -9126,8 +9156,13 @@ const Cast = {
     const pulse = P.plugState === 2 ? 0.6 + 0.5 * Math.sin(Game.time * 19) : P.plugState === 4 ? 0.3 + 0.3 * Math.sin(Game.time * 7) : 0;
     const dark = P.mode === 'FOLLOW' && !Player.flashOn ? 1.2 : 0;
     P.eyeGlow = damp(P.eyeGlow, 0.55 + 0.12 * Math.sin(Game.time * 2) + pulse + dark + P.eyePulse * 1.4, 6, dt);
-    if (this.plushCollider) this.plushCollider.enabled = P.mode === 'SHUTTER' && P.plugState === 2;
     this.poseStaff();
+    if (this.plushCollider) {
+      // the grab target follows the staff between his paw and the socket
+      const c = this.plushCollider, st = this.staff;
+      c.enabled = P.mode === 'SHUTTER' && P.plugState === 2;
+      for (let i = 0; i < 3; i++) { const mid = (st.paw[i] + st.tip[i]) * 0.5; c.min[i] = mid - 0.2; c.max[i] = mid + 0.2; }
+    }
   },
 
   // walk along the player's breadcrumb trail, a couple of metres behind them
@@ -9347,7 +9382,7 @@ const Cast = {
 
   // where the needle staff is this frame (also used by the socket check)
   poseStaff() {
-    const P = this.plush, p = P.pos, yaw = P.yaw, S = 1.2, st = this.staff, sk = this.plushSocket;
+    const P = this.plush, p = P.pos, yaw = P.yaw, S = PLUSH_SCALE, st = this.staff, sk = this.plushSocket;
     const e = P.plug;
     const rx = -0.66 * S, ry = 0.78 * S, rz = -0.18 * S, qx = -0.7 * S, qy = 1.25 * S, qz = 0.25 * S;
     const swing = Math.sin(P.phase) * 0.14 * P.walk * S;
@@ -9372,7 +9407,7 @@ const Cast = {
     if (it) { const on = P.plugState >= 2 && P.plugState !== 3; it.emis[0] = on ? 0.5 * P.eyeGlow : 0.9; it.emis[1] = on ? 0.08 : 0.05; it.emis[2] = on ? 1.0 * P.eyeGlow : 0.03; }
   },
   submitPlush() {
-    const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw, S = 1.2;
+    const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw, S = PLUSH_SCALE;
     const a = this.tmp, b = this.tmp2, st = this.staff, sk = this.plushSocket;
     if (!Sculpt.ready('th_body')) return;
     // gentle breathing bob; a side-to-side waddle while he walks
@@ -9394,7 +9429,7 @@ const Cast = {
       const k = 1 / 0.9;
       b[0] = a[0] + this.local[0] * k; b[1] = a[1] + this.local[1] * k; b[2] = a[2] + this.local[2] * k;
       it = R.push('th_arm', MAT.burnt);
-      if (it) M4.segment(it.model, a, b, 1);
+      if (it) M4.segment(it.model, a, b, S * 0.85);
     }
     // the needle staff: a giant ivory sewing needle with a steel point and a brass eye threaded with copper wire
     const n = st.dir;
@@ -9967,66 +10002,87 @@ const SCULPTS = {
   // Battered tailor's top hat (base at y 0): dented black felt crown, curled brim, a measuring-tape band,
   // a spool of red thread tucked in the band, a torn hole and two pins stuck through the crown
   sp_hat: () => {
-    const F = MAT.canvas, n = [
-      { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: F, n: [0.006, 25] },
-      { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: F, k: 0.05 },
-      { t: 'sph', c: [0.13, 0.36, -0.12], r: 0.07, op: 's', k: 0.04, sm: F },
-      { t: 'cyl', c: [0, 0.015, 0], r: 0.29, h: 0.012, rr: 0.01, m: F, k: 0.02, n: [0.008, 18] },
-      { t: 'tor', c: [0, 0.03, 0], R: 0.28, r: 0.016, m: F, k: 0.02, n: [0.006, 30] },
-      { t: 'cyl', c: [0, 0.07, 0], r: 0.177, h: 0.034, rr: 0.004, m: MAT.paint, k: 0.004 },
-      { t: 'sph', c: [-0.16, 0.26, 0.06], r: 0.04, op: 's', k: 0.01, sm: MAT.rubber, n: [0.01, 60] },
-      { t: 'cyl', c: [0.2, 0.1, 0.05], r: 0.045, h: 0.05, rr: 0.006, m: MAT.lining, k: 0.004, n: [0.003, 120] },
-      { t: 'cyl', c: [0.2, 0.152, 0.05], r: 0.062, h: 0.008, rr: 0.004, m: MAT.wood, k: 0.004 },
-      { t: 'cyl', c: [0.2, 0.048, 0.05], r: 0.062, h: 0.008, rr: 0.004, m: MAT.wood, k: 0.004 }
+    // battered harlequin top hat: crown pieced from rose, teal and gold panels with diamond patches, a gold
+    // brim, a teal band, bells hanging on frayed ribbons, a crushed dent, a torn hole and stuck pins
+    const RO = MAT.clothWine, TE = MAT.handTeal, GO = MAT.paint, n = [
+      { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: RO, n: [0.008, 22] },
+      { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: RO, k: 0.05 },
+      { t: 'sph', c: [0.13, 0.36, -0.12], r: 0.07, op: 's', k: 0.04, sm: RO },
+      { t: 'cyl', c: [0, 0.015, 0], r: 0.29, h: 0.012, rr: 0.01, m: GO, k: 0.02, n: [0.01, 18] },
+      { t: 'tor', c: [0, 0.03, 0], R: 0.28, r: 0.016, m: GO, k: 0.02, n: [0.008, 30] },
+      { t: 'cyl', c: [0, 0.07, 0], r: 0.177, h: 0.034, rr: 0.004, m: TE, k: 0.004 },
+      { t: 'sph', c: [-0.16, 0.26, 0.06], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.012, 60] }
     ];
-    for (let i = 0; i < 28; i++) {
-      const a = i / 28 * Math.PI * 2;
-      n.push({ t: 'box', c: [Math.cos(a) * 0.181, 0.07 + (i % 4 === 0 ? 0.012 : 0.02), Math.sin(a) * 0.181], h: [0.003, i % 4 === 0 ? 0.022 : 0.014, 0.003], m: MAT.rubber, k: 0.001 });
+    // pieced crown: teal and gold panels sewn over the rose felt
+    for (let k = 0; k < 6; k++) {
+      if (k % 3 === 0) continue;
+      const ang = k / 6 * Math.PI * 2;
+      n.push({ t: 'box', c: [Math.sin(ang) * 0.172, 0.23, Math.cos(ang) * 0.172], h: [0.075, 0.15, 0.01], rr: 0.008, rot: [ang, 0, 0], m: k % 3 === 1 ? TE : GO, k: 0.012, n: [0.006, 40] });
+    }
+    // harlequin diamonds on the panels
+    for (let k = 0; k < 6; k++) {
+      const ang = k / 6 * Math.PI * 2 + 0.5;
+      n.push({ t: 'box', c: [Math.sin(ang) * 0.181, 0.27, Math.cos(ang) * 0.181], h: [0.03, 0.03, 0.006], rot: [ang, 0, Math.PI / 4], m: k % 2 ? GO : TE, k: 0.004 });
+    }
+    // bells dangling on frayed ribbons from the band
+    for (const [ang, len, m] of [[1.9, 0.16, RO], [2.6, 0.22, TE], [-2.2, 0.18, GO]]) {
+      const x = Math.sin(ang) * 0.18, z = Math.cos(ang) * 0.18;
+      n.push({ t: 'cap', a: [x, 0.07, z], b: [x * 1.25, 0.07 - len, z * 1.25], r: 0.012, r2: 0.008, m, k: 0.006, n: [0.004, 60] });
+      n.push({ t: 'sph', c: [x * 1.27, 0.04 - len, z * 1.27], r: 0.03, m: GO, k: 0.006 });
+      n.push({ t: 'box', c: [x * 1.27, 0.025 - len, z * 1.27], h: [0.022, 0.004, 0.004], op: 's', sm: MAT.rubber });
     }
     for (const [x, z, h] of [[-0.08, -0.15, 0.3], [0.12, 0.1, 0.25]]) {
       n.push({ t: 'cap', a: [x * 0.6, h - 0.05, z * 0.6], b: [x * 1.6, h + 0.08, z * 1.6], r: 0.006, m: MAT.steel, k: 0.002 });
       n.push({ t: 'sph', c: [x * 1.6, h + 0.08, z * 1.6], r: 0.022, m: MAT.lining, k: 0.004 });
     }
-    return SDF.mesh(n, [-0.34, -0.03, -0.34], [0.34, 0.48, 0.34], 64);
+    // grime and scorch smudges
+    for (let k = 0; k < 7; k++) { const ang = k * 2.3; n.push({ t: 'sph', c: [Math.sin(ang) * 0.175, 0.08 + (k * 0.047) % 0.3, Math.cos(ang) * 0.175], r: 0.03, m: MAT.burnt, k: 0.01 }); }
+    return SDF.mesh(n, [-0.36, -0.28, -0.36], [0.36, 0.48, 0.36], 64);
   },
-  // Tattered tailor's coat on a skeletal upper torso (origin at the chest, facing -z): wine cloth with black
-  // lapels and collar, frayed tails, brass buttons, a measuring tape around the neck, ribs showing through
+  // Filthy, ragged jester's motley on a skeletal upper torso (origin at the chest, facing -z): ruby cloth with
+  // teal and orange harlequin diamonds, a pleated teal/ruby ruff, a dagged hem of pointed tatters, pom-pom
+  // buttons, holes, grime, and ribs showing through a rip in the front
   sp_coat: () => {
-    const W = MAT.clothWine, K = MAT.canvas, P = MAT.porcelain, Y = MAT.paint, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.22, 0.28, 0.15], m: W, n: [0.01, 20] },
-      { t: 'cap', a: [-0.25, 0.15, 0.01], b: [0.25, 0.15, 0.01], r: 0.085, m: W, k: 0.08 },
-      { t: 'box', c: [0, -0.34, 0.03], h: [0.21, 0.14, 0.14], rr: 0.03, m: W, k: 0.08, n: [0.03, 9] },
-      { t: 'box', c: [-0.1, -0.52, 0.1], h: [0.08, 0.13, 0.025], rr: 0.01, rot: [0, -0.25, 0.05], m: W, k: 0.04, n: [0.03, 14] },
-      { t: 'box', c: [0.1, -0.54, 0.1], h: [0.08, 0.15, 0.025], rr: 0.01, rot: [0, -0.3, -0.06], m: W, k: 0.04, n: [0.03, 14] },
-      { t: 'box', c: [0, -0.3, -0.15], h: [0.05, 0.22, 0.09], op: 's', k: 0.02, sm: K },
-      { t: 'box', c: [0, -0.06, -0.15], h: [0.055, 0.17, 0.06], op: 's', k: 0.02, sm: MAT.rubber },
-      { t: 'box', c: [0, 0.27, 0.05], h: [0.17, 0.07, 0.09], rr: 0.03, m: K, k: 0.03, n: [0.01, 30] },
-      { t: 'ell', c: [0, 0.31, 0], r: [0.11, 0.12, 0.09], op: 's', k: 0.02, sm: K },
-      { t: 'box', c: [-0.085, 0.06, -0.14], h: [0.05, 0.15, 0.012], rot: [0, 0, 0.32], m: K, k: 0.01 },
-      { t: 'box', c: [0.085, 0.06, -0.14], h: [0.05, 0.15, 0.012], rot: [0, 0, -0.32], m: K, k: 0.01 },
-      { t: 'sph', c: [0.16, -0.15, -0.1], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.012, 50] },
-      { t: 'box', c: [-0.15, -0.2, -0.12], h: [0.05, 0.045, 0.012], rr: 0.008, rot: [0.3, 0.6, 0.2], m: K, k: 0.006 }
+    const RU = MAT.clothWine, TE = MAT.handTeal, OR = MAT.copper, P = MAT.porcelain, G = MAT.burnt, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.22, 0.28, 0.15], m: RU, n: [0.014, 18] },
+      { t: 'cap', a: [-0.25, 0.15, 0.01], b: [0.25, 0.15, 0.01], r: 0.085, m: RU, k: 0.08, n: [0.01, 20] },
+      { t: 'box', c: [0, -0.32, 0.03], h: [0.22, 0.13, 0.15], rr: 0.04, m: RU, k: 0.08, n: [0.03, 9] },
+      { t: 'box', c: [0, -0.06, -0.15], h: [0.05, 0.16, 0.06], op: 's', k: 0.02, sm: MAT.rubber, n: [0.02, 30] },
+      { t: 'sph', c: [0.16, -0.15, -0.1], r: 0.05, op: 's', k: 0.01, sm: MAT.rubber, n: [0.015, 50] },
+      { t: 'sph', c: [-0.19, -0.3, -0.05], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.015, 50] }
     ];
-    // ribs and breastbone showing through the open front
-    n.push({ t: 'cap', a: [0, 0.08, -0.11], b: [0, -0.2, -0.11], r: 0.014, m: P, k: 0.01 });
-    for (let i = 0; i < 4; i++) {
-      const y = 0.04 - i * 0.07;
-      n.push({ t: 'cap', a: [-0.07, y - 0.02, -0.1], b: [0.07, y - 0.02, -0.1], r: 0.011, m: P, k: 0.006 });
+    // harlequin diamonds
+    const D = [[-0.12, 0.08, TE], [0.12, 0.08, OR], [-0.15, -0.14, OR], [0.15, -0.12, TE], [-0.1, -0.3, TE], [0.1, -0.3, OR], [0, -0.36, TE]];
+    for (const [x, y, m] of D) {
+      const z = -Math.sqrt(Math.max(0.0001, 1 - (x / 0.23) ** 2 - (y / 0.32) ** 2)) * 0.15 - 0.005;
+      n.push({ t: 'box', c: [x, y, Math.min(z, -0.1)], h: [0.05, 0.05, 0.012], rot: [Math.atan2(x, 0.3), 0, Math.PI / 4], m, k: 0.01, n: [0.006, 40] });
     }
-    for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.105, -0.12 + i * 0.09, -0.152], r: 0.016, h: 0.006, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.003 });
-    // measuring tape slung around the neck, hanging down both sides with tick marks
-    n.push({ t: 'cap', a: [-0.1, 0.26, 0.07], b: [0.1, 0.26, 0.07], r: 0.012, m: Y, k: 0.01 });
-    for (const sx of [-1, 1]) {
-      n.push({ t: 'box', c: [sx * 0.08, 0.0, -0.165], h: [0.022, 0.25, 0.004], rot: [0, 0, sx * 0.06], m: Y, k: 0.006 });
-      for (let i = 0; i < 9; i++) n.push({ t: 'box', c: [sx * (0.08 + 0.012) - sx * i * 0.0028, 0.2 - i * 0.055, -0.17], h: [0.009, 0.0025, 0.002], m: MAT.rubber, k: 0.001 });
+    // pleated ruff around the neck, alternating teal and ruby
+    for (let k = 0; k < 16; k++) {
+      const ang = k / 16 * Math.PI * 2;
+      n.push({ t: 'ell', c: [Math.sin(ang) * 0.15, 0.25, Math.cos(ang) * 0.12], r: [0.05, 0.035, 0.05], rot: [ang, 0.6, 0], m: k % 2 ? TE : RU, k: 0.015, n: [0.008, 45] });
     }
-    // cross-stitched repair along a seam
+    n.push({ t: 'ell', c: [0, 0.3, 0], r: [0.1, 0.1, 0.08], op: 's', k: 0.02, sm: RU });
+    // dagged hem: pointed tatters of every colour hanging round the skirt
+    for (let k = 0; k < 11; k++) {
+      const ang = (k / 11) * Math.PI * 2, x = Math.sin(ang) * 0.21, z = Math.cos(ang) * 0.14 + 0.03;
+      const len = 0.14 + ((k * 7) % 4) * 0.035;
+      n.push({ t: 'cap', a: [x, -0.42, z], b: [x * 1.15, -0.42 - len, z * 1.15], r: 0.045, r2: 0.006, m: [RU, TE, OR][k % 3], k: 0.02, n: [0.012, 30] });
+    }
+    // ribs and breastbone in the rip
+    n.push({ t: 'cap', a: [0, 0.06, -0.11], b: [0, -0.2, -0.11], r: 0.014, m: P, k: 0.01 });
+    for (let i = 0; i < 4; i++) { const y = 0.03 - i * 0.065; n.push({ t: 'cap', a: [-0.06, y - 0.02, -0.1], b: [0.06, y - 0.02, -0.1], r: 0.011, m: P, k: 0.006 }); }
+    // pom-pom buttons down one side
+    for (let i = 0; i < 3; i++) n.push({ t: 'sph', c: [0.075, 0.12 - i * 0.12, -0.16], r: 0.024, m: [OR, TE, OR][i], k: 0.006, n: [0.006, 80] });
+    // grime, soot and stains
+    for (let k = 0; k < 10; k++) { const ang = k * 2.2; n.push({ t: 'sph', c: [Math.sin(ang) * 0.2, 0.2 - (k * 0.071) % 0.62, Math.cos(ang) * 0.13], r: 0.035, m: G, k: 0.012, n: [0.01, 50] }); }
+    // crude stitched repair
     for (let i = 0; i < 4; i++) {
       const y = 0.12 - i * 0.06, x = -0.2, z = -0.05;
-      n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: Y, k: 0.002 });
-      n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: Y, k: 0.002 });
+      n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
+      n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
     }
-    return SDF.mesh(n, [-0.4, -0.72, -0.3], [0.4, 0.42, 0.3], 72);
+    return SDF.mesh(n, [-0.4, -0.78, -0.3], [0.4, 0.42, 0.3], 72);
   },
   // Stolen plush arm (shoulder at y 0, fingertips at y 1), coloured per draw: shaggy fur sleeve, a frayed
   // torn shoulder, and a soft four-fingered hand
@@ -10639,7 +10695,7 @@ const Ambush = {
     if (this.held) M.yaw = M.yaw + wrapAngle(Math.atan2(-(this.pin[0] - M.pos[0]), -(this.pin[2] - M.pos[2])) - M.yaw) * Math.min(1, dt * 4);
     // the camera turns toward whoever is speaking
     const c = Dialogue.current;
-    if (c && c.speaker === 'THIMBLE') V3.set(Cast.tmp2, P.pos[0], 1.9, P.pos[2]); else V3.copy(Cast.tmp2, M.head);
+    if (c && c.speaker === 'THIMBLE') V3.set(Cast.tmp2, P.pos[0], 1.0, P.pos[2]); else V3.copy(Cast.tmp2, M.head);
     for (let i = 0; i < 3; i++) this.look[i] = damp(this.look[i], Cast.tmp2[i], 3, dt);
     Player.lockAmt = Math.min(0.9, Player.lockAmt + dt * 2);
     P.yaw = P.yaw + wrapAngle(Math.atan2(-(M.pos[0] - P.pos[0]), -(M.pos[2] - P.pos[2])) - P.yaw) * Math.min(1, dt * 4);

@@ -39,8 +39,7 @@ function anchorAmbientDiff() {
   return Math.max(Math.abs(u[0] / k - want[0]), Math.abs(u[1] / k - want[1]), Math.abs(u[2] / k - want[2]));
 }
 function anchorHeroX() {
-  // the menu's focal point (where the hero shot frames the corridor; the Spoolwright itself is revealed later)
-  const m = Renderer.viewProj, mp = Level.menuMonster.pos, h = [mp[0], mp[1] + 2.5, mp[2]];
+  const m = Renderer.viewProj, h = Monster.head;
   const w = m[3] * h[0] + m[7] * h[1] + m[11] * h[2] + m[15];
   if (w <= 0) return NaN;
   const x = (m[0] * h[0] + m[4] * h[1] + m[8] * h[2] + m[12]) / w;
@@ -253,7 +252,7 @@ async function runAll() {
     T.step(DT, 2);
     check('menu: state is MAIN_MENU', T.getState() === 'MAIN_MENU', T.getState());
     checkUI('MAIN_MENU');
-    check('menu: the Spoolwright is not in the menu (he is a later reveal)', !Monster.visible && !Monster.active, Monster.state);
+    check('menu: the Spoolwright looms in the menu backdrop', Monster.visible && Monster.state === MSTATE.MENU_POSE, Monster.state);
     check('menu: arrow navigation moves selection', (() => { const a = UI.menuIndex; tap('ArrowDown'); const b = UI.menuIndex; tap('ArrowUp'); return b !== a; })());
     Game.uiAction('settings'); T.step(DT, 1);
     check('settings: panel opens from menu', T.getState() === 'SETTINGS_PANEL', T.getState());
@@ -440,11 +439,11 @@ async function runAll() {
     T.step(DT, 20);
     check('jumpscare: view locked toward the creature', Player.lockAmt > 0.9, Player.lockAmt.toFixed(2));
     check('jumpscare: hands pulled back instantly', GrabPack.hands.every(h => h.state === HAND.DOCKED));
-    T.step(DT, 40);
-    check('kill: both hands clamp around your head, then it laughs', Monster.kill.grab > 0.95 && T.getSfxLog().includes('laugh'), Monster.kill.grab.toFixed(2));
-    T.step(DT, 95);
-    check('kill: needle fingers pinch into one spike and draw back', Monster.kill.join > 0.95 && Monster.kill.stab < -0.5, Monster.kill.join.toFixed(2) + ' ' + Monster.kill.stab.toFixed(2));
-    T.step(DT, 18);
+    T.step(DT, 70);
+    check('kill: it walks up, its bony hand grabs you, then it laughs', Monster.kill.grab > 0.95 && T.getSfxLog().includes('laugh'), Monster.kill.grab.toFixed(2));
+    T.step(DT, 72);
+    check('kill: laughing, it winds the claw back and pinches the needles into a spike', Monster.kill.join > 0.95 && Monster.kill.wind > 0.9 && Monster.kill.stab === 0, Monster.kill.join.toFixed(2) + ' ' + Monster.kill.wind.toFixed(2));
+    T.step(DT, 21);
     check('kill: it stabs - red crack and wave', T.getSfxLog().includes('stab') && Monster.kill.stab > 0.9 && Renderer.post.redWave > 0.5, Monster.kill.stab.toFixed(2));
     check('failure: FAILURE_STATE after the lock', untilState('FAILURE_STATE', 120), T.getState());
     check('kill: pose cleared afterwards', !Monster.kill.on, '');
@@ -693,7 +692,7 @@ async function runAll() {
       check('thimble: plugs his staff into the socket during the chase', Cast.plush.plugState === 2, 'state ' + Cast.plush.plugState);
       check('thimble: staff tip lands in the socket', V3.dist(Cast.staff.tip, Cast.plushSocket) < 0.05, V3.dist(Cast.staff.tip, Cast.plushSocket).toFixed(3));
       check('thimble: the surge overloads - shutter still shut', Level.doorById('DS').target === 0 && Cast.plushCollider.enabled, '');
-      T.aimAt(-2.85, 1.45, -71.42); T.step(DT, 1);
+      { const c = Cast.plushCollider; T.aimAt((c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2, (c.min[2] + c.max[2]) / 2); } T.step(DT, 1);
       T.simulateMouse(0, true); T.step(DT, 130); T.simulateMouse(0, false); T.step(DT, 4);
       check('thimble: clamping his staff and holding grounds the surge, shutter rises', Cast.plush.plugState === 4 && Level.doorById('DS').target === 1, 'state ' + Cast.plush.plugState + ' ground ' + Cast.plush.ground.toFixed(2));
       check('thimble: purple eye pulses with power', Cast.plush.eyeGlow > 0.8, Cast.plush.eyeGlow.toFixed(2));
@@ -754,7 +753,7 @@ async function runAll() {
       check('assets: prop rendered through the textured G-buffer path', Renderer.stats.assetDraws > 0 && T.getLastError() === null, Renderer.stats.assetDraws);
       const m = await Assets.loadBuffer(glb, 'harness_monster.glb', { slot: 'monster', persist: false });
       check('assets: monster slot auto-fits to 2.9 m', Math.abs(m.size[1] - 2.9) < 1e-3, m.size[1].toFixed(3));
-      T.gotoMenu(); Monster.setMenuPose(); T.step(DT, 2);
+      T.gotoMenu(); T.step(DT, 2);
       check('assets: custom monster replaces the procedural body', Assets.slot('monster') === m && Renderer.stats.assetDraws > 0 && V3.finite(Monster.head), Renderer.stats.assetDraws);
       await Assets.loadBuffer(glb, 'harness_hand_left.glb', { persist: false });
       check('assets: file name picks the slot (hand_left -> handLeft)', !!Assets.slot('handLeft'));

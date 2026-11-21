@@ -46,7 +46,7 @@ const Monster = {
   btTimer: 0, tree: null, intent: '', time: 0, stunTimer: 0, lostTimer: 0, roarCooldown: 0, clickTimer: 0,
   hitPoint: V3.create(), head: V3.create(), chest: V3.create(), eye: V3.create(),
   // kill animation: grab (both hands close round you), join (needle fingers pinch into one spike), stab (-1 wind-up .. 1 thrust)
-  kill: { on: false, grab: 0, join: 0, stab: 0 },
+  kill: { on: false, grab: 0, join: 0, stab: 0, wind: 0 },
   legs: [], bodyBob: 0, lean: 0, armReach: 0, jaw: 0, headTilt: 0, flinchAmt: 0, breathe: 0,
   catchCooldown: 0, sector: -1, sightRange: 20,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
@@ -85,7 +85,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
-    this.kill.on = false; this.kill.grab = 0; this.kill.join = 0; this.kill.stab = 0;
+    this.kill.on = false; this.kill.grab = 0; this.kill.join = 0; this.kill.stab = 0; this.kill.wind = 0;
     this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0; this.stunImmune = 0; this.retreatAfterStun = false; this.retreatTimer = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
@@ -591,7 +591,7 @@ const Monster = {
     if (Sculpt.ready('sp_coat')) {
       it = R.push('sp_coat', MAT.clothWine);
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
-      if (it) { it.tint[0] = 1.7; it.tint[1] = 1.45; it.tint[2] = 1.45; }
+      if (it) { it.tint[0] = 1.25; it.tint[1] = 1.15; it.tint[2] = 1.05; }
     }
     // three stolen plush arms dangle from under the chest: teal, rose (wearing a teal ring) and pink
     for (let k = 0; k < 3; k++) {
@@ -632,10 +632,12 @@ const Monster = {
       this.bodyPoint(H, side * (0.95 - reach * 0.35), 1.75 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
       R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
       R.seg('cyl', MAT.steel, B, H, 0.045);
-      // ragged coat sleeve over the upper arm
+      // ragged motley sleeve over the upper arm (teal on one arm, ruby on the other) with an orange cuff
       V3.lerp(X, B, H, 0.72);
-      R.seg('cyl', MAT.clothWine, B, X, 0.08);
-      R.seg('cone', MAT.canvas, X, H, 0.085);
+      R.seg('cyl', side < 0 ? MAT.handTeal : MAT.clothWine, B, X, 0.08);
+      R.seg('cone', side < 0 ? MAT.clothWine : MAT.handTeal, X, H, 0.085);
+      const cuff = R.push('torus', MAT.copper);
+      if (cuff) { V3.sub(_mh.dir, H, B); V3.normalize(_mh.dir, _mh.dir); ringMatrix(cuff.model, X, _mh.dir, 0.085); }
       this.bodyPoint(X, side * (0.75 - reach * 0.4), 1.2 + reach * 0.9, -1.55 - reach * 0.9);
       R.seg('cyl', MAT.steel, H, X, 0.035);
       R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
@@ -653,54 +655,82 @@ const Monster = {
     this.submitLegs();
   },
 
-  // the kill: both hands clamp around your head, then the right hand's needle fingers pinch together into a
-  // single spike that draws back and drives forward into the camera
+  // the kill: it walks up with its claw raised, its bony left hand grabs you and lifts you to its face, it
+  // laughs while slowly winding the claw back (needles pinching into one spike), then stabs
   submitKillArms() {
-    const R = RenderQueue, K = this.kill, B = this.tmp, H = this.tmp2, X = this.tmp3, L = _mh.kl;
-    // where your eyes are in its local space (you are lifted up toward its face during the kill)
-    const ce = Player.cam.eye, cx = 0, cy = ce[1] - this.pos[1] - this.bodyBob, cz = -Math.hypot(ce[0] - this.pos[0], ce[2] - this.pos[2]);
-    for (const side of [-1, 1]) {
-      // hand position in local space: resting reach -> clamped beside your head -> (right) wind-up / thrust
-      let hx = side * 0.75, hy = cy - 0.3, hz = cz + 0.6;
-      const gx = side * 0.36, gy = cy + 0.16, gz = cz + 0.5;
-      hx += (gx - hx) * K.grab; hy += (gy - hy) * K.grab; hz += (gz - hz) * K.grab;
-      if (side > 0 && K.stab < 0) { const w = -K.stab; hx += (0.5 - hx) * w; hy += (cy + 0.32 - hy) * w; hz += (cz + 0.8 - hz) * w; }
-      if (side > 0 && K.stab > 0) { const w = K.stab; hx = 0.5 + (0.03 - 0.5) * w; hy = cy + 0.32 + (-0.3) * w; hz = cz + 0.8 + (-0.45) * w; }
-      this.bodyPoint(B, side * 0.3, 2.14, -0.47);
-      this.bodyPoint(X, hx, hy, hz);
-      this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.32, (2.14 + hy) * 0.5 - 0.15, (-0.47 + hz) * 0.5 + 0.1);
-      R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
-      R.seg('cyl', MAT.steel, B, H, 0.045);
-      V3.lerp(L.a, B, H, 0.72);
-      R.seg('cyl', MAT.clothWine, B, L.a, 0.08);
-      R.seg('cone', MAT.canvas, L.a, H, 0.085);
-      R.seg('cyl', MAT.steel, H, X, 0.035);
-      R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
-      R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.055, 0.055, 0.055);
-      // direction from the hand toward your face, and a sideways axis
-      let dx = cx - hx, dy = cy - hy, dz = cz - hz;
-      const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
-      let lx = -dz, lz = dx; const ll = Math.hypot(lx, lz) || 1; lx /= ll; lz /= ll;
-      const join = side > 0 ? K.join : 0;
-      for (let f = -2; f <= 2; f++) {
-        // grabbing: fingers curl in around your head; joined: every needle meets at one spike point ahead
-        const spread = f * (1 - join);
-        const mx = hx + dx * 0.16 + lx * spread * 0.05, my = hy + dy * 0.16 + 0.07 - Math.abs(spread) * 0.015, mz = hz + dz * 0.16 + lz * spread * 0.05;
-        let tx = hx + (cx - hx) * 0.62 + lx * spread * 0.07, ty = hy + (cy - hy) * 0.62 + spread * 0.03, tz = hz + (cz - hz) * 0.62 + lz * spread * 0.07;
-        if (join > 0) { const sx = hx + dx * 0.55, sy = hy + dy * 0.55, sz = hz + dz * 0.55; tx += (sx - tx) * join; ty += (sy - ty) * join; tz += (sz - tz) * join; }
-        this.bodyPoint(L.b, mx, my, mz);
-        this.bodyPoint(L.c, tx, ty, tz);
-        R.seg('cylLow', MAT.steel, X, L.b, 0.012);
-        R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.02, 0.02, 0.02);
-        const nd = R.seg('cone', MAT.steel, L.b, L.c, 0.011 + join * 0.004);
-        if (nd && join > 0) { nd.emis[0] = 0.5 * join; nd.emis[1] = 0.42 * join; nd.emis[2] = 0.38 * join; }
+    const K = this.kill, L = _mh.kl;
+    // where your eyes are in its local space
+    const ce = Player.cam.eye, cy = ce[1] - this.pos[1] - this.bodyBob, cz = -Math.hypot(ce[0] - this.pos[0], ce[2] - this.pos[2]);
+    // right: the claw hand (raised out to the side -> wound back -> thrust into the camera)
+    let hx = 0.95 + (0.58 - 0.95) * K.wind, hy = cy + 0.3 + 0.32 * K.wind, hz = cz + 1.3 - 0.05 * K.wind;
+    if (K.stab > 0) { hx += (0.03 - hx) * K.stab; hy += (cy + 0.12 - hy) * K.stab; hz += (cz + 0.32 - hz) * K.stab; }
+    this.drawKillArm(1, hx, hy, hz, 0, cy, cz, K.join, false);
+    // left: the bony grabbing hand that clamps beside your head
+    const gx = -0.8 + 0.42 * K.grab, gy = cy - 0.5 + 0.68 * K.grab, gz = cz + 1.0 - 0.52 * K.grab;
+    this.drawKillArm(-1, gx, gy, gz, 0, cy, cz, 0, true, K.grab);
+  },
+  drawKillArm(side, hx, hy, hz, cx, cy, cz, join, bony, grab) {
+    const R = RenderQueue, B = this.tmp, H = this.tmp2, X = this.tmp3, L = _mh.kl;
+    this.bodyPoint(B, side * 0.3, 2.14, -0.47);
+    this.bodyPoint(X, hx, hy, hz);
+    this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.3, (2.14 + hy) * 0.5 - 0.12, (-0.47 + hz) * 0.5 + 0.08);
+    R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
+    R.seg('cyl', MAT.steel, B, H, 0.045);
+    V3.lerp(L.a, B, H, 0.72);
+    R.seg('cyl', side < 0 ? MAT.handTeal : MAT.clothWine, B, L.a, 0.08);
+    R.seg('cone', side < 0 ? MAT.clothWine : MAT.handTeal, L.a, H, 0.085);
+    R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
+    if (bony) {
+      // bone-white forearm wrapped in red cables
+      R.seg('cyl', MAT.porcelain, H, X, 0.042);
+      for (let k = 0; k < 3; k++) {
+        const ph = k * 2.1;
+        V3.lerp(L.b, H, X, 0.15); L.b[1] += Math.cos(ph) * 0.05; L.b[0] += Math.sin(ph) * 0.05;
+        V3.lerp(L.c, H, X, 0.9); L.c[1] += Math.cos(ph + 1.5) * 0.045; L.c[0] += Math.sin(ph + 1.5) * 0.045;
+        const c = R.seg('cylLow', MAT.rubber, L.b, L.c, 0.011);
+        if (c) { c.tint[0] = 4.2; c.tint[1] = 0.55; c.tint[2] = 0.5; }
       }
-      if (side > 0 && join > 0.9) {
-        // the pinched needles glint at the tip
-        this.bodyPoint(L.c, hx + dx * 0.55, hy + dy * 0.55, hz + dz * 0.55);
-        const g = R.trs('sphereLow', MAT.screen, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.009, 0.009, 0.009, false);
-        if (g) { g.emis[0] = 1.6; g.emis[1] = 1.4; g.emis[2] = 1.2; }
+    } else R.seg('cyl', MAT.steel, H, X, 0.038);
+    // palm plate and knuckles, oriented toward your face
+    let dx = cx - hx, dy = cy - hy, dz = cz - hz;
+    const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+    let lx = -dz, lz = dx; const ll = Math.hypot(lx, lz) || 1; lx /= ll; lz /= ll;
+    this.bodyPoint(L.b, hx + dx * 0.05, hy + dy * 0.05, hz + dz * 0.05);
+    let it = R.trs('sphere', bony ? MAT.porcelain : MAT.steel, L.b[0], L.b[1], L.b[2], this.yaw + Math.atan2(-dx, -dz), 0, 0, 0.085, 0.04, 0.085);
+    for (let f = -2; f <= 2; f++) {
+      const spread = f * (1 - join);
+      // knuckle
+      const kx = hx + dx * 0.1 + lx * spread * 0.035, ky = hy + dy * 0.1 + 0.01, kz = hz + dz * 0.1 + lz * spread * 0.035;
+      this.bodyPoint(L.a, kx, ky, kz);
+      R.trs('sphereLow', MAT.copper, L.a[0], L.a[1], L.a[2], 0, 0, 0, 0.022, 0.022, 0.022);
+      // mid joint and tip: long needle blades fanned out; grabbing fingers curl in around your head; joined
+      // needles all meet at a single spike point
+      let mx = kx + dx * 0.16 + lx * spread * 0.05, my = ky + dy * 0.16 + 0.05, mz = kz + dz * 0.16 + lz * spread * 0.05;
+      let tx = kx + dx * 0.42 + lx * spread * 0.11, ty = ky + dy * 0.42 + Math.abs(spread) * -0.02, tz = kz + dz * 0.42 + lz * spread * 0.11;
+      if (bony) {
+        const g = grab || 0;
+        // fingers wrap past the side of your head (toward the edge of view), not into the lens
+        const side2 = Math.sign(hx - cx) || -1;
+        const wx = cx + side2 * (0.22 + f * 0.035), wy = cy + 0.22 - f * 0.05, wz = cz - 0.04;
+        tx += (wx - tx) * g * 0.8; ty += (wy - ty) * g * 0.8; tz += (wz - tz) * g * 0.8;
+        mx += (kx + (wx - kx) * 0.45 - mx) * g; my += (ky + (wy - ky) * 0.45 + 0.04 - my) * g; mz += (kz + (wz - kz) * 0.45 - mz) * g;
       }
+      if (join > 0) {
+        const sx = hx + dx * 0.62, sy = hy + dy * 0.62, sz = hz + dz * 0.62;
+        tx += (sx - tx) * join; ty += (sy - ty) * join; tz += (sz - tz) * join;
+        mx += (hx + dx * 0.3 - mx) * join * 0.7; my += (hy + dy * 0.3 - my) * join * 0.7; mz += (hz + dz * 0.3 - mz) * join * 0.7;
+      }
+      this.bodyPoint(L.b, mx, my, mz);
+      this.bodyPoint(L.c, tx, ty, tz);
+      R.seg('cylLow', bony ? MAT.porcelain : MAT.steel, L.a, L.b, bony ? 0.016 : 0.013);
+      R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.018, 0.018, 0.018);
+      const nd = R.seg('cone', MAT.steel, L.b, L.c, bony ? 0.014 : 0.012 + join * 0.004);
+      if (nd && !bony) { const g = 0.25 + join * 0.5; nd.emis[0] = 0.3 * g; nd.emis[1] = 0.27 * g; nd.emis[2] = 0.25 * g; }
+    }
+    if (!bony && join > 0.9) {
+      this.bodyPoint(L.c, hx + dx * 0.62, hy + dy * 0.62, hz + dz * 0.62);
+      it = R.trs('sphereLow', MAT.screen, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.009, 0.009, 0.009, false);
+      if (it) { it.emis[0] = 1.6; it.emis[1] = 1.4; it.emis[2] = 1.2; }
     }
   },
 
@@ -754,27 +784,23 @@ const Monster = {
     let it;
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
-      it = R.push('sp_mask', MAT.porcelain); if (it) it.model.set(m);
-      // the jaw unhinges for the lunge: a dark gullet opening under the grin
-      if (this.jaw > 0.35) {
-        this.headLocal(m, 0, -0.2 - this.jaw * 0.08, -0.25, this.tmp3);
-        R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.17 * s, (0.04 + this.jaw * 0.08) * s, 0.07 * s, false);
-      }
+      // the grin never moves: it is carved into the porcelain. Grimy, yellowed and stained.
+      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.8; it.tint[1] = 0.73; it.tint[2] = 0.6; }
     } else {
       R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }
-    // one solid glowing amber eye in the left socket (no pupil)
-    this.headLocal(m, -0.125, 0.06, -0.255, this.eye);
-    it = R.trs('sphere', MAT.screen, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.066 * s, 0.066 * s, 0.045 * s, false);
-    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.7; it.tint[2] = 0.25; it.emis[0] = 3.6; it.emis[1] = 2.2; it.emis[2] = 0.35; }
-    // a faint ember haze fills the hollow right socket
-    this.headLocal(m, 0.125, 0.055, -0.24, this.tmp3);
-    it = R.trs('sphereLow', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.05 * s, 0.05 * s, 0.03 * s, false);
-    if (it) { it.emis[0] = 0.3; it.emis[1] = 0.06; it.emis[2] = 0.03; }
+    // both sockets are pitch black; the left one holds a single small yellow point of light
+    this.headLocal(m, -0.125, 0.06, -0.25, this.eye);
+    R.trs('sphere', MAT.rubber, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.062 * s, 0.062 * s, 0.035 * s, false);
+    this.headLocal(m, -0.125, 0.058, -0.29, this.eye);
+    it = R.trs('sphereLow', MAT.screen, this.eye[0], this.eye[1], this.eye[2], 0, 0, 0, 0.014 * s, 0.014 * s, 0.014 * s, false);
+    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.2; it.emis[0] = 3.2; it.emis[1] = 2.7; it.emis[2] = 0.25; }
+    this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
+    R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.07 * s, 0.07 * s, 0.035 * s, false);
     // battered tailor's top hat, cocked to one side
     if (Sculpt.ready('sp_hat')) {
       this.headLocal(m, 0.05, 0.36, 0.04, this.tmp3);
-      it = R.push('sp_hat', MAT.canvas);
+      it = R.push('sp_hat', MAT.clothWine);
       if (it) M4.compose(it.model, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw + 0.3, pitch - 0.1, roll - 0.22, s, s, s);
     }
   },

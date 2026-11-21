@@ -174,7 +174,7 @@ const Lights = {
     }
     const TG = this.thimbleGlow, TP = Cast.plush;
     if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
-      V3.set(TG.pos, TP.pos[0], 1.95, TP.pos[2]); TG.sector = TP.sector;
+      V3.set(TG.pos, TP.pos[0], 1.05, TP.pos[2]); TG.sector = TP.sector;
       TG.current = TG.base * (0.9 + 0.1 * Math.sin(time * 3));
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = TG;

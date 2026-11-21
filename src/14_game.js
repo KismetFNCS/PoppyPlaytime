@@ -27,7 +27,7 @@ let state = null;
 const HANDLERS = {
   BOOT_LOADING: { enter() { UI.show('loading'); }, exit() { UI.hide('loading'); }, update(dt) { Loader.step(); } },
   MAIN_MENU: {
-    enter() { UI.show('menu'); Input.exitLock(); Monster.reset(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
+    enter() { UI.show('menu'); Input.exitLock(); Monster.setMenuPose(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
     exit() { UI.hide('menu'); },
     update(dt) {
       if (Input.justPressed.has('ArrowDown') || Input.justPressed.has('KeyS')) UI.menuNav(1);
@@ -605,8 +605,8 @@ const Game = {
     Player.addTrauma(0.8);
     Renderer.post.redWave = 0.1;
     Monster.jaw = 0.4; Monster.armReach = 1;
-    Monster.kill.on = true; Monster.kill.grab = 0; Monster.kill.join = 0; Monster.kill.stab = 0;
-    this.placeJumpscareMonster(1.7);
+    Monster.kill.on = true; Monster.kill.grab = 0; Monster.kill.join = 0; Monster.kill.stab = 0; Monster.kill.wind = 0;
+    this.placeJumpscareMonster(3.4); Monster.snapLegs();
     Player.lockTarget = Monster.head;
     Player.lockAmt = 0;
     this.fracture[0] = Player.cam.eye[0]; this.fracture[1] = Player.cam.eye[1]; this.fracture[2] = Player.cam.eye[2]; this.fracture[3] = 3; this.fractureAmt = 1;
@@ -623,37 +623,39 @@ const Game = {
   updateJumpscare(dt) {
     this.jumpTimer += dt;
     const t = this.jumpTimer;
-    // 0-0.45 s: lunge in and clamp both hands around your head
-    // 0.45-2.3 s: throws its head back and laughs, jaw clattering in time
-    // 2.0-2.6 s: the right hand's needle fingers pinch into one spike and draw back
-    // 2.78 s: it stabs; the screen cracks red and cuts to black
+    // 0-0.95 s: it walks up to you, claw raised out to the side, needles fanned
+    // 0.85-1.2 s: its bony left hand grabs you and lifts you up to its face
+    // 1.2-2.85 s: it laughs while slowly winding the claw back; the needles pinch into one spike
+    // 2.9 s: it stabs; the screen cracks red and cuts to black
     const K = Monster.kill;
-    const lunge = 1.9 - 0.6 * smoothstep(0, 0.3, t);
-    this.placeJumpscareMonster(lunge);
-    K.grab = smoothstep(0.05, 0.42, t);
-    K.join = smoothstep(2.0, 2.45, t);
-    K.stab = t < 2.75 ? -smoothstep(2.1, 2.65, t) : smoothstep(2.75, 2.86, t);
-    const laughing = t > 0.45 && t < 2.3;
-    const ha = Math.abs(Math.sin((t - 0.45) * 13));
+    const walk = smoothstep(0, 0.95, t);
+    this.placeJumpscareMonster(3.4 - 2.1 * walk);
+    Monster.speed = t < 0.95 ? 2.4 : 0;
+    K.grab = smoothstep(0.85, 1.2, t);
+    K.wind = smoothstep(1.25, 2.7, t);
+    K.join = smoothstep(1.95, 2.6, t);
+    K.stab = t < 2.9 ? 0 : smoothstep(2.9, 3.0, t);
+    const laughing = t > 1.2 && t < 2.85;
+    const ha = Math.abs(Math.sin((t - 1.2) * 13));
     Monster.headTilt = laughing ? Math.sin(t * 6.5) * 0.3 : noise1(t * 40) * 0.12;
-    Monster.jaw = laughing ? 0.35 + 0.65 * ha : t < 0.45 ? 0.5 : 0.95;
+    Monster.jaw = laughing ? 0.35 + 0.65 * ha : t < 1.2 ? 0.3 : 0.95;
     Monster.flinchAmt = laughing ? -0.15 * ha : 0;   // head jerks back with each "ha"
     Monster.animateLegs(dt, false);
     Player.lockAmt = Math.min(1, Player.lockAmt + dt * 9);
-    Player.trauma = laughing ? 0.35 + 0.25 * ha : t < 0.45 ? 0.9 : t > 2.75 ? 1 : 0.4;
-    if (this.killCue === 0 && t > 0.45) { this.killCue = 1; sfx('laugh'); }
-    if (this.killCue === 1 && t > 2.78) {
+    Player.trauma = laughing ? 0.3 + 0.2 * ha : t < 0.85 ? 0.25 : t < 1.2 ? 0.9 : t > 2.9 ? 1 : 0.4;
+    if (this.killCue === 0 && t > 1.2) { this.killCue = 1; sfx('laugh'); }
+    if (this.killCue === 1 && t > 2.92) {
       this.killCue = 2; sfx('stab');
       this.fracture[0] = Player.cam.eye[0]; this.fracture[1] = Player.cam.eye[1]; this.fracture[2] = Player.cam.eye[2]; this.fracture[3] = 4; this.fractureAmt = 1;
     }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     // it lifts you off your feet, up to its face
-    Player.cam.eye[1] += 0.5 * smoothstep(0.08, 0.5, t);
+    Player.cam.eye[1] += 0.5 * smoothstep(0.9, 1.3, t);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    Renderer.post.redWave = t < 2.78 ? 0.15 + 0.1 * Math.sin(t * 13) : 1;
+    Renderer.post.redWave = t < 2.92 ? 0.12 + 0.08 * Math.sin(t * 13) : 1;
     Renderer.post.fear = 1;
-    Renderer.post.flash = t < 0.08 ? 0.35 : t > 2.8 && t < 2.9 ? 0.6 : 0;
+    Renderer.post.flash = t > 0.88 && t < 0.95 ? 0.3 : t > 2.93 && t < 3.03 ? 0.6 : 0;
     Renderer.post.flashTint[0] = 1; Renderer.post.flashTint[1] = 0.05; Renderer.post.flashTint[2] = 0.02;
     Renderer.post.fade = smoothstep(FEEL.jumpscareLock - 0.25, FEEL.jumpscareLock, t);
     Lights.update(dt, this.time + t, Streaming.visible);

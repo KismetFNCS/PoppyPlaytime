@@ -20,6 +20,9 @@ const CAST_COLORS = {
   ledScared: '#b98cff', ledLove: '#ff6aa8', antenna: '#ff3b2e'
 };
 
+// Mister Thimble is a small plush: about a metre tall
+const PLUSH_SCALE = 0.62;
+
 const Cast = {
   usher: {
     pos: V3.create(0, -50, 0), yaw: 0, headYaw: 0, state: 'HIDDEN', timer: 0, stareTime: 0, used: new Uint8Array(4),
@@ -32,7 +35,7 @@ const Cast = {
   PLUSH_WAIT: [3.0, -27.5, 2.43], PLUSH_SHUTTER: [-3.6, -70.9, -2.84], PLUSH_LOOM: [-2.2, -107.4, Math.PI],
   plushCollider: null,
   // broken power socket on the shutter wall that Mister Thimble jams his needle staff into
-  plushSocket: V3.create(-2.5, 1.05, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
+  plushSocket: V3.create(-2.75, 0.62, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
@@ -66,7 +69,7 @@ const Cast = {
   // hand target on Thimble's staff (enabled only while the socket is overloading)
   makePlushCollider() {
     if (this.plushCollider) return;
-    const c = Physics.addBox(-3.05, 1.2, -71.65, -2.6, 1.75, -71.2, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, -1, true, 3);
+    const c = Physics.addBox(-3.2, 0.4, -71.7, -2.8, 0.9, -71.3, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, -1, true, 3);
     c.kind = 'staff'; c.ref = this.plush; c.enabled = false;
     this.plushCollider = c;
   },
@@ -241,8 +244,13 @@ const Cast = {
     const pulse = P.plugState === 2 ? 0.6 + 0.5 * Math.sin(Game.time * 19) : P.plugState === 4 ? 0.3 + 0.3 * Math.sin(Game.time * 7) : 0;
     const dark = P.mode === 'FOLLOW' && !Player.flashOn ? 1.2 : 0;
     P.eyeGlow = damp(P.eyeGlow, 0.55 + 0.12 * Math.sin(Game.time * 2) + pulse + dark + P.eyePulse * 1.4, 6, dt);
-    if (this.plushCollider) this.plushCollider.enabled = P.mode === 'SHUTTER' && P.plugState === 2;
     this.poseStaff();
+    if (this.plushCollider) {
+      // the grab target follows the staff between his paw and the socket
+      const c = this.plushCollider, st = this.staff;
+      c.enabled = P.mode === 'SHUTTER' && P.plugState === 2;
+      for (let i = 0; i < 3; i++) { const mid = (st.paw[i] + st.tip[i]) * 0.5; c.min[i] = mid - 0.2; c.max[i] = mid + 0.2; }
+    }
   },
 
   // walk along the player's breadcrumb trail, a couple of metres behind them
@@ -462,7 +470,7 @@ const Cast = {
 
   // where the needle staff is this frame (also used by the socket check)
   poseStaff() {
-    const P = this.plush, p = P.pos, yaw = P.yaw, S = 1.2, st = this.staff, sk = this.plushSocket;
+    const P = this.plush, p = P.pos, yaw = P.yaw, S = PLUSH_SCALE, st = this.staff, sk = this.plushSocket;
     const e = P.plug;
     const rx = -0.66 * S, ry = 0.78 * S, rz = -0.18 * S, qx = -0.7 * S, qy = 1.25 * S, qz = 0.25 * S;
     const swing = Math.sin(P.phase) * 0.14 * P.walk * S;
@@ -487,7 +495,7 @@ const Cast = {
     if (it) { const on = P.plugState >= 2 && P.plugState !== 3; it.emis[0] = on ? 0.5 * P.eyeGlow : 0.9; it.emis[1] = on ? 0.08 : 0.05; it.emis[2] = on ? 1.0 * P.eyeGlow : 0.03; }
   },
   submitPlush() {
-    const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw, S = 1.2;
+    const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw, S = PLUSH_SCALE;
     const a = this.tmp, b = this.tmp2, st = this.staff, sk = this.plushSocket;
     if (!Sculpt.ready('th_body')) return;
     // gentle breathing bob; a side-to-side waddle while he walks
@@ -509,7 +517,7 @@ const Cast = {
       const k = 1 / 0.9;
       b[0] = a[0] + this.local[0] * k; b[1] = a[1] + this.local[1] * k; b[2] = a[2] + this.local[2] * k;
       it = R.push('th_arm', MAT.burnt);
-      if (it) M4.segment(it.model, a, b, 1);
+      if (it) M4.segment(it.model, a, b, S * 0.85);
     }
     // the needle staff: a giant ivory sewing needle with a steel point and a brass eye threaded with copper wire
     const n = st.dir;

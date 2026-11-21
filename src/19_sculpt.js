@@ -378,66 +378,87 @@ const SCULPTS = {
   // Battered tailor's top hat (base at y 0): dented black felt crown, curled brim, a measuring-tape band,
   // a spool of red thread tucked in the band, a torn hole and two pins stuck through the crown
   sp_hat: () => {
-    const F = MAT.canvas, n = [
-      { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: F, n: [0.006, 25] },
-      { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: F, k: 0.05 },
-      { t: 'sph', c: [0.13, 0.36, -0.12], r: 0.07, op: 's', k: 0.04, sm: F },
-      { t: 'cyl', c: [0, 0.015, 0], r: 0.29, h: 0.012, rr: 0.01, m: F, k: 0.02, n: [0.008, 18] },
-      { t: 'tor', c: [0, 0.03, 0], R: 0.28, r: 0.016, m: F, k: 0.02, n: [0.006, 30] },
-      { t: 'cyl', c: [0, 0.07, 0], r: 0.177, h: 0.034, rr: 0.004, m: MAT.paint, k: 0.004 },
-      { t: 'sph', c: [-0.16, 0.26, 0.06], r: 0.04, op: 's', k: 0.01, sm: MAT.rubber, n: [0.01, 60] },
-      { t: 'cyl', c: [0.2, 0.1, 0.05], r: 0.045, h: 0.05, rr: 0.006, m: MAT.lining, k: 0.004, n: [0.003, 120] },
-      { t: 'cyl', c: [0.2, 0.152, 0.05], r: 0.062, h: 0.008, rr: 0.004, m: MAT.wood, k: 0.004 },
-      { t: 'cyl', c: [0.2, 0.048, 0.05], r: 0.062, h: 0.008, rr: 0.004, m: MAT.wood, k: 0.004 }
+    // battered harlequin top hat: crown pieced from rose, teal and gold panels with diamond patches, a gold
+    // brim, a teal band, bells hanging on frayed ribbons, a crushed dent, a torn hole and stuck pins
+    const RO = MAT.clothWine, TE = MAT.handTeal, GO = MAT.paint, n = [
+      { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: RO, n: [0.008, 22] },
+      { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: RO, k: 0.05 },
+      { t: 'sph', c: [0.13, 0.36, -0.12], r: 0.07, op: 's', k: 0.04, sm: RO },
+      { t: 'cyl', c: [0, 0.015, 0], r: 0.29, h: 0.012, rr: 0.01, m: GO, k: 0.02, n: [0.01, 18] },
+      { t: 'tor', c: [0, 0.03, 0], R: 0.28, r: 0.016, m: GO, k: 0.02, n: [0.008, 30] },
+      { t: 'cyl', c: [0, 0.07, 0], r: 0.177, h: 0.034, rr: 0.004, m: TE, k: 0.004 },
+      { t: 'sph', c: [-0.16, 0.26, 0.06], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.012, 60] }
     ];
-    for (let i = 0; i < 28; i++) {
-      const a = i / 28 * Math.PI * 2;
-      n.push({ t: 'box', c: [Math.cos(a) * 0.181, 0.07 + (i % 4 === 0 ? 0.012 : 0.02), Math.sin(a) * 0.181], h: [0.003, i % 4 === 0 ? 0.022 : 0.014, 0.003], m: MAT.rubber, k: 0.001 });
+    // pieced crown: teal and gold panels sewn over the rose felt
+    for (let k = 0; k < 6; k++) {
+      if (k % 3 === 0) continue;
+      const ang = k / 6 * Math.PI * 2;
+      n.push({ t: 'box', c: [Math.sin(ang) * 0.172, 0.23, Math.cos(ang) * 0.172], h: [0.075, 0.15, 0.01], rr: 0.008, rot: [ang, 0, 0], m: k % 3 === 1 ? TE : GO, k: 0.012, n: [0.006, 40] });
+    }
+    // harlequin diamonds on the panels
+    for (let k = 0; k < 6; k++) {
+      const ang = k / 6 * Math.PI * 2 + 0.5;
+      n.push({ t: 'box', c: [Math.sin(ang) * 0.181, 0.27, Math.cos(ang) * 0.181], h: [0.03, 0.03, 0.006], rot: [ang, 0, Math.PI / 4], m: k % 2 ? GO : TE, k: 0.004 });
+    }
+    // bells dangling on frayed ribbons from the band
+    for (const [ang, len, m] of [[1.9, 0.16, RO], [2.6, 0.22, TE], [-2.2, 0.18, GO]]) {
+      const x = Math.sin(ang) * 0.18, z = Math.cos(ang) * 0.18;
+      n.push({ t: 'cap', a: [x, 0.07, z], b: [x * 1.25, 0.07 - len, z * 1.25], r: 0.012, r2: 0.008, m, k: 0.006, n: [0.004, 60] });
+      n.push({ t: 'sph', c: [x * 1.27, 0.04 - len, z * 1.27], r: 0.03, m: GO, k: 0.006 });
+      n.push({ t: 'box', c: [x * 1.27, 0.025 - len, z * 1.27], h: [0.022, 0.004, 0.004], op: 's', sm: MAT.rubber });
     }
     for (const [x, z, h] of [[-0.08, -0.15, 0.3], [0.12, 0.1, 0.25]]) {
       n.push({ t: 'cap', a: [x * 0.6, h - 0.05, z * 0.6], b: [x * 1.6, h + 0.08, z * 1.6], r: 0.006, m: MAT.steel, k: 0.002 });
       n.push({ t: 'sph', c: [x * 1.6, h + 0.08, z * 1.6], r: 0.022, m: MAT.lining, k: 0.004 });
     }
-    return SDF.mesh(n, [-0.34, -0.03, -0.34], [0.34, 0.48, 0.34], 64);
+    // grime and scorch smudges
+    for (let k = 0; k < 7; k++) { const ang = k * 2.3; n.push({ t: 'sph', c: [Math.sin(ang) * 0.175, 0.08 + (k * 0.047) % 0.3, Math.cos(ang) * 0.175], r: 0.03, m: MAT.burnt, k: 0.01 }); }
+    return SDF.mesh(n, [-0.36, -0.28, -0.36], [0.36, 0.48, 0.36], 64);
   },
-  // Tattered tailor's coat on a skeletal upper torso (origin at the chest, facing -z): wine cloth with black
-  // lapels and collar, frayed tails, brass buttons, a measuring tape around the neck, ribs showing through
+  // Filthy, ragged jester's motley on a skeletal upper torso (origin at the chest, facing -z): ruby cloth with
+  // teal and orange harlequin diamonds, a pleated teal/ruby ruff, a dagged hem of pointed tatters, pom-pom
+  // buttons, holes, grime, and ribs showing through a rip in the front
   sp_coat: () => {
-    const W = MAT.clothWine, K = MAT.canvas, P = MAT.porcelain, Y = MAT.paint, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.22, 0.28, 0.15], m: W, n: [0.01, 20] },
-      { t: 'cap', a: [-0.25, 0.15, 0.01], b: [0.25, 0.15, 0.01], r: 0.085, m: W, k: 0.08 },
-      { t: 'box', c: [0, -0.34, 0.03], h: [0.21, 0.14, 0.14], rr: 0.03, m: W, k: 0.08, n: [0.03, 9] },
-      { t: 'box', c: [-0.1, -0.52, 0.1], h: [0.08, 0.13, 0.025], rr: 0.01, rot: [0, -0.25, 0.05], m: W, k: 0.04, n: [0.03, 14] },
-      { t: 'box', c: [0.1, -0.54, 0.1], h: [0.08, 0.15, 0.025], rr: 0.01, rot: [0, -0.3, -0.06], m: W, k: 0.04, n: [0.03, 14] },
-      { t: 'box', c: [0, -0.3, -0.15], h: [0.05, 0.22, 0.09], op: 's', k: 0.02, sm: K },
-      { t: 'box', c: [0, -0.06, -0.15], h: [0.055, 0.17, 0.06], op: 's', k: 0.02, sm: MAT.rubber },
-      { t: 'box', c: [0, 0.27, 0.05], h: [0.17, 0.07, 0.09], rr: 0.03, m: K, k: 0.03, n: [0.01, 30] },
-      { t: 'ell', c: [0, 0.31, 0], r: [0.11, 0.12, 0.09], op: 's', k: 0.02, sm: K },
-      { t: 'box', c: [-0.085, 0.06, -0.14], h: [0.05, 0.15, 0.012], rot: [0, 0, 0.32], m: K, k: 0.01 },
-      { t: 'box', c: [0.085, 0.06, -0.14], h: [0.05, 0.15, 0.012], rot: [0, 0, -0.32], m: K, k: 0.01 },
-      { t: 'sph', c: [0.16, -0.15, -0.1], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.012, 50] },
-      { t: 'box', c: [-0.15, -0.2, -0.12], h: [0.05, 0.045, 0.012], rr: 0.008, rot: [0.3, 0.6, 0.2], m: K, k: 0.006 }
+    const RU = MAT.clothWine, TE = MAT.handTeal, OR = MAT.copper, P = MAT.porcelain, G = MAT.burnt, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.22, 0.28, 0.15], m: RU, n: [0.014, 18] },
+      { t: 'cap', a: [-0.25, 0.15, 0.01], b: [0.25, 0.15, 0.01], r: 0.085, m: RU, k: 0.08, n: [0.01, 20] },
+      { t: 'box', c: [0, -0.32, 0.03], h: [0.22, 0.13, 0.15], rr: 0.04, m: RU, k: 0.08, n: [0.03, 9] },
+      { t: 'box', c: [0, -0.06, -0.15], h: [0.05, 0.16, 0.06], op: 's', k: 0.02, sm: MAT.rubber, n: [0.02, 30] },
+      { t: 'sph', c: [0.16, -0.15, -0.1], r: 0.05, op: 's', k: 0.01, sm: MAT.rubber, n: [0.015, 50] },
+      { t: 'sph', c: [-0.19, -0.3, -0.05], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.015, 50] }
     ];
-    // ribs and breastbone showing through the open front
-    n.push({ t: 'cap', a: [0, 0.08, -0.11], b: [0, -0.2, -0.11], r: 0.014, m: P, k: 0.01 });
-    for (let i = 0; i < 4; i++) {
-      const y = 0.04 - i * 0.07;
-      n.push({ t: 'cap', a: [-0.07, y - 0.02, -0.1], b: [0.07, y - 0.02, -0.1], r: 0.011, m: P, k: 0.006 });
+    // harlequin diamonds
+    const D = [[-0.12, 0.08, TE], [0.12, 0.08, OR], [-0.15, -0.14, OR], [0.15, -0.12, TE], [-0.1, -0.3, TE], [0.1, -0.3, OR], [0, -0.36, TE]];
+    for (const [x, y, m] of D) {
+      const z = -Math.sqrt(Math.max(0.0001, 1 - (x / 0.23) ** 2 - (y / 0.32) ** 2)) * 0.15 - 0.005;
+      n.push({ t: 'box', c: [x, y, Math.min(z, -0.1)], h: [0.05, 0.05, 0.012], rot: [Math.atan2(x, 0.3), 0, Math.PI / 4], m, k: 0.01, n: [0.006, 40] });
     }
-    for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.105, -0.12 + i * 0.09, -0.152], r: 0.016, h: 0.006, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.003 });
-    // measuring tape slung around the neck, hanging down both sides with tick marks
-    n.push({ t: 'cap', a: [-0.1, 0.26, 0.07], b: [0.1, 0.26, 0.07], r: 0.012, m: Y, k: 0.01 });
-    for (const sx of [-1, 1]) {
-      n.push({ t: 'box', c: [sx * 0.08, 0.0, -0.165], h: [0.022, 0.25, 0.004], rot: [0, 0, sx * 0.06], m: Y, k: 0.006 });
-      for (let i = 0; i < 9; i++) n.push({ t: 'box', c: [sx * (0.08 + 0.012) - sx * i * 0.0028, 0.2 - i * 0.055, -0.17], h: [0.009, 0.0025, 0.002], m: MAT.rubber, k: 0.001 });
+    // pleated ruff around the neck, alternating teal and ruby
+    for (let k = 0; k < 16; k++) {
+      const ang = k / 16 * Math.PI * 2;
+      n.push({ t: 'ell', c: [Math.sin(ang) * 0.15, 0.25, Math.cos(ang) * 0.12], r: [0.05, 0.035, 0.05], rot: [ang, 0.6, 0], m: k % 2 ? TE : RU, k: 0.015, n: [0.008, 45] });
     }
-    // cross-stitched repair along a seam
+    n.push({ t: 'ell', c: [0, 0.3, 0], r: [0.1, 0.1, 0.08], op: 's', k: 0.02, sm: RU });
+    // dagged hem: pointed tatters of every colour hanging round the skirt
+    for (let k = 0; k < 11; k++) {
+      const ang = (k / 11) * Math.PI * 2, x = Math.sin(ang) * 0.21, z = Math.cos(ang) * 0.14 + 0.03;
+      const len = 0.14 + ((k * 7) % 4) * 0.035;
+      n.push({ t: 'cap', a: [x, -0.42, z], b: [x * 1.15, -0.42 - len, z * 1.15], r: 0.045, r2: 0.006, m: [RU, TE, OR][k % 3], k: 0.02, n: [0.012, 30] });
+    }
+    // ribs and breastbone in the rip
+    n.push({ t: 'cap', a: [0, 0.06, -0.11], b: [0, -0.2, -0.11], r: 0.014, m: P, k: 0.01 });
+    for (let i = 0; i < 4; i++) { const y = 0.03 - i * 0.065; n.push({ t: 'cap', a: [-0.06, y - 0.02, -0.1], b: [0.06, y - 0.02, -0.1], r: 0.011, m: P, k: 0.006 }); }
+    // pom-pom buttons down one side
+    for (let i = 0; i < 3; i++) n.push({ t: 'sph', c: [0.075, 0.12 - i * 0.12, -0.16], r: 0.024, m: [OR, TE, OR][i], k: 0.006, n: [0.006, 80] });
+    // grime, soot and stains
+    for (let k = 0; k < 10; k++) { const ang = k * 2.2; n.push({ t: 'sph', c: [Math.sin(ang) * 0.2, 0.2 - (k * 0.071) % 0.62, Math.cos(ang) * 0.13], r: 0.035, m: G, k: 0.012, n: [0.01, 50] }); }
+    // crude stitched repair
     for (let i = 0; i < 4; i++) {
       const y = 0.12 - i * 0.06, x = -0.2, z = -0.05;
-      n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: Y, k: 0.002 });
-      n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: Y, k: 0.002 });
+      n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
+      n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
     }
-    return SDF.mesh(n, [-0.4, -0.72, -0.3], [0.4, 0.42, 0.3], 72);
+    return SDF.mesh(n, [-0.4, -0.78, -0.3], [0.4, 0.42, 0.3], 72);
   },
   // Stolen plush arm (shoulder at y 0, fingertips at y 1), coloured per draw: shaggy fur sleeve, a frayed
   // torn shoulder, and a soft four-fingered hand
