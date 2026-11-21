@@ -138,6 +138,7 @@ const GrabPack = {
       // monster hitbox (sphere) first
       if (Monster.visible && Monster.hitTest(h.prev, this.tmp, len + 0.1)) {
         V3.copy(h.pos, Monster.hitPoint);
+        if (Boss.active && Boss.tryShock(h)) { h.state = HAND.RETRACTING; return; }
         Monster.flinch(h.side);
         sfx('handHitFlesh', h.pos);
         Particles.burst(h.pos, 10, 'spark');
@@ -160,6 +161,13 @@ const GrabPack = {
     EventBus.emit(EV.HAND_HIT, h.pos[0], h.pos[1], h.pos[2], 10, h.side);
     EventBus.emit(EV.NOISE, h.pos[0], h.pos[1], h.pos[2], 10, 0);
     Particles.burst(h.pos, 12, 'spark');
+    if (kind === 'source' && h.latchRef && h.latchRef.burnt) {
+      h.latchKind = 'world';
+      sfx('deny', h.pos);
+      Particles.burst(h.pos, 8, 'spark');
+      this.showHint('NODE BURNT OUT - find another live node');
+      return;
+    }
     if (kind === 'source') {
       const other = this.hands[1 - h.side];
       if (other.tethered) this.release(other, false);

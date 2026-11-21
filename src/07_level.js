@@ -6,7 +6,7 @@
 // are ECS entities.
 // =====================================================================================
 
-const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SPOOL FOUNDRY', 'FREIGHT LIFT'];
+const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SPOOL FOUNDRY', 'FREIGHT LIFT', 'THE LOOM'];
 
 const Level = {
   sectors: [], doors: [], batches: [], builders: [], portals: [],
@@ -292,6 +292,7 @@ const Level = {
     this.sector(2, SECTOR_NAMES[2], -10, -48, 10, -24, 6.0);
     this.sector(3, SECTOR_NAMES[3], -6, -92, 6, -48, 7.5);
     this.sector(4, SECTOR_NAMES[4], -2.5, -98, 2.5, -92, 4.0);
+    this.sector(5, SECTOR_NAMES[5], -12, -132, 12, -106, 9.0);
 
     const DW = 1.3, DH = SCALE.doorHeight;
     this.room(0, -4, 0, 4, 8, 4.2, MAT.concrete, MAT.paint, MAT.concrete, { n: [[-DW, DW, DH]] }, SURFACE.CONCRETE);
@@ -299,6 +300,7 @@ const Level = {
     this.room(2, -10, -48, 10, -24, 6.0, MAT.concrete, MAT.rustIron, MAT.concrete, { s: [[-DW, DW, DH]], n: [[-DW, DW, DH]] }, SURFACE.CONCRETE);
     this.room(3, -6, -92, 6, -48, 7.5, MAT.grating, MAT.concrete, MAT.steel, { s: [[-DW, DW, DH]], n: [[-1.5, 1.5, DH]] }, SURFACE.METAL);
     this.room(4, -2.5, -98, 2.5, -92, 4.0, MAT.grating, MAT.steel, MAT.steel, { s: [[-1.5, 1.5, DH]] }, SURFACE.METAL);
+    this.room(5, -12, -132, 12, -106, 9.0, MAT.grating, MAT.concrete, MAT.steel, {}, SURFACE.METAL);
 
     // doors (shutters)
     this.door('D0', 0, 1, 'z', 0, -DW, DW, DH, false);
@@ -397,6 +399,27 @@ const Level = {
     this.tape(2, -4.5, 1.0, -25.4, 3);
     this.locker(3, 5.6, -78.2, Math.PI / 2); this.locker(3, -5.6, -60.4, -Math.PI / 2);
 
+    // ---------- S5: THE LOOM (boss arena, reached by the freight lift) ----------
+    for (const px of [-5.5, 5.5]) for (const pz of [-114, -125]) {
+      this.solid(5, px - 0.7, 0, pz - 0.7, px + 0.7, 9, pz + 0.7, MAT.rustIron, SURFACE.METAL);
+      this.geom(5, px - 0.78, 0, pz - 0.78, px + 0.78, 0.6, pz + 0.78, MAT.hazard);
+    }
+    this.spoolMachine(5, -7.5, -130.6); this.spoolMachine(5, 7.5, -130.6);
+    // the loom: a towering frame of warp threads along the north wall
+    this.geom(5, -4.5, 0, -131.8, -4.2, 8.6, -131.4, MAT.steel); this.geom(5, 4.2, 0, -131.8, 4.5, 8.6, -131.4, MAT.steel);
+    this.geom(5, -4.5, 8.2, -131.8, 4.5, 8.6, -131.4, MAT.steel);
+    for (let x = -4.0; x <= 4.0; x += 0.25) this.geom(5, x - 0.012, 0.4, -131.62, x + 0.012, 8.2, -131.58, x % 1 === 0 ? MAT.furViolet : MAT.furBlue);
+    // the lift gate the player arrives through (south wall)
+    for (let x = -1.5; x <= 1.5; x += 0.3) this.geom(5, x - 0.03, 0, -106.3, x + 0.03, 3.4, -106.2, MAT.steel);
+    this.bossNodes = [
+      this.powerSource(5, -11.85, 1.5, -113, 1, 0), this.powerSource(5, -11.85, 1.5, -125, 1, 0),
+      this.powerSource(5, 11.85, 1.5, -113, -1, 0), this.powerSource(5, 11.85, 1.5, -125, -1, 0)
+    ];
+    this.vent(5, 0, 8.94, -119.5, 0, 0); this.vent(5, -7.5, 8.94, -110.5, 0, 0); this.vent(5, 7.5, 8.94, -128.0, 0, 0);
+    for (let z = -109; z >= -129; z -= 6) { this.tube(5, -6, 8.98, z, true, 1); this.tube(5, 6, 8.98, z, true, z === -121 ? 2 : 1); }
+    this.emergency(5, -11.6, 6, -107); this.emergency(5, 11.6, 6, -131); this.emergency(5, 0, 7, -131.6);
+    for (const s of this.bossNodes) this.hazardLamp(5, s.pos[0] + s.n[0] * 0.4, 2.6, s.pos[2]);
+
     // ---------- triggers ----------
     this.trigger(-10, -30, 10, -24.6, 'enterGallery');
     this.trigger(-6, -55, 6, -50.5, 'startChase');
@@ -424,10 +447,10 @@ const Level = {
 // NAVIGATION GRID + A* (allocation-free search over typed arrays)
 // =====================================================================================
 const NavGrid = {
-  x0: -14, z0: -99, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
+  x0: -14, z0: -134, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
   searchId: 0,
   build() {
-    this.w = Math.ceil(28 / this.cell); this.h = Math.ceil(110 / this.cell);
+    this.w = Math.ceil(28 / this.cell); this.h = Math.ceil(146 / this.cell);
     const n = this.w * this.h;
     this.blocked = new Uint8Array(n);
     this.g = new Float32Array(n); this.f = new Float32Array(n); this.parent = new Int32Array(n);

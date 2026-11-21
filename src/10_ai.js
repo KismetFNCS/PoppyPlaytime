@@ -78,6 +78,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
+    this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
     for (const l of this.legs) { l.stepping = false; l.t = 1; }
@@ -208,7 +209,8 @@ const Monster = {
     V3.copy(this.pathGoal, scripted ? Player.body.pos : this.lastSeen);
     // rubber-band speed for scripted chases keeps pressure without being unfair
     let sp = FEEL.monsterChase;
-    if (scripted) {
+    if (this.boss) sp = this.bossSpeed;
+    else if (scripted) {
       const d = V3.distXZ(this.pos, Player.body.pos);
       sp = d > 14 ? 8.2 : d > 7 ? 6.4 : d < 3.5 ? Math.min(FEEL.monsterChase, Math.max(4.6, Player.horizontalSpeed() * 0.97)) : 5.9;
     }
@@ -309,6 +311,7 @@ const Monster = {
     if (!this.active) { this.visible = false; return; }
     if (this.state === MSTATE.MENU_POSE) { this.animateIdle(dt); this.visible = true; return; }
     if (this.state === MSTATE.JUMPSCARE_EXECUTION) { this.visible = true; return; }
+    if (this.bossHold) { this.visible = !this.inVent; this.animateIdle(dt); this.animateLegs(dt, this.airborne); return; }
 
     this.perceive();
     this.btTimer -= dt;

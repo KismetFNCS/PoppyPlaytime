@@ -34,7 +34,7 @@ const TAPES = [
   {
     title: 'INCIDENT 6-06', label: 'FINAL TRANSMISSION', presenter: 'mascot', pitch: 300,
     lines: [
-      'Freight lift engaged. Sector Six is sealed behind you.',
+      'The Spoolwright is still. For the first time in years, the Loom has stopped turning.',
       'Whatever we built down there only ever wanted one thing... to be finished.',
       'Somewhere below, the spools are still turning.',
       'Thank you for choosing Merriweather. END OF TAPE.'
@@ -373,6 +373,13 @@ const UI = {
     const sub = Settings.values.subtitles && GrabPack.hintTimer > 0 ? GrabPack.hint : '';
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
     Renderer.post.slats = Player.hidden ? 1 : 0;
+    const bossKey = Boss.active && Boss.mode !== 'DEFEATED' ? Boss.hp : -1;
+    if (H.boss !== bossKey) {
+      H.boss = bossKey;
+      document.getElementById('hudBoss').style.display = bossKey >= 0 ? 'block' : 'none';
+      const segs = document.getElementById('hudBossSegs').children;
+      for (let i = 0; i < segs.length; i++) segs[i].classList.toggle('gone', i >= bossKey);
+    }
     const hot = Game.aimHot;
     if (H.hot !== hot) { H.hot = hot; E.hudCross.classList.toggle('hot', hot); }
   },

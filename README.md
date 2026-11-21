@@ -21,6 +21,8 @@ Open `index.html` in a current desktop Chrome, Edge or Firefox (WebGL2 required)
 | Flashlight / mute / pause | F / M / Esc or P | Y / – / Start | – / SND / II |
 | Debug / fidelity overlay / self-test | F1 / F2 / F9 | | `?test=1` |
 
+**The boss fight:** the freight lift drops into **The Loom**, a machine hall with pillars for cover and four live power nodes on the walls. Latch one hand onto a live node, then strike the Spoolwright with your other hand to shock it. Each shock stuns it and burns out that node for the rest of the phase. It takes six shocks over three phases: it hunts you, gets faster, and finally starts pouncing (it crouches first, so dodge sideways). Between phases it retreats into the ceiling ducts and drops back in from another vent.
+
 **Hiding:** lockers stand in the Reclamation Hall, the Pressure Gallery and the Spool Foundry. Press **E** in front of one to hide and peek out through the slats; press **E** again to leave. The Spoolwright can't see you inside, but it will sniff around, and if it watched you climb in, it walks over and rips the door open. Hide before it sees you, never after.
 
 **How the circuit puzzles work:** fire a hand into a glowing power node to latch it. The cable from your
@@ -81,6 +83,7 @@ src/13_vhs_ui.js    VHS transmission archive, settings, menus, HUD, F1/F2 overla
 src/14_game.js      global state machine, director, checkpoints, jumpscare/failure/victory, scene submit
 src/15_harness.js   __TEST__ / __TEST_FIDELITY__ hooks and the embedded self-test (F9)
 src/19_sculpt.js    signed-distance-field sculpting + Surface Nets meshing for the characters
+src/20_boss.js      the Spoolwright boss fight in the Loom (phases, shocks, pounce, defeat)
 src/18_characters.js  the Usher, Marigold, Mister Thimble and the PIP HUD companion
 src/16_assets.js    .glb loader, model slots, manifest + drag-and-drop + IndexedDB persistence
 src/17_boot.js      main loop, error resilience, resize/DPI, input wiring

@@ -427,7 +427,7 @@ const Dialogue = {
 };
 
 // Marigold's seat per story stage (she is moved only while out of sight)
-const MARIGOLD_SEATS = [[10.6, 1.0, -6.6, Math.PI / 2], [10.6, 1.0, -6.6, Math.PI / 2], [5.0, 2.4, -44.0, Math.PI / 2], [1.7, 0, -96.9, 0.3], [1.7, 0, -96.9, 0.3]];
+const MARIGOLD_SEATS = [[10.6, 1.0, -6.6, Math.PI / 2], [10.6, 1.0, -6.6, Math.PI / 2], [5.0, 2.4, -44.0, Math.PI / 2], [1.7, 0, -96.9, 0.3], [1.7, 0, -107.0, 0.2], [1.7, 0, -107.0, 0.2]];
 const USHER_LINES = [
   'You were not scheduled for this floor.',
   'Every toy returns to the line. Eventually.',

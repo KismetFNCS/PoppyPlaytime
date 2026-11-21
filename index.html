@@ -57,6 +57,10 @@
   #hud .sub { position: absolute; left: 50%; bottom: 14vh; transform: translateX(-50%); max-width: 80vw; text-align: center; font-size: clamp(14px, 2.3vh, 24px); color: var(--hudText); text-shadow: 0 0 6px var(--void), 0 1px 2px var(--void); transition: opacity 400ms; }
   #hud .dialog { position: absolute; left: 50%; top: 13vh; transform: translateX(-50%); width: min(80vw, 760px); display: none; padding: 1vh 1.4vw; background: var(--panelFill); border-left: 3px solid var(--accent); font-size: clamp(14px, 2.2vh, 23px); line-height: 1.35; color: var(--hudText); }
   #hud .dialog b { display: block; font-size: 0.72em; letter-spacing: 0.16em; margin-bottom: 0.4vh; }
+  #hud .boss { position: absolute; left: 50%; top: 3vh; transform: translateX(-50%); width: min(60vw, 520px); display: none; text-align: center; color: var(--danger); font-size: clamp(14px, 1.9vh, 20px); letter-spacing: 0.2em; text-shadow: 0 0 6px var(--void); }
+  #hud .boss .segs { display: flex; gap: 6px; margin-top: 0.6vh; }
+  #hud .boss .segs i { flex: 1; height: 10px; background: var(--danger); border: 1px solid var(--btnBorder); }
+  #hud .boss .segs i.gone { background: var(--panelFill); }
   #hud .mute { position: absolute; right: 2vw; top: 2vh; width: 48px; height: 48px; font: inherit; font-size: 14px; background: var(--panelFill); color: var(--hudText); border: 1px solid var(--btnBorder); cursor: pointer; }
   #hud .pausebtn { position: absolute; right: calc(2vw + 56px); top: 2vh; width: 48px; height: 48px; font: inherit; font-size: 14px; background: var(--panelFill); color: var(--hudText); border: 1px solid var(--btnBorder); cursor: pointer; }
 
@@ -175,6 +179,7 @@
     <div class="objective" id="hudObjective"><b>OBJECTIVE</b><span id="hudObjText"></span></div>
     <div class="cross" id="hudCross"></div>
     <div class="prompt" id="hudPrompt"></div>
+    <div class="boss" id="hudBoss"><b>THE SPOOLWRIGHT</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
     <div class="dialog" id="hudDialog"><b id="hudDialogName"></b><span id="hudDialogText"></span></div>
     <div class="hand l" id="hudHandL">L &middot; TEAL</div>
@@ -2855,7 +2860,7 @@ const RenderQueue = {
 // are ECS entities.
 // =====================================================================================
 
-const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SPOOL FOUNDRY', 'FREIGHT LIFT'];
+const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SPOOL FOUNDRY', 'FREIGHT LIFT', 'THE LOOM'];
 
 const Level = {
   sectors: [], doors: [], batches: [], builders: [], portals: [],
@@ -3141,6 +3146,7 @@ const Level = {
     this.sector(2, SECTOR_NAMES[2], -10, -48, 10, -24, 6.0);
     this.sector(3, SECTOR_NAMES[3], -6, -92, 6, -48, 7.5);
     this.sector(4, SECTOR_NAMES[4], -2.5, -98, 2.5, -92, 4.0);
+    this.sector(5, SECTOR_NAMES[5], -12, -132, 12, -106, 9.0);
 
     const DW = 1.3, DH = SCALE.doorHeight;
     this.room(0, -4, 0, 4, 8, 4.2, MAT.concrete, MAT.paint, MAT.concrete, { n: [[-DW, DW, DH]] }, SURFACE.CONCRETE);
@@ -3148,6 +3154,7 @@ const Level = {
     this.room(2, -10, -48, 10, -24, 6.0, MAT.concrete, MAT.rustIron, MAT.concrete, { s: [[-DW, DW, DH]], n: [[-DW, DW, DH]] }, SURFACE.CONCRETE);
     this.room(3, -6, -92, 6, -48, 7.5, MAT.grating, MAT.concrete, MAT.steel, { s: [[-DW, DW, DH]], n: [[-1.5, 1.5, DH]] }, SURFACE.METAL);
     this.room(4, -2.5, -98, 2.5, -92, 4.0, MAT.grating, MAT.steel, MAT.steel, { s: [[-1.5, 1.5, DH]] }, SURFACE.METAL);
+    this.room(5, -12, -132, 12, -106, 9.0, MAT.grating, MAT.concrete, MAT.steel, {}, SURFACE.METAL);
 
     // doors (shutters)
     this.door('D0', 0, 1, 'z', 0, -DW, DW, DH, false);
@@ -3246,6 +3253,27 @@ const Level = {
     this.tape(2, -4.5, 1.0, -25.4, 3);
     this.locker(3, 5.6, -78.2, Math.PI / 2); this.locker(3, -5.6, -60.4, -Math.PI / 2);
 
+    // ---------- S5: THE LOOM (boss arena, reached by the freight lift) ----------
+    for (const px of [-5.5, 5.5]) for (const pz of [-114, -125]) {
+      this.solid(5, px - 0.7, 0, pz - 0.7, px + 0.7, 9, pz + 0.7, MAT.rustIron, SURFACE.METAL);
+      this.geom(5, px - 0.78, 0, pz - 0.78, px + 0.78, 0.6, pz + 0.78, MAT.hazard);
+    }
+    this.spoolMachine(5, -7.5, -130.6); this.spoolMachine(5, 7.5, -130.6);
+    // the loom: a towering frame of warp threads along the north wall
+    this.geom(5, -4.5, 0, -131.8, -4.2, 8.6, -131.4, MAT.steel); this.geom(5, 4.2, 0, -131.8, 4.5, 8.6, -131.4, MAT.steel);
+    this.geom(5, -4.5, 8.2, -131.8, 4.5, 8.6, -131.4, MAT.steel);
+    for (let x = -4.0; x <= 4.0; x += 0.25) this.geom(5, x - 0.012, 0.4, -131.62, x + 0.012, 8.2, -131.58, x % 1 === 0 ? MAT.furViolet : MAT.furBlue);
+    // the lift gate the player arrives through (south wall)
+    for (let x = -1.5; x <= 1.5; x += 0.3) this.geom(5, x - 0.03, 0, -106.3, x + 0.03, 3.4, -106.2, MAT.steel);
+    this.bossNodes = [
+      this.powerSource(5, -11.85, 1.5, -113, 1, 0), this.powerSource(5, -11.85, 1.5, -125, 1, 0),
+      this.powerSource(5, 11.85, 1.5, -113, -1, 0), this.powerSource(5, 11.85, 1.5, -125, -1, 0)
+    ];
+    this.vent(5, 0, 8.94, -119.5, 0, 0); this.vent(5, -7.5, 8.94, -110.5, 0, 0); this.vent(5, 7.5, 8.94, -128.0, 0, 0);
+    for (let z = -109; z >= -129; z -= 6) { this.tube(5, -6, 8.98, z, true, 1); this.tube(5, 6, 8.98, z, true, z === -121 ? 2 : 1); }
+    this.emergency(5, -11.6, 6, -107); this.emergency(5, 11.6, 6, -131); this.emergency(5, 0, 7, -131.6);
+    for (const s of this.bossNodes) this.hazardLamp(5, s.pos[0] + s.n[0] * 0.4, 2.6, s.pos[2]);
+
     // ---------- triggers ----------
     this.trigger(-10, -30, 10, -24.6, 'enterGallery');
     this.trigger(-6, -55, 6, -50.5, 'startChase');
@@ -3273,10 +3301,10 @@ const Level = {
 // NAVIGATION GRID + A* (allocation-free search over typed arrays)
 // =====================================================================================
 const NavGrid = {
-  x0: -14, z0: -99, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
+  x0: -14, z0: -134, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
   searchId: 0,
   build() {
-    this.w = Math.ceil(28 / this.cell); this.h = Math.ceil(110 / this.cell);
+    this.w = Math.ceil(28 / this.cell); this.h = Math.ceil(146 / this.cell);
     const n = this.w * this.h;
     this.blocked = new Uint8Array(n);
     this.g = new Float32Array(n); this.f = new Float32Array(n); this.parent = new Int32Array(n);
@@ -3526,6 +3554,7 @@ const GrabPack = {
       // monster hitbox (sphere) first
       if (Monster.visible && Monster.hitTest(h.prev, this.tmp, len + 0.1)) {
         V3.copy(h.pos, Monster.hitPoint);
+        if (Boss.active && Boss.tryShock(h)) { h.state = HAND.RETRACTING; return; }
         Monster.flinch(h.side);
         sfx('handHitFlesh', h.pos);
         Particles.burst(h.pos, 10, 'spark');
@@ -3548,6 +3577,13 @@ const GrabPack = {
     EventBus.emit(EV.HAND_HIT, h.pos[0], h.pos[1], h.pos[2], 10, h.side);
     EventBus.emit(EV.NOISE, h.pos[0], h.pos[1], h.pos[2], 10, 0);
     Particles.burst(h.pos, 12, 'spark');
+    if (kind === 'source' && h.latchRef && h.latchRef.burnt) {
+      h.latchKind = 'world';
+      sfx('deny', h.pos);
+      Particles.burst(h.pos, 8, 'spark');
+      this.showHint('NODE BURNT OUT - find another live node');
+      return;
+    }
     if (kind === 'source') {
       const other = this.hands[1 - h.side];
       if (other.tethered) this.release(other, false);
@@ -4207,6 +4243,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
+    this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
     for (const l of this.legs) { l.stepping = false; l.t = 1; }
@@ -4337,7 +4374,8 @@ const Monster = {
     V3.copy(this.pathGoal, scripted ? Player.body.pos : this.lastSeen);
     // rubber-band speed for scripted chases keeps pressure without being unfair
     let sp = FEEL.monsterChase;
-    if (scripted) {
+    if (this.boss) sp = this.bossSpeed;
+    else if (scripted) {
       const d = V3.distXZ(this.pos, Player.body.pos);
       sp = d > 14 ? 8.2 : d > 7 ? 6.4 : d < 3.5 ? Math.min(FEEL.monsterChase, Math.max(4.6, Player.horizontalSpeed() * 0.97)) : 5.9;
     }
@@ -4438,6 +4476,7 @@ const Monster = {
     if (!this.active) { this.visible = false; return; }
     if (this.state === MSTATE.MENU_POSE) { this.animateIdle(dt); this.visible = true; return; }
     if (this.state === MSTATE.JUMPSCARE_EXECUTION) { this.visible = true; return; }
+    if (this.bossHold) { this.visible = !this.inVent; this.animateIdle(dt); this.animateLegs(dt, this.airborne); return; }
 
     this.perceive();
     this.btTimer -= dt;
@@ -5195,6 +5234,18 @@ const SFX = {
   lockerOpen(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.tone(t, 'sawtooth', 180, 120, 0.35, 0.05, out, 0.05); Audio.ring(t + 0.25, [310, 720, 1530], 0.4, 0.14, out); },
   lockerClose(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.noise(t, 0.12, 0.4, 1400, 'lowpass', out); Audio.ring(t, [240, 560, 1180], 0.6, 0.2, out); },
   monsterSniff(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.8); for (let i = 0; i < 3; i++) Audio.noise(t + i * 0.18, 0.12, 0.25, 900 + i * 200, 'bandpass', out, 2); },
+  shock(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 5, 0.5);
+    for (let i = 0; i < 6; i++) Audio.noise(t + i * 0.045, 0.05, 0.5, 6000, 'highpass', out);
+    Audio.tone(t, 'square', 60, 58, 0.6, 0.3, out); Audio.tone(t, 'square', 120, 118, 0.6, 0.15, out);
+    Audio.tone(t, 'sawtooth', 2400, 300, 0.5, 0.12, out);
+  },
+  bossDown(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 6, 0.4);
+    Audio.tone(t, 'sawtooth', 300, 40, 2.2, 0.35, out, 0.05);
+    Audio.noise(t + 0.4, 1.2, 0.6, 700, 'lowpass', out);
+    Audio.ring(t + 0.9, [90, 220, 470, 980], 2.0, 0.4, out);
+  },
   pickup(t) { Audio.tone(t, 'triangle', 660, 990, 0.12, 0.15, Audio.buses.ui); Audio.tone(t + 0.08, 'triangle', 990, 1320, 0.15, 0.12, Audio.buses.ui); },
   victory(t) { for (let i = 0; i < 4; i++) Audio.tone(t + i * 0.25, 'triangle', [262, 330, 392, 523][i], [262, 330, 392, 523][i], 0.6, 0.15, Audio.buses.music); },
   flashlight(t) { Audio.tone(t, 'square', 2600, 2400, 0.02, 0.08, Audio.buses.sfx); Audio.noise(t, 0.02, 0.1, 5000, 'highpass', Audio.buses.sfx); },
@@ -5615,7 +5666,7 @@ const TAPES = [
   {
     title: 'INCIDENT 6-06', label: 'FINAL TRANSMISSION', presenter: 'mascot', pitch: 300,
     lines: [
-      'Freight lift engaged. Sector Six is sealed behind you.',
+      'The Spoolwright is still. For the first time in years, the Loom has stopped turning.',
       'Whatever we built down there only ever wanted one thing... to be finished.',
       'Somewhere below, the spools are still turning.',
       'Thank you for choosing Merriweather. END OF TAPE.'
@@ -5954,6 +6005,13 @@ const UI = {
     const sub = Settings.values.subtitles && GrabPack.hintTimer > 0 ? GrabPack.hint : '';
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
     Renderer.post.slats = Player.hidden ? 1 : 0;
+    const bossKey = Boss.active && Boss.mode !== 'DEFEATED' ? Boss.hp : -1;
+    if (H.boss !== bossKey) {
+      H.boss = bossKey;
+      document.getElementById('hudBoss').style.display = bossKey >= 0 ? 'block' : 'none';
+      const segs = document.getElementById('hudBossSegs').children;
+      for (let i = 0; i < segs.length; i++) segs[i].classList.toggle('gone', i >= bossKey);
+    }
     const hot = Game.aimHot;
     if (H.hot !== hot) { H.hot = hot; E.hudCross.classList.toggle('hot', hot); }
   },
@@ -6043,10 +6101,11 @@ const OBJECTIVES = [
   'Restore power to the hall door: latch a hand on the power node, loop the cable around both amber relays, then fire your other hand into the door receptacle.',
   'Cross the Pressure Gallery quietly. Shut the steam (high lever, east wall) and power the gallery gate (west wall).',
   'RUN. Reach the freight lift at the end of the Spool Foundry.',
+  'Defeat the Spoolwright: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
   'Sector 06 sealed.'
 ];
 const CHECKPOINT_POSES = [
-  { pos: [0, 0, 5.5], yaw: 0 }, { pos: [0, 0, -1.6], yaw: 0 }, { pos: [0, 0, -22.2], yaw: 0 }, { pos: [0, 0, -46.2], yaw: 0 }, { pos: [0, 0, -94.5], yaw: 0 }
+  { pos: [0, 0, 5.5], yaw: 0 }, { pos: [0, 0, -1.6], yaw: 0 }, { pos: [0, 0, -22.2], yaw: 0 }, { pos: [0, 0, -46.2], yaw: 0 }, { pos: [0, 0, -108.4], yaw: 0 }
 ];
 
 let state = null;
@@ -6149,7 +6208,7 @@ const Game = {
 
   refreshContinue() {
     const cp = loadJSON('checkpoint');
-    this.hasSave = !!(cp && typeof cp.stage === 'number' && cp.stage >= 0 && cp.stage < 4);
+    this.hasSave = !!(cp && typeof cp.stage === 'number' && cp.stage >= 0 && cp.stage < 5);
     UI.el.btnContinue.disabled = !this.hasSave;
   },
 
@@ -6203,7 +6262,8 @@ const Game = {
 
   // Resets every mutable gameplay field (the list is cross-checked against the declarations above)
   resetGame() {
-    this.stage = 0; this.time = 0; this.threat = 0; this.chaseActive = false; this.victoryTimer = -1; this.invulnerable = false;
+    this.stage = 0; this.time = 0; this.threat = 0; this.chaseActive = false; this.victoryTimer = -1; this.invulnerable = false; this.liftTimer = 0;
+    Boss.reset();
     this.fracture[0] = 0; this.fracture[1] = -100; this.fracture[2] = 0; this.fracture[3] = 0; this.fractureAmt = 0;
     this.failTimer = 0; this.jumpTimer = 0; this.fadeIn = 1;
     for (const d of Level.doors) { d.open = d.initialOpen; d.target = d.initialOpen; d.locked = false; d.slam = false; d.speed = 0.55; d.moving = false; d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height; }
@@ -6244,7 +6304,7 @@ const Game = {
     for (let i = 0; i < Level.tapes.length; i++) cp.tapes[i] = Level.tapes[i].collected ? 1 : 0;
     for (let i = 0; i < Level.triggers.length; i++) cp.triggers[i] = Level.triggers[i].fired ? 1 : 0;
     cp.steamActive = Level.steam.length && Level.steam[0].active ? 1 : 0;
-    cp.monsterMode = Monster.active && !Monster.scripted && stage === 2 ? 1 : 0;
+    cp.monsterMode = stage === 4 ? 2 : Monster.active && !Monster.scripted && stage === 2 ? 1 : 0;
     if (stage > 0) { sfx('checkpoint'); EventBus.emit(EV.CHECKPOINT, 0, 0, 0, stage, 0); }
     save('checkpoint', JSON.stringify(this.serialize()));
   },
@@ -6269,7 +6329,7 @@ const Game = {
     arr(o.receptacles, cp.receptacles, Level.receptacles.length, 1); arr(o.levers, cp.levers, Level.levers.length, 1);
     arr(o.pegsLocked, cp.pegsLocked, Level.pegs.length, 1); arr(o.tapes, cp.tapes, Level.tapes.length, 1);
     arr(o.triggers, cp.triggers, Level.triggers.length, 1);
-    cp.steamActive = num(o.steamActive, 0, 1, 1); cp.monsterMode = num(o.monsterMode, 0, 1, 0);
+    cp.steamActive = num(o.steamActive, 0, 1, 1); cp.monsterMode = num(o.monsterMode, 0, 2, 0);
     cp.valid = true;
   },
   restoreCheckpoint() {
@@ -6281,7 +6341,7 @@ const Game = {
     Monster.reset();
     Cast.reset();
     EventBus.clear();
-    this.chaseActive = false; this.invulnerable = false; this.victoryTimer = -1; this.threat = 0;
+    this.chaseActive = false; this.invulnerable = false; this.victoryTimer = -1; this.threat = 0; this.liftTimer = 0;
     this.stage = cp.stage;
     for (let i = 0; i < Level.doors.length; i++) {
       const d = Level.doors[i];
@@ -6298,7 +6358,9 @@ const Game = {
     for (const L of Level.lightEntities) L.pulse = 0;
     for (const L of Level.lockers) { L.door = 0; L.doorTarget = 0; L.doorTimer = 0; L.occupied = false; }
     Player.reset(cp.pos, cp.yaw);
+    Boss.reset();
     if (cp.monsterMode === 1) Monster.activateStalker(2);
+    if (cp.monsterMode === 2) Boss.arm(1.6);
     UI.setObjective(OBJECTIVES[Math.min(cp.stage, OBJECTIVES.length - 1)]);
     Renderer.post.redWave = 0; Renderer.post.fear = 0; Renderer.post.flash = 0;
     this.fadeIn = 1;
@@ -6359,11 +6421,11 @@ const Game = {
         break;
       }
       case 'reachLift':
+        // the gate slams on the Spoolwright and the freight lift drops into the Loom
         Doors.setOpen('D3', false, true);
         this.invulnerable = true;
-        this.victoryTimer = 1.6;
-        this.stage = 4; UI.setObjective(OBJECTIVES[4]);
-        save('checkpoint', '');
+        this.liftTimer = 3.2;
+        sfx('doorSlam', Player.body.pos);
         break;
     }
   },
@@ -6436,13 +6498,21 @@ const Game = {
     Monster.update(dt);
     EventBus.dispatch();
     if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
-    Cast.update(dt);   // the monster or a hazard handed control to an override state
+    Cast.update(dt);
+    Boss.update(dt);
+    if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
     Streaming.update(Player.body.pos);
     Lights.update(dt, this.time, Streaming.visible);
     Particles.update(dt, Player.cam.eye);
     this.updateAim();
     this.updateThreat(dt);
     this.updatePuzzleVisuals(dt);
+    if (this.liftTimer > 0) {
+      this.liftTimer -= dt;
+      Player.addTrauma(dt * 0.6);
+      Renderer.post.fade = this.fadeIn = clamp((3.2 - this.liftTimer) / 1.6, 0, 1);
+      if (this.liftTimer <= 0) this.arriveAtLoom();
+    }
     if (this.victoryTimer > 0) {
       this.victoryTimer -= dt;
       if (this.victoryTimer <= 0) { Monster.reset(); VHS.play(2, () => setState(STATE.VICTORY)); setState(STATE.CINEMATIC_VHS); return; }
@@ -6452,7 +6522,7 @@ const Game = {
     Renderer.post.flash = Math.max(0, Renderer.post.flash - dt * 2);
     this.fractureAmt = Math.max(this.chaseActive ? 0.35 : 0, this.fractureAmt - dt * 0.05);
     // sub-state routing (no allocation; transitions only on change)
-    const chase = this.chaseActive || Monster.state === MSTATE.LINE_OF_SIGHT_CHASE;
+    const chase = this.chaseActive || Boss.active || Monster.state === MSTATE.LINE_OF_SIGHT_CHASE;
     const next = chase ? STATE.CHASE_SEQUENCE : GrabPack.tetheredHand() ? STATE.INTERACTIVE_PUZZLE : STATE.GAMEPLAY_ACTIVE;
     if (next !== state && this.isGameplay()) setState(next);
     Pip.update(dt);
@@ -6515,6 +6585,27 @@ const Game = {
         if (it) it.castShadow = false;
       }
     }
+  },
+
+  arriveAtLoom() {
+    Monster.reset();
+    this.chaseActive = false; this.invulnerable = false;
+    this.stage = 4; UI.setObjective(OBJECTIVES[4]);
+    const pose = CHECKPOINT_POSES[4];
+    V3.set(_g.v, pose.pos[0], pose.pos[1], pose.pos[2]);
+    Player.reset(_g.v, pose.yaw);
+    this.fadeIn = 1;
+    this.saveCheckpoint(4);
+    Boss.arm(2.2);
+    Dialogue.say('MARIGOLD', 'This is where it was made. It will not let you leave... unless you unmake it.');
+    Dialogue.say('PIP', 'The wall nodes are live! Grab one, then zap it with your other hand!');
+  },
+  onBossDefeated() {
+    this.stage = 5; UI.setObjective(OBJECTIVES[5]);
+    this.invulnerable = true;
+    this.chaseActive = false;
+    save('checkpoint', '');
+    this.victoryTimer = 3.6;
   },
 
   playTape(tape) {
@@ -6684,7 +6775,8 @@ const Game = {
       R.trs('torus', MAT.hazard, p[0] + n[0] * 0.05, p[1], p[2] + n[2] * 0.05, yaw, Math.PI / 2, 0, 0.36, 0.5, 0.36);
       const it = R.trs('sphere', MAT.rubber, p[0] + n[0] * 0.12, p[1], p[2] + n[2] * 0.12, 0, 0, 0, 0.2, 0.2, 0.2, false);
       const pulse = 2.5 + Math.sin(t * 5) * 1.0;
-      if (it) { it.emis[0] = 0.08 * pulse; it.emis[1] = 0.75 * pulse; it.emis[2] = 1.0 * pulse; }
+      if (it && s.burnt) { it.emis[0] = 0.5 + 0.4 * Math.max(0, noise1(t * 20 + s.id)); it.emis[1] = 0.04; it.emis[2] = 0.02; }
+      else if (it) { it.emis[0] = 0.08 * pulse; it.emis[1] = 0.75 * pulse; it.emis[2] = 1.0 * pulse; }
       // conduit up the wall
       R.trs('box', MAT.rustIron, p[0] - n[0] * 0.02, p[1] + 2.2, p[2] - n[2] * 0.02, yaw, 0, 0, 0.18, 3.6, 0.18);
     }
@@ -7190,7 +7282,7 @@ async function runAll() {
     check('boot: no runtime error', T.getLastError() === null, T.getLastError());
     check('boot: WebGL2 deferred pipeline online', Renderer.ok && !!Renderer.targets, 'hdr ' + (Renderer.hdrFloat ? 'float' : 'rgba8'));
     check('boot: BVH built over static colliders', Physics.bvh && Physics.bvh.nodeCount > 10, Physics.bvh && Physics.bvh.nodeCount);
-    check('boot: 5 streaming sectors', Level.sectors.length === 5, Level.sectors.length);
+    check('boot: 6 streaming sectors', Level.sectors.length === 6, Level.sectors.length);
     T.setAutoRun(true);
     const f0 = T.getFrameCount();
     await sleep(300);
@@ -7435,7 +7527,44 @@ async function runAll() {
     T.step(DT, 160);
     T.setPlayerPose(0, 0, -95, 0, 0); T.step(DT, 5);
     check('chase: reaching the lift closes the gate', Level.doorById('D3').target === 0, JSON.stringify(T.doors()));
-    check('victory: ending tape plays', untilState('CINEMATIC_VHS', 200) && VHS.tapeId === 2, T.getState());
+    T.step(DT, 220);
+    check('boss: the freight lift descends into the Loom', Streaming.current === 5 && Game.stage === 4, 'sector ' + Streaming.current + ' stage ' + Game.stage);
+    check('checkpoint: saved at the boss arena', Game.checkpoint.stage === 4 && Game.checkpoint.monsterMode === 2, Game.checkpoint.stage);
+    T.step(DT, 200);
+    check('boss: the Spoolwright drops in', Boss.active && Monster.boss && Monster.active, Boss.mode + ' ' + Monster.state);
+    T.step(DT, 80);
+    Game.invulnerable = true;
+    // real shock: latch a wall node, then hit the creature with the other hand
+    const node = Level.bossNodes[0];
+    T.setPlayerPose(node.pos[0] + 1.6, 0, node.pos[2], Math.PI / 2, 0); T.aimAt(node.pos[0], node.pos[1], node.pos[2]); click(0); T.step(DT, 12);
+    check('boss: hand latches a live wall node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
+    V3.set(Monster.pos, node.pos[0] + 6.5, 0, node.pos[2]); Monster.targetSpeed = 0; Monster.speed = 0; Monster.snapLegs();
+    T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
+    check('boss: shocking it costs health and stuns it', Boss.hp === 5 && Monster.stunTimer > 0, 'hp ' + Boss.hp + ' stun ' + Monster.stunTimer.toFixed(2));
+    check('boss: the used node burns out', node.burnt && !GrabPack.hands[0].tethered, '');
+    check('sound: shock', T.getSfxLog().includes('shock'), '');
+    T.step(DT, 60);
+    T.aimAt(node.pos[0], node.pos[1], node.pos[2]); click(0); T.step(DT, 12);
+    check('boss: burnt node refuses a second tether', !GrabPack.hands[0].tethered, GrabPack.hint);
+    check('ui: boss health bar shows 5 of 6', document.getElementById('hudBoss').style.display === 'block' && document.querySelectorAll('#hudBossSegs i.gone').length === 1);
+    T.step(DT, 90);
+    Boss.debugShock(); T.step(DT, 120);
+    check('boss: two shocks end phase 1 (retreat into the ducts)', Boss.phase === 1 && (Boss.mode === 'RETREAT' || Boss.mode === 'FIGHT'), Boss.mode + ' phase ' + Boss.phase);
+    check('boss: nodes come back live for the next phase', Level.bossNodes.every(n => !n.burnt));
+    T.step(DT, 300);
+    check('boss: it drops back in from another vent', Boss.mode === 'FIGHT' && !Monster.inVent, Boss.mode);
+    Boss.debugShock(); T.step(DT, 160); Boss.debugShock(); T.step(DT, 400);
+    check('boss: phase 3 reached', Boss.phase === 2 && Boss.mode === 'FIGHT', Boss.mode + ' phase ' + Boss.phase);
+    Boss.leapCd = 0; V3.set(Monster.pos, Player.body.pos[0] + 6, 0, Player.body.pos[2]); Monster.setState(MSTATE.LINE_OF_SIGHT_CHASE); Monster.stunTimer = 0;
+    T.aimAt(Monster.pos[0], 1.6, Monster.pos[2]); Monster.yaw = Math.atan2(-(Player.body.pos[0] - Monster.pos[0]), -(Player.body.pos[2] - Monster.pos[2]));
+    let leapt = false;
+    for (let i = 0; i < 90 && !leapt; i++) { T.step(DT, 1); leapt = Boss.mode === 'WINDUP' || Boss.mode === 'LEAP'; }
+    check('boss: phase 3 telegraphs a pounce', leapt, Boss.mode);
+    T.step(DT, 120);
+    Boss.mode = 'FIGHT'; Monster.bossHold = false; Monster.airborne = false;
+    Boss.debugShock(); T.step(DT, 30); Boss.debugShock();
+    check('boss: final shock defeats it', Boss.hp === 0 && Boss.mode === 'DEFEATED', 'hp ' + Boss.hp + ' ' + Boss.mode);
+    check('victory: ending tape plays', untilState('CINEMATIC_VHS', 500) && VHS.tapeId === 2, T.getState());
     tap('Escape');
     check('victory: VICTORY screen', T.getState() === 'VICTORY', T.getState());
     tap('Enter');
@@ -8663,7 +8792,7 @@ const Dialogue = {
 };
 
 // Marigold's seat per story stage (she is moved only while out of sight)
-const MARIGOLD_SEATS = [[10.6, 1.0, -6.6, Math.PI / 2], [10.6, 1.0, -6.6, Math.PI / 2], [5.0, 2.4, -44.0, Math.PI / 2], [1.7, 0, -96.9, 0.3], [1.7, 0, -96.9, 0.3]];
+const MARIGOLD_SEATS = [[10.6, 1.0, -6.6, Math.PI / 2], [10.6, 1.0, -6.6, Math.PI / 2], [5.0, 2.4, -44.0, Math.PI / 2], [1.7, 0, -96.9, 0.3], [1.7, 0, -107.0, 0.2], [1.7, 0, -107.0, 0.2]];
 const USHER_LINES = [
   'You were not scheduled for this floor.',
   'Every toy returns to the line. Eventually.',
@@ -9281,6 +9410,196 @@ const Sculpt = {
     return this.built >= SCULPT_ORDER.length;
   },
   ready(name) { return !!Renderer.meshes[name]; }
+};
+
+// ===== module: 20_boss.js =====
+// =====================================================================================
+// BOSS: the Spoolwright in THE LOOM (sector 5)
+//   Damage: latch one hand onto a live wall node (tether), then strike the creature with the
+//   other hand -> shock: stun + 1 damage, and that node burns out for the rest of the phase.
+//   Phases (2 shocks each): 1 hunt | 2 faster | 3 faster + telegraphed pounce.
+//   Between phases it retreats into the ceiling ducts and drops back from another vent.
+// =====================================================================================
+
+const BOSS_PHASES = [
+  { speed: 4.4, leap: false, line: 'It is learning your hands... keep moving between the nodes!' },
+  { speed: 5.0, leap: false, line: 'The lights! It is pulling power from the whole floor!' },
+  { speed: 5.6, leap: true, line: 'When it crouches, it is going to pounce. Move sideways!' }
+];
+
+const Boss = {
+  active: false, armTimer: 0, hp: 6, maxHp: 6, phase: 0, mode: 'IDLE', timer: 0, leapCd: 4,
+  pendingRetreat: 0, ventPick: 0, defeatedFired: false,
+  leapFrom: V3.create(), leapTo: V3.create(), tmp: V3.create(),
+
+  reset() {
+    this.active = false; this.armTimer = 0; this.hp = this.maxHp; this.phase = 0; this.mode = 'IDLE'; this.timer = 0;
+    this.leapCd = 4; this.pendingRetreat = 0; this.ventPick = 0; this.defeatedFired = false;
+    for (const n of Level.bossNodes || []) { n.burnt = false; if (n.light) n.light.base = 3.0; }
+    Monster.boss = false; Monster.bossHold = false; Monster.airborne = false;
+  },
+  arm(delay) { this.reset(); this.armTimer = delay; },
+
+  arenaVents() {
+    const out = [];
+    for (let i = 0; i < Level.vents.length; i++) if (Level.vents[i].sector === 5) out.push(i);
+    return out;
+  },
+  // drop out of a ceiling vent (keeps hp/phase)
+  drop() {
+    const vents = this.arenaVents();
+    const v = vents[this.ventPick % vents.length];
+    this.ventPick++;
+    Monster.startScriptedChase(v);
+    Monster.boss = true; Monster.bossHold = false; Monster.airborne = false;
+    Monster.bossSpeed = BOSS_PHASES[this.phase].speed;
+    this.mode = 'FIGHT'; this.timer = 0;
+    Player.addTrauma(0.45);
+    Particles.burst(Level.vents[v].pos, 30, 'debris');
+  },
+  start() {
+    this.active = true;
+    this.drop();
+  },
+
+  tryShock(h) {
+    if (this.mode !== 'FIGHT' || Monster.stunTimer > 0) return false;
+    const t = GrabPack.tetheredHand();
+    if (!t || t === h) {
+      GrabPack.showHint('No current in that hand - latch your other hand onto a live wall node first');
+      return false;
+    }
+    const node = t.latchRef;
+    if (node) { node.burnt = true; if (node.light) node.light.base = 0.15; }
+    GrabPack.release(t, false);
+    this.hp = Math.max(0, this.hp - 1);
+    Monster.stunTimer = 2.4; Monster.flinchAmt = 1; Monster.jaw = 1;
+    sfx('shock', Monster.hitPoint);
+    Particles.burst(Monster.hitPoint, 46, 'spark');
+    Particles.burst(Monster.hitPoint, 16, 'ember');
+    Player.addTrauma(0.35);
+    const P = Renderer.post; P.flash = 0.35; P.flashTint[0] = 0.4; P.flashTint[1] = 0.85; P.flashTint[2] = 1.0;
+    Game.pulseLightsNear(Monster.pos[0], 2, Monster.pos[2], 1.5);
+    Pip.react('happy', 2);
+    EventBus.emit(EV.POWER_ON, Monster.pos[0], 1.5, Monster.pos[2], 0, 0);
+    if (this.hp <= 0) this.defeat();
+    else if (this.hp % 2 === 0) this.pendingRetreat = 1.4;
+    else Dialogue.say('PIP', 'Direct hit! That node is fried - find another one!');
+    return true;
+  },
+
+  beginRetreat() {
+    this.mode = 'RETREAT'; this.timer = 0;
+    Monster.bossHold = true; Monster.airborne = true;
+    V3.copy(this.leapFrom, Monster.pos);
+    sfx('screech', Monster.pos);
+    this.phase = Math.min(BOSS_PHASES.length - 1, this.phase + 1);
+    for (const n of Level.bossNodes) { n.burnt = false; if (n.light) n.light.base = 3.0; }
+    Dialogue.say('MARIGOLD', BOSS_PHASES[this.phase].line);
+  },
+
+  defeat() {
+    this.mode = 'DEFEATED'; this.timer = 0;
+    Monster.bossHold = true; Monster.airborne = false;
+    sfx('bossDown', Monster.pos);
+    Game.fracture[0] = Monster.head[0]; Game.fracture[1] = Monster.head[1]; Game.fracture[2] = Monster.head[2]; Game.fracture[3] = 6; Game.fractureAmt = 1;
+    Dialogue.say('MARIGOLD', '...It stopped. You actually stopped it.');
+  },
+
+  update(dt) {
+    if (this.armTimer > 0) {
+      this.armTimer -= dt;
+      if (this.armTimer <= 0) this.start();
+      return;
+    }
+    if (!this.active) return;
+    this.timer += dt;
+    const M = Monster;
+    switch (this.mode) {
+      case 'FIGHT': {
+        M.bossSpeed = BOSS_PHASES[this.phase].speed;
+        if (this.pendingRetreat > 0) {
+          this.pendingRetreat -= dt;
+          if (this.pendingRetreat <= 0) this.beginRetreat();
+          break;
+        }
+        // phase 3: telegraphed pounce
+        if (BOSS_PHASES[this.phase].leap && M.stunTimer <= 0 && !M.inVent && M.state === MSTATE.LINE_OF_SIGHT_CHASE) {
+          this.leapCd -= dt;
+          const d = V3.distXZ(M.pos, Player.body.pos);
+          if (this.leapCd <= 0 && d > 3.5 && d < 11 && M.seesPlayer) {
+            this.mode = 'WINDUP'; this.timer = 0;
+            M.bossHold = true; M.speed = 0; M.jaw = 1;
+            sfx('screech', M.pos);
+            Player.addTrauma(0.2);
+          }
+        }
+        break;
+      }
+      case 'WINDUP': {
+        // crouch and face the player, then commit to where the player stood
+        M.yaw = Math.atan2(-(Player.body.pos[0] - M.pos[0]), -(Player.body.pos[2] - M.pos[2]));
+        M.lean = damp(M.lean, 0.55, 8, dt);
+        M.bodyBob = -0.25 * Math.min(1, this.timer / 0.85);
+        if (this.timer > 0.85) {
+          this.mode = 'LEAP'; this.timer = 0;
+          V3.copy(this.leapFrom, M.pos);
+          V3.sub(this.tmp, Player.body.pos, M.pos); this.tmp[1] = 0;
+          const len = Math.max(0.1, V3.len(this.tmp));
+          V3.addScaled(this.leapTo, M.pos, this.tmp, (len - 0.4) / len);
+          this.leapTo[1] = 0;
+          M.airborne = true;
+        }
+        break;
+      }
+      case 'LEAP': {
+        const t = Math.min(1, this.timer / 0.6);
+        V3.lerp(M.pos, this.leapFrom, this.leapTo, t);
+        M.pos[1] = Math.sin(t * Math.PI) * 2.1;
+        if (t >= 1) {
+          M.pos[1] = 0; M.airborne = false; M.bossHold = false; M.snapLegs();
+          this.mode = 'FIGHT'; this.leapCd = 6.5;
+          sfx('doorSlam', M.pos);
+          Player.addTrauma(0.5);
+          Particles.burst(M.pos, 26, 'debris');
+          if (V3.distXZ(M.pos, Player.body.pos) < 1.7 && !Game.invulnerable && !Player.hidden) M.setState(MSTATE.JUMPSCARE_EXECUTION);
+        }
+        break;
+      }
+      case 'RETREAT': {
+        // claw up into the ceiling, vanish, then drop back in from another duct
+        if (this.timer < 0.9) {
+          M.pos[1] = this.leapFrom[1] + (this.timer / 0.9) * 7.0;
+          M.lean = -0.6;
+        } else if (!M.inVent) {
+          M.inVent = true; M.visible = false;
+          Lights.blackout = 0.55;
+        }
+        if (this.timer > 4.0) { Lights.blackout = 0; this.drop(); }
+        break;
+      }
+      case 'DEFEATED': {
+        // legs give out, the mask tips forward, the body sinks to the grating
+        const t = Math.min(1, this.timer / 1.6);
+        M.lean = lerp(M.lean, 0.95, Math.min(1, dt * 3));
+        M.pos[1] = -0.55 * t;
+        M.headTilt = 0.6 * t;
+        M.jaw = 1;
+        if (this.timer > 1.3 && !this.defeatedFired) { this.defeatedFired = true; Game.onBossDefeated(); }
+        break;
+      }
+    }
+  },
+
+  // test helper: apply a shock without the projectile (uses the first live node)
+  debugShock() {
+    const node = Level.bossNodes.find(n => !n.burnt);
+    if (!node) return false;
+    const h = GrabPack.hands[0];
+    h.state = HAND.LATCHED; h.tethered = true; h.latchRef = node; h.latchKind = 'source';
+    Monster.stunTimer = 0;
+    return this.tryShock(GrabPack.hands[1]);
+  }
 };
 </script>
 </body>

@@ -16,10 +16,11 @@ const OBJECTIVES = [
   'Restore power to the hall door: latch a hand on the power node, loop the cable around both amber relays, then fire your other hand into the door receptacle.',
   'Cross the Pressure Gallery quietly. Shut the steam (high lever, east wall) and power the gallery gate (west wall).',
   'RUN. Reach the freight lift at the end of the Spool Foundry.',
+  'Defeat the Spoolwright: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
   'Sector 06 sealed.'
 ];
 const CHECKPOINT_POSES = [
-  { pos: [0, 0, 5.5], yaw: 0 }, { pos: [0, 0, -1.6], yaw: 0 }, { pos: [0, 0, -22.2], yaw: 0 }, { pos: [0, 0, -46.2], yaw: 0 }, { pos: [0, 0, -94.5], yaw: 0 }
+  { pos: [0, 0, 5.5], yaw: 0 }, { pos: [0, 0, -1.6], yaw: 0 }, { pos: [0, 0, -22.2], yaw: 0 }, { pos: [0, 0, -46.2], yaw: 0 }, { pos: [0, 0, -108.4], yaw: 0 }
 ];
 
 let state = null;
@@ -122,7 +123,7 @@ const Game = {
 
   refreshContinue() {
     const cp = loadJSON('checkpoint');
-    this.hasSave = !!(cp && typeof cp.stage === 'number' && cp.stage >= 0 && cp.stage < 4);
+    this.hasSave = !!(cp && typeof cp.stage === 'number' && cp.stage >= 0 && cp.stage < 5);
     UI.el.btnContinue.disabled = !this.hasSave;
   },
 
@@ -176,7 +177,8 @@ const Game = {
 
   // Resets every mutable gameplay field (the list is cross-checked against the declarations above)
   resetGame() {
-    this.stage = 0; this.time = 0; this.threat = 0; this.chaseActive = false; this.victoryTimer = -1; this.invulnerable = false;
+    this.stage = 0; this.time = 0; this.threat = 0; this.chaseActive = false; this.victoryTimer = -1; this.invulnerable = false; this.liftTimer = 0;
+    Boss.reset();
     this.fracture[0] = 0; this.fracture[1] = -100; this.fracture[2] = 0; this.fracture[3] = 0; this.fractureAmt = 0;
     this.failTimer = 0; this.jumpTimer = 0; this.fadeIn = 1;
     for (const d of Level.doors) { d.open = d.initialOpen; d.target = d.initialOpen; d.locked = false; d.slam = false; d.speed = 0.55; d.moving = false; d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height; }
@@ -217,7 +219,7 @@ const Game = {
     for (let i = 0; i < Level.tapes.length; i++) cp.tapes[i] = Level.tapes[i].collected ? 1 : 0;
     for (let i = 0; i < Level.triggers.length; i++) cp.triggers[i] = Level.triggers[i].fired ? 1 : 0;
     cp.steamActive = Level.steam.length && Level.steam[0].active ? 1 : 0;
-    cp.monsterMode = Monster.active && !Monster.scripted && stage === 2 ? 1 : 0;
+    cp.monsterMode = stage === 4 ? 2 : Monster.active && !Monster.scripted && stage === 2 ? 1 : 0;
     if (stage > 0) { sfx('checkpoint'); EventBus.emit(EV.CHECKPOINT, 0, 0, 0, stage, 0); }
     save('checkpoint', JSON.stringify(this.serialize()));
   },
@@ -242,7 +244,7 @@ const Game = {
     arr(o.receptacles, cp.receptacles, Level.receptacles.length, 1); arr(o.levers, cp.levers, Level.levers.length, 1);
     arr(o.pegsLocked, cp.pegsLocked, Level.pegs.length, 1); arr(o.tapes, cp.tapes, Level.tapes.length, 1);
     arr(o.triggers, cp.triggers, Level.triggers.length, 1);
-    cp.steamActive = num(o.steamActive, 0, 1, 1); cp.monsterMode = num(o.monsterMode, 0, 1, 0);
+    cp.steamActive = num(o.steamActive, 0, 1, 1); cp.monsterMode = num(o.monsterMode, 0, 2, 0);
     cp.valid = true;
   },
   restoreCheckpoint() {
@@ -254,7 +256,7 @@ const Game = {
     Monster.reset();
     Cast.reset();
     EventBus.clear();
-    this.chaseActive = false; this.invulnerable = false; this.victoryTimer = -1; this.threat = 0;
+    this.chaseActive = false; this.invulnerable = false; this.victoryTimer = -1; this.threat = 0; this.liftTimer = 0;
     this.stage = cp.stage;
     for (let i = 0; i < Level.doors.length; i++) {
       const d = Level.doors[i];
@@ -271,7 +273,9 @@ const Game = {
     for (const L of Level.lightEntities) L.pulse = 0;
     for (const L of Level.lockers) { L.door = 0; L.doorTarget = 0; L.doorTimer = 0; L.occupied = false; }
     Player.reset(cp.pos, cp.yaw);
+    Boss.reset();
     if (cp.monsterMode === 1) Monster.activateStalker(2);
+    if (cp.monsterMode === 2) Boss.arm(1.6);
     UI.setObjective(OBJECTIVES[Math.min(cp.stage, OBJECTIVES.length - 1)]);
     Renderer.post.redWave = 0; Renderer.post.fear = 0; Renderer.post.flash = 0;
     this.fadeIn = 1;
@@ -332,11 +336,11 @@ const Game = {
         break;
       }
       case 'reachLift':
+        // the gate slams on the Spoolwright and the freight lift drops into the Loom
         Doors.setOpen('D3', false, true);
         this.invulnerable = true;
-        this.victoryTimer = 1.6;
-        this.stage = 4; UI.setObjective(OBJECTIVES[4]);
-        save('checkpoint', '');
+        this.liftTimer = 3.2;
+        sfx('doorSlam', Player.body.pos);
         break;
     }
   },
@@ -409,13 +413,21 @@ const Game = {
     Monster.update(dt);
     EventBus.dispatch();
     if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
-    Cast.update(dt);   // the monster or a hazard handed control to an override state
+    Cast.update(dt);
+    Boss.update(dt);
+    if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
     Streaming.update(Player.body.pos);
     Lights.update(dt, this.time, Streaming.visible);
     Particles.update(dt, Player.cam.eye);
     this.updateAim();
     this.updateThreat(dt);
     this.updatePuzzleVisuals(dt);
+    if (this.liftTimer > 0) {
+      this.liftTimer -= dt;
+      Player.addTrauma(dt * 0.6);
+      Renderer.post.fade = this.fadeIn = clamp((3.2 - this.liftTimer) / 1.6, 0, 1);
+      if (this.liftTimer <= 0) this.arriveAtLoom();
+    }
     if (this.victoryTimer > 0) {
       this.victoryTimer -= dt;
       if (this.victoryTimer <= 0) { Monster.reset(); VHS.play(2, () => setState(STATE.VICTORY)); setState(STATE.CINEMATIC_VHS); return; }
@@ -425,7 +437,7 @@ const Game = {
     Renderer.post.flash = Math.max(0, Renderer.post.flash - dt * 2);
     this.fractureAmt = Math.max(this.chaseActive ? 0.35 : 0, this.fractureAmt - dt * 0.05);
     // sub-state routing (no allocation; transitions only on change)
-    const chase = this.chaseActive || Monster.state === MSTATE.LINE_OF_SIGHT_CHASE;
+    const chase = this.chaseActive || Boss.active || Monster.state === MSTATE.LINE_OF_SIGHT_CHASE;
     const next = chase ? STATE.CHASE_SEQUENCE : GrabPack.tetheredHand() ? STATE.INTERACTIVE_PUZZLE : STATE.GAMEPLAY_ACTIVE;
     if (next !== state && this.isGameplay()) setState(next);
     Pip.update(dt);
@@ -488,6 +500,27 @@ const Game = {
         if (it) it.castShadow = false;
       }
     }
+  },
+
+  arriveAtLoom() {
+    Monster.reset();
+    this.chaseActive = false; this.invulnerable = false;
+    this.stage = 4; UI.setObjective(OBJECTIVES[4]);
+    const pose = CHECKPOINT_POSES[4];
+    V3.set(_g.v, pose.pos[0], pose.pos[1], pose.pos[2]);
+    Player.reset(_g.v, pose.yaw);
+    this.fadeIn = 1;
+    this.saveCheckpoint(4);
+    Boss.arm(2.2);
+    Dialogue.say('MARIGOLD', 'This is where it was made. It will not let you leave... unless you unmake it.');
+    Dialogue.say('PIP', 'The wall nodes are live! Grab one, then zap it with your other hand!');
+  },
+  onBossDefeated() {
+    this.stage = 5; UI.setObjective(OBJECTIVES[5]);
+    this.invulnerable = true;
+    this.chaseActive = false;
+    save('checkpoint', '');
+    this.victoryTimer = 3.6;
   },
 
   playTape(tape) {
@@ -657,7 +690,8 @@ const Game = {
       R.trs('torus', MAT.hazard, p[0] + n[0] * 0.05, p[1], p[2] + n[2] * 0.05, yaw, Math.PI / 2, 0, 0.36, 0.5, 0.36);
       const it = R.trs('sphere', MAT.rubber, p[0] + n[0] * 0.12, p[1], p[2] + n[2] * 0.12, 0, 0, 0, 0.2, 0.2, 0.2, false);
       const pulse = 2.5 + Math.sin(t * 5) * 1.0;
-      if (it) { it.emis[0] = 0.08 * pulse; it.emis[1] = 0.75 * pulse; it.emis[2] = 1.0 * pulse; }
+      if (it && s.burnt) { it.emis[0] = 0.5 + 0.4 * Math.max(0, noise1(t * 20 + s.id)); it.emis[1] = 0.04; it.emis[2] = 0.02; }
+      else if (it) { it.emis[0] = 0.08 * pulse; it.emis[1] = 0.75 * pulse; it.emis[2] = 1.0 * pulse; }
       // conduit up the wall
       R.trs('box', MAT.rustIron, p[0] - n[0] * 0.02, p[1] + 2.2, p[2] - n[2] * 0.02, yaw, 0, 0, 0.18, 3.6, 0.18);
     }

@@ -405,6 +405,18 @@ const SFX = {
   lockerOpen(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.tone(t, 'sawtooth', 180, 120, 0.35, 0.05, out, 0.05); Audio.ring(t + 0.25, [310, 720, 1530], 0.4, 0.14, out); },
   lockerClose(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.noise(t, 0.12, 0.4, 1400, 'lowpass', out); Audio.ring(t, [240, 560, 1180], 0.6, 0.2, out); },
   monsterSniff(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.8); for (let i = 0; i < 3; i++) Audio.noise(t + i * 0.18, 0.12, 0.25, 900 + i * 200, 'bandpass', out, 2); },
+  shock(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 5, 0.5);
+    for (let i = 0; i < 6; i++) Audio.noise(t + i * 0.045, 0.05, 0.5, 6000, 'highpass', out);
+    Audio.tone(t, 'square', 60, 58, 0.6, 0.3, out); Audio.tone(t, 'square', 120, 118, 0.6, 0.15, out);
+    Audio.tone(t, 'sawtooth', 2400, 300, 0.5, 0.12, out);
+  },
+  bossDown(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 6, 0.4);
+    Audio.tone(t, 'sawtooth', 300, 40, 2.2, 0.35, out, 0.05);
+    Audio.noise(t + 0.4, 1.2, 0.6, 700, 'lowpass', out);
+    Audio.ring(t + 0.9, [90, 220, 470, 980], 2.0, 0.4, out);
+  },
   pickup(t) { Audio.tone(t, 'triangle', 660, 990, 0.12, 0.15, Audio.buses.ui); Audio.tone(t + 0.08, 'triangle', 990, 1320, 0.15, 0.12, Audio.buses.ui); },
   victory(t) { for (let i = 0; i < 4; i++) Audio.tone(t + i * 0.25, 'triangle', [262, 330, 392, 523][i], [262, 330, 392, 523][i], 0.6, 0.15, Audio.buses.music); },
   flashlight(t) { Audio.tone(t, 'square', 2600, 2400, 0.02, 0.08, Audio.buses.sfx); Audio.noise(t, 0.02, 0.1, 5000, 'highpass', Audio.buses.sfx); },
