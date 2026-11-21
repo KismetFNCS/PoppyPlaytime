@@ -111,6 +111,9 @@ const SOCKET_OFFSETS: Readonly<Record<ClawSide, Vec3>> = {
 };
 /** Visual scale of the launched hands (collision uses the hand's centre point, not the mesh). */
 const HAND_SCALE: number = 1.6;
+/** Held (holstered) hands: smaller, raised beside each launcher. Offset is [outward, up, forward] in camera space. */
+const HELD_HAND_SCALE: number = 1.15;
+const HELD_HAND_OFFSET: Vec3 = [0.06, 0.02, 0.06];
 const SIDE_POLARITY: Readonly<Record<ClawSide, Polarity>> = { left: 'teal', right: 'rose' };
 const CLAW_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal', rose: 'tether_claw_rose' };
 
@@ -483,9 +486,19 @@ export class TetherRig {
       const socket: Vec3 = this.socketPosition(side);
       // Launcher viewmodel: aligned to the camera frame, barrel tip at the socket.
       this.pushModel(output, 'tether_launcher', mat4FromBasis(socket, basis.right, basis.up, basis.forward), 1);
-      const [clawX, clawY, clawZ] = orthonormalBasisFromForward(claw.direction, basis.up);
       const corePulse: number = claw.phase === 'latched' ? 2.2 : 0.8 + 0.2 * Math.sin(timeSeconds * 6 + (side === 'left' ? 0 : 1.7));
-      this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(claw.position, vec3Scale(clawX, HAND_SCALE), vec3Scale(clawY, HAND_SCALE), vec3Scale(clawZ, HAND_SCALE)), corePulse);
+      if (claw.phase === 'holstered') {
+        // Held: hand raised beside the launcher, fingers up, palm toward the player, tilted slightly outward and forward.
+        const outward: number = side === 'left' ? -1 : 1;
+        const fingersUp: Vec3 = vec3Normalize(vec3Add(basis.up, vec3Add(vec3Scale(basis.forward, 0.3), vec3Scale(basis.right, outward * 0.18))));
+        const [heldX, heldY, heldZ] = orthonormalBasisFromForward(fingersUp, basis.forward);
+        const heldPosition: Vec3 = vec3Add(socket, vec3Add(vec3Scale(basis.right, outward * HELD_HAND_OFFSET[0]), vec3Add(vec3Scale(basis.up, HELD_HAND_OFFSET[1]), vec3Scale(basis.forward, HELD_HAND_OFFSET[2]))));
+        this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(heldPosition, vec3Scale(heldX, HELD_HAND_SCALE), vec3Scale(heldY, HELD_HAND_SCALE), vec3Scale(heldZ, HELD_HAND_SCALE)), corePulse);
+      } else {
+        // In flight / latched: fingers lead along the cable.
+        const [clawX, clawY, clawZ] = orthonormalBasisFromForward(claw.direction, basis.up);
+        this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(claw.position, vec3Scale(clawX, HAND_SCALE), vec3Scale(clawY, HAND_SCALE), vec3Scale(clawZ, HAND_SCALE)), corePulse);
+      }
       if (claw.phase !== 'holstered') {
         const span: number = vec3Distance(socket, claw.position);
         const visualLength: number =
