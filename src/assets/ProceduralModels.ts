@@ -441,6 +441,7 @@ export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, 
   gas_mask_filter: buildGasMaskFilter,
   foundation_slabs: buildFoundationSlabs,
   foundation_rebar: buildFoundationRebar,
+  // Held with the back of the hand to the player: teal (left) thumb points right, rose (right) thumb points left.
   tether_hand_shell_left: () => buildTetherHandShell(1),
   tether_hand_shell_right: () => buildTetherHandShell(-1),
   tether_hand_cuff: buildTetherHandCuff,

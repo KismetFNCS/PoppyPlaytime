@@ -493,10 +493,10 @@ export class TetherRig {
       // First person shows only the hands; the launchers stay out of view.
       const corePulse: number = claw.phase === 'latched' ? 2.2 : 0.8 + 0.2 * Math.sin(timeSeconds * 6 + (side === 'left' ? 0 : 1.7));
       if (claw.phase === 'holstered') {
-        // Held: hand raised beside the launcher, fingers up, palm toward the player, tilted slightly outward and forward.
+        // Held: hand raised beside the launcher, fingers up, back of the hand toward the player, tilted slightly outward and forward.
         const outward: number = side === 'left' ? -1 : 1;
         const fingersUp: Vec3 = vec3Normalize(vec3Add(basis.up, vec3Add(vec3Scale(basis.forward, 0.3), vec3Scale(basis.right, outward * 0.18))));
-        const [heldX, heldY, heldZ] = orthonormalBasisFromForward(fingersUp, basis.forward);
+        const [heldX, heldY, heldZ] = orthonormalBasisFromForward(fingersUp, vec3Scale(basis.forward, -1));
         const heldPosition: Vec3 = vec3Add(socket, vec3Add(vec3Scale(basis.right, outward * HELD_HAND_OFFSET[0]), vec3Add(vec3Scale(basis.up, HELD_HAND_OFFSET[1]), vec3Scale(basis.forward, HELD_HAND_OFFSET[2]))));
         this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(heldPosition, vec3Scale(heldX, HELD_HAND_SCALE), vec3Scale(heldY, HELD_HAND_SCALE), vec3Scale(heldZ, HELD_HAND_SCALE)), corePulse);
       } else {

@@ -31,7 +31,8 @@ export type ProceduralSurfaceKind =
   | 'murkyWater'
   | 'tinPlate'
   | 'conveyorBelt'
-  | 'weatheredWood';
+  | 'weatheredWood'
+  | 'wornPaint';
 
 export interface ProceduralSurfaceParameters {
   readonly kind: ProceduralSurfaceKind;
@@ -333,6 +334,25 @@ const SURFACE_SAMPLERS: Readonly<Record<ProceduralSurfaceKind, SurfaceSampler>> 
     return texel;
   },
   /** Lithographed tin: printed stripes and dots under scratched clear coat, rust at the seams. */
+  /** Worn enamel (tinted by the material): grime build-up, chipped edges showing bare steel, fine scratches. */
+  wornPaint: (u: number, v: number, seed: number): SurfaceTexel => {
+    const texel: SurfaceTexel = createTexel();
+    const grime: number = smoothstep(0.34, 0.82, tileableFbm2D(u, v, 8, 5, seed));
+    const smudge: number = smoothstep(0.58, 0.82, tileableFbm2D(u, v, 18, 4, seed + 11));
+    const chips: number = smoothstep(0.76, 0.79, tileableFbm2D(u, v, 24, 4, seed + 23));
+    const scratches: number = smoothstep(0.74, 0.78, tileableFbm2D(u * 0.06, v, 40, 2, seed + 31));
+    const speckle: number = tileableFbm2D(u, v, 64, 2, seed + 41);
+    const paint: number = 0.84 - grime * 0.3 - smudge * 0.1 + scratches * 0.08 - (speckle - 0.5) * 0.08;
+    // Chipped spots read as dull grey steel regardless of tint; the material tint still multiplies them, so keep them dark.
+    const steel: number = 0.32;
+    const value: number = paint * (1 - chips) + steel * chips;
+    texel.albedoRed = clamp(value * (1 - grime * 0.05), 0, 1);
+    texel.albedoGreen = clamp(value * (1 - grime * 0.1), 0, 1);
+    texel.albedoBlue = clamp(value * (1 - grime * 0.16), 0, 1);
+    texel.height = clamp(0.55 - chips * 0.25 - scratches * 0.1 + grime * 0.08, 0, 1);
+    texel.roughness = clamp(0.42 + grime * 0.38 + smudge * 0.1 - chips * 0.12, 0, 1);
+    return texel;
+  },
   tinPlate: (u: number, v: number, seed: number): SurfaceTexel => {
     const texel: SurfaceTexel = createTexel();
     const stripe: number = Math.floor(v * 10) % 2;
