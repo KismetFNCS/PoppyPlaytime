@@ -84,10 +84,11 @@ export const CREDITS_LINES: readonly string[] = [
 ];
 
 /** Red/blue industrial light palette in linear HDR units. */
-export const LIGHT_PALETTE: Readonly<Record<'emergencyRed' | 'serviceBlue' | 'sodiumAmber' | 'deathFlash' | 'toxicGreen' | 'violetCore', Vec3>> = {
+export const LIGHT_PALETTE: Readonly<Record<'emergencyRed' | 'serviceBlue' | 'sodiumAmber' | 'deathFlash' | 'toxicGreen' | 'roseCore' | 'tealCore', Vec3>> = {
   emergencyRed: [1.0, 0.07, 0.05],
   toxicGreen: [0.35, 1.0, 0.12],
-  violetCore: [0.62, 0.18, 1.0],
+  roseCore: [1.0, 0.22, 0.48],
+  tealCore: [0.08, 0.95, 0.82],
   serviceBlue: [0.12, 0.3, 1.0],
   sodiumAmber: [1.0, 0.55, 0.18],
   deathFlash: [1.0, 0.0, 0.02],

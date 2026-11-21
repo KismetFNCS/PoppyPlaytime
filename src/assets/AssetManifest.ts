@@ -20,10 +20,10 @@ export type MaterialId =
   | 'gas_mask_lens'
   | 'shattered_foundation_concrete'
   | 'lamp_housing_toxic'
-  | 'tether_claw_amber'
-  | 'tether_claw_violet'
-  | 'tether_core_amber'
-  | 'tether_core_violet'
+  | 'tether_claw_teal'
+  | 'tether_claw_rose'
+  | 'tether_core_teal'
+  | 'tether_core_rose'
   | 'tallyman_dial'
   | 'tallyman_lamp'
   | 'brick_facade'
@@ -232,12 +232,12 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     emissiveStrength: 5,
     uvScale: 1,
   },
-  tether_claw_amber: {
-    id: 'tether_claw_amber',
-    displayName: 'Tether Rig · Amber Claw Plating',
+  tether_claw_teal: {
+    id: 'tether_claw_teal',
+    displayName: 'Tether Rig · Teal Claw Plating',
     maps: proceduralMaps(),
     proceduralFallback: { kind: 'rustedMetal', seed: 8801, resolution: 128, bumpStrength: 1.2 },
-    baseTint: [1.9, 1.15, 0.35],
+    baseTint: [0.35, 1.7, 1.55],
     normalStrength: 0.8,
     roughnessScale: 0.8,
     metallic: 0.55,
@@ -245,12 +245,12 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     emissiveStrength: 0,
     uvScale: 2,
   },
-  tether_claw_violet: {
-    id: 'tether_claw_violet',
-    displayName: 'Tether Rig · Violet Claw Plating',
+  tether_claw_rose: {
+    id: 'tether_claw_rose',
+    displayName: 'Tether Rig · Rose Claw Plating',
     maps: proceduralMaps(),
     proceduralFallback: { kind: 'rustedMetal', seed: 8802, resolution: 128, bumpStrength: 1.2 },
-    baseTint: [1.05, 0.45, 1.9],
+    baseTint: [1.95, 0.6, 0.9],
     normalStrength: 0.8,
     roughnessScale: 0.8,
     metallic: 0.55,
@@ -258,29 +258,29 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     emissiveStrength: 0,
     uvScale: 2,
   },
-  tether_core_amber: {
-    id: 'tether_core_amber',
-    displayName: 'Tether Rig · Amber Polarity Core',
+  tether_core_teal: {
+    id: 'tether_core_teal',
+    displayName: 'Tether Rig · Teal Polarity Core',
     maps: proceduralMaps(),
     proceduralFallback: { kind: 'emissiveSolid', seed: 8803, resolution: 64, bumpStrength: 0 },
-    baseTint: [1, 0.6, 0.15],
+    baseTint: [0.1, 1, 0.85],
     normalStrength: 0,
     roughnessScale: 1,
     metallic: 0,
-    emissiveColor: [1, 0.55, 0.08],
+    emissiveColor: [0.08, 0.95, 0.82],
     emissiveStrength: 5,
     uvScale: 1,
   },
-  tether_core_violet: {
-    id: 'tether_core_violet',
-    displayName: 'Tether Rig · Violet Polarity Core',
+  tether_core_rose: {
+    id: 'tether_core_rose',
+    displayName: 'Tether Rig · Rose Polarity Core',
     maps: proceduralMaps(),
     proceduralFallback: { kind: 'emissiveSolid', seed: 8804, resolution: 64, bumpStrength: 0 },
-    baseTint: [0.6, 0.2, 1],
+    baseTint: [1, 0.3, 0.55],
     normalStrength: 0,
     roughnessScale: 1,
     metallic: 0,
-    emissiveColor: [0.62, 0.18, 1],
+    emissiveColor: [1, 0.22, 0.48],
     emissiveStrength: 5,
     uvScale: 1,
   },
@@ -504,11 +504,11 @@ export type ImportedMeshId =
   | 'jester_entity'
   | 'gas_mask_prop'
   | 'shattered_foundation'
-  | 'tether_claw_amber'
-  | 'tether_claw_violet'
+  | 'tether_claw_teal'
+  | 'tether_claw_rose'
   | 'tether_launcher'
-  | 'relay_plate_amber'
-  | 'relay_plate_violet'
+  | 'relay_plate_teal'
+  | 'relay_plate_rose'
   | 'ceiling_anchor'
   | 'blast_gate'
   | 'tallyman_entity'
@@ -627,22 +627,22 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
       { partId: 'rebar', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'foundation_rebar' },
     ],
   },
-  tether_claw_amber: {
-    id: 'tether_claw_amber',
-    displayName: 'Tether Rig · Amber Claw',
+  tether_claw_teal: {
+    id: 'tether_claw_teal',
+    displayName: 'Tether Rig · Teal Claw',
     importScale: 1,
     parts: [
-      { partId: 'shell', materialId: 'tether_claw_amber', importUri: null, fallbackBuilder: 'tether_claw_shell' },
-      { partId: 'core', materialId: 'tether_core_amber', importUri: null, fallbackBuilder: 'tether_claw_core' },
+      { partId: 'shell', materialId: 'tether_claw_teal', importUri: null, fallbackBuilder: 'tether_claw_shell' },
+      { partId: 'core', materialId: 'tether_core_teal', importUri: null, fallbackBuilder: 'tether_claw_core' },
     ],
   },
-  tether_claw_violet: {
-    id: 'tether_claw_violet',
-    displayName: 'Tether Rig · Violet Claw',
+  tether_claw_rose: {
+    id: 'tether_claw_rose',
+    displayName: 'Tether Rig · Rose Claw',
     importScale: 1,
     parts: [
-      { partId: 'shell', materialId: 'tether_claw_violet', importUri: null, fallbackBuilder: 'tether_claw_shell' },
-      { partId: 'core', materialId: 'tether_core_violet', importUri: null, fallbackBuilder: 'tether_claw_core' },
+      { partId: 'shell', materialId: 'tether_claw_rose', importUri: null, fallbackBuilder: 'tether_claw_shell' },
+      { partId: 'core', materialId: 'tether_core_rose', importUri: null, fallbackBuilder: 'tether_claw_core' },
     ],
   },
   tether_launcher: {
@@ -655,22 +655,22 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
       { partId: 'gauge', materialId: 'lamp_housing_warm', importUri: null, fallbackBuilder: 'tether_launcher_gauge' },
     ],
   },
-  relay_plate_amber: {
-    id: 'relay_plate_amber',
-    displayName: 'Relay Plate · Amber Polarity',
+  relay_plate_teal: {
+    id: 'relay_plate_teal',
+    displayName: 'Relay Plate · Teal Polarity',
     importScale: 1,
     parts: [
       { partId: 'frame', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'relay_plate_frame' },
-      { partId: 'core', materialId: 'tether_core_amber', importUri: null, fallbackBuilder: 'relay_plate_core' },
+      { partId: 'core', materialId: 'tether_core_teal', importUri: null, fallbackBuilder: 'relay_plate_core' },
     ],
   },
-  relay_plate_violet: {
-    id: 'relay_plate_violet',
-    displayName: 'Relay Plate · Violet Polarity',
+  relay_plate_rose: {
+    id: 'relay_plate_rose',
+    displayName: 'Relay Plate · Rose Polarity',
     importScale: 1,
     parts: [
       { partId: 'frame', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'relay_plate_frame' },
-      { partId: 'core', materialId: 'tether_core_violet', importUri: null, fallbackBuilder: 'relay_plate_core' },
+      { partId: 'core', materialId: 'tether_core_rose', importUri: null, fallbackBuilder: 'relay_plate_core' },
     ],
   },
   ceiling_anchor: {

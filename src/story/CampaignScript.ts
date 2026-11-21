@@ -176,7 +176,7 @@ export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   ],
   'mask.hint': [{ speaker: 'mabel', text: 'The bench ahead has the old respirators. The lower vents have been leaking since ’87.', seconds: 3.8 }],
   'toxic.warning': [{ speaker: 'mabel', text: 'Green air is plasticiser off-gas. Mask on, and don’t sprint in it — you’ll gulp it through the filter.', seconds: 4.4 }],
-  'relay.explain': [{ speaker: 'mabel', text: 'Those plates only take one polarity. Amber claw for amber plates, violet for violet. The rig was my design — trust it.', seconds: 4.6 }],
+  'relay.explain': [{ speaker: 'mabel', text: 'Those plates only take one polarity. Teal claw for teal plates, rose for rose. The rig was my design — trust it.', seconds: 4.6 }],
   'crawl.mabel': [{ speaker: 'mabel', text: 'The ceiling came down in the collapse. Get low and keep moving.', seconds: 3.2 }],
   'act2.enter': [{ speaker: 'pa', text: 'Sorting Halls. All workers will be counted at the end of the shift.', seconds: 3.6 }],
   'act2.foreman': [
@@ -238,7 +238,7 @@ export interface LoreTape {
 export const LORE_TAPES: readonly LoreTape[] = [
   { id: 'tape.01', title: 'ORIENTATION REEL', date: 'MAR 1971', transcript: ['WELCOME TO MARROW & FINCH, WHERE EVERY TOY IS BUILT TO LAST.', 'MR. MARROW PERSONALLY INSPECTS EVERY LINE. YOU MAY SEE HIM AT ANY HOUR.', 'REMEMBER: A HAPPY WORKER IS A PRODUCTIVE WORKER.'] },
   { id: 'tape.02', title: 'SAFETY BRIEFING', date: 'JUN 1979', transcript: ['THE LOWER VENTS CARRY PLASTICISER OFF-GAS. RESPIRATORS ARE MANDATORY BELOW LEVEL TWO.', 'IF YOU SMELL SWEETNESS, YOU HAVE ALREADY BREATHED TOO MUCH.'] },
-  { id: 'tape.03', title: 'M. THORNE — RIG TEST', date: 'FEB 1984', transcript: ['THORNE: TETHER RIG, TEST FOURTEEN. AMBER COIL ENGAGED.', 'THORNE: THE PLATES ONLY ACCEPT MATCHED POLARITY. NO MORE CROSSED WIRES. NO MORE ACCIDENTS.', 'THORNE: MR. MARROW SAYS HE HAS “OTHER USES” FOR THE COILS. I DON’T LIKE HOW HE SAID IT.'] },
+  { id: 'tape.03', title: 'M. THORNE — RIG TEST', date: 'FEB 1984', transcript: ['THORNE: TETHER RIG, TEST FOURTEEN. TEAL COIL ENGAGED.', 'THORNE: THE PLATES ONLY ACCEPT MATCHED POLARITY. NO MORE CROSSED WIRES. NO MORE ACCIDENTS.', 'THORNE: MR. MARROW SAYS HE HAS “OTHER USES” FOR THE COILS. I DON’T LIKE HOW HE SAID IT.'] },
   { id: 'tape.04', title: 'MASCOT FITTING', date: 'AUG 1985', transcript: ['WORKER A: GULLY’S BELLS ARE STICKING AGAIN.', 'WORKER B: DON’T TOUCH HIM WHILE MARROW’S WATCHING. HE SAYS THE SUIT HAS TO FEEL ALIVE.', 'WORKER A: WHO’S IN IT TONIGHT?', 'WORKER B: …THAT’S THE THING. NOBODY SIGNED IN.'] },
   { id: 'tape.05', title: 'TIMEKEEPING MEMO', date: 'JAN 1986', transcript: ['EFFECTIVE IMMEDIATELY, PUNCH CARDS WILL BE COLLECTED BY THE AUTOMATED TALLY UNIT.', 'WORKERS FOUND OFF SHIFT WILL BE “RE-SORTED.”', 'DO NOT RUN IN THE SORTING HALLS. THE TALLY UNIT RESPONDS TO NOISE.'] },
   { id: 'tape.06', title: 'BREAKER PROCEDURE', date: 'MAR 1986', transcript: ['COLD START: WATCH THE PILOT LAMPS. THROW THE BREAKERS IN THE ORDER THEY LIGHT.', 'A WRONG THROW TRIPS THE ALARM. THE ALARM WAKES THE TALLY UNIT.', 'THERE IS NO PROCEDURE FOR WHAT TO DO AFTER THAT.'] },

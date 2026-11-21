@@ -73,7 +73,7 @@ export interface HudSnapshot {
   readonly timeSeconds: number;
 }
 
-export const POLARITY_HUD_COLORS: Readonly<Record<Polarity, string>> = { amber: '#ffa22e', violet: '#a54dff' };
+export const POLARITY_HUD_COLORS: Readonly<Record<Polarity, string>> = { teal: '#2fe3cc', rose: '#ff5c8f' };
 const CLAW_PHASE_LABELS: Readonly<Record<ClawPhase, string>> = { holstered: 'READY', extending: 'OUT', latched: 'LOCKED', retracting: 'REEL' };
 const HOTBAR_SLOT_SIZE: number = 104;
 const HOTBAR_SLOT_GAP: number = 12;

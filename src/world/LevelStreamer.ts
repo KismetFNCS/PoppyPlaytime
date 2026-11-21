@@ -32,8 +32,8 @@ export const CORRIDOR_DIMENSIONS = {
 /** Chunks between checkpoints. A checkpoint chunk saves progress when the player enters it. */
 const IDENTITY_MATRIX: Mat4 = mat4Identity();
 
-export type Polarity = 'amber' | 'violet';
-export const POLARITIES: readonly Polarity[] = ['amber', 'violet'];
+export type Polarity = 'teal' | 'rose';
+export const POLARITIES: readonly Polarity[] = ['teal', 'rose'];
 
 export type ChunkArchetype =
   | 'elevatorLanding'
@@ -507,7 +507,7 @@ export class LevelChunkBuilder {
         const plateZ: number = centerZ + 3;
         const plateY = 1.7;
         const plateX: number = plateSide * halfWidth;
-        const polarity: Polarity = random.chance(0.5) ? 'amber' : 'violet';
+        const polarity: Polarity = random.chance(0.5) ? 'teal' : 'rose';
         const plateId: string = `plate.${chunkIndex}`;
         const plateNormal: Vec3 = [-plateSide, 0, 0];
         const plateMatrix: Mat4 = mat4Compose([plateX, plateY, plateZ], [0, plateSide > 0 ? -Math.PI / 2 : Math.PI / 2, 0], [1, 1, 1]);
@@ -527,7 +527,7 @@ export class LevelChunkBuilder {
         place('rusted_steel', createBoxMesh(halfWidth * 2, 0.5, 0.7), [0, height - 0.25, gateZ]);
         lights.push({
           position: [-plateSide * 0.5 + plateX * 0.6, 2.6, plateZ + 0.4],
-          color: polarity === 'amber' ? LIGHT_PALETTE.sodiumAmber : LIGHT_PALETTE.violetCore,
+          color: polarity === 'teal' ? LIGHT_PALETTE.tealCore : LIGHT_PALETTE.roseCore,
           intensity: 3,
           range: 6,
           behavior: { kind: 'pulse', frequencyHertz: 0.8, depth: 0.5 },
@@ -746,9 +746,9 @@ export class LevelChunkBuilder {
         const corePosition: Vec3 = [0, 0, endZ + 0.9];
         const plateIds: string[] = [];
         const platePlacements: ReadonlyArray<{ side: number; z: number; polarity: Polarity }> = [
-          { side: -1, z: startZ - 3.2, polarity: 'amber' },
-          { side: 1, z: centerZ, polarity: 'violet' },
-          { side: -1, z: endZ + 4, polarity: random.chance(0.5) ? 'amber' : 'violet' },
+          { side: -1, z: startZ - 3.2, polarity: 'teal' },
+          { side: 1, z: centerZ, polarity: 'rose' },
+          { side: -1, z: endZ + 4, polarity: random.chance(0.5) ? 'teal' : 'rose' },
         ];
         platePlacements.forEach((placement, index: number) => {
           const plateId: string = `bossplate.${index}`;
@@ -1454,7 +1454,7 @@ export class LevelStreamer {
       for (const plate of chunk.plates) {
         const powered: boolean = this.poweredPlateIds.has(plate.id);
         const idlePulse: number = 0.18 + 0.12 * Math.sin(timeSeconds * 3);
-        pushModel(plate.polarity === 'amber' ? 'relay_plate_amber' : 'relay_plate_violet', plate.modelMatrix, powered ? 1.6 : idlePulse);
+        pushModel(plate.polarity === 'teal' ? 'relay_plate_teal' : 'relay_plate_rose', plate.modelMatrix, powered ? 1.6 : idlePulse);
       }
       for (const sequence of chunk.sequences) {
         const solved: boolean = this.solvedSequenceIds.has(sequence.id);

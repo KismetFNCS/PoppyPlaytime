@@ -1204,7 +1204,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         };
       }
       const claw: ClawState | undefined = rig?.claws[content.side];
-      const polarity: Polarity = content.side === 'left' ? 'amber' : 'violet';
+      const polarity: Polarity = content.side === 'left' ? 'teal' : 'rose';
       return {
         label: polarity.toUpperCase(),
         keyHint,
@@ -1219,7 +1219,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private buildHudSnapshot(timeSeconds: number): HudSnapshot {
     const rig: TetherRig | null = this.rig;
     const clawSnapshot = (side: ClawSide, binding: string) => ({
-      polarity: (side === 'left' ? 'amber' : 'violet') as Polarity,
+      polarity: (side === 'left' ? 'teal' : 'rose') as Polarity,
       phase: rig?.claws[side].phase ?? 'holstered',
       binding,
     });

@@ -109,8 +109,8 @@ const SOCKET_OFFSETS: Readonly<Record<ClawSide, Vec3>> = {
   left: [-0.24, -0.23, 0.44],
   right: [0.24, -0.23, 0.44],
 };
-const SIDE_POLARITY: Readonly<Record<ClawSide, Polarity>> = { left: 'amber', right: 'violet' };
-const CLAW_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { amber: 'tether_claw_amber', violet: 'tether_claw_violet' };
+const SIDE_POLARITY: Readonly<Record<ClawSide, Polarity>> = { left: 'teal', right: 'rose' };
+const CLAW_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal', rose: 'tether_claw_rose' };
 
 /**
  * Tether Rig: two wrist launchers, each firing a polarity-coded magnetic claw on a cable.
