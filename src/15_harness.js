@@ -595,6 +595,33 @@ async function runAll() {
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
 
+    // ---------------- hide lockers ----------------
+    {
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+      for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
+      Game.stage = 2;
+      const L = Level.lockers.find(l => l.sector === 2);
+      T.setPlayerPose(L.front[0], 0, L.front[2], L.yaw, 0); T.step(DT, 2);
+      check('locker: HIDE prompt in front of a locker', Player.lockerTarget === L && document.getElementById('hudPrompt').textContent === '[E] HIDE', document.getElementById('hudPrompt').textContent);
+      tap('KeyE');
+      check('locker: E hides the player inside', Player.hidden === L && L.occupied, '');
+      check('sound: locker door', T.getSfxLog().includes('lockerClose'), '');
+      T.spawnMonsterNear(5); Monster.sawHide = false; T.step(DT, 120);
+      check('locker: creature cannot see or catch a hidden player', !Monster.seesPlayer && T.getState() !== 'JUMPSCARE', Monster.state + ' / ' + T.getState());
+      tap('KeyE');
+      check('locker: E leaves the locker in front of it', !Player.hidden && Math.hypot(Player.body.pos[0] - L.front[0], Player.body.pos[2] - L.front[2]) < 0.05, '');
+      Monster.reset();
+      T.setPlayerPose(L.front[0], 0, L.front[2], L.yaw, 0); T.step(DT, 2);
+      T.spawnMonsterNear(7); T.aimAt(Monster.pos[0], 1.8, Monster.pos[2]); T.step(DT, 6);
+      const seen = Monster.seesPlayer;
+      tap('KeyE');
+      check('locker: hiding in plain sight is remembered', seen && Monster.sawHide && Player.hidden === L, 'seen ' + seen + ' sawHide ' + Monster.sawHide);
+      check('locker: the creature rips the door open (JUMPSCARE)', untilState('JUMPSCARE', 600), T.getState());
+      untilState('FAILURE_STATE', 200); T.step(DT, 30); tap('Enter');
+      check('locker: rewind clears the hiding state', !Player.hidden && Game.isGameplay(), T.getState());
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+    }
+
     // ---------------- custom .glb assets ----------------
     {
       const isTest = n => /^harness_/.test(n);

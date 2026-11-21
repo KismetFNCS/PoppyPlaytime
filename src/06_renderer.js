@@ -485,6 +485,7 @@ uniform float uVignette;
 uniform float uFade;
 uniform float uGrain;
 uniform float uFlash;
+uniform float uSlats;
 uniform vec3 uFlashTint;
 uniform vec2 uRes;
 in vec2 vUv;
@@ -532,6 +533,12 @@ void main() {
   // vignette
   float vig = 1.0 - uVignette * smoothstep(0.25, 0.95, r * 1.45) - uFear * 0.25 * smoothstep(0.15, 0.8, r);
   col *= clamp(vig, 0.0, 1.0);
+  // locker view: looking out through the door slats
+  if (uSlats > 0.0) {
+    float bar = smoothstep(0.42, 0.5, fract(vUv.y * 9.0 + 0.25)) * smoothstep(0.98, 0.9, fract(vUv.y * 9.0 + 0.25));
+    float edge = smoothstep(0.18, 0.62, length((vUv - 0.5) * vec2(1.6, 1.0)));
+    col *= mix(1.0, 0.04, uSlats * max(1.0 - bar, edge));
+  }
   col = mix(col, uFlashTint, uFlash);
   col *= 1.0 - uFade;
   oColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / 2.2)), 1.0);
@@ -550,7 +557,7 @@ const Renderer = {
   fovDeg: 95, frustum: new Float32Array(24),
   normalMat: new Float32Array(9), identity: M4.create(), identity3: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
   stats: { draws: 0, lights: 0, tris: 0, assetDraws: 0 },
-  post: { fear: 0, redWave: 0, fade: 0, flash: 0, flashTint: new Float32Array([1, 0.1, 0.05]), calibrate: false, vhsBoost: 0 },
+  post: { slats: 0, fear: 0, redWave: 0, fade: 0, flash: 0, flashTint: new Float32Array([1, 0.1, 0.05]), calibrate: false, vhsBoost: 0 },
   fogUpload: new Float32Array(3), ambSkyUpload: new Float32Array(3), ambGroundUpload: new Float32Array(3),
   flashColorUpload: new Float32Array(3), flashOn: true,
   particleData: null, particleCount: 0, particleVbo: null, particleVao: null,
@@ -1195,6 +1202,7 @@ const Renderer = {
     gl.uniform1f(this.u('composite', 'uFade'), cal ? 0 : P.fade);
     gl.uniform1f(this.u('composite', 'uGrain'), cal ? 0 : 0.018);
     gl.uniform1f(this.u('composite', 'uFlash'), cal ? 0 : P.flash);
+    gl.uniform1f(this.u('composite', 'uSlats'), cal ? 0 : P.slats);
     gl.uniform3fv(this.u('composite', 'uFlashTint'), P.flashTint);
     gl.uniform2f(this.u('composite', 'uRes'), this.width, this.height);
     this.fullscreen();

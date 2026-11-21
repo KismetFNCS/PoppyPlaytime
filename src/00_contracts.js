@@ -105,6 +105,10 @@
 //   Source: [ASSUMED] dusty wine dress replacing mustard.
 // MATERIAL 22: raw crimson lining (the Usher, turned inside out)  Base #7a1a1c, rough 0.7, tile 2.5
 //   Source: [ASSUMED] user asked for a scrapped, inside-out Usher with red showing.
+// MISTER THIMBLE PALETTE (user-specified): fur (material 19) re-based to auburn/chestnut #5c321e with a matted-fur
+//   recipe; crimson stains reuse the lining #7a1a1c; soil streaks reuse rubber #151515.
+// MATERIAL 23: slate/charcoal canvas vest  Base #3d4247, rough 0.9, tile 2.0
+//   Source: [ASSUMED] user-specified faded slate grey / charcoal vest.
 //     Source: [ESTIMATED] 9.webp burnt fur, mid brown with char-black patches.
 //     Source: [ASSUMED].
 // ============================================================
@@ -224,10 +228,11 @@ const MATERIALS = [
   { name: 'furLight', base: '#8f8266', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'canvas', base: '#211d1a', rough: 0.95, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'screen', base: '#050608', rough: 0.12, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'burnt', base: '#4a2e1f', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'burnt', base: '#5c321e', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'hairDark', base: '#1e1916', rough: 0.8, metal: 0.0, tile: 4.0, emis: '#000000', emisStr: 0 },
   { name: 'clothWine', base: '#4a2433', rough: 0.92, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 },
-  { name: 'lining', base: '#7a1a1c', rough: 0.7, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 }
+  { name: 'lining', base: '#7a1a1c', rough: 0.7, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 },
+  { name: 'vest', base: '#3d4247', rough: 0.9, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 }
 ];
 const MAT = Object.create(null);
 for (let i = 0; i < MATERIALS.length; i++) MAT[MATERIALS[i].name] = i;

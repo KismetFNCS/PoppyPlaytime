@@ -21,6 +21,8 @@ Open `index.html` in a current desktop Chrome, Edge or Firefox (WebGL2 required)
 | Flashlight / mute / pause | F / M / Esc or P | Y / – / Start | – / SND / II |
 | Debug / fidelity overlay / self-test | F1 / F2 / F9 | | `?test=1` |
 
+**Hiding:** lockers stand in the Reclamation Hall, the Pressure Gallery and the Spool Foundry. Press **E** in front of one to hide and peek out through the slats; press **E** again to leave. The Spoolwright can't see you inside, but it will sniff around, and if it watched you climb in, it walks over and rips the door open. Hide before it sees you, never after.
+
 **How the circuit puzzles work:** fire a hand into a glowing power node to latch it. The cable from your
 pack to that node goes live. Walk so the cable wraps around the amber relay pegs; they turn green as they link.
 Then fire your *other* hand into the door receptacle. Firing the latched hand again releases the tether.
@@ -37,7 +39,7 @@ All original designs, built to read like the genre without copying any existing 
 - **The Spoolwright** (Experiment 6-06): the stalker. A spool-bodied machine in grimy plum and navy fur, with glowing red pressure tanks, an exposed yellowed ribcage and spine, and six armoured legs (sculpted plated femurs with hydraulic rams, ribbed shins ending in hooked blades, red tendon cables), under an aged, shattered porcelain mask with an ear-to-ear grin of needle teeth.
 - **The Usher**: a hooded, robed watcher on spindly black machine limbs whose face is a CRT lens showing one roving teal eye. It speaks to you over the factory PA when it appears at a vantage point in each area, then glitches out of existence if you stare at it or walk up to it.
 - **Marigold**: a shattered porcelain display doll (matted raven hair, dusty wine dress with a torn hem, half her cheek broken away into a hollow head, one milky glass eye) who acts as your guide. She introduces herself near the first tape, talks you through each area, moves ahead of you through the factory while you aren't looking, and waits in the freight lift at the end. Look away and her head is already turned toward you; catch her and she ticks.
-- **Mister Thimble**: a big plush bear slumped in the Spool Foundry, scrapped and turned inside out: raw crimson lining outward, his scorched fur showing only along frayed seam allowances (plus one patch still right side out), the front seam split with stuffing bursting through, a care tag at his back, a torn maw of crooked teeth, a ripped ear, a copper thimble cap and one glowing violet eye. His broken voice box crackles when you approach, and he lunges once ("HUG TIME!") before apologising.
+- **Mister Thimble**: a big, ruined plush bear slumped in the Spool Foundry: matted auburn and chestnut fur streaked with crimson stains and grime along the seams, a faded slate-grey vest with brass buttons, a split belly seam spilling stuffing, a torn maw of crooked teeth, a ripped ear, a copper thimble cap and one glowing violet eye. His broken voice box crackles when you approach, and he lunges once ("HUG TIME!") before apologising.
 - **PIP**: your pocket companion on the HUD. A cog-shaped device with an LED dot-matrix face that talks with the hints, cheers when a circuit closes, sulks when one is refused, winks at relays, panics in chases and fills with static when you're caught.
 - **The LIFELINE pack**: two big sculpted padded gloves (teal left, rose right) with stitched seams and brass cuff rings, held up in view on corrugated hoses and fired with the mouse buttons; they switch to a clenched mesh when gripping.
 

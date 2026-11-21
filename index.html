@@ -333,6 +333,10 @@ window.addEventListener('error', function (e) {
 //   Source: [ASSUMED] dusty wine dress replacing mustard.
 // MATERIAL 22: raw crimson lining (the Usher, turned inside out)  Base #7a1a1c, rough 0.7, tile 2.5
 //   Source: [ASSUMED] user asked for a scrapped, inside-out Usher with red showing.
+// MISTER THIMBLE PALETTE (user-specified): fur (material 19) re-based to auburn/chestnut #5c321e with a matted-fur
+//   recipe; crimson stains reuse the lining #7a1a1c; soil streaks reuse rubber #151515.
+// MATERIAL 23: slate/charcoal canvas vest  Base #3d4247, rough 0.9, tile 2.0
+//   Source: [ASSUMED] user-specified faded slate grey / charcoal vest.
 //     Source: [ESTIMATED] 9.webp burnt fur, mid brown with char-black patches.
 //     Source: [ASSUMED].
 // ============================================================
@@ -452,10 +456,11 @@ const MATERIALS = [
   { name: 'furLight', base: '#8f8266', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'canvas', base: '#211d1a', rough: 0.95, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'screen', base: '#050608', rough: 0.12, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'burnt', base: '#4a2e1f', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'burnt', base: '#5c321e', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'hairDark', base: '#1e1916', rough: 0.8, metal: 0.0, tile: 4.0, emis: '#000000', emisStr: 0 },
   { name: 'clothWine', base: '#4a2433', rough: 0.92, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 },
-  { name: 'lining', base: '#7a1a1c', rough: 0.7, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 }
+  { name: 'lining', base: '#7a1a1c', rough: 0.7, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 },
+  { name: 'vest', base: '#3d4247', rough: 0.9, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 }
 ];
 const MAT = Object.create(null);
 for (let i = 0; i < MATERIALS.length; i++) MAT[MATERIALS[i].name] = i;
@@ -1386,7 +1391,7 @@ const TexSynth = {
     ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelainAged', 3.0], ['furMatted', 5.0],
     ['furMatted', 5.0], ['steelGrime', 2.5], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
     ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5],
-    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['burnt', 5.0], ['furMatted', 4.5], ['clothRot', 3.5], ['lining', 3.0]
+    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['furMatted', 5.0], ['furMatted', 4.5], ['clothRot', 3.5], ['lining', 3.0], ['clothRot', 3.0]
   ],
 
   // Synthesizes one layer into the given Uint8Array slices.
@@ -2053,6 +2058,7 @@ uniform float uVignette;
 uniform float uFade;
 uniform float uGrain;
 uniform float uFlash;
+uniform float uSlats;
 uniform vec3 uFlashTint;
 uniform vec2 uRes;
 in vec2 vUv;
@@ -2100,6 +2106,12 @@ void main() {
   // vignette
   float vig = 1.0 - uVignette * smoothstep(0.25, 0.95, r * 1.45) - uFear * 0.25 * smoothstep(0.15, 0.8, r);
   col *= clamp(vig, 0.0, 1.0);
+  // locker view: looking out through the door slats
+  if (uSlats > 0.0) {
+    float bar = smoothstep(0.42, 0.5, fract(vUv.y * 9.0 + 0.25)) * smoothstep(0.98, 0.9, fract(vUv.y * 9.0 + 0.25));
+    float edge = smoothstep(0.18, 0.62, length((vUv - 0.5) * vec2(1.6, 1.0)));
+    col *= mix(1.0, 0.04, uSlats * max(1.0 - bar, edge));
+  }
   col = mix(col, uFlashTint, uFlash);
   col *= 1.0 - uFade;
   oColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / 2.2)), 1.0);
@@ -2118,7 +2130,7 @@ const Renderer = {
   fovDeg: 95, frustum: new Float32Array(24),
   normalMat: new Float32Array(9), identity: M4.create(), identity3: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
   stats: { draws: 0, lights: 0, tris: 0, assetDraws: 0 },
-  post: { fear: 0, redWave: 0, fade: 0, flash: 0, flashTint: new Float32Array([1, 0.1, 0.05]), calibrate: false, vhsBoost: 0 },
+  post: { slats: 0, fear: 0, redWave: 0, fade: 0, flash: 0, flashTint: new Float32Array([1, 0.1, 0.05]), calibrate: false, vhsBoost: 0 },
   fogUpload: new Float32Array(3), ambSkyUpload: new Float32Array(3), ambGroundUpload: new Float32Array(3),
   flashColorUpload: new Float32Array(3), flashOn: true,
   particleData: null, particleCount: 0, particleVbo: null, particleVao: null,
@@ -2763,6 +2775,7 @@ const Renderer = {
     gl.uniform1f(this.u('composite', 'uFade'), cal ? 0 : P.fade);
     gl.uniform1f(this.u('composite', 'uGrain'), cal ? 0 : 0.018);
     gl.uniform1f(this.u('composite', 'uFlash'), cal ? 0 : P.flash);
+    gl.uniform1f(this.u('composite', 'uSlats'), cal ? 0 : P.slats);
     gl.uniform3fv(this.u('composite', 'uFlashTint'), P.flashTint);
     gl.uniform2f(this.u('composite', 'uRes'), this.width, this.height);
     this.fullscreen();
@@ -2846,7 +2859,7 @@ const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SP
 
 const Level = {
   sectors: [], doors: [], batches: [], builders: [], portals: [],
-  pegs: [], sources: [], receptacles: [], levers: [], tapes: [], steam: [], vents: [], triggers: [],
+  pegs: [], sources: [], receptacles: [], levers: [], tapes: [], steam: [], vents: [], triggers: [], lockers: [],
   lightEntities: [], fixtures: [], decor: [],
   spawn: { pos: V3.create(0, 0, 5.5), yaw: 0 },
   menuCam: { pos: V3.create(-1.1, 1.2, -79.6), yaw: -0.02, pitch: 0.12 },
@@ -2856,7 +2869,7 @@ const Level = {
   reset() {
     this.sectors.length = 0; this.doors.length = 0; this.batches.length = 0; this.builders.length = 0; this.portals.length = 0;
     this.pegs.length = 0; this.sources.length = 0; this.receptacles.length = 0; this.levers.length = 0; this.tapes.length = 0;
-    this.steam.length = 0; this.vents.length = 0; this.triggers.length = 0; this.lightEntities.length = 0; this.fixtures.length = 0;
+    this.steam.length = 0; this.vents.length = 0; this.triggers.length = 0; this.lockers.length = 0; this.lightEntities.length = 0; this.fixtures.length = 0;
     this.decor.length = 0;
   },
 
@@ -3019,6 +3032,15 @@ const Level = {
     t.light = this.light(sector, x, y + 0.5, z, LIGHTING.hazardColor, 1.2, 2.5, 0, 'none', 0.2);
     return t;
   },
+  // Hide locker against a wall; yaw = direction the door faces (0 = -z)
+  locker(sector, x, z, yaw) {
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    const L = { id: this.lockers.length, sector, pos: V3.create(x, 0, z), yaw, front: V3.create(x + fx * 0.75, 0, z + fz * 0.75), door: 0, doorTarget: 0, occupied: false };
+    const hx = Math.abs(fx) > 0.5 ? 0.3 : 0.38, hz = Math.abs(fx) > 0.5 ? 0.38 : 0.3;
+    L.collider = Physics.addBox(x - hx, 0, z - hz, x + hx, 2.05, z + hz, LAYER.WORLD_STATIC, SURFACE.METAL, -1, false, sector);
+    this.lockers.push(L);
+    return L;
+  },
   steamVent(sector, x, z, period, duty, phase) {
     const e = World.create();
     const s = { entity: e, sector, pos: V3.create(x, 0.15, z), period, duty, phase, active: true, burst: 0, emitAcc: 0 };
@@ -3156,6 +3178,7 @@ const Level = {
     const P2 = this.peg(1, 1.5, -17.0, true, 'RELAY B');
     this.receptacle(1, -6.5, 1.6, -23.85, 0, 1, true, [P1.id, P2.id], 'R1', 'DOOR CIRCUIT');
     this.tape(1, 9.2, 1.0, -3.1, 1);
+    this.locker(1, 11.55, -10.6, Math.PI / 2);
     this.desk(1, 9.2, -3.1);
     this.conveyor(1, -10.5, -3.2, -2.5, -2.2);
     this.conveyor(1, -9, -20.5, -1, -19.5);
@@ -3216,6 +3239,12 @@ const Level = {
     for (let x = -2.2; x <= 2.2; x += 0.55) this.geom(4, x - 0.03, 0, -97.95, x + 0.03, 4.0, -97.85, MAT.steel);
     this.tube(4, 0, 3.98, -95, true, 0);
     this.hazardLamp(4, 2.2, 2.4, -92.4);
+
+    // hide lockers and a second audio log in the gallery
+    this.locker(2, -9.6, -41.8, -Math.PI / 2); this.locker(2, 9.6, -32.6, Math.PI / 2); this.locker(2, 4.2, -47.65, Math.PI);
+    this.desk(2, -4.5, -25.4);
+    this.tape(2, -4.5, 1.0, -25.4, 3);
+    this.locker(3, 5.6, -78.2, Math.PI / 2); this.locker(3, -5.6, -60.4, -Math.PI / 2);
 
     // ---------- triggers ----------
     this.trigger(-10, -30, 10, -24.6, 'enterGallery');
@@ -4156,7 +4185,8 @@ const Monster = {
       btSequence([btCondition(() => M.state === MSTATE.JUMPSCARE_EXECUTION), btAction(() => BT.RUNNING)]),
       btSequence([btCondition(() => M.stunTimer > 0), btAction(() => { M.setState(MSTATE.STUNNED); return BT.RUNNING; })]),
       btSequence([btCondition(() => M.canCatch()), btAction(() => { M.setState(MSTATE.JUMPSCARE_EXECUTION); return BT.SUCCESS; })]),
-      btSequence([btCondition(() => M.scripted), btAction(() => M.doChase(true))]),
+      btSequence([btCondition(() => !!Player.hidden && M.sawHide && !M.inVent), btAction(() => M.doLockerHunt())]),
+      btSequence([btCondition(() => M.scripted && !Player.hidden), btAction(() => M.doChase(true))]),
       btSequence([btCondition(() => M.seesPlayer), btAction(() => M.doChase(false))]),
       btSequence([btCondition(() => M.time - M.noiseTime < 6), btAction(() => M.doStalk())]),
       btSequence([btCondition(() => !M.inVent && M.time - M.lastSeenTime < 7), btAction(() => M.doSearch())]),
@@ -4169,7 +4199,7 @@ const Monster = {
   reset() {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
-    this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0;
+    this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
     for (const l of this.legs) { l.stepping = false; l.t = 1; }
@@ -4253,7 +4283,7 @@ const Monster = {
   },
 
   canCatch() {
-    if (!this.active || this.inVent || this.catchCooldown > 0 || Game.invulnerable) return false;
+    if (!this.active || this.inVent || this.catchCooldown > 0 || Game.invulnerable || Player.hidden) return false;
     if (this.state === MSTATE.EMERGE || this.state === MSTATE.STUNNED || this.state === MSTATE.MENU_POSE) return false;
     const d = V3.distXZ(this.pos, Player.body.pos);
     return d < FEEL.monsterCatch + 0.35 && Math.abs(Player.body.pos[1] - this.pos[1]) < 2.0;
@@ -4261,7 +4291,7 @@ const Monster = {
 
   perceive() {
     this.seesPlayer = false;
-    if (this.inVent || !this.active) return;
+    if (this.inVent || !this.active || Player.hidden) return;
     const eye = Player.eyePos;
     V3.set(this.head, this.pos[0], this.pos[1] + 2.2, this.pos[2]);
     const d = V3.dist(this.head, eye);
@@ -4282,6 +4312,16 @@ const Monster = {
     this.lastSeenTime = this.time;
   },
 
+  // it saw the player climb into a locker: walk to it, rip the door open
+  doLockerHunt() {
+    const L = Player.hidden;
+    if (this.state === MSTATE.EMERGE) return BT.RUNNING;
+    this.setState(MSTATE.LINE_OF_SIGHT_CHASE);
+    V3.copy(this.pathGoal, L.front);
+    this.targetSpeed = FEEL.monsterStalk * 1.2;
+    if (V3.distXZ(this.pos, L.front) < 1.3) { L.doorTarget = 1; this.catchCooldown = 0; Game.onCaught(); }
+    return BT.RUNNING;
+  },
   // ---------- BT actions ----------
   doChase(scripted) {
     if (this.inVent) { this.beginEmerge(Player.body.pos); return BT.RUNNING; }
@@ -5112,6 +5152,9 @@ const SFX = {
   gameover(t) { Audio.tone(t, 'sawtooth', 110, 30, 2.4, 0.3, Audio.buses.sfx, 0.05); Audio.noise(t, 2.0, 0.2, 400, 'lowpass', Audio.buses.sfx); },
   checkpoint(t) { Audio.tone(t, 'sine', 523, 523, 0.18, 0.12, Audio.buses.ui); Audio.tone(t + 0.12, 'sine', 784, 784, 0.3, 0.1, Audio.buses.ui); },
   tapeInsert(t) { Audio.noise(t, 0.12, 0.3, 1500, 'bandpass', Audio.buses.ui, 2); Audio.ring(t + 0.1, [320, 760], 0.2, 0.15, Audio.buses.ui); Audio.tone(t + 0.3, 'sawtooth', 50, 60, 0.8, 0.08, Audio.buses.ui, 0.2); },
+  lockerOpen(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.tone(t, 'sawtooth', 180, 120, 0.35, 0.05, out, 0.05); Audio.ring(t + 0.25, [310, 720, 1530], 0.4, 0.14, out); },
+  lockerClose(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.noise(t, 0.12, 0.4, 1400, 'lowpass', out); Audio.ring(t, [240, 560, 1180], 0.6, 0.2, out); },
+  monsterSniff(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.8); for (let i = 0; i < 3; i++) Audio.noise(t + i * 0.18, 0.12, 0.25, 900 + i * 200, 'bandpass', out, 2); },
   pickup(t) { Audio.tone(t, 'triangle', 660, 990, 0.12, 0.15, Audio.buses.ui); Audio.tone(t + 0.08, 'triangle', 990, 1320, 0.15, 0.12, Audio.buses.ui); },
   victory(t) { for (let i = 0; i < 4; i++) Audio.tone(t + i * 0.25, 'triangle', [262, 330, 392, 523][i], [262, 330, 392, 523][i], 0.6, 0.15, Audio.buses.music); },
   flashlight(t) { Audio.tone(t, 'square', 2600, 2400, 0.02, 0.08, Audio.buses.sfx); Audio.noise(t, 0.02, 0.1, 5000, 'highpass', Audio.buses.sfx); },
@@ -5287,6 +5330,8 @@ const Player = {
     this.bobPhase = 0; this.bobAmp = 0; this.landDip = 0; this.landVel = 0; this.trauma = 0; this.chaseShake = 0;
     this.recoilPitch = 0; this.recoilRoll = 0; this.coyote = 0; this.jumpBuffer = 0; this.wasGrounded = true; this.airTime = 0;
     this.health = 100; this.hurtTimer = 0; this.scaldCool = 0; this.lockAmt = 0; this.lockTarget = null; this.acc = 0;
+    if (this.hidden) this.hidden.occupied = false;
+    this.hidden = null; this.lockerTarget = null;
     this.body.grounded = true;
     this.updateCamera(0);
     V3.copy(this.flashDir, Renderer.camFwd);
@@ -5467,6 +5512,17 @@ const Player = {
   },
 
   // Nearest interactable within reach and roughly in view (tapes)
+  hidden: null, lockerTarget: null, hideYaw: 0,
+  findLocker() {
+    this.lockerTarget = null;
+    if (this.hidden) return null;
+    let bd = 1.25;
+    for (const L of Level.lockers) {
+      const d = Math.hypot(this.body.pos[0] - L.front[0], this.body.pos[2] - L.front[2]);
+      if (d < bd) { bd = d; this.lockerTarget = L; }
+    }
+    return this.lockerTarget;
+  },
   findInteract() {
     let best = null, bd = 2.4;
     for (const t of Level.tapes) {
@@ -5526,6 +5582,16 @@ const TAPES = [
     ]
   }
 ];
+
+TAPES.push({
+  title: 'RECLAMATION LOG 23', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'wave', pitch: 185,
+  lines: [
+    'Log twenty-three. The doll keeps turning up in places nobody carried her.',
+    'Marigold was our display model. Now she sits by the doors before they open, as if she knows.',
+    'The bear in the foundry still has a working voice box. It asks the night shift for hugs. Nobody answers anymore.',
+    'And 6-06... if it sees you climb into a locker, it will open that locker. Hide before it sees you. Never after.'
+  ]
+});
 
 const VHS = {
   canvas: null, ctx: null, tape: null, tapeId: -1, line: 0, chars: 0, charAcc: 0, time: 0, glitch: 0, done: null,
@@ -5602,7 +5668,7 @@ const VHS = {
     const secs = Math.floor(t), frames = Math.floor((t % 1) * 30);
     c.font = '12px monospace'; c.fillStyle = VHS_COLORS.timecode;
     c.fillText('PLAY ▶ 00:' + String(Math.floor(secs / 60)).padStart(2, '0') + ':' + String(secs % 60).padStart(2, '0') + ':' + String(frames).padStart(2, '0'), 470, 236);
-    c.fillText('TAPE ' + (this.tapeId + 1) + '/3  LINE ' + (this.line + 1) + '/' + tp.lines.length, 40, 236);
+    c.fillText('TAPE ' + (this.tapeId + 1) + '/' + TAPES.length + '  LINE ' + (this.line + 1) + '/' + tp.lines.length, 40, 236);
     // tracking tear: shift horizontal slices of the frame
     const gl = this.glitch;
     if (gl > 0.05) {
@@ -5843,10 +5909,11 @@ const UI = {
       }
     }
     const tape = Player.interactTarget;
-    const prompt = tape ? '[E] PLAY TAPE' : '';
+    const prompt = Player.hidden ? '[E] LEAVE LOCKER' : Player.lockerTarget ? '[E] HIDE' : tape ? '[E] PLAY TAPE' : '';
     if (H.prompt !== prompt) { H.prompt = prompt; E.hudPrompt.textContent = prompt; E.hudPrompt.style.display = prompt ? 'block' : 'none'; }
     const sub = Settings.values.subtitles && GrabPack.hintTimer > 0 ? GrabPack.hint : '';
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
+    Renderer.post.slats = Player.hidden ? 1 : 0;
     const hot = Game.aimHot;
     if (H.hot !== hot) { H.hot = hot; E.hudCross.classList.toggle('hot', hot); }
   },
@@ -6105,6 +6172,8 @@ const Game = {
     for (const p of Level.pegs) { p.linked = false; p.locked = false; }
     for (const t of Level.tapes) t.collected = false;
     for (const t of Level.triggers) t.fired = false;
+    for (const L of Level.lockers) { L.door = 0; L.doorTarget = 0; L.doorTimer = 0; L.occupied = false; }
+    this.hidTip = false;
     Steam.setAll(true);
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) { L.pulse = 0; L.enabled = true; }
@@ -6187,6 +6256,7 @@ const Game = {
     Steam.setAll(!!cp.steamActive);
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) L.pulse = 0;
+    for (const L of Level.lockers) { L.door = 0; L.doorTarget = 0; L.doorTimer = 0; L.occupied = false; }
     Player.reset(cp.pos, cp.yaw);
     if (cp.monsterMode === 1) Monster.activateStalker(2);
     UI.setObjective(OBJECTIVES[Math.min(cp.stage, OBJECTIVES.length - 1)]);
@@ -6213,6 +6283,7 @@ const Game = {
         this.pulseLightsNear(0, 3, -36, -0.9);
         sfx('ventClick', Level.vents[0].pos);
         GrabPack.showHint('Something is moving in the ducts. Walk - do not run.');
+        Dialogue.say('PIP', 'See those lockers? Press E to hide. Hide BEFORE it sees you, never after!');
         Dialogue.say('MARIGOLD', 'Shh... it listens to the floor. Walk softly. Please.');
         this.checkpoint.monsterMode = 1;
         break;
@@ -6292,15 +6363,32 @@ const Game = {
     if (Input.justPressed.has('Escape') || Input.justPressed.has('KeyP') || Input.padJust(9)) { this.uiAction('pause'); return; }
     if (Input.justPressed.has('KeyM')) this.toggleMute();
     if (Input.justPressed.has('KeyF') || Input.padJust(3)) { Player.flashOn = !Player.flashOn; sfx('flashlight'); }
+    const usePressed = Input.justPressed.has('KeyE') || Input.padJust(2);
+    const wasHidden = !!Player.hidden;
     Player.handleLook(dt);
-    Player.update(dt);
+    if (Player.hidden) {
+      // inside a locker: no movement, view limited to the slats
+      const L = Player.hidden;
+      Player.yaw = L.yaw + clamp(wrapAngle(Player.yaw - L.yaw), -0.65, 0.65);
+      Player.pitch = clamp(Player.pitch, -0.35, 0.3);
+      V3.set(Player.body.pos, L.pos[0] - Math.sin(L.yaw) * 0.12, 0, L.pos[2] - Math.cos(L.yaw) * 0.12);
+      V3.set(Player.body.vel, 0, 0, 0);
+      if (usePressed) this.leaveLocker();
+    } else {
+      Player.update(dt);
+    }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    if (Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4)) GrabPack.fire(0, Player.cam);
-    if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) GrabPack.fire(1, Player.cam);
-    const tape = Player.findInteract();
-    if (tape && (Input.justPressed.has('KeyE') || Input.padJust(2))) { this.playTape(tape); return; }
+    if (!Player.hidden && !wasHidden) {
+      if (Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4)) GrabPack.fire(0, Player.cam);
+      if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) GrabPack.fire(1, Player.cam);
+      const locker = Player.findLocker();
+      const tape = locker ? null : Player.findInteract();
+      if (locker && usePressed) this.enterLocker(locker);
+      else if (tape && usePressed) { this.playTape(tape); return; }
+    }
+    this.updateLockers(dt);
     GrabPack.update(dt, Player.cam);
     Doors.update(dt);
     Steam.update(dt, this.time);
@@ -6330,6 +6418,63 @@ const Game = {
     Pip.update(dt);
     Dialogue.update(dt);
     UI.updateHud(dt);
+  },
+
+  enterLocker(L) {
+    // if the creature is watching you right now, it will remember which locker you chose
+    Monster.sawHide = Monster.active && !Monster.inVent && (Monster.seesPlayer || Monster.time - Monster.lastSeenTime < 0.8);
+    GrabPack.reset();
+    Player.hidden = L; Player.lockerTarget = null; L.occupied = true;
+    L.doorTarget = 1; L.doorTimer = 0.35;
+    Player.yaw = L.yaw; Player.pitch = 0;
+    Player.flashOn = false;
+    sfx('lockerClose', L.pos);
+    if (!this.hidTip) { this.hidTip = true; Dialogue.say('PIP', 'Shh... I am dimming my screen. Breathe quietly.'); }
+  },
+  leaveLocker() {
+    const L = Player.hidden;
+    if (!L) return;
+    L.occupied = false; L.doorTarget = 1; L.doorTimer = 0.45;
+    Player.hidden = null;
+    V3.set(Player.body.pos, L.front[0], 0, L.front[2]); V3.set(Player.body.vel, 0, 0, 0);
+    Player.yaw = L.yaw; Player.flashOn = true;
+    Monster.sawHide = false;
+    sfx('lockerOpen', L.pos);
+  },
+  updateLockers(dt) {
+    for (const L of Level.lockers) {
+      if (L.doorTimer > 0) { L.doorTimer -= dt; if (L.doorTimer <= 0) L.doorTarget = 0; }
+      L.door = damp(L.door, L.doorTarget, 9, dt);
+    }
+    // the creature sniffs at the locker you are hiding in
+    const L = Player.hidden;
+    if (L && Monster.active && !Monster.inVent && V3.distXZ(Monster.pos, L.front) < 2.2) {
+      this.sniffTimer = (this.sniffTimer || 0) - dt;
+      if (this.sniffTimer <= 0) { this.sniffTimer = 2.2; sfx('monsterSniff', L.front); Player.addTrauma(0.15); }
+    }
+  },
+  submitLockers(vis) {
+    const R = RenderQueue;
+    for (const L of Level.lockers) {
+      if (!vis[L.sector] || Player.hidden === L) continue;
+      const y = L.yaw, c = Math.cos(y), s = Math.sin(y), p = L.pos;
+      const put = (mesh, mat, lx, ly, lz, sx, sy, sz, ry) => R.trs(mesh, mat, p[0] + lx * c + lz * s, ly, p[2] - lx * s + lz * c, y + (ry || 0), 0, 0, sx, sy, sz);
+      put('box', MAT.steel, 0, 1.0, 0.28, 0.76, 2.0, 0.03);
+      put('box', MAT.steel, -0.37, 1.0, 0, 0.03, 2.0, 0.6);
+      put('box', MAT.steel, 0.37, 1.0, 0, 0.03, 2.0, 0.6);
+      put('box', MAT.steel, 0, 2.02, 0, 0.78, 0.05, 0.62);
+      put('box', MAT.steel, 0, 0.05, 0, 0.76, 0.1, 0.6);
+      // door swings on its left hinge
+      const a = L.door * 1.7;
+      const hx = -0.36, hz = -0.3, dw = 0.72;
+      const cx = hx + Math.cos(a) * dw / 2, cz = hz - Math.sin(a) * dw / 2;
+      put('box', MAT.rustIron, cx, 1.02, cz, dw, 1.96, 0.03, a);
+      for (let k = 0; k < 4; k++) {
+        const vy = 1.55 + k * 0.07;
+        const it = put('box', MAT.rubber, cx + Math.sin(a) * 0.017, vy, cz + Math.cos(a) * -0.017, dw * 0.6, 0.025, 0.012, a);
+        if (it) it.castShadow = false;
+      }
+    }
   },
 
   playTape(tape) {
@@ -6461,11 +6606,12 @@ const Game = {
     const vis = Streaming.visible;
     Doors.submit(vis);
     Assets.submitProps(vis);
+    this.submitLockers(vis);
     Lights.submitFixtures(vis);
     this.submitPuzzles(vis);
     Monster.submit();
     Cast.submit(vis);
-    if (this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) this.submitHands();
+    if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
     const menuLike = state === STATE.MAIN_MENU || state === STATE.SETTINGS_PANEL || state === STATE.CREDITS || state === STATE.VICTORY || state === STATE.BOOT_LOADING;
@@ -7357,6 +7503,33 @@ async function runAll() {
       T.aimAt(-5.15, 0.9, -68.6); T.step(DT, 2);
       check('cast: plush + gauntlets render without errors', T.getLastError() === null && RenderQueue.count > 100, RenderQueue.count + ' items');
       T.setStepRender(false);
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+    }
+
+    // ---------------- hide lockers ----------------
+    {
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+      for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
+      Game.stage = 2;
+      const L = Level.lockers.find(l => l.sector === 2);
+      T.setPlayerPose(L.front[0], 0, L.front[2], L.yaw, 0); T.step(DT, 2);
+      check('locker: HIDE prompt in front of a locker', Player.lockerTarget === L && document.getElementById('hudPrompt').textContent === '[E] HIDE', document.getElementById('hudPrompt').textContent);
+      tap('KeyE');
+      check('locker: E hides the player inside', Player.hidden === L && L.occupied, '');
+      check('sound: locker door', T.getSfxLog().includes('lockerClose'), '');
+      T.spawnMonsterNear(5); Monster.sawHide = false; T.step(DT, 120);
+      check('locker: creature cannot see or catch a hidden player', !Monster.seesPlayer && T.getState() !== 'JUMPSCARE', Monster.state + ' / ' + T.getState());
+      tap('KeyE');
+      check('locker: E leaves the locker in front of it', !Player.hidden && Math.hypot(Player.body.pos[0] - L.front[0], Player.body.pos[2] - L.front[2]) < 0.05, '');
+      Monster.reset();
+      T.setPlayerPose(L.front[0], 0, L.front[2], L.yaw, 0); T.step(DT, 2);
+      T.spawnMonsterNear(7); T.aimAt(Monster.pos[0], 1.8, Monster.pos[2]); T.step(DT, 6);
+      const seen = Monster.seesPlayer;
+      tap('KeyE');
+      check('locker: hiding in plain sight is remembered', seen && Monster.sawHide && Player.hidden === L, 'seen ' + seen + ' sawHide ' + Monster.sawHide);
+      check('locker: the creature rips the door open (JUMPSCARE)', untilState('JUMPSCARE', 600), T.getState());
+      untilState('FAILURE_STATE', 200); T.step(DT, 30); tap('Enter');
+      check('locker: rewind clears the hiding state', !Player.hidden && Game.isGameplay(), T.getState());
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
 
@@ -8923,61 +9096,54 @@ const SCULPTS = {
     n.push({ t: 'cap', a: [0.08, 0.1, -0.12], b: [0.1, -0.08, -0.15], r: 0.022, r2: 0.01, m: H, k: 0.02, n: [0.004, 80] });
     return SDF.mesh(n, [-0.24, -0.26, -0.22], [0.24, 0.22, 0.24], 78);
   },
-  // Mister Thimble, scrapped and turned inside out: crimson lining outward, scorched fur showing only at
-  // the frayed seam allowances, one patch still right-side out, split seams spilling stuffing, a care tag
+  // Mister Thimble: matted auburn/chestnut fur, crimson stains and soil streaks along the seams, a faded
+  // slate vest with brass buttons, split belly seam with stuffing, scorched spots, care tag
   th_body: () => {
-    const L = MAT.lining, B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, n = [
-      { t: 'ell', c: [0, 0.55, 0.12], r: [0.42, 0.52, 0.36], m: L, n: [0.03, 7] },
-      // mismatched patch of scorched fur still right-side out on the flank
-      { t: 'ell', c: [0.3, 0.62, 0.0], r: [0.16, 0.2, 0.18], m: B, k: 0.03, n: [0.02, 18] },
-      // centre-front seam split open, stuffing bursting through
-      { t: 'cap', a: [-0.02, 0.85, -0.25], b: [0.05, 0.22, -0.26], r: 0.055, op: 's', k: 0.012, sm: D, n: [0.018, 26] },
-      { t: 'sph', c: [-0.28, 0.4, -0.08], r: 0.08, op: 's', k: 0.02, sm: D, n: [0.025, 30] },
+    const F = MAT.burnt, R = MAT.lining, W = MAT.furLight, D = MAT.rubber, V = MAT.vest, n = [
+      { t: 'ell', c: [0, 0.55, 0.12], r: [0.42, 0.52, 0.36], m: F, n: [0.03, 8] },
+      // vest: a shell over the torso, open at the front, frayed hem
+      { t: 'ell', c: [0, 0.62, 0.12], r: [0.445, 0.44, 0.385], m: V, k: 0.01, n: [0.01, 30] },
+      { t: 'box', c: [0, 0.22, 0.12], h: [0.6, 0.16, 0.6], op: 's', k: 0.01, sm: F, n: [0.03, 18] },
+      { t: 'box', c: [0, 0.6, -0.35], h: [0.1, 0.5, 0.2], op: 's', k: 0.04, sm: F },
+      { t: 'cap', a: [-0.32, 0.8, 0.1], b: [-0.42, 0.62, 0.1], r: 0.12, op: 's', k: 0.04, sm: F },
+      { t: 'cap', a: [0.32, 0.8, 0.1], b: [0.42, 0.62, 0.1], r: 0.12, op: 's', k: 0.04, sm: F },
+      // split belly seam with stuffing, scorched hole
+      { t: 'cap', a: [-0.01, 0.7, -0.26], b: [0.03, 0.3, -0.27], r: 0.04, op: 's', k: 0.01, sm: D, n: [0.015, 28] },
+      { t: 'sph', c: [-0.27, 0.36, -0.1], r: 0.07, op: 's', k: 0.02, sm: D, n: [0.022, 30] },
       { t: 'box', c: [0.1, 1.06, 0.33], h: [0.04, 0.055, 0.004], rot: [0.3, 0.4, 0.2], m: W, k: 0.004 }
     ];
-    // raised seam allowances (scorched outer fur, frayed) around the body
-    for (let i = 0; i < 5; i++) {
-      const ang = i / 5 * Math.PI * 2 + 0.9;
-      n.push({ t: 'cap', a: [Math.cos(ang) * 0.36, 0.18, Math.sin(ang) * 0.3 + 0.12], b: [Math.cos(ang) * 0.3, 0.98, Math.sin(ang) * 0.26 + 0.12], r: 0.024, m: B, k: 0.015, n: [0.014, 32] });
-    }
-    n.push({ t: 'cap', a: [-0.4, 0.62, 0.1], b: [0.4, 0.62, 0.1], r: 0.02, m: B, k: 0.015, n: [0.012, 32] });
-    for (let i = 0; i < 7; i++) n.push({ t: 'sph', c: [0.015 + Math.sin(i * 2.1) * 0.035, 0.8 - i * 0.085, -0.3 - (i % 2) * 0.03], r: 0.045 + (i % 3) * 0.012, m: W, k: 0.02, n: [0.016, 45] });
-    for (let k = 0; k < 3; k++) n.push({ t: 'sph', c: [-0.3, 0.36 + k * 0.05, -0.1], r: 0.035, m: W, k: 0.015, n: [0.012, 50] });
-    for (const sx of [-1, 1]) {
-      n.push({ t: 'cap', a: [sx * 0.24, 0.18, -0.1], b: [sx * 0.4, 0.13, -0.58], r: 0.15, r2: 0.13, m: L, k: 0.08, n: [0.025, 8] });
-      n.push({ t: 'tor', c: [sx * 0.39, 0.14, -0.54], R: 0.135, r: 0.02, rot: [0, Math.PI / 2, sx * 0.3], m: B, k: 0.01, n: [0.01, 40] });
-      n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.66], r: [0.15, 0.15, 0.08], m: B, k: 0.05 });
-      n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.71], r: [0.1, 0.1, 0.03], m: W, k: 0.02 });
-    }
-    // tufts of scorched fur poking out of the seams, and dark scorch spots across the lining
-    for (let i = 0; i < 12; i++) {
-      const a = i * 2.39, yy = 0.25 + (i * 0.061) % 0.7;
-      n.push({ t: 'sph', c: [Math.cos(a) * 0.38, yy, Math.sin(a) * 0.32 + 0.12], r: 0.035, m: B, k: 0.02, n: [0.02, 60] });
-    }
-    for (let i = 0; i < 14; i++) {
-      const a = i * 1.7 + 0.3, yy = 0.2 + (i * 0.083) % 0.75;
+    for (let i = 0; i < 6; i++) n.push({ t: 'sph', c: [0.01 + Math.sin(i * 2.1) * 0.03, 0.66 - i * 0.065, -0.29 - (i % 2) * 0.02], r: 0.038 + (i % 3) * 0.01, m: W, k: 0.02, n: [0.014, 45] });
+    // brass vest buttons down both front edges
+    for (let i = 0; i < 4; i++) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.11, 0.88 - i * 0.13, -0.28 + i * 0.012], r: 0.018, h: 0.006, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.004 });
+    // crimson stains and soil streaks scored along the seams
+    for (let i = 0; i < 9; i++) {
+      const a = i * 1.9 + 0.5, yy = 0.18 + (i * 0.097) % 0.5;
       const rr = Math.sqrt(Math.max(0.01, 1 - ((yy - 0.55) / 0.52) ** 2));
-      n.push({ t: 'ell', c: [Math.cos(a) * 0.41 * rr, yy, Math.sin(a) * 0.35 * rr + 0.12], r: [0.04, 0.035, 0.04], m: D, k: 0.008 });
+      n.push({ t: 'ell', c: [Math.cos(a) * 0.415 * rr, yy, Math.sin(a) * 0.355 * rr + 0.12], r: [0.06, 0.045, 0.06], m: i % 3 === 0 ? D : R, k: 0.006 });
     }
-    // loose threads dangling from the split
-    for (let i = 0; i < 4; i++) n.push({ t: 'cap', a: [-0.03 + i * 0.03, 0.3, -0.29], b: [-0.05 + i * 0.035, 0.12 - (i % 2) * 0.05, -0.31], r: 0.004, m: W, k: 0.002 });
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cap', a: [sx * 0.24, 0.18, -0.1], b: [sx * 0.4, 0.13, -0.58], r: 0.15, r2: 0.13, m: F, k: 0.08, n: [0.025, 8] });
+      n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.66], r: [0.15, 0.15, 0.08], m: F, k: 0.05 });
+      n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.71], r: [0.1, 0.1, 0.03], m: W, k: 0.02 });
+      n.push({ t: 'ell', c: [sx * 0.36, 0.2, -0.35], r: [0.07, 0.05, 0.09], m: R, k: 0.006 });
+    }
     return SDF.mesh(n, [-0.62, -0.05, -0.82], [0.62, 1.15, 0.55], 76);
   },
-  // Mister Thimble's head, inside out: lining face, a scorched muzzle patch, seam over the crown,
-  // torn maw of crooked teeth, sewn button eye, gouged socket, ripped ear, thimble cap
+  // Mister Thimble's head: matted auburn fur, pale muzzle, stains, torn maw, sewn button eye,
+  // gouged socket for the violet eye, ripped ear, thimble cap
   th_head: () => {
-    const L = MAT.lining, B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, T = MAT.porcelain, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: L, n: [0.022, 9] },
-      { t: 'cap', a: [0, 0.31, -0.18], b: [0, 0.2, 0.3], r: 0.022, m: B, k: 0.015, n: [0.012, 36] },
-      { t: 'cap', a: [-0.33, 0.0, 0.0], b: [0.33, 0.0, 0.0], r: 0.018, m: B, k: 0.012, n: [0.01, 36] },
-      { t: 'ell', c: [0, -0.1, -0.24], r: [0.17, 0.13, 0.12], m: B, k: 0.06, n: [0.012, 26] },
+    const F = MAT.burnt, R = MAT.lining, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, T = MAT.porcelain, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: F, n: [0.022, 9] },
+      { t: 'ell', c: [0, -0.1, -0.24], r: [0.17, 0.13, 0.12], m: W, k: 0.06, n: [0.012, 26] },
       { t: 'ell', c: [0, -0.02, -0.35], r: [0.05, 0.036, 0.032], m: D, k: 0.015 },
       { t: 'ell', c: [0, -0.15, -0.3], r: [0.13, 0.05, 0.1], op: 's', k: 0.01, sm: D, n: [0.012, 40] },
       { t: 'cyl', c: [-0.12, 0.06, -0.27], r: 0.055, h: 0.014, rr: 0.006, rot: [0, Math.PI / 2, 0], m: D, k: 0.01 },
-      { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: L },
-      { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: L },
+      { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: F },
+      { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: F },
       { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.055, op: 's', k: 0.015, sm: D, n: [0.008, 50] },
-      { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 }
+      { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 },
+      { t: 'ell', c: [0.1, -0.14, -0.27], r: [0.05, 0.035, 0.04], m: R, k: 0.005 },
+      { t: 'ell', c: [-0.2, 0.12, -0.18], r: [0.06, 0.05, 0.05], m: R, k: 0.005 }
     ];
     for (let i = 0; i < 9; i++) {
       const a = -0.9 + i * 0.225, x = Math.sin(a) * 0.12, z = -0.3 - Math.cos(a) * 0.02 + 0.02;
@@ -8989,23 +9155,18 @@ const SCULPTS = {
       n.push({ t: 'sph', c: [0.06 + Math.cos(a) * 0.112, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
     }
     for (const sx of [-1, 1]) {
-      n.push({ t: 'sph', c: [sx * 0.25, 0.24, 0.02], r: 0.11, m: L, k: 0.05 });
-      n.push({ t: 'sph', c: [sx * 0.26, 0.25, -0.06], r: 0.07, op: 's', k: 0.02, sm: B });
-      n.push({ t: 'tor', c: [sx * 0.255, 0.245, -0.02], R: 0.09, r: 0.012, rot: [0, Math.PI / 2, 0], m: B, k: 0.008, n: [0.008, 40] });
+      n.push({ t: 'sph', c: [sx * 0.25, 0.24, 0.02], r: 0.11, m: F, k: 0.05 });
+      n.push({ t: 'sph', c: [sx * 0.26, 0.25, -0.06], r: 0.07, op: 's', k: 0.02, sm: W });
     }
-    // left ear ripped half away, stuffing showing
     n.push({ t: 'box', c: [-0.3, 0.33, 0.02], h: [0.08, 0.06, 0.12], rot: [0.3, 0, 0.6], op: 's', k: 0.005, sm: W, n: [0.015, 50] });
-    // fuzzy scorched tufts on the crown and cheeks, dark spots on the lining
-    for (let i = 0; i < 8; i++) n.push({ t: 'sph', c: [Math.sin(i * 2.2) * 0.22, 0.2 + (i % 3) * 0.04, Math.cos(i * 2.2) * 0.2 + 0.05], r: 0.04, m: B, k: 0.02, n: [0.018, 60] });
-    for (let i = 0; i < 6; i++) n.push({ t: 'ell', c: [Math.sin(i * 1.9 + 1) * 0.3, -0.05 + (i % 3) * 0.08, Math.cos(i * 1.9 + 1) * 0.24 + 0.04], r: [0.035, 0.03, 0.035], m: D, k: 0.006 });
+    for (let i = 0; i < 8; i++) n.push({ t: 'sph', c: [Math.sin(i * 2.2) * 0.22, 0.2 + (i % 3) * 0.04, Math.cos(i * 2.2) * 0.2 + 0.05], r: 0.04, m: F, k: 0.02, n: [0.018, 60] });
     return SDF.mesh(n, [-0.42, -0.36, -0.4], [0.42, 0.46, 0.36], 78);
   },
-  // Mister Thimble's arm, inside out: lining sleeve, scorched seam strip and cuff, scorched paw
+  // Mister Thimble's arm: matted fur sleeve with a stain, pale paw pad
   th_arm: () => {
     const n = [
-      { t: 'cap', a: [0, 0.05, 0], b: [0, 0.8, 0], r: 0.11, r2: 0.09, m: MAT.lining, n: [0.015, 12] },
-      { t: 'cap', a: [0.1, 0.08, 0], b: [0.085, 0.78, 0], r: 0.018, m: MAT.burnt, k: 0.012, n: [0.008, 40] },
-      { t: 'tor', c: [0, 0.8, 0], R: 0.09, r: 0.022, m: MAT.burnt, k: 0.012, n: [0.008, 40] },
+      { t: 'cap', a: [0, 0.05, 0], b: [0, 0.8, 0], r: 0.11, r2: 0.09, m: MAT.burnt, n: [0.018, 12] },
+      { t: 'ell', c: [0.06, 0.45, -0.06], r: [0.06, 0.09, 0.06], m: MAT.lining, k: 0.006 },
       { t: 'ell', c: [0, 0.9, 0], r: [0.13, 0.12, 0.1], m: MAT.burnt, k: 0.05 },
       { t: 'ell', c: [0, 0.93, -0.06], r: [0.08, 0.07, 0.04], m: MAT.furLight, k: 0.02 }
     ];

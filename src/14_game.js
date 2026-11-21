@@ -185,6 +185,8 @@ const Game = {
     for (const p of Level.pegs) { p.linked = false; p.locked = false; }
     for (const t of Level.tapes) t.collected = false;
     for (const t of Level.triggers) t.fired = false;
+    for (const L of Level.lockers) { L.door = 0; L.doorTarget = 0; L.doorTimer = 0; L.occupied = false; }
+    this.hidTip = false;
     Steam.setAll(true);
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) { L.pulse = 0; L.enabled = true; }
@@ -267,6 +269,7 @@ const Game = {
     Steam.setAll(!!cp.steamActive);
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) L.pulse = 0;
+    for (const L of Level.lockers) { L.door = 0; L.doorTarget = 0; L.doorTimer = 0; L.occupied = false; }
     Player.reset(cp.pos, cp.yaw);
     if (cp.monsterMode === 1) Monster.activateStalker(2);
     UI.setObjective(OBJECTIVES[Math.min(cp.stage, OBJECTIVES.length - 1)]);
@@ -293,6 +296,7 @@ const Game = {
         this.pulseLightsNear(0, 3, -36, -0.9);
         sfx('ventClick', Level.vents[0].pos);
         GrabPack.showHint('Something is moving in the ducts. Walk - do not run.');
+        Dialogue.say('PIP', 'See those lockers? Press E to hide. Hide BEFORE it sees you, never after!');
         Dialogue.say('MARIGOLD', 'Shh... it listens to the floor. Walk softly. Please.');
         this.checkpoint.monsterMode = 1;
         break;
@@ -372,15 +376,32 @@ const Game = {
     if (Input.justPressed.has('Escape') || Input.justPressed.has('KeyP') || Input.padJust(9)) { this.uiAction('pause'); return; }
     if (Input.justPressed.has('KeyM')) this.toggleMute();
     if (Input.justPressed.has('KeyF') || Input.padJust(3)) { Player.flashOn = !Player.flashOn; sfx('flashlight'); }
+    const usePressed = Input.justPressed.has('KeyE') || Input.padJust(2);
+    const wasHidden = !!Player.hidden;
     Player.handleLook(dt);
-    Player.update(dt);
+    if (Player.hidden) {
+      // inside a locker: no movement, view limited to the slats
+      const L = Player.hidden;
+      Player.yaw = L.yaw + clamp(wrapAngle(Player.yaw - L.yaw), -0.65, 0.65);
+      Player.pitch = clamp(Player.pitch, -0.35, 0.3);
+      V3.set(Player.body.pos, L.pos[0] - Math.sin(L.yaw) * 0.12, 0, L.pos[2] - Math.cos(L.yaw) * 0.12);
+      V3.set(Player.body.vel, 0, 0, 0);
+      if (usePressed) this.leaveLocker();
+    } else {
+      Player.update(dt);
+    }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    if (Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4)) GrabPack.fire(0, Player.cam);
-    if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) GrabPack.fire(1, Player.cam);
-    const tape = Player.findInteract();
-    if (tape && (Input.justPressed.has('KeyE') || Input.padJust(2))) { this.playTape(tape); return; }
+    if (!Player.hidden && !wasHidden) {
+      if (Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4)) GrabPack.fire(0, Player.cam);
+      if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) GrabPack.fire(1, Player.cam);
+      const locker = Player.findLocker();
+      const tape = locker ? null : Player.findInteract();
+      if (locker && usePressed) this.enterLocker(locker);
+      else if (tape && usePressed) { this.playTape(tape); return; }
+    }
+    this.updateLockers(dt);
     GrabPack.update(dt, Player.cam);
     Doors.update(dt);
     Steam.update(dt, this.time);
@@ -410,6 +431,63 @@ const Game = {
     Pip.update(dt);
     Dialogue.update(dt);
     UI.updateHud(dt);
+  },
+
+  enterLocker(L) {
+    // if the creature is watching you right now, it will remember which locker you chose
+    Monster.sawHide = Monster.active && !Monster.inVent && (Monster.seesPlayer || Monster.time - Monster.lastSeenTime < 0.8);
+    GrabPack.reset();
+    Player.hidden = L; Player.lockerTarget = null; L.occupied = true;
+    L.doorTarget = 1; L.doorTimer = 0.35;
+    Player.yaw = L.yaw; Player.pitch = 0;
+    Player.flashOn = false;
+    sfx('lockerClose', L.pos);
+    if (!this.hidTip) { this.hidTip = true; Dialogue.say('PIP', 'Shh... I am dimming my screen. Breathe quietly.'); }
+  },
+  leaveLocker() {
+    const L = Player.hidden;
+    if (!L) return;
+    L.occupied = false; L.doorTarget = 1; L.doorTimer = 0.45;
+    Player.hidden = null;
+    V3.set(Player.body.pos, L.front[0], 0, L.front[2]); V3.set(Player.body.vel, 0, 0, 0);
+    Player.yaw = L.yaw; Player.flashOn = true;
+    Monster.sawHide = false;
+    sfx('lockerOpen', L.pos);
+  },
+  updateLockers(dt) {
+    for (const L of Level.lockers) {
+      if (L.doorTimer > 0) { L.doorTimer -= dt; if (L.doorTimer <= 0) L.doorTarget = 0; }
+      L.door = damp(L.door, L.doorTarget, 9, dt);
+    }
+    // the creature sniffs at the locker you are hiding in
+    const L = Player.hidden;
+    if (L && Monster.active && !Monster.inVent && V3.distXZ(Monster.pos, L.front) < 2.2) {
+      this.sniffTimer = (this.sniffTimer || 0) - dt;
+      if (this.sniffTimer <= 0) { this.sniffTimer = 2.2; sfx('monsterSniff', L.front); Player.addTrauma(0.15); }
+    }
+  },
+  submitLockers(vis) {
+    const R = RenderQueue;
+    for (const L of Level.lockers) {
+      if (!vis[L.sector] || Player.hidden === L) continue;
+      const y = L.yaw, c = Math.cos(y), s = Math.sin(y), p = L.pos;
+      const put = (mesh, mat, lx, ly, lz, sx, sy, sz, ry) => R.trs(mesh, mat, p[0] + lx * c + lz * s, ly, p[2] - lx * s + lz * c, y + (ry || 0), 0, 0, sx, sy, sz);
+      put('box', MAT.steel, 0, 1.0, 0.28, 0.76, 2.0, 0.03);
+      put('box', MAT.steel, -0.37, 1.0, 0, 0.03, 2.0, 0.6);
+      put('box', MAT.steel, 0.37, 1.0, 0, 0.03, 2.0, 0.6);
+      put('box', MAT.steel, 0, 2.02, 0, 0.78, 0.05, 0.62);
+      put('box', MAT.steel, 0, 0.05, 0, 0.76, 0.1, 0.6);
+      // door swings on its left hinge
+      const a = L.door * 1.7;
+      const hx = -0.36, hz = -0.3, dw = 0.72;
+      const cx = hx + Math.cos(a) * dw / 2, cz = hz - Math.sin(a) * dw / 2;
+      put('box', MAT.rustIron, cx, 1.02, cz, dw, 1.96, 0.03, a);
+      for (let k = 0; k < 4; k++) {
+        const vy = 1.55 + k * 0.07;
+        const it = put('box', MAT.rubber, cx + Math.sin(a) * 0.017, vy, cz + Math.cos(a) * -0.017, dw * 0.6, 0.025, 0.012, a);
+        if (it) it.castShadow = false;
+      }
+    }
   },
 
   playTape(tape) {
@@ -541,11 +619,12 @@ const Game = {
     const vis = Streaming.visible;
     Doors.submit(vis);
     Assets.submitProps(vis);
+    this.submitLockers(vis);
     Lights.submitFixtures(vis);
     this.submitPuzzles(vis);
     Monster.submit();
     Cast.submit(vis);
-    if (this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) this.submitHands();
+    if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
     const menuLike = state === STATE.MAIN_MENU || state === STATE.SETTINGS_PANEL || state === STATE.CREDITS || state === STATE.VICTORY || state === STATE.BOOT_LOADING;

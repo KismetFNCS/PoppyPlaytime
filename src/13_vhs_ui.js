@@ -42,6 +42,16 @@ const TAPES = [
   }
 ];
 
+TAPES.push({
+  title: 'RECLAMATION LOG 23', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'wave', pitch: 185,
+  lines: [
+    'Log twenty-three. The doll keeps turning up in places nobody carried her.',
+    'Marigold was our display model. Now she sits by the doors before they open, as if she knows.',
+    'The bear in the foundry still has a working voice box. It asks the night shift for hugs. Nobody answers anymore.',
+    'And 6-06... if it sees you climb into a locker, it will open that locker. Hide before it sees you. Never after.'
+  ]
+});
+
 const VHS = {
   canvas: null, ctx: null, tape: null, tapeId: -1, line: 0, chars: 0, charAcc: 0, time: 0, glitch: 0, done: null,
   lastChar: 0, roll: 0, tear: 0, holdAfterLine: 0,
@@ -117,7 +127,7 @@ const VHS = {
     const secs = Math.floor(t), frames = Math.floor((t % 1) * 30);
     c.font = '12px monospace'; c.fillStyle = VHS_COLORS.timecode;
     c.fillText('PLAY ▶ 00:' + String(Math.floor(secs / 60)).padStart(2, '0') + ':' + String(secs % 60).padStart(2, '0') + ':' + String(frames).padStart(2, '0'), 470, 236);
-    c.fillText('TAPE ' + (this.tapeId + 1) + '/3  LINE ' + (this.line + 1) + '/' + tp.lines.length, 40, 236);
+    c.fillText('TAPE ' + (this.tapeId + 1) + '/' + TAPES.length + '  LINE ' + (this.line + 1) + '/' + tp.lines.length, 40, 236);
     // tracking tear: shift horizontal slices of the frame
     const gl = this.glitch;
     if (gl > 0.05) {
@@ -358,10 +368,11 @@ const UI = {
       }
     }
     const tape = Player.interactTarget;
-    const prompt = tape ? '[E] PLAY TAPE' : '';
+    const prompt = Player.hidden ? '[E] LEAVE LOCKER' : Player.lockerTarget ? '[E] HIDE' : tape ? '[E] PLAY TAPE' : '';
     if (H.prompt !== prompt) { H.prompt = prompt; E.hudPrompt.textContent = prompt; E.hudPrompt.style.display = prompt ? 'block' : 'none'; }
     const sub = Settings.values.subtitles && GrabPack.hintTimer > 0 ? GrabPack.hint : '';
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
+    Renderer.post.slats = Player.hidden ? 1 : 0;
     const hot = Game.aimHot;
     if (H.hot !== hot) { H.hot = hot; E.hudCross.classList.toggle('hot', hot); }
   },

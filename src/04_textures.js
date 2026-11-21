@@ -334,7 +334,7 @@ const TexSynth = {
     ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelainAged', 3.0], ['furMatted', 5.0],
     ['furMatted', 5.0], ['steelGrime', 2.5], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
     ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5],
-    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['burnt', 5.0], ['furMatted', 4.5], ['clothRot', 3.5], ['lining', 3.0]
+    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['furMatted', 5.0], ['furMatted', 4.5], ['clothRot', 3.5], ['lining', 3.0], ['clothRot', 3.0]
   ],
 
   // Synthesizes one layer into the given Uint8Array slices.

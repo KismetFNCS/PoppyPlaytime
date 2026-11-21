@@ -128,6 +128,8 @@ const Player = {
     this.bobPhase = 0; this.bobAmp = 0; this.landDip = 0; this.landVel = 0; this.trauma = 0; this.chaseShake = 0;
     this.recoilPitch = 0; this.recoilRoll = 0; this.coyote = 0; this.jumpBuffer = 0; this.wasGrounded = true; this.airTime = 0;
     this.health = 100; this.hurtTimer = 0; this.scaldCool = 0; this.lockAmt = 0; this.lockTarget = null; this.acc = 0;
+    if (this.hidden) this.hidden.occupied = false;
+    this.hidden = null; this.lockerTarget = null;
     this.body.grounded = true;
     this.updateCamera(0);
     V3.copy(this.flashDir, Renderer.camFwd);
@@ -308,6 +310,17 @@ const Player = {
   },
 
   // Nearest interactable within reach and roughly in view (tapes)
+  hidden: null, lockerTarget: null, hideYaw: 0,
+  findLocker() {
+    this.lockerTarget = null;
+    if (this.hidden) return null;
+    let bd = 1.25;
+    for (const L of Level.lockers) {
+      const d = Math.hypot(this.body.pos[0] - L.front[0], this.body.pos[2] - L.front[2]);
+      if (d < bd) { bd = d; this.lockerTarget = L; }
+    }
+    return this.lockerTarget;
+  },
   findInteract() {
     let best = null, bd = 2.4;
     for (const t of Level.tapes) {

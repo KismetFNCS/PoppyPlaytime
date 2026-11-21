@@ -56,7 +56,8 @@ const Monster = {
       btSequence([btCondition(() => M.state === MSTATE.JUMPSCARE_EXECUTION), btAction(() => BT.RUNNING)]),
       btSequence([btCondition(() => M.stunTimer > 0), btAction(() => { M.setState(MSTATE.STUNNED); return BT.RUNNING; })]),
       btSequence([btCondition(() => M.canCatch()), btAction(() => { M.setState(MSTATE.JUMPSCARE_EXECUTION); return BT.SUCCESS; })]),
-      btSequence([btCondition(() => M.scripted), btAction(() => M.doChase(true))]),
+      btSequence([btCondition(() => !!Player.hidden && M.sawHide && !M.inVent), btAction(() => M.doLockerHunt())]),
+      btSequence([btCondition(() => M.scripted && !Player.hidden), btAction(() => M.doChase(true))]),
       btSequence([btCondition(() => M.seesPlayer), btAction(() => M.doChase(false))]),
       btSequence([btCondition(() => M.time - M.noiseTime < 6), btAction(() => M.doStalk())]),
       btSequence([btCondition(() => !M.inVent && M.time - M.lastSeenTime < 7), btAction(() => M.doSearch())]),
@@ -69,7 +70,7 @@ const Monster = {
   reset() {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
-    this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0;
+    this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
     V3.set(this.pos, 0, -50, 0); V3.set(this.vel, 0, 0, 0);
     for (const l of this.legs) { l.stepping = false; l.t = 1; }
@@ -153,7 +154,7 @@ const Monster = {
   },
 
   canCatch() {
-    if (!this.active || this.inVent || this.catchCooldown > 0 || Game.invulnerable) return false;
+    if (!this.active || this.inVent || this.catchCooldown > 0 || Game.invulnerable || Player.hidden) return false;
     if (this.state === MSTATE.EMERGE || this.state === MSTATE.STUNNED || this.state === MSTATE.MENU_POSE) return false;
     const d = V3.distXZ(this.pos, Player.body.pos);
     return d < FEEL.monsterCatch + 0.35 && Math.abs(Player.body.pos[1] - this.pos[1]) < 2.0;
@@ -161,7 +162,7 @@ const Monster = {
 
   perceive() {
     this.seesPlayer = false;
-    if (this.inVent || !this.active) return;
+    if (this.inVent || !this.active || Player.hidden) return;
     const eye = Player.eyePos;
     V3.set(this.head, this.pos[0], this.pos[1] + 2.2, this.pos[2]);
     const d = V3.dist(this.head, eye);
@@ -182,6 +183,16 @@ const Monster = {
     this.lastSeenTime = this.time;
   },
 
+  // it saw the player climb into a locker: walk to it, rip the door open
+  doLockerHunt() {
+    const L = Player.hidden;
+    if (this.state === MSTATE.EMERGE) return BT.RUNNING;
+    this.setState(MSTATE.LINE_OF_SIGHT_CHASE);
+    V3.copy(this.pathGoal, L.front);
+    this.targetSpeed = FEEL.monsterStalk * 1.2;
+    if (V3.distXZ(this.pos, L.front) < 1.3) { L.doorTarget = 1; this.catchCooldown = 0; Game.onCaught(); }
+    return BT.RUNNING;
+  },
   // ---------- BT actions ----------
   doChase(scripted) {
     if (this.inVent) { this.beginEmerge(Player.body.pos); return BT.RUNNING; }

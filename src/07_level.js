@@ -10,7 +10,7 @@ const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SP
 
 const Level = {
   sectors: [], doors: [], batches: [], builders: [], portals: [],
-  pegs: [], sources: [], receptacles: [], levers: [], tapes: [], steam: [], vents: [], triggers: [],
+  pegs: [], sources: [], receptacles: [], levers: [], tapes: [], steam: [], vents: [], triggers: [], lockers: [],
   lightEntities: [], fixtures: [], decor: [],
   spawn: { pos: V3.create(0, 0, 5.5), yaw: 0 },
   menuCam: { pos: V3.create(-1.1, 1.2, -79.6), yaw: -0.02, pitch: 0.12 },
@@ -20,7 +20,7 @@ const Level = {
   reset() {
     this.sectors.length = 0; this.doors.length = 0; this.batches.length = 0; this.builders.length = 0; this.portals.length = 0;
     this.pegs.length = 0; this.sources.length = 0; this.receptacles.length = 0; this.levers.length = 0; this.tapes.length = 0;
-    this.steam.length = 0; this.vents.length = 0; this.triggers.length = 0; this.lightEntities.length = 0; this.fixtures.length = 0;
+    this.steam.length = 0; this.vents.length = 0; this.triggers.length = 0; this.lockers.length = 0; this.lightEntities.length = 0; this.fixtures.length = 0;
     this.decor.length = 0;
   },
 
@@ -183,6 +183,15 @@ const Level = {
     t.light = this.light(sector, x, y + 0.5, z, LIGHTING.hazardColor, 1.2, 2.5, 0, 'none', 0.2);
     return t;
   },
+  // Hide locker against a wall; yaw = direction the door faces (0 = -z)
+  locker(sector, x, z, yaw) {
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    const L = { id: this.lockers.length, sector, pos: V3.create(x, 0, z), yaw, front: V3.create(x + fx * 0.75, 0, z + fz * 0.75), door: 0, doorTarget: 0, occupied: false };
+    const hx = Math.abs(fx) > 0.5 ? 0.3 : 0.38, hz = Math.abs(fx) > 0.5 ? 0.38 : 0.3;
+    L.collider = Physics.addBox(x - hx, 0, z - hz, x + hx, 2.05, z + hz, LAYER.WORLD_STATIC, SURFACE.METAL, -1, false, sector);
+    this.lockers.push(L);
+    return L;
+  },
   steamVent(sector, x, z, period, duty, phase) {
     const e = World.create();
     const s = { entity: e, sector, pos: V3.create(x, 0.15, z), period, duty, phase, active: true, burst: 0, emitAcc: 0 };
@@ -320,6 +329,7 @@ const Level = {
     const P2 = this.peg(1, 1.5, -17.0, true, 'RELAY B');
     this.receptacle(1, -6.5, 1.6, -23.85, 0, 1, true, [P1.id, P2.id], 'R1', 'DOOR CIRCUIT');
     this.tape(1, 9.2, 1.0, -3.1, 1);
+    this.locker(1, 11.55, -10.6, Math.PI / 2);
     this.desk(1, 9.2, -3.1);
     this.conveyor(1, -10.5, -3.2, -2.5, -2.2);
     this.conveyor(1, -9, -20.5, -1, -19.5);
@@ -380,6 +390,12 @@ const Level = {
     for (let x = -2.2; x <= 2.2; x += 0.55) this.geom(4, x - 0.03, 0, -97.95, x + 0.03, 4.0, -97.85, MAT.steel);
     this.tube(4, 0, 3.98, -95, true, 0);
     this.hazardLamp(4, 2.2, 2.4, -92.4);
+
+    // hide lockers and a second audio log in the gallery
+    this.locker(2, -9.6, -41.8, -Math.PI / 2); this.locker(2, 9.6, -32.6, Math.PI / 2); this.locker(2, 4.2, -47.65, Math.PI);
+    this.desk(2, -4.5, -25.4);
+    this.tape(2, -4.5, 1.0, -25.4, 3);
+    this.locker(3, 5.6, -78.2, Math.PI / 2); this.locker(3, -5.6, -60.4, -Math.PI / 2);
 
     // ---------- triggers ----------
     this.trigger(-10, -30, 10, -24.6, 'enterGallery');
