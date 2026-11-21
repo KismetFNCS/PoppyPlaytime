@@ -291,3 +291,111 @@ export function createSphereMesh(radius: number, widthSegments: number = 18, hei
   }
   return builder.build();
 }
+
+/**
+ * Surface of revolution around +Y from a profile of (radius, height) points, bottom to top.
+ * Normals come from the profile's 2D tangent: n = (cosθ·dy, −dr, sinθ·dy) normalised, where (dr, dy)
+ * is the profile direction at each point (central differences).
+ */
+export function createLatheMesh(profile: ReadonlyArray<readonly [number, number]>, radialSegments: number = 20): MeshData {
+  const builder = new MeshBuilder();
+  const pointCount: number = profile.length;
+  let accumulatedLength = 0;
+  const lengths: number[] = [0];
+  for (let index = 1; index < pointCount; index += 1) {
+    const previous = profile[index - 1] as readonly [number, number];
+    const current = profile[index] as readonly [number, number];
+    accumulatedLength += Math.hypot(current[0] - previous[0], current[1] - previous[1]);
+    lengths.push(accumulatedLength);
+  }
+  for (let index = 0; index < pointCount; index += 1) {
+    const point = profile[index] as readonly [number, number];
+    const before = profile[Math.max(0, index - 1)] as readonly [number, number];
+    const after = profile[Math.min(pointCount - 1, index + 1)] as readonly [number, number];
+    const deltaRadius: number = after[0] - before[0];
+    const deltaHeight: number = after[1] - before[1];
+    for (let segment = 0; segment <= radialSegments; segment += 1) {
+      const angle: number = (segment / radialSegments) * Math.PI * 2;
+      const cosine: number = Math.cos(angle);
+      const sine: number = Math.sin(angle);
+      const normal: Vec3 = vec3Normalize([cosine * deltaHeight, -deltaRadius, sine * deltaHeight]);
+      builder.addVertex([cosine * point[0], point[1], sine * point[0]], normal, segment / radialSegments, (lengths[index] as number) * 2);
+    }
+  }
+  const rowLength: number = radialSegments + 1;
+  for (let ring = 0; ring < pointCount - 1; ring += 1) {
+    for (let segment = 0; segment < radialSegments; segment += 1) {
+      const current: number = ring * rowLength + segment;
+      const above: number = current + rowLength;
+      builder.addTriangle(current, above, current + 1);
+      builder.addTriangle(current + 1, above, above + 1);
+    }
+  }
+  return builder.build();
+}
+
+/**
+ * Tube swept along a polyline using parallel-transport frames (no twisting at bends).
+ * `radii` may be a single radius or one radius per path point (tapering tails, hoses, cables).
+ */
+export function createTubeMesh(path: readonly Vec3[], radii: number | readonly number[], radialSegments: number = 10): MeshData {
+  const builder = new MeshBuilder();
+  const radiusAt = (index: number): number => (typeof radii === 'number' ? radii : ((radii as readonly number[])[index] ?? (radii as readonly number[])[radii.length - 1] ?? 0.02));
+  const tangents: Vec3[] = path.map((_point: Vec3, index: number) => {
+    const previous: Vec3 = path[Math.max(0, index - 1)] as Vec3;
+    const next: Vec3 = path[Math.min(path.length - 1, index + 1)] as Vec3;
+    return vec3Normalize([next[0] - previous[0], next[1] - previous[1], next[2] - previous[2]]);
+  });
+  // Initial normal: any vector perpendicular to the first tangent.
+  const firstTangent: Vec3 = tangents[0] as Vec3;
+  let normal: Vec3 = Math.abs(firstTangent[1]) < 0.9 ? vec3Normalize([firstTangent[2], 0, -firstTangent[0]]) : [1, 0, 0];
+  let travelled = 0;
+  for (let index = 0; index < path.length; index += 1) {
+    const tangent: Vec3 = tangents[index] as Vec3;
+    // Parallel transport: remove the tangent component from the previous normal.
+    const projection: number = normal[0] * tangent[0] + normal[1] * tangent[1] + normal[2] * tangent[2];
+    normal = vec3Normalize([normal[0] - tangent[0] * projection, normal[1] - tangent[1] * projection, normal[2] - tangent[2] * projection]);
+    const binormal: Vec3 = [
+      tangent[1] * normal[2] - tangent[2] * normal[1],
+      tangent[2] * normal[0] - tangent[0] * normal[2],
+      tangent[0] * normal[1] - tangent[1] * normal[0],
+    ];
+    if (index > 0) {
+      const previous: Vec3 = path[index - 1] as Vec3;
+      const point: Vec3 = path[index] as Vec3;
+      travelled += Math.hypot(point[0] - previous[0], point[1] - previous[1], point[2] - previous[2]);
+    }
+    const center: Vec3 = path[index] as Vec3;
+    const radius: number = radiusAt(index);
+    for (let segment = 0; segment <= radialSegments; segment += 1) {
+      const angle: number = (segment / radialSegments) * Math.PI * 2;
+      const ringNormal: Vec3 = [
+        normal[0] * Math.cos(angle) + binormal[0] * Math.sin(angle),
+        normal[1] * Math.cos(angle) + binormal[1] * Math.sin(angle),
+        normal[2] * Math.cos(angle) + binormal[2] * Math.sin(angle),
+      ];
+      builder.addVertex([center[0] + ringNormal[0] * radius, center[1] + ringNormal[1] * radius, center[2] + ringNormal[2] * radius], ringNormal, segment / radialSegments, travelled * 2);
+    }
+  }
+  const rowLength: number = radialSegments + 1;
+  for (let ring = 0; ring < path.length - 1; ring += 1) {
+    for (let segment = 0; segment < radialSegments; segment += 1) {
+      const current: number = ring * rowLength + segment;
+      const next: number = current + rowLength;
+      builder.addTriangle(current, current + 1, next);
+      builder.addTriangle(current + 1, next + 1, next);
+    }
+  }
+  return builder.build();
+}
+
+/** Samples a quadratic Bézier from a → b with control c into `segments` + 1 points (for tube paths). */
+export function sampleQuadraticBezier(a: Readonly<Vec3>, c: Readonly<Vec3>, b: Readonly<Vec3>, segments: number): Vec3[] {
+  const points: Vec3[] = [];
+  for (let step = 0; step <= segments; step += 1) {
+    const t: number = step / segments;
+    const u: number = 1 - t;
+    points.push([u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1], u * u * a[2] + 2 * u * t * c[2] + t * t * b[2]]);
+  }
+  return points;
+}

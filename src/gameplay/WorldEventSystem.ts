@@ -31,7 +31,18 @@ export type QuestFlagId =
   | 'breakerSequenceFailures'
   | 'jesterAwakened'
   | 'tallymanEncountered'
-  | 'checkpointsReached';
+  | 'checkpointsReached'
+  | 'pipRecruited'
+  | 'loreTapesFound'
+  | 'rosterTapeFound'
+  | 'musicBoxesSilenced'
+  | 'hushlingsEncountered'
+  | 'choirMotherEncountered'
+  | 'actReached'
+  | 'foremanEncountered'
+  | 'foremanPhasesCleared'
+  | 'campaignComplete'
+  | 'endingChosen';
 
 export const QUEST_FLAG_IDS: readonly QuestFlagId[] = [
   'elevatorIntroSeen',
@@ -46,6 +57,17 @@ export const QUEST_FLAG_IDS: readonly QuestFlagId[] = [
   'jesterAwakened',
   'tallymanEncountered',
   'checkpointsReached',
+  'pipRecruited',
+  'loreTapesFound',
+  'rosterTapeFound',
+  'musicBoxesSilenced',
+  'hushlingsEncountered',
+  'choirMotherEncountered',
+  'actReached',
+  'foremanEncountered',
+  'foremanPhasesCleared',
+  'campaignComplete',
+  'endingChosen',
 ];
 
 export type QuestFlagSnapshot = Readonly<Record<QuestFlagId, number>>;

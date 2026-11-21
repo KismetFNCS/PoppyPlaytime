@@ -25,7 +25,21 @@ export type MaterialId =
   | 'tether_core_amber'
   | 'tether_core_violet'
   | 'tallyman_dial'
-  | 'tallyman_lamp';
+  | 'tallyman_lamp'
+  | 'brick_facade'
+  | 'nursery_wallpaper'
+  | 'nursery_wood'
+  | 'porcelain_glaze'
+  | 'hymn_paper'
+  | 'wet_stone'
+  | 'murky_water'
+  | 'tin_plate'
+  | 'conveyor_belt'
+  | 'tether_brass'
+  | 'lamp_housing_warm'
+  | 'pip_lantern'
+  | 'choir_glow'
+  | 'foreman_core';
 
 export type TextureSlot = 'diffuse' | 'normal' | 'roughness' | 'emissive';
 export const TEXTURE_SLOTS: readonly TextureSlot[] = ['diffuse', 'normal', 'roughness', 'emissive'];
@@ -66,7 +80,7 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     id: 'factory_wall_tile',
     displayName: 'Factory Wall Tile',
     maps: proceduralMaps(),
-    proceduralFallback: { kind: 'ceramicTile', seed: 1101, resolution: 256, bumpStrength: 2.5 },
+    proceduralFallback: { kind: 'ceramicTile', seed: 1101, resolution: 512, bumpStrength: 2.5 },
     baseTint: [1, 1, 1],
     normalStrength: 1,
     roughnessScale: 1,
@@ -79,7 +93,7 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     id: 'factory_floor_concrete',
     displayName: 'Stained Floor Concrete',
     maps: proceduralMaps(),
-    proceduralFallback: { kind: 'stainedConcrete', seed: 2202, resolution: 256, bumpStrength: 1.8 },
+    proceduralFallback: { kind: 'stainedConcrete', seed: 2202, resolution: 512, bumpStrength: 1.8 },
     baseTint: [1, 1, 1],
     normalStrength: 1,
     roughnessScale: 1,
@@ -196,7 +210,7 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     id: 'shattered_foundation_concrete',
     displayName: 'Shattered Factory Foundation · Fissured Concrete',
     maps: proceduralMaps(),
-    proceduralFallback: { kind: 'shatteredFoundation', seed: 7707, resolution: 256, bumpStrength: 3.2 },
+    proceduralFallback: { kind: 'shatteredFoundation', seed: 7707, resolution: 512, bumpStrength: 3.2 },
     baseTint: [1, 1, 1],
     normalStrength: 1,
     roughnessScale: 1,
@@ -296,6 +310,188 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     emissiveStrength: 9,
     uvScale: 1,
   },
+  brick_facade: {
+    id: 'brick_facade',
+    displayName: 'Factory Brick Facade',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'brickFacade', seed: 10101, resolution: 512, bumpStrength: 2.6 },
+    baseTint: [1, 1, 1],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 0.35,
+  },
+  nursery_wallpaper: {
+    id: 'nursery_wallpaper',
+    displayName: 'Choir Nursery · Damask Wallpaper',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'damaskWallpaper', seed: 10202, resolution: 512, bumpStrength: 1.4 },
+    baseTint: [1, 1, 1],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 0.45,
+  },
+  nursery_wood: {
+    id: 'nursery_wood',
+    displayName: 'Painted Nursery Wood',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'weatheredWood', seed: 10303, resolution: 256, bumpStrength: 1.8 },
+    baseTint: [1, 1, 1],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 1,
+  },
+  porcelain_glaze: {
+    id: 'porcelain_glaze',
+    displayName: 'Glazed Porcelain',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'glazedPorcelain', seed: 10404, resolution: 256, bumpStrength: 2 },
+    baseTint: [1, 1, 1],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 1.5,
+  },
+  hymn_paper: {
+    id: 'hymn_paper',
+    displayName: 'Hymn-Sheet Paper',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'hymnPaper', seed: 10505, resolution: 256, bumpStrength: 1 },
+    baseTint: [1, 1, 1],
+    normalStrength: 0.6,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 1,
+  },
+  wet_stone: {
+    id: 'wet_stone',
+    displayName: 'Drowned Archive · Wet Flagstone',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wetStone', seed: 10606, resolution: 512, bumpStrength: 2.8 },
+    baseTint: [1, 1, 1],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 0.4,
+  },
+  murky_water: {
+    id: 'murky_water',
+    displayName: 'Standing Water',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'murkyWater', seed: 10707, resolution: 256, bumpStrength: 1.2 },
+    baseTint: [1, 1, 1],
+    normalStrength: 0.7,
+    roughnessScale: 1,
+    metallic: 0.35,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 0.25,
+  },
+  tin_plate: {
+    id: 'tin_plate',
+    displayName: 'Lithographed Tin',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'tinPlate', seed: 10808, resolution: 256, bumpStrength: 1.2 },
+    baseTint: [1, 1, 1],
+    normalStrength: 0.8,
+    roughnessScale: 1,
+    metallic: 0.6,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 1,
+  },
+  conveyor_belt: {
+    id: 'conveyor_belt',
+    displayName: 'Conveyor Belting',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'conveyorBelt', seed: 10909, resolution: 256, bumpStrength: 2 },
+    baseTint: [1, 1, 1],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 0.5,
+  },
+  tether_brass: {
+    id: 'tether_brass',
+    displayName: 'Tether Rig · Brass Fittings',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'rustedMetal', seed: 11010, resolution: 256, bumpStrength: 1 },
+    baseTint: [1.7, 1.25, 0.55],
+    normalStrength: 0.7,
+    roughnessScale: 0.6,
+    metallic: 0.85,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  lamp_housing_warm: {
+    id: 'lamp_housing_warm',
+    displayName: 'Warm Lamp (Tungsten)',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'emissiveSolid', seed: 11111, resolution: 64, bumpStrength: 0 },
+    baseTint: [1, 0.8, 0.5],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [1, 0.62, 0.3],
+    emissiveStrength: 5,
+    uvScale: 1,
+  },
+  pip_lantern: {
+    id: 'pip_lantern',
+    displayName: 'Pip · Lantern Tail',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'emissiveSolid', seed: 11212, resolution: 64, bumpStrength: 0 },
+    baseTint: [1, 0.85, 0.55],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [1, 0.7, 0.35],
+    emissiveStrength: 8,
+    uvScale: 1,
+  },
+  choir_glow: {
+    id: 'choir_glow',
+    displayName: 'Choir · Music-Box Glow',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'emissiveSolid', seed: 11313, resolution: 64, bumpStrength: 0 },
+    baseTint: [1, 0.95, 0.8],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [1, 0.86, 0.55],
+    emissiveStrength: 6,
+    uvScale: 1,
+  },
+  foreman_core: {
+    id: 'foreman_core',
+    displayName: 'The Foreman · Core',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'emissiveSolid', seed: 11414, resolution: 64, bumpStrength: 0 },
+    baseTint: [1, 0.4, 0.3],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [1, 0.25, 0.12],
+    emissiveStrength: 9,
+    uvScale: 1,
+  },
 };
 
 export const MATERIAL_IDS: readonly MaterialId[] = Object.keys(MATERIAL_PROFILES) as MaterialId[];
@@ -316,7 +512,19 @@ export type ImportedMeshId =
   | 'ceiling_anchor'
   | 'blast_gate'
   | 'tallyman_entity'
-  | 'breaker_switch';
+  | 'breaker_switch'
+  | 'pip_companion'
+  | 'choir_mother'
+  | 'hushling'
+  | 'foreman_core'
+  | 'music_box'
+  | 'nursery_crib'
+  | 'archive_shelf'
+  | 'lore_tape'
+  | 'intercom_speaker'
+  | 'conveyor_section'
+  | 'factory_hall'
+  | 'factory_smokestack';
 
 export type ProceduralMeshBuilderId =
   | 'jester_body'
@@ -340,7 +548,38 @@ export type ProceduralMeshBuilderId =
   | 'tallyman_sight_lamp'
   | 'breaker_switch_housing'
   | 'breaker_switch_lever'
-  | 'breaker_switch_indicator';
+  | 'breaker_switch_indicator'
+  | 'tether_launcher_brass'
+  | 'tether_launcher_gauge'
+  | 'pip_body'
+  | 'pip_fittings'
+  | 'pip_lantern'
+  | 'choir_scaffold'
+  | 'choir_heads'
+  | 'choir_wings'
+  | 'choir_heart'
+  | 'hushling_body'
+  | 'hushling_eyes'
+  | 'foreman_housing'
+  | 'foreman_faces'
+  | 'foreman_heart'
+  | 'music_box_case'
+  | 'music_box_figure'
+  | 'music_box_glow'
+  | 'crib_frame'
+  | 'shelf_frame'
+  | 'shelf_papers'
+  | 'tape_case'
+  | 'tape_label'
+  | 'intercom_housing'
+  | 'intercom_grille'
+  | 'conveyor_belt_surface'
+  | 'conveyor_rollers'
+  | 'factory_hall_walls'
+  | 'factory_hall_roof'
+  | 'factory_hall_windows'
+  | 'smokestack_column'
+  | 'smokestack_beacon';
 
 export interface ImportedMeshPart {
   readonly partId: string;
@@ -410,7 +649,11 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
     id: 'tether_launcher',
     displayName: 'Tether Rig · Wrist Launcher',
     importScale: 1,
-    parts: [{ partId: 'body', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_launcher_body' }],
+    parts: [
+      { partId: 'body', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_launcher_body' },
+      { partId: 'brass', materialId: 'tether_brass', importUri: null, fallbackBuilder: 'tether_launcher_brass' },
+      { partId: 'gauge', materialId: 'lamp_housing_warm', importUri: null, fallbackBuilder: 'tether_launcher_gauge' },
+    ],
   },
   relay_plate_amber: {
     id: 'relay_plate_amber',
@@ -463,6 +706,119 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
       { partId: 'housing', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'breaker_switch_housing' },
       { partId: 'lever', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'breaker_switch_lever' },
       { partId: 'indicator', materialId: 'lamp_housing_toxic', importUri: null, fallbackBuilder: 'breaker_switch_indicator' },
+    ],
+  },
+  pip_companion: {
+    id: 'pip_companion',
+    displayName: 'Pip (Wind-Up Companion)',
+    importScale: 1,
+    parts: [
+      { partId: 'body', materialId: 'tin_plate', importUri: null, fallbackBuilder: 'pip_body' },
+      { partId: 'fittings', materialId: 'tether_brass', importUri: null, fallbackBuilder: 'pip_fittings' },
+      { partId: 'lantern', materialId: 'pip_lantern', importUri: null, fallbackBuilder: 'pip_lantern' },
+    ],
+  },
+  choir_mother: {
+    id: 'choir_mother',
+    displayName: 'The Choir Mother',
+    importScale: 1,
+    parts: [
+      { partId: 'scaffold', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'choir_scaffold' },
+      { partId: 'heads', materialId: 'porcelain_glaze', importUri: null, fallbackBuilder: 'choir_heads' },
+      { partId: 'wings', materialId: 'hymn_paper', importUri: null, fallbackBuilder: 'choir_wings' },
+      { partId: 'heart', materialId: 'choir_glow', importUri: null, fallbackBuilder: 'choir_heart' },
+    ],
+  },
+  hushling: {
+    id: 'hushling',
+    displayName: 'Hushling',
+    importScale: 1,
+    parts: [
+      { partId: 'body', materialId: 'porcelain_glaze', importUri: null, fallbackBuilder: 'hushling_body' },
+      { partId: 'eyes', materialId: 'choir_glow', importUri: null, fallbackBuilder: 'hushling_eyes' },
+    ],
+  },
+  foreman_core: {
+    id: 'foreman_core',
+    displayName: 'The Foreman',
+    importScale: 1,
+    parts: [
+      { partId: 'housing', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'foreman_housing' },
+      { partId: 'faces', materialId: 'tallyman_dial', importUri: null, fallbackBuilder: 'foreman_faces' },
+      { partId: 'heart', materialId: 'foreman_core', importUri: null, fallbackBuilder: 'foreman_heart' },
+    ],
+  },
+  music_box: {
+    id: 'music_box',
+    displayName: 'Chapel Music Box',
+    importScale: 1,
+    parts: [
+      { partId: 'case', materialId: 'nursery_wood', importUri: null, fallbackBuilder: 'music_box_case' },
+      { partId: 'figure', materialId: 'porcelain_glaze', importUri: null, fallbackBuilder: 'music_box_figure' },
+      { partId: 'glow', materialId: 'choir_glow', importUri: null, fallbackBuilder: 'music_box_glow' },
+    ],
+  },
+  nursery_crib: {
+    id: 'nursery_crib',
+    displayName: 'Nursery Crib',
+    importScale: 1,
+    parts: [
+      { partId: 'frame', materialId: 'nursery_wood', importUri: null, fallbackBuilder: 'crib_frame' },
+    ],
+  },
+  archive_shelf: {
+    id: 'archive_shelf',
+    displayName: 'Archive Shelving',
+    importScale: 1,
+    parts: [
+      { partId: 'frame', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'shelf_frame' },
+      { partId: 'papers', materialId: 'hymn_paper', importUri: null, fallbackBuilder: 'shelf_papers' },
+    ],
+  },
+  lore_tape: {
+    id: 'lore_tape',
+    displayName: 'Shift Tape',
+    importScale: 1,
+    parts: [
+      { partId: 'case', materialId: 'conveyor_belt', importUri: null, fallbackBuilder: 'tape_case' },
+      { partId: 'label', materialId: 'hymn_paper', importUri: null, fallbackBuilder: 'tape_label' },
+    ],
+  },
+  intercom_speaker: {
+    id: 'intercom_speaker',
+    displayName: 'Intercom Speaker',
+    importScale: 1,
+    parts: [
+      { partId: 'housing', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'intercom_housing' },
+      { partId: 'grille', materialId: 'lamp_housing_warm', importUri: null, fallbackBuilder: 'intercom_grille' },
+    ],
+  },
+  conveyor_section: {
+    id: 'conveyor_section',
+    displayName: 'Conveyor Section',
+    importScale: 1,
+    parts: [
+      { partId: 'belt', materialId: 'conveyor_belt', importUri: null, fallbackBuilder: 'conveyor_belt_surface' },
+      { partId: 'rollers', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'conveyor_rollers' },
+    ],
+  },
+  factory_hall: {
+    id: 'factory_hall',
+    displayName: 'Marrow & Finch Production Hall',
+    importScale: 1,
+    parts: [
+      { partId: 'walls', materialId: 'brick_facade', importUri: null, fallbackBuilder: 'factory_hall_walls' },
+      { partId: 'roof', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'factory_hall_roof' },
+      { partId: 'windows', materialId: 'lamp_housing_warm', importUri: null, fallbackBuilder: 'factory_hall_windows' },
+    ],
+  },
+  factory_smokestack: {
+    id: 'factory_smokestack',
+    displayName: 'Marrow & Finch Smokestack',
+    importScale: 1,
+    parts: [
+      { partId: 'column', materialId: 'brick_facade', importUri: null, fallbackBuilder: 'smokestack_column' },
+      { partId: 'beacon', materialId: 'lamp_housing_red', importUri: null, fallbackBuilder: 'smokestack_beacon' },
     ],
   },
 };

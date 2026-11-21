@@ -1,3 +1,4 @@
+import { CAMPAIGN_MESH_BUILDERS } from './CampaignModels';
 import type { ProceduralMeshBuilderId } from './AssetManifest';
 import type { MeshData } from '../graphics/Geometry';
 import { MeshBuilder, createBoxMesh, createCylinderMesh, createSphereMesh } from '../graphics/Geometry';
@@ -341,6 +342,7 @@ function buildBreakerSwitchIndicator(): MeshData {
 }
 
 export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, () => MeshData>> = {
+  ...(CAMPAIGN_MESH_BUILDERS as Record<ProceduralMeshBuilderId, () => MeshData>),
   jester_body: buildJesterBody,
   jester_head: buildJesterHead,
   jester_eyes: buildJesterEyes,
