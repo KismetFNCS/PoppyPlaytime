@@ -116,6 +116,8 @@ const HELD_HAND_SCALE: number = 1.45;
 const HELD_HAND_OFFSET: Vec3 = [0.09, 0.0, 0.07];
 const SIDE_POLARITY: Readonly<Record<ClawSide, Polarity>> = { left: 'teal', right: 'rose' };
 const CLAW_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal', rose: 'tether_claw_rose' };
+/** Gripping variant shown while a hand is latched onto something. */
+const CLAMPED_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal_clamped', rose: 'tether_claw_rose_clamped' };
 
 /**
  * Tether Rig: two wrist launchers, each firing a polarity-coded steel hand on a cable.
@@ -500,9 +502,10 @@ export class TetherRig {
         const heldPosition: Vec3 = vec3Add(socket, vec3Add(vec3Scale(basis.right, outward * HELD_HAND_OFFSET[0]), vec3Add(vec3Scale(basis.up, HELD_HAND_OFFSET[1]), vec3Scale(basis.forward, HELD_HAND_OFFSET[2]))));
         this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(heldPosition, vec3Scale(heldX, HELD_HAND_SCALE), vec3Scale(heldY, HELD_HAND_SCALE), vec3Scale(heldZ, HELD_HAND_SCALE)), corePulse);
       } else {
-        // In flight / latched: fingers lead along the cable.
+        // In flight: fingers lead along the cable. Latched: the hand clamps shut around whatever it caught.
         const [clawX, clawY, clawZ] = orthonormalBasisFromForward(claw.direction, basis.up);
-        this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(claw.position, vec3Scale(clawX, HAND_SCALE), vec3Scale(clawY, HAND_SCALE), vec3Scale(clawZ, HAND_SCALE)), corePulse);
+        const model: ImportedMeshId = claw.phase === 'latched' ? CLAMPED_MODEL[claw.polarity] : CLAW_MODEL[claw.polarity];
+        this.pushModel(output, model, mat4FromBasis(claw.position, vec3Scale(clawX, HAND_SCALE), vec3Scale(clawY, HAND_SCALE), vec3Scale(clawZ, HAND_SCALE)), corePulse);
       }
       if (claw.phase !== 'holstered') {
         const span: number = vec3Distance(socket, claw.position);

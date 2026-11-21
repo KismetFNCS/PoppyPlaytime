@@ -166,9 +166,12 @@ const FINGER_LAYOUT: ReadonlyArray<{ readonly x: number; readonly length: number
 ];
 
 /** Finger centreline: knuckle → three phalanges with a relaxed curl, sampled with midpoints for a smooth tube. */
-function fingerJoints(baseX: number, lengthScale: number, splay: number): Vec3Tuple[] {
+function fingerJoints(baseX: number, lengthScale: number, splay: number, clamp: number = 0): Vec3Tuple[] {
   const segments: readonly number[] = [0.044 * lengthScale, 0.03 * lengthScale, 0.024 * lengthScale];
-  const curls: readonly number[] = [0.08, 0.14, 0.16];
+  const openCurls: readonly number[] = [0.08, 0.14, 0.16];
+  const gripCurls: readonly number[] = [0.95, 1.15, 0.95];
+  const curls: readonly number[] = openCurls.map((open: number, index: number) => open + ((gripCurls[index] as number) - open) * clamp);
+  splay *= 1 - clamp * 0.7;
   const joints: Vec3Tuple[] = [[baseX, 0.002, 0.044]];
   let angle = 0;
   let current: Vec3Tuple = joints[0] as Vec3Tuple;
@@ -182,22 +185,34 @@ function fingerJoints(baseX: number, lengthScale: number, splay: number): Vec3Tu
   return joints;
 }
 
-function thumbJoints(mirror: HandSide): Vec3Tuple[] {
+function thumbJoints(mirror: HandSide, clamp: number = 0): Vec3Tuple[] {
   // Palm-down left hand: thumb on +X, angled forward and slightly under the palm; mirrored for the right hand.
+  // Gripping folds the thumb under the palm to oppose the curled fingers.
   const side: number = -mirror;
-  return [
+  const open: Vec3Tuple[] = [
     [side * 0.03, -0.008, -0.03],
     [side * 0.05, -0.012, -0.012],
     [side * 0.066, -0.014, 0.008],
     [side * 0.075, -0.015, 0.026],
     [side * 0.08, -0.015, 0.043],
   ];
+  const grip: Vec3Tuple[] = [
+    [side * 0.03, -0.008, -0.03],
+    [side * 0.045, -0.02, -0.012],
+    [side * 0.045, -0.034, 0.008],
+    [side * 0.03, -0.044, 0.024],
+    [side * 0.012, -0.048, 0.036],
+  ];
+  return open.map((point: Vec3Tuple, index: number) => {
+    const target: Vec3Tuple = grip[index] as Vec3Tuple;
+    return [point[0] + (target[0] - point[0]) * clamp, point[1] + (target[1] - point[1]) * clamp, point[2] + (target[2] - point[2]) * clamp];
+  });
 }
 
 type Vec3Tuple = [number, number, number];
 
 /** Painted hand: rounded palm, padded thumb base, tapered fingers with rounded tips. Solid colour, no lights. */
-function buildTetherHandShell(mirror: HandSide): MeshData {
+function buildTetherHandShell(mirror: HandSide, clamp: number = 0): MeshData {
   const builder = new MeshBuilder();
   const side: number = -mirror;
   // Palm: two overlapping ellipsoids give a soft, slightly cupped slab.
@@ -211,7 +226,7 @@ function buildTetherHandShell(mirror: HandSide): MeshData {
   place(builder, createCylinderMesh(0.03, 0.036, 0.04, 14), [0, 0, -0.064], [Math.PI / 2, 0, 0], [1, 0.72, 1]);
   // Fingers.
   for (const finger of FINGER_LAYOUT) {
-    const joints: Vec3Tuple[] = fingerJoints(finger.x, finger.length, finger.splay);
+    const joints: Vec3Tuple[] = fingerJoints(finger.x, finger.length, finger.splay, clamp);
     const radii: number[] = joints.map((_joint: Vec3Tuple, index: number) => finger.radius * (1 - (index / (joints.length - 1)) * 0.22));
     builder.appendMesh(createTubeMesh(joints, radii, 12), mat4Identity());
     // Rounded tip and subtle knuckle bumps at the two inner joints.
@@ -220,7 +235,7 @@ function buildTetherHandShell(mirror: HandSide): MeshData {
       place(builder, createSphereMesh(finger.radius * 1.04, 10, 8), joints[jointIndex] as Vec3Tuple, [0, 0, 0], [1, 0.95, 1]);
     }
   }
-  const thumb: Vec3Tuple[] = thumbJoints(mirror);
+  const thumb: Vec3Tuple[] = thumbJoints(mirror, clamp);
   builder.appendMesh(createTubeMesh(thumb, [0.0145, 0.0138, 0.0128, 0.0118, 0.0108], 12), mat4Identity());
   place(builder, createSphereMesh(0.0092, 10, 8), thumb[thumb.length - 1] as Vec3Tuple, [0, 0, 0], [1, 1, 1]);
   return builder.build();
@@ -444,6 +459,8 @@ export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, 
   // Held with the back of the hand to the player: teal (left) thumb points right, rose (right) thumb points left.
   tether_hand_shell_left: () => buildTetherHandShell(1),
   tether_hand_shell_right: () => buildTetherHandShell(-1),
+  tether_hand_shell_left_clamped: () => buildTetherHandShell(1, 1),
+  tether_hand_shell_right_clamped: () => buildTetherHandShell(-1, 1),
   tether_hand_cuff: buildTetherHandCuff,
   tether_launcher_body: buildTetherLauncherBody,
   relay_plate_frame: buildRelayPlateFrame,

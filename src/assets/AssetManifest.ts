@@ -506,6 +506,8 @@ export type ImportedMeshId =
   | 'shattered_foundation'
   | 'tether_claw_teal'
   | 'tether_claw_rose'
+  | 'tether_claw_teal_clamped'
+  | 'tether_claw_rose_clamped'
   | 'tether_launcher'
   | 'relay_plate_teal'
   | 'relay_plate_rose'
@@ -538,6 +540,8 @@ export type ProceduralMeshBuilderId =
   | 'tether_hand_shell_left'
   | 'tether_hand_shell_right'
   | 'tether_hand_cuff'
+  | 'tether_hand_shell_left_clamped'
+  | 'tether_hand_shell_right_clamped'
   | 'tether_launcher_body'
   | 'relay_plate_frame'
   | 'relay_plate_core'
@@ -643,6 +647,24 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
     importScale: 1,
     parts: [
       { partId: 'shell', materialId: 'tether_claw_rose', importUri: null, fallbackBuilder: 'tether_hand_shell_right' },
+      { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
+    ],
+  },
+  tether_claw_teal_clamped: {
+    id: 'tether_claw_teal_clamped',
+    displayName: 'Tether Rig · Teal Hand (Left, Gripping)',
+    importScale: 1,
+    parts: [
+      { partId: 'shell', materialId: 'tether_claw_teal', importUri: null, fallbackBuilder: 'tether_hand_shell_left_clamped' },
+      { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
+    ],
+  },
+  tether_claw_rose_clamped: {
+    id: 'tether_claw_rose_clamped',
+    displayName: 'Tether Rig · Rose Hand (Right, Gripping)',
+    importScale: 1,
+    parts: [
+      { partId: 'shell', materialId: 'tether_claw_rose', importUri: null, fallbackBuilder: 'tether_hand_shell_right_clamped' },
       { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
     ],
   },
