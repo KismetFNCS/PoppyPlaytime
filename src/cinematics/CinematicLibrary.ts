@@ -267,4 +267,112 @@ export const CINEMATIC_LIBRARY: Readonly<Record<CinematicId, CinematicTimeline>>
       { time: 2.0, hook: 'blackout' },
     ],
   },
+  /** Lethal: the Choir Mother stoops her crown of heads over the player, mid-hymn, and the view is lifted toward her. */
+  choirMotherJumpscare: {
+    id: 'choirMotherJumpscare',
+    durationSeconds: 1.8,
+    blendInSeconds: 0.18,
+    blendOutSeconds: 0,
+    returnsControl: false,
+    locksControls: true,
+    originFacing: 'actor',
+    overridesListener: true,
+    ambientDuck: 1,
+    hidesHud: true,
+    camera: [
+      originCamera(0, [0, 0, 0], [0, 1.2, 4], 72, 0, 'linear'),
+      originCamera(0.5, [0, 0.15, -0.1], [0, 1.9, 1.4], 66, -0.05, 'easeOutCubic'),
+      originCamera(1.1, [0, 0.6, -0.15], [0, 1.4, 0.7], 60, 0.08, 'easeInOutSine'),
+      originCamera(1.8, [0, 0.9, -0.1], [0, 1.0, 0.5], 56, 0.2, 'easeInQuad'),
+    ],
+    actor: [
+      actorKey(0, 'actorStart', [0, 0, 0], { eyeGlow: 1.4, gait: 0.6 }),
+      // Crown (3.35 m) ends ~1.3 m above the lens and 0.9 m ahead: feet at origin y − 2.0.
+      actorKey(0.5, 'origin', [0, -2.0, 1.6], { eyeGlow: 2.2, gait: 0.8, lunging: true, ease: 'easeOutCubic' }),
+      actorKey(1.8, 'origin', [0, -1.9, 0.95], { eyeGlow: 3, gait: 0.2, lunging: true, ease: 'easeInOutSine' }),
+    ],
+    post: [
+      post(0, { aberration: 1, noise: 0.08 }),
+      post(0.5, { flashIntensity: 0.35, flashColor: [1, 0.9, 0.7], aberration: 4, shake: 0.008, noise: 0.15, ease: 'step' }),
+      post(1.2, { flashIntensity: 0.1, flashColor: [1, 0.9, 0.7], aberration: 3, shake: 0.004, noise: 0.18, ease: 'easeOutQuad' }),
+      post(1.8, { aberration: 2, noise: 0.2, fadeToBlack: 1, ease: 'easeInQuad' }),
+    ],
+    audio: [
+      { time: 0, cue: 'choirHymn', frame: 'actor', offset: [0, 3.3, 0], intensity: 1.6 },
+      { time: 0.5, cue: 'metalStinger', frame: 'origin', offset: [0, 1, 0.8], intensity: 1.1 },
+      { time: 0.55, cue: 'choirHymn', frame: 'origin', offset: [0, 1.3, 0.9], intensity: 1.8 },
+    ],
+    hooks: [
+      { time: 0, hook: 'stopAmbient' },
+      { time: 1.8, hook: 'blackout' },
+    ],
+  },
+
+  /** Lethal: a Hushling leaps out of the dark to face height. */
+  hushlingSwarm: {
+    id: 'hushlingSwarm',
+    durationSeconds: 1.2,
+    blendInSeconds: 0.08,
+    blendOutSeconds: 0,
+    returnsControl: false,
+    locksControls: true,
+    originFacing: 'actor',
+    overridesListener: true,
+    ambientDuck: 1,
+    hidesHud: true,
+    camera: [
+      originCamera(0, [0, 0, 0], [0, -0.6, 3], 72, 0, 'linear'),
+      originCamera(0.22, [0, -0.05, -0.05], [0, -0.05, 1], 62, 0.06, 'easeOutQuad'),
+      originCamera(1.2, [0, -0.6, -0.1], [0.1, -0.7, 1], 58, -0.3, 'easeInQuad'),
+    ],
+    actor: [
+      actorKey(0, 'actorStart', [0, 0, 0], { eyeGlow: 2, gait: 1 }),
+      // Head (0.47 m) arrives level with the lens 0.45 m away: feet at origin y − 0.47.
+      actorKey(0.22, 'origin', [0, -0.47, 0.45], { eyeGlow: 3.5, gait: 1, lunging: true, ease: 'easeOutBack' }),
+      actorKey(1.2, 'origin', [0, -0.5, 0.4], { eyeGlow: 3.5, gait: 0, lunging: true, ease: 'linear' }),
+    ],
+    post: [
+      post(0, { noise: 0.1 }),
+      post(0.22, { flashIntensity: 0.6, flashColor: [0.95, 0.95, 0.85], aberration: 5, shake: 0.012, noise: 0.25, ease: 'step' }),
+      post(1.2, { aberration: 2, noise: 0.2, fadeToBlack: 1, ease: 'easeInQuad' }),
+    ],
+    audio: [
+      { time: 0, cue: 'hushlingSkitter', frame: 'actor', offset: [0, 0.5, 0], intensity: 1.5 },
+      { time: 0.22, cue: 'metalStinger', frame: 'origin', offset: [0, 0, 0.4], intensity: 1.2 },
+    ],
+    hooks: [
+      { time: 0, hook: 'stopAmbient' },
+      { time: 1.2, hook: 'blackout' },
+    ],
+  },
+
+  /** Lethal: a punch-card beam strikes; red flash and the view is thrown back. */
+  foremanBeam: {
+    id: 'foremanBeam',
+    durationSeconds: 1.0,
+    blendInSeconds: 0.04,
+    blendOutSeconds: 0,
+    returnsControl: false,
+    locksControls: true,
+    originFacing: 'camera',
+    overridesListener: true,
+    ambientDuck: 0.9,
+    hidesHud: true,
+    camera: [
+      originCamera(0, [0, 0, 0], [0, 0, 3], 72, 0, 'linear'),
+      originCamera(0.25, [0, -0.2, -0.6], [0, 0.6, 3], 80, 0.25, 'easeOutQuad'),
+      originCamera(1.0, [0, -1.2, -0.9], [0, 1.5, 2], 84, 0.4, 'easeInQuad'),
+    ],
+    actor: [],
+    post: [
+      post(0, { flashIntensity: 0.9, flashColor: [1, 0.15, 0.08], aberration: 6, shake: 0.02, noise: 0.25, ease: 'step' }),
+      post(0.3, { flashIntensity: 0.3, flashColor: [1, 0.15, 0.08], aberration: 4, shake: 0.01, noise: 0.2, ease: 'easeOutQuad' }),
+      post(1.0, { noise: 0.2, fadeToBlack: 1, ease: 'easeInQuad' }),
+    ],
+    audio: [
+      { time: 0, cue: 'impactCrunch', frame: 'origin', offset: [0, 0, 0.3], intensity: 1.4 },
+      { time: 0.02, cue: 'foremanBoom', frame: 'origin', offset: [0, 0, 2], intensity: 0.8 },
+    ],
+    hooks: [{ time: 1.0, hook: 'blackout' }],
+  },
 };

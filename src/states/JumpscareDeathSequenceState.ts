@@ -1,23 +1,30 @@
 import { UI_COLORS, UI_FONTS, VIRTUAL_RESOLUTION } from '../config/GameConstants';
 import type { GameServices } from '../core/GameServices';
-import type { DeathCause, FrameContext, FrameRenderRequest, GameStateHandler, GameStatePayloadMap } from '../core/GameStateTypes';
+import type { DeathCause, FrameContext, FrameRenderRequest, GameStateHandler, GameStatePayloadMap, KillerId } from '../core/GameStateTypes';
 import { GameStateId } from '../core/GameStateTypes';
 import type { SaveGame } from '../core/serialization/SaveGameSchema';
 import { clamp } from '../math/Vec3';
 import type { UIFrameInput } from '../ui/UILayout';
 import { UIFocusGroup, UITextButton } from '../ui/UILayout';
 import { buildUiFrameInput } from '../ui/UIInputAdapter';
-import type { ThreatKind } from '../world/LevelStreamer';
 
 type DeathPhase = 'blackout' | 'summary';
 
 /** Seconds of static-filled black after the in-world death cinematic before the summary fades up. */
 const BLACKOUT_SECONDS: number = 0.9;
 
-function deathHeadline(cause: DeathCause, threat: ThreatKind | null): string {
+const KILLER_HEADLINES: Readonly<Record<KillerId, string>> = {
+  jester: 'YOUR SHIFT IS OVER',
+  tallyman: 'THE TALLYMAN COUNTED YOU',
+  choirMother: 'MOTHER SANG YOU TO SLEEP',
+  hushling: 'HUSH NOW',
+  foreman: 'YOUR CARD WAS PUNCHED',
+};
+
+function deathHeadline(cause: DeathCause, killer: KillerId | null): string {
   if (cause === 'fall') return 'LOST TO THE FOUNDATIONS';
   if (cause === 'toxicity') return 'THE AIR TOOK YOU';
-  return threat === 'tallyman' ? 'THE TALLYMAN COUNTED YOU' : 'YOUR SHIFT IS OVER';
+  return killer !== null ? KILLER_HEADLINES[killer] : 'YOUR SHIFT IS OVER';
 }
 
 /**
@@ -30,7 +37,7 @@ export class JumpscareDeathSequenceState implements GameStateHandler<GameStateId
   private elapsed: number = 0;
   public phase: DeathPhase = 'blackout';
   public cause: DeathCause = 'entity';
-  private threat: ThreatKind | null = null;
+  private threat: KillerId | null = null;
   private checkpoint: SaveGame | null = null;
   private survivedSeconds: number = 0;
   private depthMeters: number = 0;
@@ -88,7 +95,7 @@ export class JumpscareDeathSequenceState implements GameStateHandler<GameStateId
       const choice: 'retry' | 'title' = this.pendingChoice;
       this.pendingChoice = null;
       if (choice === 'retry') {
-        this.services.lifecycle.requestTransition({ target: GameStateId.ActiveLevelStreamer, payload: { mode: 'retry', save: this.checkpoint } });
+        this.services.lifecycle.requestTransition({ target: GameStateId.CampaignLoading, payload: { mode: 'retry', save: this.checkpoint } });
       } else {
         this.services.lifecycle.requestTransition({ target: GameStateId.TitleScreen, payload: { reason: 'returnFromDeath' } });
       }

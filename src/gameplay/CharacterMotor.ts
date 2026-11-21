@@ -122,6 +122,8 @@ export class CharacterMotor {
   public isCrouching: boolean = false;
   public stance: MovementStance = 'walk';
   public stamina: number = 1;
+  /** External speed scale (e.g. wading through water); multiplies every stance's maximum speed. */
+  public speedMultiplier: number = 1;
   public currentHeight: number;
   /** Eye height after crouch smoothing (metres above feet). */
   public smoothedEyeHeight: number;
@@ -369,7 +371,7 @@ export class CharacterMotor {
     const wishLength: number = Math.hypot(wishX, wishZ);
     const wishDirectionX: number = wishLength > 1e-5 ? wishX / wishLength : 0;
     const wishDirectionZ: number = wishLength > 1e-5 ? wishZ / wishLength : 0;
-    const wishSpeed: number = coefficients.maximumSpeed * Math.min(1, wishLength);
+    const wishSpeed: number = coefficients.maximumSpeed * this.speedMultiplier * Math.min(1, wishLength);
 
     if (this.isGrounded && !jumpedThisStep) {
       this.applyFriction(coefficients, deltaSeconds);

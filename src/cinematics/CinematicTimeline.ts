@@ -9,7 +9,10 @@ export type CinematicId =
   | 'jesterJumpscare'
   | 'tallymanJumpscare'
   | 'fallDeath'
-  | 'toxicCollapse';
+  | 'toxicCollapse'
+  | 'choirMotherJumpscare'
+  | 'hushlingSwarm'
+  | 'foremanBeam';
 
 export type EasingName = 'linear' | 'step' | 'easeInQuad' | 'easeOutQuad' | 'easeInOutSine' | 'easeOutCubic' | 'easeOutBack';
 

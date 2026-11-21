@@ -166,6 +166,17 @@ export class ThreatDirector {
     return managed;
   }
 
+  /** Spawns a persistent threat already hunting the player (boss reinforcements). */
+  public spawnHunter(id: string, kind: ThreatKind, position: Readonly<Vec3>, playerFeet: Readonly<Vec3>): ManagedThreat {
+    const existing: ManagedThreat | undefined = this.threats.get(id);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const managed: ManagedThreat = this.register(id, kind, [position[0], 0, position[2]], [], -1, true);
+    managed.brain.activate('hunting', 1, [playerFeet[0], 0, playerFeet[2]]);
+    return managed;
+  }
+
   public get isJesterAwake(): boolean {
     return this.threats.has(JESTER_THREAT_ID);
   }

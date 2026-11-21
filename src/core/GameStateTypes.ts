@@ -2,10 +2,14 @@ import type { SaveGame } from './serialization/SaveGameSchema';
 import type { DrawItem, SceneEnvironment } from '../graphics/SceneRenderer';
 import type { ThreatKind } from '../world/LevelStreamer';
 
+/** Who (or what) killed the player: a roaming threat, or the Foreman's arena hazards. */
+export type KillerId = ThreatKind | 'foreman';
+
 export enum GameStateId {
   CoreBootloader = 'CoreBootloader',
   TitleScreen = 'TitleScreen',
   SettingsMenu = 'SettingsMenu',
+  CampaignLoading = 'CampaignLoading',
   ActiveLevelStreamer = 'ActiveLevelStreamer',
   JumpscareDeathSequence = 'JumpscareDeathSequence',
 }
@@ -19,6 +23,8 @@ export interface GameStatePayloadMap {
   [GameStateId.CoreBootloader]: { readonly coldStart: true };
   [GameStateId.TitleScreen]: { readonly reason: TitleEntryReason };
   [GameStateId.SettingsMenu]: { readonly returnTo: GameStateId.TitleScreen };
+  /** Factory-exterior loading screen; carries the level payload through to the level. */
+  [GameStateId.CampaignLoading]: { readonly mode: LevelEntryMode; readonly save: SaveGame };
   /** `continue` with a session save restores the exact player state; otherwise spawn at the checkpoint chunk. */
   [GameStateId.ActiveLevelStreamer]: { readonly mode: LevelEntryMode; readonly save: SaveGame };
   [GameStateId.JumpscareDeathSequence]: {
@@ -28,18 +34,19 @@ export interface GameStatePayloadMap {
     readonly depthMeters: number;
     readonly cause: DeathCause;
     /** Which threat made the kill (entity deaths only). */
-    readonly threat: ThreatKind | null;
+    readonly threat: KillerId | null;
   };
 }
 
 /** Rigid transition graph: any request outside this table is rejected and logged. */
 export const ALLOWED_TRANSITIONS: Readonly<Record<GameStateId, readonly GameStateId[]>> = {
   [GameStateId.CoreBootloader]: [GameStateId.TitleScreen],
-  [GameStateId.TitleScreen]: [GameStateId.SettingsMenu, GameStateId.ActiveLevelStreamer],
+  [GameStateId.TitleScreen]: [GameStateId.SettingsMenu, GameStateId.CampaignLoading, GameStateId.ActiveLevelStreamer],
+  [GameStateId.CampaignLoading]: [GameStateId.ActiveLevelStreamer, GameStateId.TitleScreen],
   [GameStateId.SettingsMenu]: [GameStateId.TitleScreen],
   // Self-transition = restart from checkpoint (pause menu).
   [GameStateId.ActiveLevelStreamer]: [GameStateId.JumpscareDeathSequence, GameStateId.TitleScreen, GameStateId.ActiveLevelStreamer],
-  [GameStateId.JumpscareDeathSequence]: [GameStateId.ActiveLevelStreamer, GameStateId.TitleScreen],
+  [GameStateId.JumpscareDeathSequence]: [GameStateId.CampaignLoading, GameStateId.ActiveLevelStreamer, GameStateId.TitleScreen],
 };
 
 export type GameStateTransition = {

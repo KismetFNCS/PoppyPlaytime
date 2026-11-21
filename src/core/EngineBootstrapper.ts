@@ -14,6 +14,7 @@ import { MaterialRegistry } from '../graphics/MaterialRegistry';
 import { PostProcessPipeline, createDefaultPostProcessParameters } from '../graphics/PostProcessPipeline';
 import { SceneRenderer } from '../graphics/SceneRenderer';
 import { ActiveLevelStreamerState } from '../states/ActiveLevelStreamerState';
+import { CampaignLoadingState } from '../states/CampaignLoadingState';
 import { CoreBootloaderState } from '../states/CoreBootloaderState';
 import { JumpscareDeathSequenceState } from '../states/JumpscareDeathSequenceState';
 import { SettingsMenuState } from '../states/SettingsMenuState';
@@ -178,6 +179,7 @@ export class EngineBootstrapper {
       [GameStateId.CoreBootloader]: new CoreBootloaderState(services),
       [GameStateId.TitleScreen]: new TitleScreenState(services, backdrop),
       [GameStateId.SettingsMenu]: new SettingsMenuState(services, backdrop),
+      [GameStateId.CampaignLoading]: new CampaignLoadingState(services),
       [GameStateId.ActiveLevelStreamer]: new ActiveLevelStreamerState(services, backdrop),
       [GameStateId.JumpscareDeathSequence]: new JumpscareDeathSequenceState(services),
     };

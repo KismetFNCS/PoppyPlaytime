@@ -52,7 +52,7 @@ export class TitleScreenState implements GameStateHandler<GameStateId.TitleScree
   }
 
   private startLevel(mode: 'newGame' | 'continue', save: SaveGame): void {
-    this.services.lifecycle.requestTransition({ target: GameStateId.ActiveLevelStreamer, payload: { mode, save } });
+    this.services.lifecycle.requestTransition({ target: GameStateId.CampaignLoading, payload: { mode, save } });
   }
 
   private handleAction(action: MainMenuAction): void {
