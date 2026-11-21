@@ -292,6 +292,13 @@ const SCULPTS = {
     return SDF.mesh(n, [-0.1, -0.05, -0.08], [0.1, 1.05, 0.08], 64);
   },
   // Torn canvas hood that frames the mask
+  sp_pincushion: () => {
+    const W = MAT.clothWine, n = [{ t: 'ell', c: [0, 0, 0], r: [0.36, 0.24, 0.32], m: W, n: [0.006, 30] }];
+    for (let i = 0; i < 6; i++) n.push({ t: 'tor', c: [0, 0, 0], R: 0.33, r: 0.016, rot: [i / 6 * Math.PI, Math.PI / 2, 0], op: 's', k: 0.03, sm: W });
+    n.push({ t: 'cyl', c: [0, 0.22, 0], r: 0.05, h: 0.02, rr: 0.01, m: MAT.copper, k: 0.02 });
+    n.push({ t: 'cyl', c: [0, -0.2, 0], r: 0.16, h: 0.04, rr: 0.02, m: MAT.steel, k: 0.04 });
+    return SDF.mesh(n, [-0.42, -0.3, -0.38], [0.42, 0.3, 0.38], 56);
+  },
   sp_hood: () => {
     const C = MAT.canvas, n = [
       { t: 'ell', c: [0, 0.06, 0.07], r: [0.43, 0.52, 0.42], m: C, n: [0.02, 14] },

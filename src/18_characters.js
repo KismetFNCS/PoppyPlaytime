@@ -359,8 +359,10 @@ const Cast = {
     }
     // head
     const hy = yaw + P.headYaw;
-    this.pt(a, p, yaw, 0, (1.2 + L * 0.25) * S, (0.1 - L * 0.45) * S);
-    M4.compose(this.m, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), S, S, S);
+    // the head sags heavily toward his right shoulder (straightens for the lunge)
+    const sag = 1 - L;
+    this.pt(a, p, yaw, 0.1 * sag * S, (1.2 - 0.07 * sag + L * 0.25) * S, (0.1 - L * 0.45) * S);
+    M4.compose(this.m, a[0], a[1], a[2], hy, 0.22 * sag - L * 0.4, -0.42 * sag, S * 1.08, S * 0.98, S);
     it = R.push('th_head', MAT.burnt);
     if (it) it.model.set(this.m);
     // glowing violet glass eye in the right socket

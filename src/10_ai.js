@@ -21,6 +21,13 @@ function btCondition(fn) { return { tick(ctx) { return fn(ctx) ? BT.SUCCESS : BT
 function btAction(fn) { return { tick(ctx) { return fn(ctx); } }; }
 
 const LEG_COUNT = 6;
+// pincushion pins: direction (x, y, z) on the cushion and a head colour index
+const PINS = new Float32Array([
+  -0.6, 0.8, -0.2, 0, 0.3, 0.9, 0.1, 1, 0.7, 0.6, 0.3, 2, -0.2, 0.7, 0.7, 3, 0.1, 0.95, -0.5, 4,
+  -0.8, 0.5, 0.4, 2, 0.55, 0.75, -0.45, 3, 0.0, 1.0, 0.15, 0, -0.4, 0.85, -0.6, 1
+]);
+const PIN_COLORS = [[1.25, 0.32, 0.3], [0.32, 0.9, 1.2], [1.3, 1.05, 0.35], [0.45, 1.15, 0.45], [1.15, 0.5, 1.1]];
+const TAPE_SEGS = 16;
 // fur sac tufts: local x, y, z, radius, blue (1) or violet (0)
 const FUR_SAC = new Float32Array([
   0, 1.5, 0.95, 0.62, 0, -0.32, 1.42, 0.8, 0.42, 1, 0.32, 1.44, 0.82, 0.42, 0, 0, 1.72, 0.85, 0.45, 0,
@@ -461,6 +468,38 @@ const Monster = {
       it = R.push('sp_body', MAT.furViolet);
       if (it) M4.compose(it.model, this.pos[0], this.pos[1] + 1.35 + this.bodyBob, this.pos[2], yaw, lean, 0, 1, 1, 1);
     }
+    // plush pincushion strapped high on the back, bristling with oversized novelty pins
+    if (Sculpt.ready('sp_pincushion')) {
+      this.bodyPoint(B, 0, 2.12, 1.22);
+      it = R.push('sp_pincushion', MAT.clothWine);
+      if (it) M4.compose(it.model, B[0], B[1], B[2], yaw, lean - 0.25, 0, 1, 1, 1);
+      for (let k = 0; k < PINS.length; k += 4) {
+        this.bodyPoint(H, PINS[k] * 0.3, 2.12 + PINS[k + 1] * 0.2, 1.22 + PINS[k + 2] * 0.27);
+        this.bodyPoint(X, PINS[k] * 0.62, 2.12 + PINS[k + 1] * 0.62 + 0.18, 1.22 + PINS[k + 2] * 0.6);
+        R.seg('cylLow', MAT.steel, H, X, 0.008);
+        const hd = R.trs('sphereLow', MAT.porcelain, X[0], X[1], X[2], 0, 0, 0, 0.035, 0.035, 0.035);
+        if (hd) { const c = PIN_COLORS[PINS[k + 3] | 0]; hd.tint[0] = c[0]; hd.tint[1] = c[1]; hd.tint[2] = c[2]; }
+      }
+    }
+    // yellow measuring tape trailing from the rear like a shredded tail
+    this.bodyPoint(B, 0, 1.3, 1.85);
+    V3.copy(_mh.tapePrev, B);
+    for (let k = 1; k <= TAPE_SEGS; k++) {
+      const t = k / TAPE_SEGS;
+      const sway = Math.sin(this.breathe * 3.1 - k * 0.45) * 0.18 * t + Math.sin(this.breathe * 1.3 + k) * 0.05;
+      this.bodyPoint(H, sway, 1.3 - t * 1.6, 1.85 + t * 2.4 + this.speed * t * 0.25);
+      H[1] = Math.max(0.012, H[1]);
+      const strip = R.push('box', MAT.paint, false);
+      if (strip) {
+        M4.segment(strip.model, _mh.tapePrev, H, 1);
+        strip.model[0] *= 0.026; strip.model[1] *= 0.026; strip.model[2] *= 0.026;
+        strip.model[8] *= 0.0025; strip.model[9] *= 0.0025; strip.model[10] *= 0.0025;
+        M4.multiply(strip.model, strip.model, _mh.boxUp);
+        strip.tint[0] = 1.5; strip.tint[1] = 1.35; strip.tint[2] = 0.45;
+      }
+      V3.copy(_mh.tapePrev, H);
+    }
+
     // glowing red pressure tanks strapped on top of the sac
     for (const sx of [-0.16, 0.16]) {
       this.bodyPoint(B, sx, 1.95, 0.55); this.bodyPoint(H, sx, 1.95, 0.95);
@@ -612,6 +651,7 @@ const Monster = {
   }
 };
 const _mh = {
+  tapePrev: V3.create(),
   boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })(),
   groupStepping: new Uint8Array(2), spheres: [V3.create(), V3.create()], radii: new Float32Array([1.0, 0.6]), local: V3.create(), pole: V3.create(),
   centerY: (() => { const m = M4.create(); m[13] = -0.5; return m; })(),
