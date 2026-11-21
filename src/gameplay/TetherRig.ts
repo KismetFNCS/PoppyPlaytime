@@ -10,7 +10,7 @@ import type { Vec3 } from '../math/Vec3';
 import { clamp, vec3Add, vec3Distance, vec3Dot, vec3Lerp, vec3Normalize, vec3Scale, vec3Subtract } from '../math/Vec3';
 import type { CharacterMotor, CollisionWorld } from './CharacterMotor';
 import type { TypedEventBus } from './TypedEventBus';
-import type { Polarity, TetherTarget, WorldRayHit } from '../world/LevelStreamer';
+import type { Polarity, TetherTarget, TetherTargetKind, WorldRayHit } from '../world/LevelStreamer';
 
 export type ClawSide = 'left' | 'right';
 export type ClawPhase = 'holstered' | 'extending' | 'latched' | 'retracting';
@@ -63,7 +63,7 @@ export const DEFAULT_TETHER_RIG_TUNING: TetherRigTuning = {
   maximumRange: 20,
   retractBaseSpeed: 14,
   retractAcceleration: 55,
-  plateContactSeconds: 0.45,
+  plateContactSeconds: 0.8,
   springStiffness: 60,
   springDamping: 6.5,
   maximumStretch: 0.22,
@@ -116,7 +116,9 @@ const HELD_HAND_SCALE: number = 1.45;
 const HELD_HAND_OFFSET: Vec3 = [0.09, 0.0, 0.07];
 const SIDE_POLARITY: Readonly<Record<ClawSide, Polarity>> = { left: 'teal', right: 'rose' };
 const CLAW_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal', rose: 'tether_claw_rose' };
-/** Gripping variant shown while a hand is latched onto something. */
+/** Targets a hand wraps its fingers around (swing anchors now; levers, crates and pull handles as they are added). */
+const GRIPPABLE_TARGETS: ReadonlySet<TetherTargetKind> = new Set<TetherTargetKind>(['anchor']);
+/** Gripping variant shown while a hand is latched onto something it can hold. */
 const CLAMPED_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal_clamped', rose: 'tether_claw_rose_clamped' };
 
 /**
@@ -502,10 +504,21 @@ export class TetherRig {
         const heldPosition: Vec3 = vec3Add(socket, vec3Add(vec3Scale(basis.right, outward * HELD_HAND_OFFSET[0]), vec3Add(vec3Scale(basis.up, HELD_HAND_OFFSET[1]), vec3Scale(basis.forward, HELD_HAND_OFFSET[2]))));
         this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(heldPosition, vec3Scale(heldX, HELD_HAND_SCALE), vec3Scale(heldY, HELD_HAND_SCALE), vec3Scale(heldZ, HELD_HAND_SCALE)), corePulse);
       } else {
-        // In flight: fingers lead along the cable. Latched: the hand clamps shut around whatever it caught.
-        const [clawX, clawY, clawZ] = orthonormalBasisFromForward(claw.direction, basis.up);
-        const model: ImportedMeshId = claw.phase === 'latched' ? CLAMPED_MODEL[claw.polarity] : CLAW_MODEL[claw.polarity];
-        this.pushModel(output, model, mat4FromBasis(claw.position, vec3Scale(clawX, HAND_SCALE), vec3Scale(clawY, HAND_SCALE), vec3Scale(clawZ, HAND_SCALE)), corePulse);
+        const target = claw.phase === 'latched' ? claw.target : null;
+        if (target !== null && target !== undefined && !GRIPPABLE_TARGETS.has(target.kind)) {
+          // Scanners and other press-targets: the open hand lies flat, palm on the surface, fingers pointing up.
+          const normal: Vec3 = target.attachNormal;
+          const worldUp: Vec3 = [0, 1, 0];
+          const upOnSurface: Vec3 = vec3Normalize(vec3Subtract(worldUp, vec3Scale(normal, vec3Dot(worldUp, normal))));
+          const [flatX, flatY, flatZ] = orthonormalBasisFromForward(upOnSurface, normal);
+          const flatPosition: Vec3 = vec3Add(target.attachPoint, vec3Scale(normal, 0.022 * HAND_SCALE));
+          this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(flatPosition, vec3Scale(flatX, HAND_SCALE), vec3Scale(flatY, HAND_SCALE), vec3Scale(flatZ, HAND_SCALE)), corePulse);
+        } else {
+          // In flight: fingers lead along the cable. Latched onto something meant to be held: the hand clamps shut around it.
+          const [clawX, clawY, clawZ] = orthonormalBasisFromForward(claw.direction, basis.up);
+          const model: ImportedMeshId = target !== null && target !== undefined ? CLAMPED_MODEL[claw.polarity] : CLAW_MODEL[claw.polarity];
+          this.pushModel(output, model, mat4FromBasis(claw.position, vec3Scale(clawX, HAND_SCALE), vec3Scale(clawY, HAND_SCALE), vec3Scale(clawZ, HAND_SCALE)), corePulse);
+        }
       }
       if (claw.phase !== 'holstered') {
         const span: number = vec3Distance(socket, claw.position);
