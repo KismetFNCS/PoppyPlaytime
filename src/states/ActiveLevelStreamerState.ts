@@ -883,6 +883,18 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.services.lifecycle.requestTransition({ target: GameStateId.TitleScreen, payload: { reason: 'returnFromLevel' } });
   }
 
+  private retireBossHushlings(): void {
+    const threats = this.threats;
+    if (threats === null) {
+      return;
+    }
+    for (const threat of [...threats.activeThreats]) {
+      if (threat.id.startsWith('threat.hushling.boss.')) {
+        threats.retire(threat.id);
+      }
+    }
+  }
+
   private ensureForemanEncounter(streamer: LevelStreamer): void {
     if (this.foreman !== null || streamer.bossArena === null || this.worldEvents === null) {
       return;
@@ -895,7 +907,13 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       spawnHushling: (position: Vec3) => {
         this.threats?.spawnHunter(`threat.hushling.boss.${Math.floor(this.sessionSeconds * 1000)}`, 'hushling', position, this.playerPosition());
       },
-      setPhasesCleared: (count: number) => worldEvents.setFlag('foremanPhasesCleared', count),
+      setPhasesCleared: (count: number) => {
+        worldEvents.setFlag('foremanPhasesCleared', count);
+        if (count >= 3) {
+          // The Foreman's summoned Hushlings collapse with him: no cheap death during the ending countdown.
+          this.retireBossHushlings();
+        }
+      },
       onBeamHit: () => this.beginLethalCinematic('foremanBeam', { cause: 'entity', threat: 'foreman' }, null),
       onDefeated: () => {
         this.endingCountdown = 5;
