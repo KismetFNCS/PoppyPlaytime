@@ -22,6 +22,8 @@ export type MaterialId =
   | 'lamp_housing_toxic'
   | 'tether_claw_teal'
   | 'tether_claw_rose'
+  | 'tether_claw_volt'
+  | 'tether_claw_chime'
   | 'tether_core_teal'
   | 'tether_core_rose'
   | 'tallyman_dial'
@@ -237,7 +239,7 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     displayName: 'Tether Rig · Teal Hand Paint',
     maps: proceduralMaps(),
     proceduralFallback: { kind: 'wornPaint', seed: 8801, resolution: 128, bumpStrength: 1.4 },
-    baseTint: [0.1, 0.42, 0.4],
+    baseTint: [0.06, 0.29, 0.27],
     normalStrength: 0.7,
     roughnessScale: 1,
     metallic: 0.05,
@@ -250,10 +252,36 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     displayName: 'Tether Rig · Rose Hand Paint',
     maps: proceduralMaps(),
     proceduralFallback: { kind: 'wornPaint', seed: 8802, resolution: 128, bumpStrength: 1.4 },
-    baseTint: [0.58, 0.16, 0.24],
+    baseTint: [0.42, 0.1, 0.15],
     normalStrength: 0.7,
     roughnessScale: 1,
     metallic: 0.05,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  tether_claw_volt: {
+    id: 'tether_claw_volt',
+    displayName: 'Tether Rig · Volt Hand Paint',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 8803, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.6, 0.52, 0.16],
+    normalStrength: 0.7,
+    roughnessScale: 1,
+    metallic: 0.05,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  tether_claw_chime: {
+    id: 'tether_claw_chime',
+    displayName: 'Tether Rig · Chime Hand Brass',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 8804, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.55, 0.4, 0.18],
+    normalStrength: 0.7,
+    roughnessScale: 1,
+    metallic: 0.55,
     emissiveColor: [0, 0, 0],
     emissiveStrength: 0,
     uvScale: 2,
@@ -508,6 +536,10 @@ export type ImportedMeshId =
   | 'tether_claw_rose'
   | 'tether_claw_teal_clamped'
   | 'tether_claw_rose_clamped'
+  | 'tether_claw_volt'
+  | 'tether_claw_volt_clamped'
+  | 'tether_claw_chime'
+  | 'tether_claw_chime_clamped'
   | 'tether_launcher'
   | 'relay_plate_teal'
   | 'relay_plate_rose'
@@ -683,6 +715,42 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
     importScale: 1,
     parts: [
       { partId: 'shell', materialId: 'tether_claw_rose', importUri: null, fallbackBuilder: 'tether_hand_shell_right_clamped' },
+      { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
+    ],
+  },
+  tether_claw_volt: {
+    id: 'tether_claw_volt',
+    displayName: 'Tether Rig · Volt Hand (Right)',
+    importScale: 1,
+    parts: [
+      { partId: 'shell', materialId: 'tether_claw_volt', importUri: null, fallbackBuilder: 'tether_hand_shell_right' },
+      { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
+    ],
+  },
+  tether_claw_volt_clamped: {
+    id: 'tether_claw_volt_clamped',
+    displayName: 'Tether Rig · Volt Hand (Right, Gripping)',
+    importScale: 1,
+    parts: [
+      { partId: 'shell', materialId: 'tether_claw_volt', importUri: null, fallbackBuilder: 'tether_hand_shell_right_clamped' },
+      { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
+    ],
+  },
+  tether_claw_chime: {
+    id: 'tether_claw_chime',
+    displayName: 'Tether Rig · Chime Hand (Right)',
+    importScale: 1,
+    parts: [
+      { partId: 'shell', materialId: 'tether_claw_chime', importUri: null, fallbackBuilder: 'tether_hand_shell_right' },
+      { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
+    ],
+  },
+  tether_claw_chime_clamped: {
+    id: 'tether_claw_chime_clamped',
+    displayName: 'Tether Rig · Chime Hand (Right, Gripping)',
+    importScale: 1,
+    parts: [
+      { partId: 'shell', materialId: 'tether_claw_chime', importUri: null, fallbackBuilder: 'tether_hand_shell_right_clamped' },
       { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
     ],
   },

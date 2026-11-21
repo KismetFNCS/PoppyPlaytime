@@ -55,7 +55,9 @@ export type QuestFlagId =
   | 'tallymanIntroduced'
   | 'hushlingsIntroduced'
   | 'choirMotherIntroduced'
-  | 'jesterShowdownHint';
+  | 'jesterShowdownHint'
+  | 'secondWindHint'
+  | 'handsAnnounced';
 
 export const QUEST_FLAG_IDS: readonly QuestFlagId[] = [
   'elevatorIntroSeen',
@@ -93,6 +95,8 @@ export const QUEST_FLAG_IDS: readonly QuestFlagId[] = [
   'hushlingsIntroduced',
   'choirMotherIntroduced',
   'jesterShowdownHint',
+  'secondWindHint',
+  'handsAnnounced',
 ];
 
 export type QuestFlagSnapshot = Readonly<Record<QuestFlagId, number>>;

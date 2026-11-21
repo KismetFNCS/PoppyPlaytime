@@ -30,6 +30,11 @@ export interface ClawSnapshot {
   readonly polarity: Polarity;
   readonly phase: ClawPhase;
   readonly binding: string;
+  /** Overrides the polarity name/colour (swappable right hands). */
+  readonly label?: string;
+  readonly color?: string;
+  /** Replaces the phase word (e.g. RECHARGING). */
+  readonly status?: string;
 }
 
 export interface ToxicitySnapshot {
@@ -69,6 +74,8 @@ export interface HudSnapshot {
   readonly toast: { readonly text: string; readonly color: string; readonly alpha: number } | null;
   readonly dread: number;
   readonly letterbox: number;
+  /** Cassette indicator shown while saving / after loading (alpha fades it). */
+  readonly saveIndicator?: { readonly label: string; readonly alpha: number };
   readonly pointerLocked: boolean;
   readonly timeSeconds: number;
 }
@@ -177,6 +184,42 @@ export class HudController {
     context.restore();
   }
 
+  /** Little tape cassette with turning reels beside the REC light: the game is writing (or has just read) your shift. */
+  private drawCassette(context: CanvasRenderingContext2D, indicator: { readonly label: string; readonly alpha: number }, timeSeconds: number): void {
+    const x = 188;
+    const y = 56;
+    const w = 84;
+    const h = 50;
+    context.save();
+    context.globalAlpha *= indicator.alpha;
+    context.strokeStyle = UI_COLORS.textPrimary;
+    context.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    context.lineWidth = 3;
+    context.fillRect(x, y, w, h);
+    context.strokeRect(x, y, w, h);
+    // Label window and tape window.
+    context.lineWidth = 2;
+    context.strokeRect(x + 10, y + 8, w - 20, 12);
+    context.strokeRect(x + 16, y + 24, w - 32, 18);
+    // Reels: hubs with three spokes, turning.
+    for (const reelX of [x + 29, x + w - 29]) {
+      context.beginPath();
+      context.arc(reelX, y + 33, 7, 0, Math.PI * 2);
+      context.stroke();
+      for (let spoke = 0; spoke < 3; spoke += 1) {
+        const angle: number = timeSeconds * 6 + (spoke * Math.PI * 2) / 3;
+        context.beginPath();
+        context.moveTo(reelX, y + 33);
+        context.lineTo(reelX + Math.cos(angle) * 6, y + 33 + Math.sin(angle) * 6);
+        context.stroke();
+      }
+    }
+    context.fillStyle = UI_COLORS.textPrimary;
+    context.font = UI_FONTS.small;
+    context.fillText(indicator.label, x + w + 14, y + 36);
+    context.restore();
+  }
+
   private drawClaws(context: CanvasRenderingContext2D, claws: readonly [ClawSnapshot, ClawSnapshot]): void {
     const width: number = VIRTUAL_RESOLUTION.width;
     const height: number = VIRTUAL_RESOLUTION.height;
@@ -188,9 +231,9 @@ export class HudController {
       context.globalAlpha = claw.phase === 'holstered' ? 0.85 : 1;
       context.fillStyle = 'rgba(0, 0, 0, 0.45)';
       context.fillRect(x, y, 300, 36);
-      context.fillStyle = POLARITY_HUD_COLORS[claw.polarity];
+      context.fillStyle = claw.color ?? POLARITY_HUD_COLORS[claw.polarity];
       context.fillRect(x, y, 8, 36);
-      context.fillText(`${claw.polarity.toUpperCase()} ${CLAW_PHASE_LABELS[claw.phase]}`, x + 18, y + 25);
+      context.fillText(`${claw.label ?? claw.polarity.toUpperCase()} ${claw.status ?? CLAW_PHASE_LABELS[claw.phase]}`, x + 18, y + 25);
       context.fillStyle = UI_COLORS.textDim;
       context.textAlign = 'right';
       context.fillText(claw.binding, x + 292, y + 25);
@@ -333,6 +376,10 @@ export class HudController {
     const height: number = VIRTUAL_RESOLUTION.height;
     this.maskOverlay.draw(context, { ...snapshot.mask, timeSeconds: snapshot.timeSeconds });
     const hudAlpha: number = 1 - snapshot.letterbox;
+    // The save cassette stays visible even when the rest of the HUD is hidden for a scene.
+    if (snapshot.saveIndicator !== undefined && snapshot.saveIndicator.alpha > 0.01) {
+      this.drawCassette(context, snapshot.saveIndicator, snapshot.timeSeconds);
+    }
     if (hudAlpha > 0.01) {
       context.save();
       context.globalAlpha = hudAlpha;

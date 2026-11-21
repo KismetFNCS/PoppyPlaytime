@@ -171,7 +171,10 @@ export type DialogueId =
   | 'choirMother.entrance'
   | 'jester.entrance'
   | 'jester.vulnerable'
-  | 'jester.defeated';
+  | 'jester.defeated'
+  | 'secondWind.first'
+  | 'hand.volt'
+  | 'hand.chime';
 
 export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   'intro.wake': [{ speaker: 'pa', text: 'Night shift, report to your stations. Night shift, report to your stations.', seconds: 3.5 }],
@@ -256,6 +259,9 @@ export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
     { speaker: 'mabel', text: 'He’s down. All those bells, finally quiet.', seconds: 3 },
     { speaker: 'mabel', text: 'He was a mascot once. Kids used to queue to shake his hand. I’m sorry, Gully.', seconds: 4 },
   ],
+  'secondWind.first': [{ speaker: 'mabel', text: 'You threw it off! Don’t count on that twice. Get to the next checkpoint before it catches you again.', seconds: 4 }],
+  'hand.volt': [{ speaker: 'mabel', text: 'I sent a Volt hand down the dumbwaiter. Press X to swap it onto your right launcher. One shock keeps them down twice as long, but it needs a few seconds to recharge.', seconds: 5 }],
+  'hand.chime': [{ speaker: 'mabel', text: 'One more: the Chime hand. When it hits, it rings out and staggers everything around the impact. Good against a crowd.', seconds: 4.6 }],
   'choirMother.defeated': [{ speaker: 'mabel', text: 'She’s down. The little ones are going quiet. That nursery won’t sing again.', seconds: 3.8 }],
 };
 

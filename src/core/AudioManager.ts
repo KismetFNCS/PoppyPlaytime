@@ -374,23 +374,38 @@ export class AudioManager {
     this.playTone(900 + clamp(exposure, 0, 1) * 1400, 0.035, 'square', 0.035 + exposure * 0.03);
   }
 
+  /** Launch: pneumatic thump, a descending cable whir, and a short spring twang as the hand leaves the launcher. */
   public playTetherFire(): void {
-    this.playNoiseBurst(0.12, 2600, 'highpass', 0.16);
-    this.playTone(520, 0.18, 'sawtooth', 0.05, 180);
+    this.playNoiseBurst(0.07, 180, 'lowpass', 0.38);
+    this.playTone(95, 0.12, 'sine', 0.16, 48);
+    this.playTone(780, 0.32, 'sawtooth', 0.035, 210);
+    this.playNoiseBurst(0.28, 3200, 'bandpass', 0.08);
+    window.setTimeout(() => this.playTone(1240, 0.14, 'triangle', 0.03, 980), 40);
   }
 
+  /** Grip: heavy metal clunk with a brief rattle of the finger joints. */
   public playTetherLatch(): void {
-    this.playTone(140, 0.12, 'square', 0.08, 70);
-    this.playNoiseBurst(0.08, 900, 'bandpass', 0.2);
+    this.playTone(118, 0.16, 'square', 0.09, 62);
+    this.playNoiseBurst(0.09, 700, 'bandpass', 0.28);
+    window.setTimeout(() => this.playNoiseBurst(0.05, 2400, 'bandpass', 0.1), 50);
+    window.setTimeout(() => this.playNoiseBurst(0.04, 2900, 'bandpass', 0.07), 95);
   }
 
+  /** Glancing hit: bright ricochet ping and grit. */
   public playTetherClank(): void {
-    this.playTone(1800, 0.09, 'triangle', 0.06, 1400);
-    this.playNoiseBurst(0.05, 5000, 'highpass', 0.12);
+    this.playTone(1900, 0.11, 'triangle', 0.06, 1350);
+    this.playTone(2650, 0.07, 'sine', 0.025, 2300);
+    this.playNoiseBurst(0.05, 5200, 'highpass', 0.12);
   }
 
+  /** Reel-in: winding motor that climbs in pitch, ending with the hand clicking home. */
   public playTetherRetract(): void {
-    this.playTone(240, 0.22, 'sawtooth', 0.035, 700);
+    this.playTone(160, 0.3, 'sawtooth', 0.04, 620);
+    this.playNoiseBurst(0.3, 1500, 'bandpass', 0.06);
+    window.setTimeout(() => {
+      this.playTone(2100, 0.04, 'square', 0.03);
+      this.playNoiseBurst(0.04, 3800, 'highpass', 0.08);
+    }, 290);
   }
 
   public playRelayAccepted(): void {

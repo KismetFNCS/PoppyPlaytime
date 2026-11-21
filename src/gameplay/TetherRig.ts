@@ -113,9 +113,19 @@ const SOCKET_OFFSETS: Readonly<Record<ClawSide, Vec3>> = {
 const HAND_SCALE: number = 1.9;
 /** Held (holstered) hands: smaller, raised beside each launcher. Offset is [outward, up, forward] in camera space. */
 const HELD_HAND_SCALE: number = 1.45;
+/** Distance from the launcher over which a launched hand turns between its held and flight poses. */
+const HAND_POSE_BLEND_METERS: number = 0.9;
 const HELD_HAND_OFFSET: Vec3 = [0.09, 0.0, 0.07];
 const SIDE_POLARITY: Readonly<Record<ClawSide, Polarity>> = { left: 'teal', right: 'rose' };
 const CLAW_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal', rose: 'tether_claw_rose' };
+/** Swappable right hands (the teal left hand never changes). All of them answer rose scanners. */
+export type RightHandType = 'rose' | 'volt' | 'chime';
+const RIGHT_HAND_MODELS: Readonly<Record<RightHandType, { readonly open: ImportedMeshId; readonly gripping: ImportedMeshId }>> = {
+  rose: { open: 'tether_claw_rose', gripping: 'tether_claw_rose_clamped' },
+  volt: { open: 'tether_claw_volt', gripping: 'tether_claw_volt_clamped' },
+  chime: { open: 'tether_claw_chime', gripping: 'tether_claw_chime_clamped' },
+};
+
 /** Targets a hand wraps its fingers around (swing anchors now; levers, crates and pull handles as they are added). */
 const GRIPPABLE_TARGETS: ReadonlySet<TetherTargetKind> = new Set<TetherTargetKind>(['anchor']);
 /** Gripping variant shown while a hand is latched onto something it can hold. */
@@ -131,6 +141,8 @@ const CLAMPED_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tethe
  */
 export class TetherRig {
   public readonly claws: Readonly<Record<ClawSide, ClawState>>;
+  /** Which hand is mounted on the right launcher. */
+  public rightHandType: RightHandType = 'rose';
   private readonly cableMesh: GpuMesh;
   private cameraBasis: { origin: Vec3; right: Vec3; up: Vec3; forward: Vec3 } = { origin: [0, 0, 0], right: [1, 0, 0], up: [0, 1, 0], forward: [0, 0, -1] };
 
@@ -173,16 +185,37 @@ export class TetherRig {
   }
 
   /** socket = eye + right·o_x + up·o_y + forward·o_z */
+  /** Where the held hand sits (and where launches start / reels end), in world space. */
   public socketPosition(side: ClawSide): Vec3 {
     const offset: Vec3 = SOCKET_OFFSETS[side];
+    const outward: number = side === 'left' ? -1 : 1;
     const basis = this.cameraBasis;
-    return vec3Add(basis.origin, vec3Add(vec3Scale(basis.right, offset[0]), vec3Add(vec3Scale(basis.up, offset[1]), vec3Scale(basis.forward, offset[2]))));
+    const right: number = offset[0] + outward * HELD_HAND_OFFSET[0];
+    const up: number = offset[1] + HELD_HAND_OFFSET[1];
+    const forward: number = offset[2] + HELD_HAND_OFFSET[2];
+    return vec3Add(basis.origin, vec3Add(vec3Scale(basis.right, right), vec3Add(vec3Scale(basis.up, up), vec3Scale(basis.forward, forward))));
+  }
+
+  /** Held-pose basis: fingers up, back of the hand toward the player, tilted slightly outward and forward. */
+  private heldBasis(side: ClawSide): [Vec3, Vec3, Vec3] {
+    const basis = this.cameraBasis;
+    const outward: number = side === 'left' ? -1 : 1;
+    const fingersUp: Vec3 = vec3Normalize(vec3Add(basis.up, vec3Add(vec3Scale(basis.forward, 0.3), vec3Scale(basis.right, outward * 0.18))));
+    return orthonormalBasisFromForward(fingersUp, vec3Scale(basis.forward, -1));
   }
 
   /** Where the cosmetic hand fill light sits: just below and in front of the eye, between the hands. */
   public handFillPosition(): Vec3 {
     const basis = this.cameraBasis;
     return vec3Add(basis.origin, vec3Add(vec3Scale(basis.up, -0.05), vec3Scale(basis.forward, 0.12)));
+  }
+
+  private handModel(claw: ClawState, gripping: boolean): ImportedMeshId {
+    if (claw.side === 'right') {
+      const models = RIGHT_HAND_MODELS[this.rightHandType];
+      return gripping ? models.gripping : models.open;
+    }
+    return gripping ? CLAMPED_MODEL[claw.polarity] : CLAW_MODEL[claw.polarity];
   }
 
   /** Snaps a launched hand back (e.g. after it strikes a monster). */
@@ -506,12 +539,8 @@ export class TetherRig {
       // First person shows only the hands; the launchers stay out of view.
       const corePulse: number = claw.phase === 'latched' ? 2.2 : 0.8 + 0.2 * Math.sin(timeSeconds * 6 + (side === 'left' ? 0 : 1.7));
       if (claw.phase === 'holstered') {
-        // Held: hand raised beside the launcher, fingers up, back of the hand toward the player, tilted slightly outward and forward.
-        const outward: number = side === 'left' ? -1 : 1;
-        const fingersUp: Vec3 = vec3Normalize(vec3Add(basis.up, vec3Add(vec3Scale(basis.forward, 0.3), vec3Scale(basis.right, outward * 0.18))));
-        const [heldX, heldY, heldZ] = orthonormalBasisFromForward(fingersUp, vec3Scale(basis.forward, -1));
-        const heldPosition: Vec3 = vec3Add(socket, vec3Add(vec3Scale(basis.right, outward * HELD_HAND_OFFSET[0]), vec3Add(vec3Scale(basis.up, HELD_HAND_OFFSET[1]), vec3Scale(basis.forward, HELD_HAND_OFFSET[2]))));
-        this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(heldPosition, vec3Scale(heldX, HELD_HAND_SCALE), vec3Scale(heldY, HELD_HAND_SCALE), vec3Scale(heldZ, HELD_HAND_SCALE)), corePulse);
+        const [heldX, heldY, heldZ] = this.heldBasis(side);
+        this.pushModel(output, this.handModel(claw, false), mat4FromBasis(socket, vec3Scale(heldX, HELD_HAND_SCALE), vec3Scale(heldY, HELD_HAND_SCALE), vec3Scale(heldZ, HELD_HAND_SCALE)), corePulse);
       } else {
         const target = claw.phase === 'latched' ? claw.target : null;
         if (target !== null && target !== undefined && !GRIPPABLE_TARGETS.has(target.kind)) {
@@ -521,12 +550,26 @@ export class TetherRig {
           const upOnSurface: Vec3 = vec3Normalize(vec3Subtract(worldUp, vec3Scale(normal, vec3Dot(worldUp, normal))));
           const [flatX, flatY, flatZ] = orthonormalBasisFromForward(upOnSurface, normal);
           const flatPosition: Vec3 = vec3Add(target.attachPoint, vec3Scale(normal, 0.022 * HAND_SCALE));
-          this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(flatPosition, vec3Scale(flatX, HAND_SCALE), vec3Scale(flatY, HAND_SCALE), vec3Scale(flatZ, HAND_SCALE)), corePulse);
+          this.pushModel(output, this.handModel(claw, false), mat4FromBasis(flatPosition, vec3Scale(flatX, HAND_SCALE), vec3Scale(flatY, HAND_SCALE), vec3Scale(flatZ, HAND_SCALE)), corePulse);
         } else {
           // In flight: fingers lead along the cable. Latched onto something meant to be held: the hand clamps shut around it.
-          const [clawX, clawY, clawZ] = orthonormalBasisFromForward(claw.direction, basis.up);
-          const model: ImportedMeshId = target !== null && target !== undefined ? CLAMPED_MODEL[claw.polarity] : CLAW_MODEL[claw.polarity];
-          this.pushModel(output, model, mat4FromBasis(claw.position, vec3Scale(clawX, HAND_SCALE), vec3Scale(clawY, HAND_SCALE), vec3Scale(clawZ, HAND_SCALE)), corePulse);
+          // Near the launcher (just fired / almost reeled in) the hand turns smoothly between its held and flight poses.
+          const [flightX, flightY, flightZ] = orthonormalBasisFromForward(claw.direction, basis.up);
+          let handX: Vec3 = flightX;
+          let handY: Vec3 = flightY;
+          let handZ: Vec3 = flightZ;
+          let scale: number = HAND_SCALE;
+          if (claw.phase !== 'latched') {
+            const blend: number = clamp(1 - vec3Distance(socket, claw.position) / HAND_POSE_BLEND_METERS, 0, 1);
+            if (blend > 0) {
+              const [, heldY, heldZ] = this.heldBasis(side);
+              const fingers: Vec3 = vec3Normalize(vec3Lerp(flightZ, heldZ, blend));
+              [handX, handY, handZ] = orthonormalBasisFromForward(fingers, vec3Lerp(flightY, heldY, blend));
+              scale = HAND_SCALE + (HELD_HAND_SCALE - HAND_SCALE) * blend;
+            }
+          }
+          const model: ImportedMeshId = this.handModel(claw, target !== null && target !== undefined);
+          this.pushModel(output, model, mat4FromBasis(claw.position, vec3Scale(handX, scale), vec3Scale(handY, scale), vec3Scale(handZ, scale)), corePulse);
         }
       }
       if (claw.phase !== 'holstered') {

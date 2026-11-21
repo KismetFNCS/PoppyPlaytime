@@ -202,12 +202,12 @@ export class ThreatDirector {
    * A tether hand struck this threat. Stuns it (unless it is still shrugging off the last stun); in a scene where its
    * kind is defeatable, each landed strike counts and the last one retires it for good.
    */
-  public strike(id: string, playerFeet: Readonly<Vec3>): { readonly outcome: 'stunned' | 'resisted' | 'defeated'; readonly strikesLeft: number } {
+  public strike(id: string, playerFeet: Readonly<Vec3>, stunScale: number = 1): { readonly outcome: 'stunned' | 'resisted' | 'defeated'; readonly strikesLeft: number } {
     const managed: ManagedThreat | undefined = this.threats.get(id);
     if (managed === undefined) {
       return { outcome: 'resisted', strikesLeft: 0 };
     }
-    const stunSeconds: number = STRIKE_STUN_SECONDS[managed.kind];
+    const stunSeconds: number = STRIKE_STUN_SECONDS[managed.kind] * stunScale;
     if (!managed.brain.stun(stunSeconds, playerFeet)) {
       return { outcome: 'resisted', strikesLeft: this.defeatable.has(managed.kind) ? (this.defeatable.get(managed.kind) as number) - (this.strikeCounts.get(id) ?? 0) : 0 };
     }

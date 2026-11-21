@@ -28,6 +28,7 @@ import type { QuestFlagId, ToastTone, TriggerActionHost } from '../gameplay/Worl
 import { WorldEventSystem } from '../gameplay/WorldEventSystem';
 import type { SceneEnvironment } from '../graphics/SceneRenderer';
 import type { PointLight } from '../graphics/LightingSystem';
+import type { RightHandType } from '../gameplay/TetherRig';
 import type { Vec3 } from '../math/Vec3';
 import { clamp, smoothstep, vec3Add, vec3Scale } from '../math/Vec3';
 import type { CrosshairKind, HotbarSlotSnapshot, HudSnapshot } from '../ui/hud/HudController';
@@ -109,6 +110,18 @@ interface PendingDeath {
 const STRIKE_RADIUS: Readonly<Record<ThreatKind, number>> = { jester: 0.75, tallyman: 0.7, choirMother: 0.95, hushling: 0.5 };
 const THREAT_DISPLAY_NAMES: Readonly<Record<ThreatKind, string>> = { jester: 'THE JESTER', tallyman: 'THE TALLYMAN', choirMother: 'THE CHOIR MOTHER', hushling: 'HUSHLING' };
 
+/** Right-hand roster: unlocked by act; each changes how a strike lands. */
+const RIGHT_HANDS: ReadonlyArray<{ readonly type: RightHandType; readonly label: string; readonly color: string; readonly unlockAct: number; readonly stunScale: number }> = [
+  { type: 'rose', label: 'ROSE', color: '#ff5c8f', unlockAct: 0, stunScale: 1 },
+  { type: 'volt', label: 'VOLT', color: '#f4e36a', unlockAct: 2, stunScale: 1.9 },
+  { type: 'chime', label: 'CHIME', color: '#d7a74a', unlockAct: 3, stunScale: 0.8 },
+];
+const VOLT_RECHARGE_SECONDS: number = 5;
+const CHIME_RADIUS_METERS: number = 5.5;
+
+const SAVE_INDICATOR_SECONDS: number = 2.4;
+const SECOND_WIND_STUN_SECONDS: number = 3.5;
+
 interface ThreatEntrance {
   readonly kind: ThreatKind;
   readonly flag: QuestFlagId;
@@ -174,6 +187,12 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private leavingLevel: boolean = false;
   private campaign: CampaignDirector | null = null;
   private pip: PipCompanion | null = null;
+  /** Cassette indicator: label and seconds left on screen. */
+  private saveIndicator: { label: string; seconds: number } | null = null;
+  /** Seconds before the Volt hand can fire again after a shock. */
+  private voltRecharge: number = 0;
+  /** One free escape from a catch per checkpoint. */
+  private secondWindReady: boolean = true;
   /** The entrance scene currently playing (lights stutter, cue, line, then the monster arrives). */
   private entrance: { readonly definition: ThreatEntrance; seconds: number; arrived: boolean } | null = null;
   /** Where each launched hand was last frame, for swept hit tests against monsters. */
@@ -264,6 +283,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       }
     }
     this.entrance = null;
+    this.saveIndicator = { label: 'LOADING', seconds: SAVE_INDICATOR_SECONDS };
     this.campaign = new CampaignDirector({
       flag: (flag: QuestFlagId) => worldEvents.flag(flag),
       setFlag: (flag: QuestFlagId, value: number) => worldEvents.setFlag(flag, value),
@@ -425,9 +445,25 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         worldEvents.notify('threatSpotted', { kind: event.kind, position: event.position });
       }),
       threats.events.on('playerCaught', (event: ThreatEventMap['playerCaught']) => {
-        this.beginLethalCinematic(KILLER_CINEMATICS[event.kind], { cause: 'entity', threat: event.kind }, threats.threat(event.id));
+        const catcher: ManagedThreat | null = threats.threat(event.id);
+        if (this.secondWindReady && catcher !== null) {
+          // Second wind (once per checkpoint): shove it off instead of dying.
+          this.secondWindReady = false;
+          catcher.brain.forceStun(SECOND_WIND_STUN_SECONDS, this.motor.position);
+          this.services.audio.playSpatialCue('breakerClunk', catcher.view.headPosition(), 1.4);
+          this.showToast('YOU SHOVE IT OFF · RUN', 2.6, 'warning');
+          if (worldEvents.flag('secondWindHint') < 1) {
+            worldEvents.setFlag('secondWindHint', 1);
+            this.campaign?.say('secondWind.first');
+          }
+          return;
+        }
+        this.beginLethalCinematic(KILLER_CINEMATICS[event.kind], { cause: 'entity', threat: event.kind }, catcher);
       }),
       worldEvents.events.on('zoneEntered', (event) => {
+        if (event.zone.kind === 'checkpoint') {
+          this.secondWindReady = true;
+        }
         if (event.zone.kind === 'foremanArena' && this.foreman !== null && this.foreman.state === 'dormant' && worldEvents.flag('foremanPhasesCleared') < 3) {
           worldEvents.setFlag('foremanEncountered', 1);
           this.foreman.begin();
@@ -478,14 +514,49 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         }
         rig.recall(side);
         trail.phase = 'retracting';
-        this.applyHandStrike(managed.id, managed.kind, [feet[0], feet[1] + height * 0.7, feet[2]], threats, worldEvents);
+        this.applyHandStrike(side, managed.id, managed.kind, [feet[0], feet[1] + height * 0.7, feet[2]], threats, worldEvents);
         break;
       }
     }
   }
 
-  private applyHandStrike(id: string, kind: ThreatKind, impact: Vec3, threats: ThreatDirector, worldEvents: WorldEventSystem): void {
-    const result = threats.strike(id, this.motor.position);
+  /** X: cycle the right launcher through the hands unlocked so far (the teal left hand never changes). */
+  private cycleRightHand(rig: TetherRig, worldEvents: WorldEventSystem): void {
+    if (rig.claws.right.phase !== 'holstered') {
+      return;
+    }
+    const act: number = worldEvents.flag('actReached');
+    const unlocked = RIGHT_HANDS.filter((hand) => act >= hand.unlockAct);
+    if (unlocked.length <= 1) {
+      this.showToast('NO OTHER HANDS YET', 1.4, 'info');
+      return;
+    }
+    const index: number = unlocked.findIndex((hand) => hand.type === rig.rightHandType);
+    const next = unlocked[(index + 1) % unlocked.length] ?? unlocked[0];
+    if (next === undefined) {
+      return;
+    }
+    rig.rightHandType = next.type;
+    this.services.audio.playSpatialCue('breakerClunk', rig.socketPosition('right'), 0.5);
+    this.showToast(`${next.label} HAND MOUNTED`, 1.6, 'info', next.color);
+  }
+
+  private applyHandStrike(side: ClawSide, id: string, kind: ThreatKind, impact: Vec3, threats: ThreatDirector, worldEvents: WorldEventSystem): void {
+    const handType: RightHandType | null = side === 'right' ? (this.rig?.rightHandType ?? 'rose') : null;
+    const hand = RIGHT_HANDS.find((candidate) => candidate.type === handType);
+    const stunScale: number = hand?.stunScale ?? 1;
+    if (handType === 'volt') {
+      this.voltRecharge = VOLT_RECHARGE_SECONDS;
+    }
+    if (handType === 'chime') {
+      // Clang: staggers everything else within reach of the impact too.
+      for (const other of threats.activeThreats) {
+        if (other.id !== id && Math.hypot(other.view.position[0] - impact[0], other.view.position[2] - impact[2]) <= CHIME_RADIUS_METERS) {
+          threats.strike(other.id, this.motor.position, stunScale);
+        }
+      }
+    }
+    const result = threats.strike(id, this.motor.position, stunScale);
     const name: string = THREAT_DISPLAY_NAMES[kind];
     this.services.audio.playSpatialCue('breakerClunk', impact, result.outcome === 'resisted' ? 0.6 : 1.3);
     threats.emitNoise('gateMoving', impact, 0.5);
@@ -624,6 +695,24 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     }
   }
 
+
+  private flashSaveIndicator(label: string): void {
+    this.saveIndicator = { label, seconds: SAVE_INDICATOR_SECONDS };
+  }
+
+  /** Mabel sends each new right hand down when its act begins. */
+  private announceNewHands(worldEvents: WorldEventSystem): void {
+    const act: number = worldEvents.flag('actReached');
+    const known: number = worldEvents.flag('handsAnnounced');
+    for (const hand of RIGHT_HANDS) {
+      if (hand.unlockAct > known && hand.unlockAct <= act && hand.unlockAct > 0) {
+        worldEvents.setFlag('handsAnnounced', hand.unlockAct);
+        this.showToast(`NEW HAND · ${hand.label} · PRESS X TO SWAP`, 4, 'success', hand.color);
+        this.campaign?.say(hand.type === 'volt' ? 'hand.volt' : 'hand.chime');
+        return;
+      }
+    }
+  }
 
   public showToast(text: string, seconds: number, tone: ToastTone, colorOverride: string | null = null): void {
     this.toast = { text, remainingSeconds: seconds, color: colorOverride ?? TOAST_COLORS[tone] };
@@ -790,6 +879,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   /** Writes a checkpoint record and rebases session time so play time is never double counted. */
   private commitCheckpoint(save: SaveGame): void {
     this.services.saves.write(save);
+    this.flashSaveIndicator('SAVING');
     this.checkpoint = { ...save, kind: 'checkpoint', player: null, playTimeSeconds: save.playTimeSeconds - this.sessionSeconds };
   }
 
@@ -821,6 +911,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       return "CAN'T SAVE NOW · DANGER NEARBY";
     }
     const written: boolean = this.services.saves.write(this.buildSave('session', slot, {}));
+    if (written) this.flashSaveIndicator('SAVING');
     return written ? (slot === 'quicksave' ? 'GAME SAVED · QUICKSAVE SLOT' : 'GAME SAVED') : 'SAVE FAILED · STORAGE UNAVAILABLE';
   }
 
@@ -909,7 +1000,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     const hotbarLeft: boolean = selected.kind === 'claw' && selected.side === 'left';
     const hotbarRight: boolean = selected.kind === 'claw' && selected.side === 'right';
     const leftPressed: boolean = (locked && input.wasMouseButtonPressed(0)) || input.wasKeyPressed('KeyQ') || (hotbarLeft && input.wasKeyPressed('KeyF'));
-    const rightPressed: boolean = (locked && input.wasMouseButtonPressed(2)) || input.wasKeyPressed('KeyR') || (hotbarRight && input.wasKeyPressed('KeyF'));
+    const rightPressed: boolean = !(this.rig?.rightHandType === 'volt' && this.voltRecharge > 0) && ((locked && input.wasMouseButtonPressed(2)) || input.wasKeyPressed('KeyR') || (hotbarRight && input.wasKeyPressed('KeyF')));
     const leftHeld: boolean = (locked && input.isMouseButtonHeld(0)) || input.isKeyHeld('KeyQ') || (hotbarLeft && input.isKeyHeld('KeyF'));
     const rightHeld: boolean = (locked && input.isMouseButtonHeld(2)) || input.isKeyHeld('KeyR') || (hotbarRight && input.isKeyHeld('KeyF'));
     const anchoredAirborne: boolean = (this.rig?.isAnchored ?? false) && !this.motor.isGrounded;
@@ -1103,6 +1194,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     worldEvents.setFlag('endingChosen', endingId === 'shutDown' ? 1 : 2);
     worldEvents.setFlag('campaignComplete', 1);
     this.services.saves.write(this.buildSave('checkpoint', 'autosave', {}));
+    this.flashSaveIndicator('SAVING');
     this.services.audio.playSpatialCue('foremanBoom', this.services.camera.position, endingId === 'shutDown' ? 1 : 0.6);
   }
 
@@ -1242,6 +1334,10 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     services.camera.updateMatrices();
 
     // 4–7. Tether claws, cable forces, motor integration, rope constraints.
+    this.voltRecharge = Math.max(0, this.voltRecharge - deltaSeconds);
+    if (controlsEnabled && input.wasKeyPressed('KeyX')) {
+      this.cycleRightHand(rig, worldEvents);
+    }
     rig.update(deltaSeconds, this.buildTetherInput(input, controlsEnabled, intent), streamer, services.camera);
     this.resolveHandStrikes(rig, threats, worldEvents);
     if (this.handFill !== null) {
@@ -1398,6 +1494,11 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     // 13. Threats: scripted entrances (no monster appears before its scene), then tick every brain.
     this.updateEntrances(threats, worldEvents, deltaSeconds);
     this.updateCombatScenes(threats, worldEvents);
+    this.announceNewHands(worldEvents);
+    if (this.saveIndicator !== null) {
+      this.saveIndicator.seconds -= deltaSeconds;
+      if (this.saveIndicator.seconds <= 0) this.saveIndicator = null;
+    }
     threats.update(deltaSeconds, this.buildPlayerSignature());
     this.dread = threats.dreadAt(this.playerPosition());
     services.audio.setDreadLevel(this.dread);
@@ -1408,6 +1509,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (this.autosaveTimer >= AUTOSAVE_INTERVAL_SECONDS && this.isSafeToSessionSave) {
       this.autosaveTimer = 0;
       services.saves.write(this.buildSave('session', 'autosave', {}));
+      this.flashSaveIndicator('SAVING');
     }
   }
 
@@ -1454,10 +1556,13 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
   private buildHudSnapshot(timeSeconds: number): HudSnapshot {
     const rig: TetherRig | null = this.rig;
+    const rightHand = RIGHT_HANDS.find((hand) => hand.type === (rig?.rightHandType ?? 'rose'));
     const clawSnapshot = (side: ClawSide, binding: string) => ({
       polarity: (side === 'left' ? 'teal' : 'rose') as Polarity,
       phase: rig?.claws[side].phase ?? 'holstered',
-      binding,
+      binding: side === 'right' ? `${binding} · X SWAP` : binding,
+      ...(side === 'right' && rightHand !== undefined ? { label: rightHand.label, color: rightHand.color } : {}),
+      ...(side === 'right' && rig?.rightHandType === 'volt' && this.voltRecharge > 0 ? { status: `RECHARGING ${Math.ceil(this.voltRecharge)}` } : {}),
     });
     const pickupPrompts: Readonly<Record<PickupRecord['kind'], string>> = {
       gasMask: '[E] TAKE GAS MASK',
@@ -1510,6 +1615,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       toast: this.toast !== null && !this.paused ? { text: this.toast.text, color: this.toast.color, alpha: clamp(this.toast.remainingSeconds, 0, 1) * this.objectiveOpacity } : null,
       dread: this.dread,
       letterbox: this.letterbox,
+      ...(this.saveIndicator !== null ? { saveIndicator: { label: this.saveIndicator.label, alpha: clamp(this.saveIndicator.seconds / 0.4, 0, 1) } } : {}),
       pointerLocked: this.services.input.isPointerLocked,
       timeSeconds,
     };

@@ -406,20 +406,35 @@ var AudioManager = class {
   playMeterTick(exposure) {
     this.playTone(900 + clamp(exposure, 0, 1) * 1400, 0.035, "square", 0.035 + exposure * 0.03);
   }
+  /** Launch: pneumatic thump, a descending cable whir, and a short spring twang as the hand leaves the launcher. */
   playTetherFire() {
-    this.playNoiseBurst(0.12, 2600, "highpass", 0.16);
-    this.playTone(520, 0.18, "sawtooth", 0.05, 180);
+    this.playNoiseBurst(0.07, 180, "lowpass", 0.38);
+    this.playTone(95, 0.12, "sine", 0.16, 48);
+    this.playTone(780, 0.32, "sawtooth", 0.035, 210);
+    this.playNoiseBurst(0.28, 3200, "bandpass", 0.08);
+    window.setTimeout(() => this.playTone(1240, 0.14, "triangle", 0.03, 980), 40);
   }
+  /** Grip: heavy metal clunk with a brief rattle of the finger joints. */
   playTetherLatch() {
-    this.playTone(140, 0.12, "square", 0.08, 70);
-    this.playNoiseBurst(0.08, 900, "bandpass", 0.2);
+    this.playTone(118, 0.16, "square", 0.09, 62);
+    this.playNoiseBurst(0.09, 700, "bandpass", 0.28);
+    window.setTimeout(() => this.playNoiseBurst(0.05, 2400, "bandpass", 0.1), 50);
+    window.setTimeout(() => this.playNoiseBurst(0.04, 2900, "bandpass", 0.07), 95);
   }
+  /** Glancing hit: bright ricochet ping and grit. */
   playTetherClank() {
-    this.playTone(1800, 0.09, "triangle", 0.06, 1400);
-    this.playNoiseBurst(0.05, 5e3, "highpass", 0.12);
+    this.playTone(1900, 0.11, "triangle", 0.06, 1350);
+    this.playTone(2650, 0.07, "sine", 0.025, 2300);
+    this.playNoiseBurst(0.05, 5200, "highpass", 0.12);
   }
+  /** Reel-in: winding motor that climbs in pitch, ending with the hand clicking home. */
   playTetherRetract() {
-    this.playTone(240, 0.22, "sawtooth", 0.035, 700);
+    this.playTone(160, 0.3, "sawtooth", 0.04, 620);
+    this.playNoiseBurst(0.3, 1500, "bandpass", 0.06);
+    window.setTimeout(() => {
+      this.playTone(2100, 0.04, "square", 0.03);
+      this.playNoiseBurst(0.04, 3800, "highpass", 0.08);
+    }, 290);
   }
   playRelayAccepted() {
     this.playTone(392, 0.18, "triangle", 0.06);
@@ -2787,7 +2802,7 @@ var MATERIAL_PROFILES = {
     displayName: "Tether Rig \xB7 Teal Hand Paint",
     maps: proceduralMaps(),
     proceduralFallback: { kind: "wornPaint", seed: 8801, resolution: 128, bumpStrength: 1.4 },
-    baseTint: [0.1, 0.42, 0.4],
+    baseTint: [0.06, 0.29, 0.27],
     normalStrength: 0.7,
     roughnessScale: 1,
     metallic: 0.05,
@@ -2800,10 +2815,36 @@ var MATERIAL_PROFILES = {
     displayName: "Tether Rig \xB7 Rose Hand Paint",
     maps: proceduralMaps(),
     proceduralFallback: { kind: "wornPaint", seed: 8802, resolution: 128, bumpStrength: 1.4 },
-    baseTint: [0.58, 0.16, 0.24],
+    baseTint: [0.42, 0.1, 0.15],
     normalStrength: 0.7,
     roughnessScale: 1,
     metallic: 0.05,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  tether_claw_volt: {
+    id: "tether_claw_volt",
+    displayName: "Tether Rig \xB7 Volt Hand Paint",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 8803, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.6, 0.52, 0.16],
+    normalStrength: 0.7,
+    roughnessScale: 1,
+    metallic: 0.05,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  tether_claw_chime: {
+    id: "tether_claw_chime",
+    displayName: "Tether Rig \xB7 Chime Hand Brass",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 8804, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.55, 0.4, 0.18],
+    normalStrength: 0.7,
+    roughnessScale: 1,
+    metallic: 0.55,
     emissiveColor: [0, 0, 0],
     emissiveStrength: 0,
     uvScale: 2
@@ -3116,6 +3157,42 @@ var IMPORTED_MESH_PROFILES = {
     importScale: 1,
     parts: [
       { partId: "shell", materialId: "tether_claw_rose", importUri: null, fallbackBuilder: "tether_hand_shell_right_clamped" },
+      { partId: "cuff", materialId: "rusted_steel", importUri: null, fallbackBuilder: "tether_hand_cuff" }
+    ]
+  },
+  tether_claw_volt: {
+    id: "tether_claw_volt",
+    displayName: "Tether Rig \xB7 Volt Hand (Right)",
+    importScale: 1,
+    parts: [
+      { partId: "shell", materialId: "tether_claw_volt", importUri: null, fallbackBuilder: "tether_hand_shell_right" },
+      { partId: "cuff", materialId: "rusted_steel", importUri: null, fallbackBuilder: "tether_hand_cuff" }
+    ]
+  },
+  tether_claw_volt_clamped: {
+    id: "tether_claw_volt_clamped",
+    displayName: "Tether Rig \xB7 Volt Hand (Right, Gripping)",
+    importScale: 1,
+    parts: [
+      { partId: "shell", materialId: "tether_claw_volt", importUri: null, fallbackBuilder: "tether_hand_shell_right_clamped" },
+      { partId: "cuff", materialId: "rusted_steel", importUri: null, fallbackBuilder: "tether_hand_cuff" }
+    ]
+  },
+  tether_claw_chime: {
+    id: "tether_claw_chime",
+    displayName: "Tether Rig \xB7 Chime Hand (Right)",
+    importScale: 1,
+    parts: [
+      { partId: "shell", materialId: "tether_claw_chime", importUri: null, fallbackBuilder: "tether_hand_shell_right" },
+      { partId: "cuff", materialId: "rusted_steel", importUri: null, fallbackBuilder: "tether_hand_cuff" }
+    ]
+  },
+  tether_claw_chime_clamped: {
+    id: "tether_claw_chime_clamped",
+    displayName: "Tether Rig \xB7 Chime Hand (Right, Gripping)",
+    importScale: 1,
+    parts: [
+      { partId: "shell", materialId: "tether_claw_chime", importUri: null, fallbackBuilder: "tether_hand_shell_right_clamped" },
       { partId: "cuff", materialId: "rusted_steel", importUri: null, fallbackBuilder: "tether_hand_cuff" }
     ]
   },
@@ -5812,6 +5889,12 @@ var EntityBrain = class {
     }
     return true;
   }
+  /** Second-wind shove: always staggers, ignoring the usual post-stun resistance. */
+  forceStun(seconds, playerFeet) {
+    this.stunSeconds = 0;
+    this.stunImmuneSeconds = 0;
+    this.stun(seconds, playerFeet);
+  }
   get isStunned() {
     return this.stunSeconds > 0;
   }
@@ -6414,6 +6497,9 @@ var DIALOGUE = {
     { speaker: "mabel", text: "He\u2019s down. All those bells, finally quiet.", seconds: 3 },
     { speaker: "mabel", text: "He was a mascot once. Kids used to queue to shake his hand. I\u2019m sorry, Gully.", seconds: 4 }
   ],
+  "secondWind.first": [{ speaker: "mabel", text: "You threw it off! Don\u2019t count on that twice. Get to the next checkpoint before it catches you again.", seconds: 4 }],
+  "hand.volt": [{ speaker: "mabel", text: "I sent a Volt hand down the dumbwaiter. Press X to swap it onto your right launcher. One shock keeps them down twice as long, but it needs a few seconds to recharge.", seconds: 5 }],
+  "hand.chime": [{ speaker: "mabel", text: "One more: the Chime hand. When it hits, it rings out and staggers everything around the impact. Good against a crowd.", seconds: 4.6 }],
   "choirMother.defeated": [{ speaker: "mabel", text: "She\u2019s down. The little ones are going quiet. That nursery won\u2019t sing again.", seconds: 3.8 }]
 };
 var LORE_TAPES = [
@@ -7937,7 +8023,7 @@ var THREAT_PROFILES = {
     stalking: { enabled: true, preferredDistanceMinimum: 6, preferredDistanceMaximum: 11, patienceSeconds: 14, escalateDistance: 4.5 },
     freezesWhenObserved: true,
     observedHalfAngle: 36 * DEGREES,
-    catch: { radius: 1.3, windupSeconds: 0.18, escapeRadiusFactor: 1.8 },
+    catch: { radius: 1.3, windupSeconds: 0.7, escapeRadiusFactor: 1.8 },
     alertSearchSeconds: 6,
     loseTrackSeconds: 9,
     navigation: { bodyRadius: 0.45, canSqueezeLowCeilings: true, canCrossChasms: true, repathIntervalSeconds: 0.4 },
@@ -7967,7 +8053,7 @@ var THREAT_PROFILES = {
     stalking: { enabled: false, preferredDistanceMinimum: 0, preferredDistanceMaximum: 0, patienceSeconds: 0, escalateDistance: 0 },
     freezesWhenObserved: false,
     observedHalfAngle: 0,
-    catch: { radius: 1.4, windupSeconds: 0.35, escapeRadiusFactor: 1.6 },
+    catch: { radius: 1.4, windupSeconds: 0.85, escapeRadiusFactor: 1.6 },
     alertSearchSeconds: 8,
     loseTrackSeconds: 5,
     navigation: { bodyRadius: 0.4, canSqueezeLowCeilings: false, canCrossChasms: false, repathIntervalSeconds: 0.5 },
@@ -7997,7 +8083,7 @@ var THREAT_PROFILES = {
     stalking: { enabled: false, preferredDistanceMinimum: 0, preferredDistanceMaximum: 0, patienceSeconds: 0, escalateDistance: 0 },
     freezesWhenObserved: false,
     observedHalfAngle: 0,
-    catch: { radius: 1.7, windupSeconds: 0.45, escapeRadiusFactor: 1.5 },
+    catch: { radius: 1.7, windupSeconds: 0.9, escapeRadiusFactor: 1.5 },
     alertSearchSeconds: 10,
     loseTrackSeconds: 7,
     navigation: { bodyRadius: 0.6, canSqueezeLowCeilings: false, canCrossChasms: false, repathIntervalSeconds: 0.6 },
@@ -8027,7 +8113,7 @@ var THREAT_PROFILES = {
     stalking: { enabled: false, preferredDistanceMinimum: 0, preferredDistanceMaximum: 0, patienceSeconds: 0, escalateDistance: 0 },
     freezesWhenObserved: false,
     observedHalfAngle: 0,
-    catch: { radius: 0.9, windupSeconds: 0.25, escapeRadiusFactor: 1.8 },
+    catch: { radius: 0.9, windupSeconds: 0.7, escapeRadiusFactor: 1.8 },
     alertSearchSeconds: 5,
     loseTrackSeconds: 4,
     navigation: { bodyRadius: 0.2, canSqueezeLowCeilings: true, canCrossChasms: false, repathIntervalSeconds: 0.35 },
@@ -8450,12 +8536,12 @@ var ThreatDirector = class {
    * A tether hand struck this threat. Stuns it (unless it is still shrugging off the last stun); in a scene where its
    * kind is defeatable, each landed strike counts and the last one retires it for good.
    */
-  strike(id, playerFeet) {
+  strike(id, playerFeet, stunScale = 1) {
     const managed = this.threats.get(id);
     if (managed === void 0) {
       return { outcome: "resisted", strikesLeft: 0 };
     }
-    const stunSeconds = STRIKE_STUN_SECONDS[managed.kind];
+    const stunSeconds = STRIKE_STUN_SECONDS[managed.kind] * stunScale;
     if (!managed.brain.stun(stunSeconds, playerFeet)) {
       return { outcome: "resisted", strikesLeft: this.defeatable.has(managed.kind) ? this.defeatable.get(managed.kind) - (this.strikeCounts.get(id) ?? 0) : 0 };
     }
@@ -9984,9 +10070,15 @@ var SOCKET_OFFSETS = {
 };
 var HAND_SCALE = 1.9;
 var HELD_HAND_SCALE = 1.45;
+var HAND_POSE_BLEND_METERS = 0.9;
 var HELD_HAND_OFFSET = [0.09, 0, 0.07];
 var SIDE_POLARITY = { left: "teal", right: "rose" };
 var CLAW_MODEL = { teal: "tether_claw_teal", rose: "tether_claw_rose" };
+var RIGHT_HAND_MODELS = {
+  rose: { open: "tether_claw_rose", gripping: "tether_claw_rose_clamped" },
+  volt: { open: "tether_claw_volt", gripping: "tether_claw_volt_clamped" },
+  chime: { open: "tether_claw_chime", gripping: "tether_claw_chime_clamped" }
+};
 var GRIPPABLE_TARGETS = /* @__PURE__ */ new Set(["anchor"]);
 var CLAMPED_MODEL = { teal: "tether_claw_teal_clamped", rose: "tether_claw_rose_clamped" };
 var TetherRig = class {
@@ -10014,6 +10106,8 @@ var TetherRig = class {
   events;
   tuning;
   claws;
+  /** Which hand is mounted on the right launcher. */
+  rightHandType = "rose";
   cableMesh;
   cameraBasis = { origin: [0, 0, 0], right: [1, 0, 0], up: [0, 1, 0], forward: [0, 0, -1] };
   // ---- Geometry helpers ------------------------------------------------------------------------------------------
@@ -10029,15 +10123,34 @@ var TetherRig = class {
     this.cameraBasis = { origin: [camera.position[0], camera.position[1], camera.position[2]], right, up, forward };
   }
   /** socket = eye + right·o_x + up·o_y + forward·o_z */
+  /** Where the held hand sits (and where launches start / reels end), in world space. */
   socketPosition(side) {
     const offset = SOCKET_OFFSETS[side];
+    const outward = side === "left" ? -1 : 1;
     const basis = this.cameraBasis;
-    return vec3Add(basis.origin, vec3Add(vec3Scale(basis.right, offset[0]), vec3Add(vec3Scale(basis.up, offset[1]), vec3Scale(basis.forward, offset[2]))));
+    const right = offset[0] + outward * HELD_HAND_OFFSET[0];
+    const up = offset[1] + HELD_HAND_OFFSET[1];
+    const forward = offset[2] + HELD_HAND_OFFSET[2];
+    return vec3Add(basis.origin, vec3Add(vec3Scale(basis.right, right), vec3Add(vec3Scale(basis.up, up), vec3Scale(basis.forward, forward))));
+  }
+  /** Held-pose basis: fingers up, back of the hand toward the player, tilted slightly outward and forward. */
+  heldBasis(side) {
+    const basis = this.cameraBasis;
+    const outward = side === "left" ? -1 : 1;
+    const fingersUp = vec3Normalize(vec3Add(basis.up, vec3Add(vec3Scale(basis.forward, 0.3), vec3Scale(basis.right, outward * 0.18))));
+    return orthonormalBasisFromForward(fingersUp, vec3Scale(basis.forward, -1));
   }
   /** Where the cosmetic hand fill light sits: just below and in front of the eye, between the hands. */
   handFillPosition() {
     const basis = this.cameraBasis;
     return vec3Add(basis.origin, vec3Add(vec3Scale(basis.up, -0.05), vec3Scale(basis.forward, 0.12)));
+  }
+  handModel(claw, gripping) {
+    if (claw.side === "right") {
+      const models = RIGHT_HAND_MODELS[this.rightHandType];
+      return gripping ? models.gripping : models.open;
+    }
+    return gripping ? CLAMPED_MODEL[claw.polarity] : CLAW_MODEL[claw.polarity];
   }
   /** Snaps a launched hand back (e.g. after it strikes a monster). */
   recall(side) {
@@ -10336,11 +10449,8 @@ var TetherRig = class {
       const socket = this.socketPosition(side);
       const corePulse = claw.phase === "latched" ? 2.2 : 0.8 + 0.2 * Math.sin(timeSeconds * 6 + (side === "left" ? 0 : 1.7));
       if (claw.phase === "holstered") {
-        const outward = side === "left" ? -1 : 1;
-        const fingersUp = vec3Normalize(vec3Add(basis.up, vec3Add(vec3Scale(basis.forward, 0.3), vec3Scale(basis.right, outward * 0.18))));
-        const [heldX, heldY, heldZ] = orthonormalBasisFromForward(fingersUp, vec3Scale(basis.forward, -1));
-        const heldPosition = vec3Add(socket, vec3Add(vec3Scale(basis.right, outward * HELD_HAND_OFFSET[0]), vec3Add(vec3Scale(basis.up, HELD_HAND_OFFSET[1]), vec3Scale(basis.forward, HELD_HAND_OFFSET[2]))));
-        this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(heldPosition, vec3Scale(heldX, HELD_HAND_SCALE), vec3Scale(heldY, HELD_HAND_SCALE), vec3Scale(heldZ, HELD_HAND_SCALE)), corePulse);
+        const [heldX, heldY, heldZ] = this.heldBasis(side);
+        this.pushModel(output, this.handModel(claw, false), mat4FromBasis(socket, vec3Scale(heldX, HELD_HAND_SCALE), vec3Scale(heldY, HELD_HAND_SCALE), vec3Scale(heldZ, HELD_HAND_SCALE)), corePulse);
       } else {
         const target = claw.phase === "latched" ? claw.target : null;
         if (target !== null && target !== void 0 && !GRIPPABLE_TARGETS.has(target.kind)) {
@@ -10349,11 +10459,24 @@ var TetherRig = class {
           const upOnSurface = vec3Normalize(vec3Subtract(worldUp, vec3Scale(normal, vec3Dot(worldUp, normal))));
           const [flatX, flatY, flatZ] = orthonormalBasisFromForward(upOnSurface, normal);
           const flatPosition = vec3Add(target.attachPoint, vec3Scale(normal, 0.022 * HAND_SCALE));
-          this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(flatPosition, vec3Scale(flatX, HAND_SCALE), vec3Scale(flatY, HAND_SCALE), vec3Scale(flatZ, HAND_SCALE)), corePulse);
+          this.pushModel(output, this.handModel(claw, false), mat4FromBasis(flatPosition, vec3Scale(flatX, HAND_SCALE), vec3Scale(flatY, HAND_SCALE), vec3Scale(flatZ, HAND_SCALE)), corePulse);
         } else {
-          const [clawX, clawY, clawZ] = orthonormalBasisFromForward(claw.direction, basis.up);
-          const model = target !== null && target !== void 0 ? CLAMPED_MODEL[claw.polarity] : CLAW_MODEL[claw.polarity];
-          this.pushModel(output, model, mat4FromBasis(claw.position, vec3Scale(clawX, HAND_SCALE), vec3Scale(clawY, HAND_SCALE), vec3Scale(clawZ, HAND_SCALE)), corePulse);
+          const [flightX, flightY, flightZ] = orthonormalBasisFromForward(claw.direction, basis.up);
+          let handX = flightX;
+          let handY = flightY;
+          let handZ = flightZ;
+          let scale = HAND_SCALE;
+          if (claw.phase !== "latched") {
+            const blend = clamp(1 - vec3Distance(socket, claw.position) / HAND_POSE_BLEND_METERS, 0, 1);
+            if (blend > 0) {
+              const [, heldY, heldZ] = this.heldBasis(side);
+              const fingers = vec3Normalize(vec3Lerp(flightZ, heldZ, blend));
+              [handX, handY, handZ] = orthonormalBasisFromForward(fingers, vec3Lerp(flightY, heldY, blend));
+              scale = HAND_SCALE + (HELD_HAND_SCALE - HAND_SCALE) * blend;
+            }
+          }
+          const model = this.handModel(claw, target !== null && target !== void 0);
+          this.pushModel(output, model, mat4FromBasis(claw.position, vec3Scale(handX, scale), vec3Scale(handY, scale), vec3Scale(handZ, scale)), corePulse);
         }
       }
       if (claw.phase !== "holstered") {
@@ -10404,7 +10527,9 @@ var QUEST_FLAG_IDS = [
   "tallymanIntroduced",
   "hushlingsIntroduced",
   "choirMotherIntroduced",
-  "jesterShowdownHint"
+  "jesterShowdownHint",
+  "secondWindHint",
+  "handsAnnounced"
 ];
 function createEmptyQuestFlags() {
   const record = {};
@@ -11279,6 +11404,39 @@ var HudController = class {
     context.fillText("STAMINA", 80, height - 104);
     context.restore();
   }
+  /** Little tape cassette with turning reels beside the REC light: the game is writing (or has just read) your shift. */
+  drawCassette(context, indicator, timeSeconds) {
+    const x = 188;
+    const y = 56;
+    const w = 84;
+    const h = 50;
+    context.save();
+    context.globalAlpha *= indicator.alpha;
+    context.strokeStyle = UI_COLORS.textPrimary;
+    context.fillStyle = "rgba(0, 0, 0, 0.45)";
+    context.lineWidth = 3;
+    context.fillRect(x, y, w, h);
+    context.strokeRect(x, y, w, h);
+    context.lineWidth = 2;
+    context.strokeRect(x + 10, y + 8, w - 20, 12);
+    context.strokeRect(x + 16, y + 24, w - 32, 18);
+    for (const reelX of [x + 29, x + w - 29]) {
+      context.beginPath();
+      context.arc(reelX, y + 33, 7, 0, Math.PI * 2);
+      context.stroke();
+      for (let spoke = 0; spoke < 3; spoke += 1) {
+        const angle = timeSeconds * 6 + spoke * Math.PI * 2 / 3;
+        context.beginPath();
+        context.moveTo(reelX, y + 33);
+        context.lineTo(reelX + Math.cos(angle) * 6, y + 33 + Math.sin(angle) * 6);
+        context.stroke();
+      }
+    }
+    context.fillStyle = UI_COLORS.textPrimary;
+    context.font = UI_FONTS.small;
+    context.fillText(indicator.label, x + w + 14, y + 36);
+    context.restore();
+  }
   drawClaws(context, claws) {
     const width = VIRTUAL_RESOLUTION.width;
     const height = VIRTUAL_RESOLUTION.height;
@@ -11290,9 +11448,9 @@ var HudController = class {
       context.globalAlpha = claw.phase === "holstered" ? 0.85 : 1;
       context.fillStyle = "rgba(0, 0, 0, 0.45)";
       context.fillRect(x, y, 300, 36);
-      context.fillStyle = POLARITY_HUD_COLORS[claw.polarity];
+      context.fillStyle = claw.color ?? POLARITY_HUD_COLORS[claw.polarity];
       context.fillRect(x, y, 8, 36);
-      context.fillText(`${claw.polarity.toUpperCase()} ${CLAW_PHASE_LABELS[claw.phase]}`, x + 18, y + 25);
+      context.fillText(`${claw.label ?? claw.polarity.toUpperCase()} ${claw.status ?? CLAW_PHASE_LABELS[claw.phase]}`, x + 18, y + 25);
       context.fillStyle = UI_COLORS.textDim;
       context.textAlign = "right";
       context.fillText(claw.binding, x + 292, y + 25);
@@ -11430,6 +11588,9 @@ var HudController = class {
     const height = VIRTUAL_RESOLUTION.height;
     this.maskOverlay.draw(context, { ...snapshot.mask, timeSeconds: snapshot.timeSeconds });
     const hudAlpha = 1 - snapshot.letterbox;
+    if (snapshot.saveIndicator !== void 0 && snapshot.saveIndicator.alpha > 0.01) {
+      this.drawCassette(context, snapshot.saveIndicator, snapshot.timeSeconds);
+    }
     if (hudAlpha > 0.01) {
       context.save();
       context.globalAlpha = hudAlpha;
@@ -12549,6 +12710,15 @@ var AUTOSAVE_INTERVAL_SECONDS = 45;
 var HOTBAR_KEY_CODES = ["Digit1", "Digit2", "Digit3", "Digit4"];
 var STRIKE_RADIUS = { jester: 0.75, tallyman: 0.7, choirMother: 0.95, hushling: 0.5 };
 var THREAT_DISPLAY_NAMES = { jester: "THE JESTER", tallyman: "THE TALLYMAN", choirMother: "THE CHOIR MOTHER", hushling: "HUSHLING" };
+var RIGHT_HANDS = [
+  { type: "rose", label: "ROSE", color: "#ff5c8f", unlockAct: 0, stunScale: 1 },
+  { type: "volt", label: "VOLT", color: "#f4e36a", unlockAct: 2, stunScale: 1.9 },
+  { type: "chime", label: "CHIME", color: "#d7a74a", unlockAct: 3, stunScale: 0.8 }
+];
+var VOLT_RECHARGE_SECONDS = 5;
+var CHIME_RADIUS_METERS = 5.5;
+var SAVE_INDICATOR_SECONDS = 2.4;
+var SECOND_WIND_STUN_SECONDS = 3.5;
 var JESTER_ENTRANCE_CHUNK = 22;
 var GULLY_SHOWDOWN_CHUNK = 28;
 var GULLY_SHOWDOWN_STRIKES = 4;
@@ -12622,6 +12792,12 @@ var ActiveLevelStreamerState = class {
   leavingLevel = false;
   campaign = null;
   pip = null;
+  /** Cassette indicator: label and seconds left on screen. */
+  saveIndicator = null;
+  /** Seconds before the Volt hand can fire again after a shock. */
+  voltRecharge = 0;
+  /** One free escape from a catch per checkpoint. */
+  secondWindReady = true;
   /** The entrance scene currently playing (lights stutter, cue, line, then the monster arrives). */
   entrance = null;
   /** Where each launched hand was last frame, for swept hit tests against monsters. */
@@ -12686,6 +12862,7 @@ var ActiveLevelStreamerState = class {
       }
     }
     this.entrance = null;
+    this.saveIndicator = { label: "LOADING", seconds: SAVE_INDICATOR_SECONDS };
     this.campaign = new CampaignDirector({
       flag: (flag) => worldEvents.flag(flag),
       setFlag: (flag, value) => worldEvents.setFlag(flag, value),
@@ -12840,9 +13017,24 @@ var ActiveLevelStreamerState = class {
         worldEvents.notify("threatSpotted", { kind: event.kind, position: event.position });
       }),
       threats.events.on("playerCaught", (event) => {
-        this.beginLethalCinematic(KILLER_CINEMATICS[event.kind], { cause: "entity", threat: event.kind }, threats.threat(event.id));
+        const catcher = threats.threat(event.id);
+        if (this.secondWindReady && catcher !== null) {
+          this.secondWindReady = false;
+          catcher.brain.forceStun(SECOND_WIND_STUN_SECONDS, this.motor.position);
+          this.services.audio.playSpatialCue("breakerClunk", catcher.view.headPosition(), 1.4);
+          this.showToast("YOU SHOVE IT OFF \xB7 RUN", 2.6, "warning");
+          if (worldEvents.flag("secondWindHint") < 1) {
+            worldEvents.setFlag("secondWindHint", 1);
+            this.campaign?.say("secondWind.first");
+          }
+          return;
+        }
+        this.beginLethalCinematic(KILLER_CINEMATICS[event.kind], { cause: "entity", threat: event.kind }, catcher);
       }),
       worldEvents.events.on("zoneEntered", (event) => {
+        if (event.zone.kind === "checkpoint") {
+          this.secondWindReady = true;
+        }
         if (event.zone.kind === "foremanArena" && this.foreman !== null && this.foreman.state === "dormant" && worldEvents.flag("foremanPhasesCleared") < 3) {
           worldEvents.setFlag("foremanEncountered", 1);
           this.foreman.begin();
@@ -12888,13 +13080,46 @@ var ActiveLevelStreamerState = class {
         }
         rig.recall(side);
         trail.phase = "retracting";
-        this.applyHandStrike(managed.id, managed.kind, [feet[0], feet[1] + height * 0.7, feet[2]], threats, worldEvents);
+        this.applyHandStrike(side, managed.id, managed.kind, [feet[0], feet[1] + height * 0.7, feet[2]], threats, worldEvents);
         break;
       }
     }
   }
-  applyHandStrike(id, kind, impact, threats, worldEvents) {
-    const result = threats.strike(id, this.motor.position);
+  /** X: cycle the right launcher through the hands unlocked so far (the teal left hand never changes). */
+  cycleRightHand(rig, worldEvents) {
+    if (rig.claws.right.phase !== "holstered") {
+      return;
+    }
+    const act = worldEvents.flag("actReached");
+    const unlocked = RIGHT_HANDS.filter((hand) => act >= hand.unlockAct);
+    if (unlocked.length <= 1) {
+      this.showToast("NO OTHER HANDS YET", 1.4, "info");
+      return;
+    }
+    const index = unlocked.findIndex((hand) => hand.type === rig.rightHandType);
+    const next = unlocked[(index + 1) % unlocked.length] ?? unlocked[0];
+    if (next === void 0) {
+      return;
+    }
+    rig.rightHandType = next.type;
+    this.services.audio.playSpatialCue("breakerClunk", rig.socketPosition("right"), 0.5);
+    this.showToast(`${next.label} HAND MOUNTED`, 1.6, "info", next.color);
+  }
+  applyHandStrike(side, id, kind, impact, threats, worldEvents) {
+    const handType = side === "right" ? this.rig?.rightHandType ?? "rose" : null;
+    const hand = RIGHT_HANDS.find((candidate) => candidate.type === handType);
+    const stunScale = hand?.stunScale ?? 1;
+    if (handType === "volt") {
+      this.voltRecharge = VOLT_RECHARGE_SECONDS;
+    }
+    if (handType === "chime") {
+      for (const other of threats.activeThreats) {
+        if (other.id !== id && Math.hypot(other.view.position[0] - impact[0], other.view.position[2] - impact[2]) <= CHIME_RADIUS_METERS) {
+          threats.strike(other.id, this.motor.position, stunScale);
+        }
+      }
+    }
+    const result = threats.strike(id, this.motor.position, stunScale);
     const name = THREAT_DISPLAY_NAMES[kind];
     this.services.audio.playSpatialCue("breakerClunk", impact, result.outcome === "resisted" ? 0.6 : 1.3);
     threats.emitNoise("gateMoving", impact, 0.5);
@@ -13022,6 +13247,22 @@ var ActiveLevelStreamerState = class {
       if (worldEvents.flag("jesterShowdownHint") < 1) {
         worldEvents.setFlag("jesterShowdownHint", 1);
         this.campaign?.say("jester.vulnerable");
+      }
+    }
+  }
+  flashSaveIndicator(label) {
+    this.saveIndicator = { label, seconds: SAVE_INDICATOR_SECONDS };
+  }
+  /** Mabel sends each new right hand down when its act begins. */
+  announceNewHands(worldEvents) {
+    const act = worldEvents.flag("actReached");
+    const known = worldEvents.flag("handsAnnounced");
+    for (const hand of RIGHT_HANDS) {
+      if (hand.unlockAct > known && hand.unlockAct <= act && hand.unlockAct > 0) {
+        worldEvents.setFlag("handsAnnounced", hand.unlockAct);
+        this.showToast(`NEW HAND \xB7 ${hand.label} \xB7 PRESS X TO SWAP`, 4, "success", hand.color);
+        this.campaign?.say(hand.type === "volt" ? "hand.volt" : "hand.chime");
+        return;
       }
     }
   }
@@ -13174,6 +13415,7 @@ var ActiveLevelStreamerState = class {
   /** Writes a checkpoint record and rebases session time so play time is never double counted. */
   commitCheckpoint(save) {
     this.services.saves.write(save);
+    this.flashSaveIndicator("SAVING");
     this.checkpoint = { ...save, kind: "checkpoint", player: null, playTimeSeconds: save.playTimeSeconds - this.sessionSeconds };
   }
   recordCheckpoint(chunkIndex) {
@@ -13194,6 +13436,7 @@ var ActiveLevelStreamerState = class {
       return "CAN'T SAVE NOW \xB7 DANGER NEARBY";
     }
     const written = this.services.saves.write(this.buildSave("session", slot, {}));
+    if (written) this.flashSaveIndicator("SAVING");
     return written ? slot === "quicksave" ? "GAME SAVED \xB7 QUICKSAVE SLOT" : "GAME SAVED" : "SAVE FAILED \xB7 STORAGE UNAVAILABLE";
   }
   // ---- Pause ---------------------------------------------------------------------------------------------------------
@@ -13272,7 +13515,7 @@ var ActiveLevelStreamerState = class {
     const hotbarLeft = selected.kind === "claw" && selected.side === "left";
     const hotbarRight = selected.kind === "claw" && selected.side === "right";
     const leftPressed = locked && input.wasMouseButtonPressed(0) || input.wasKeyPressed("KeyQ") || hotbarLeft && input.wasKeyPressed("KeyF");
-    const rightPressed = locked && input.wasMouseButtonPressed(2) || input.wasKeyPressed("KeyR") || hotbarRight && input.wasKeyPressed("KeyF");
+    const rightPressed = !(this.rig?.rightHandType === "volt" && this.voltRecharge > 0) && (locked && input.wasMouseButtonPressed(2) || input.wasKeyPressed("KeyR") || hotbarRight && input.wasKeyPressed("KeyF"));
     const leftHeld = locked && input.isMouseButtonHeld(0) || input.isKeyHeld("KeyQ") || hotbarLeft && input.isKeyHeld("KeyF");
     const rightHeld = locked && input.isMouseButtonHeld(2) || input.isKeyHeld("KeyR") || hotbarRight && input.isKeyHeld("KeyF");
     const anchoredAirborne = (this.rig?.isAnchored ?? false) && !this.motor.isGrounded;
@@ -13452,6 +13695,7 @@ var ActiveLevelStreamerState = class {
     worldEvents.setFlag("endingChosen", endingId === "shutDown" ? 1 : 2);
     worldEvents.setFlag("campaignComplete", 1);
     this.services.saves.write(this.buildSave("checkpoint", "autosave", {}));
+    this.flashSaveIndicator("SAVING");
     this.services.audio.playSpatialCue("foremanBoom", this.services.camera.position, endingId === "shutDown" ? 1 : 0.6);
   }
   finishCampaign() {
@@ -13573,6 +13817,10 @@ var ActiveLevelStreamerState = class {
       this.placeCamera(0);
     }
     services.camera.updateMatrices();
+    this.voltRecharge = Math.max(0, this.voltRecharge - deltaSeconds);
+    if (controlsEnabled && input.wasKeyPressed("KeyX")) {
+      this.cycleRightHand(rig, worldEvents);
+    }
     rig.update(deltaSeconds, this.buildTetherInput(input, controlsEnabled, intent), streamer, services.camera);
     this.resolveHandStrikes(rig, threats, worldEvents);
     if (this.handFill !== null) {
@@ -13704,6 +13952,11 @@ var ActiveLevelStreamerState = class {
     }
     this.updateEntrances(threats, worldEvents, deltaSeconds);
     this.updateCombatScenes(threats, worldEvents);
+    this.announceNewHands(worldEvents);
+    if (this.saveIndicator !== null) {
+      this.saveIndicator.seconds -= deltaSeconds;
+      if (this.saveIndicator.seconds <= 0) this.saveIndicator = null;
+    }
     threats.update(deltaSeconds, this.buildPlayerSignature());
     this.dread = threats.dreadAt(this.playerPosition());
     services.audio.setDreadLevel(this.dread);
@@ -13712,6 +13965,7 @@ var ActiveLevelStreamerState = class {
     if (this.autosaveTimer >= AUTOSAVE_INTERVAL_SECONDS && this.isSafeToSessionSave) {
       this.autosaveTimer = 0;
       services.saves.write(this.buildSave("session", "autosave", {}));
+      this.flashSaveIndicator("SAVING");
     }
   }
   // ---- HUD snapshot --------------------------------------------------------------------------------------------------
@@ -13755,10 +14009,13 @@ var ActiveLevelStreamerState = class {
   }
   buildHudSnapshot(timeSeconds) {
     const rig = this.rig;
+    const rightHand = RIGHT_HANDS.find((hand) => hand.type === (rig?.rightHandType ?? "rose"));
     const clawSnapshot = (side, binding) => ({
       polarity: side === "left" ? "teal" : "rose",
       phase: rig?.claws[side].phase ?? "holstered",
-      binding
+      binding: side === "right" ? `${binding} \xB7 X SWAP` : binding,
+      ...side === "right" && rightHand !== void 0 ? { label: rightHand.label, color: rightHand.color } : {},
+      ...side === "right" && rig?.rightHandType === "volt" && this.voltRecharge > 0 ? { status: `RECHARGING ${Math.ceil(this.voltRecharge)}` } : {}
     });
     const pickupPrompts = {
       gasMask: "[E] TAKE GAS MASK",
@@ -13802,6 +14059,7 @@ var ActiveLevelStreamerState = class {
       toast: this.toast !== null && !this.paused ? { text: this.toast.text, color: this.toast.color, alpha: clamp(this.toast.remainingSeconds, 0, 1) * this.objectiveOpacity } : null,
       dread: this.dread,
       letterbox: this.letterbox,
+      ...this.saveIndicator !== null ? { saveIndicator: { label: this.saveIndicator.label, alpha: clamp(this.saveIndicator.seconds / 0.4, 0, 1) } } : {},
       pointerLocked: this.services.input.isPointerLocked,
       timeSeconds
     };

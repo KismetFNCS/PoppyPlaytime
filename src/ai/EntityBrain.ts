@@ -131,6 +131,13 @@ export class EntityBrain {
     return true;
   }
 
+  /** Second-wind shove: always staggers, ignoring the usual post-stun resistance. */
+  public forceStun(seconds: number, playerFeet: Readonly<Vec3>): void {
+    this.stunSeconds = 0;
+    this.stunImmuneSeconds = 0;
+    this.stun(seconds, playerFeet);
+  }
+
   public get isStunned(): boolean {
     return this.stunSeconds > 0;
   }
