@@ -120,6 +120,9 @@ interface ThreatEntrance {
 }
 
 const JESTER_ENTRANCE_CHUNK: number = 22;
+/** Gully's showdown: the last flooded archive hall of Act IV. */
+const GULLY_SHOWDOWN_CHUNK: number = 28;
+const GULLY_SHOWDOWN_STRIKES: number = 4;
 /** One entrance per monster, in story order: Tallyman (Act II), Hushlings and Choir Mother (Act III), Jester (Act IV). */
 const THREAT_ENTRANCES: readonly ThreatEntrance[] = [
   { kind: 'tallyman', flag: 'tallymanIntroduced', chunk: 7, dialogue: 'tallyman.entrance', cue: 'tallymanStep', graceSeconds: 8 },
@@ -511,6 +514,9 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         if (kind === 'choirMother') {
           threats.setDefeatable('choirMother', null);
           this.campaign?.say('choirMother.defeated');
+        } else if (kind === 'jester') {
+          threats.setDefeatable('jester', null);
+          this.campaign?.say('jester.defeated');
         }
         break;
     }
@@ -524,7 +530,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private updateEntrances(threats: ThreatDirector, worldEvents: WorldEventSystem, deltaSeconds: number): void {
     const services: GameServices = this.services;
     // A Jester that has already made its entrance keeps stalking after a checkpoint reload.
-    if (this.entrance === null && worldEvents.flag('jesterAwakened') >= 1 && !threats.isJesterAwake && this.currentChunk >= JESTER_ENTRANCE_CHUNK) {
+    if (this.entrance === null && worldEvents.flag('jesterAwakened') >= 1 && worldEvents.flag('jesterDefeated') < 1 && !threats.isJesterAwake && this.currentChunk >= JESTER_ENTRANCE_CHUNK) {
       threats.awakenJester(this.entranceSpawnBehind(), this.playerPosition());
     }
     if (this.entrance === null) {
@@ -571,8 +577,13 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
   /** Decides which monsters can be beaten for good right now; everything else can only be staggered. */
   private updateCombatScenes(threats: ThreatDirector, worldEvents: WorldEventSystem): void {
-    const choirMotherBeaten: boolean = worldEvents.flag('choirMotherDefeated') >= 1;
-    if (choirMotherBeaten) {
+    this.updateChoirMotherScene(threats, worldEvents);
+    this.updateGullyShowdown(threats, worldEvents);
+  }
+
+  /** Act III: once the chapel music boxes are silenced, the Choir Mother falls to three strikes. */
+  private updateChoirMotherScene(threats: ThreatDirector, worldEvents: WorldEventSystem): void {
+    if (worldEvents.flag('choirMotherDefeated') >= 1) {
       // Stay beaten across reloads: never let her spawn again.
       for (const managed of threats.activeThreats) {
         if (managed.kind === 'choirMother') {
@@ -590,6 +601,29 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       }
     }
   }
+
+  /**
+   * Act IV finale: in the last archive halls the floodwater has seized Gully's joints. Strikes landed while he stands
+   * frozen under the player's gaze finally hurt him; four of them end him for good.
+   */
+  private updateGullyShowdown(threats: ThreatDirector, worldEvents: WorldEventSystem): void {
+    if (worldEvents.flag('jesterDefeated') >= 1) {
+      for (const managed of threats.activeThreats) {
+        if (managed.kind === 'jester') {
+          threats.retire(managed.id);
+        }
+      }
+      return;
+    }
+    if (threats.isJesterAwake && this.currentChunk >= GULLY_SHOWDOWN_CHUNK && !threats.isDefeatable('jester')) {
+      threats.setDefeatable('jester', GULLY_SHOWDOWN_STRIKES);
+      if (worldEvents.flag('jesterShowdownHint') < 1) {
+        worldEvents.setFlag('jesterShowdownHint', 1);
+        this.campaign?.say('jester.vulnerable');
+      }
+    }
+  }
+
 
   public showToast(text: string, seconds: number, tone: ToastTone, colorOverride: string | null = null): void {
     this.toast = { text, remainingSeconds: seconds, color: colorOverride ?? TOAST_COLORS[tone] };

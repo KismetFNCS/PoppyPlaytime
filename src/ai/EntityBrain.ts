@@ -299,8 +299,16 @@ export class EntityBrain {
 
     const { sight, hearing, observed } = this.perceive(deltaSeconds, context);
     if (this.graceSeconds > 0) {
+      // Entrance grace: no hunting, no catching. A threat that arrives already stalking keeps its distance.
       this.graceSeconds = Math.max(0, this.graceSeconds - deltaSeconds);
-      this.awareness = Math.min(this.awareness, profile.awareness.alertThreshold * 0.8);
+      if (this.state === 'hunting' || this.state === 'catchKill') {
+        this.catchSeconds = 0;
+        this.catchResolved = false;
+        this.transition(profile.stalking.enabled ? 'stalking' : 'alert');
+      }
+      if (this.state !== 'stalking') {
+        this.awareness = Math.min(this.awareness, profile.awareness.alertThreshold * 0.8);
+      }
     }
     const perceivedRecently: boolean = sight.visible || this.secondsSincePerceived < 0.5;
     // Light-frozen threats stop dead; look-away threats crawl at their observed speed.
@@ -355,7 +363,7 @@ export class EntityBrain {
       case 'stalking': {
         this.stalkSeconds += deltaSeconds;
         const sprintingNearby: boolean = hearing.source === 'footstepRun' && distanceToPlayer < 12;
-        if (distanceToPlayer <= profile.stalking.escalateDistance || this.stalkSeconds >= profile.stalking.patienceSeconds || sprintingNearby) {
+        if (this.graceSeconds <= 0 && (distanceToPlayer <= profile.stalking.escalateDistance || this.stalkSeconds >= profile.stalking.patienceSeconds || sprintingNearby)) {
           this.transition('hunting');
           break;
         }

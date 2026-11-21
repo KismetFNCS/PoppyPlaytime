@@ -169,7 +169,9 @@ export type DialogueId =
   | 'tallyman.entrance'
   | 'hushling.entrance'
   | 'choirMother.entrance'
-  | 'jester.entrance';
+  | 'jester.entrance'
+  | 'jester.vulnerable'
+  | 'jester.defeated';
 
 export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   'intro.wake': [{ speaker: 'pa', text: 'Night shift, report to your stations. Night shift, report to your stations.', seconds: 3.5 }],
@@ -246,6 +248,14 @@ export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   ],
   'choirMother.entrance': [{ speaker: 'mabel', text: 'Hear that hymn? She’s coming down from the loft. Don’t let her see you.', seconds: 3.6 }],
   'jester.entrance': [{ speaker: 'mabel', text: 'Wait. The archive doors behind you were sealed. Who opened them?', seconds: 3.4 }],
+  'jester.vulnerable': [
+    { speaker: 'mabel', text: 'Listen to him grind. The archive water’s got into his joints. He can’t shake off a hit anymore.', seconds: 4 },
+    { speaker: 'mabel', text: 'Keep your eyes on him so he freezes, then strike. Four good hits and Gully stops for good.', seconds: 4 },
+  ],
+  'jester.defeated': [
+    { speaker: 'mabel', text: 'He’s down. All those bells, finally quiet.', seconds: 3 },
+    { speaker: 'mabel', text: 'He was a mascot once. Kids used to queue to shake his hand. I’m sorry, Gully.', seconds: 4 },
+  ],
   'choirMother.defeated': [{ speaker: 'mabel', text: 'She’s down. The little ones are going quiet. That nursery won’t sing again.', seconds: 3.8 }],
 };
 

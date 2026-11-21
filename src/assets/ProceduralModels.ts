@@ -19,65 +19,195 @@ function place(builder: MeshBuilder, mesh: MeshData, translation: [number, numbe
 /** Jester hat geometry: three drooping horns radiating from the crown, each tipped with a bell. */
 const JESTER_HEAD_CENTER: [number, number, number] = [0, 2.36, 0];
 
+/**
+ * Gully, the old mascot the Foreman "improved". Built as separate posable pieces so the entity can snap him into a new
+ * twisted pose whenever he moves unobserved. Limb pieces have their joint (shoulder / hip) at the local origin.
+ */
+export const JESTER_JOINTS = { shoulderX: 0.34, shoulderY: 1.96, hipX: 0.13, hipY: 1.04 } as const;
+
 function buildJesterBody(): MeshData {
   const builder = new MeshBuilder();
-  const limb: MeshData = createCylinderMesh(0.07, 0.055, 1, 10);
-  const torso: MeshData = createCylinderMesh(0.2, 0.32, 0.95, 14);
-  // Torso: inverted taper (broad shoulders, narrow waist) and a pinched hip block.
-  place(builder, torso, [0, 1.55, 0], [0, 0, 0], [1, 1, 0.62]);
-  place(builder, createBoxMesh(0.38, 0.22, 0.24), [0, 1.02, 0], [0, 0, 0], [1, 1, 1]);
-  // Ruffled collar: stacked flattened discs with alternating rotation.
-  const ruff: MeshData = createCylinderMesh(0.46, 0.4, 0.06, 12);
+  // Narrow-waisted torso and a pinched hip block.
+  place(builder, createCylinderMesh(0.19, 0.31, 0.95, 14), [0, 1.55, 0], [0, 0, 0], [1, 1, 0.62]);
+  place(builder, createBoxMesh(0.36, 0.2, 0.22), [0, 1.03, 0], [0, 0, 0], [1, 1, 1]);
+  // Ruffled collar.
+  const ruff: MeshData = createCylinderMesh(0.44, 0.38, 0.06, 12);
   place(builder, ruff, [0, 2.06, 0], [0, 0, 0], [1, 1, 0.8]);
-  place(builder, ruff, [0, 2.11, 0], [0, Math.PI / 12, 0], [0.82, 1, 0.66]);
-  // Long, slack arms: upper arm angled out, forearm hanging past the knees, splayed fingers.
-  for (const side of [-1, 1]) {
-    place(builder, limb, [side * 0.42, 1.62, 0], [0, 0, side * 0.42], [1, 0.7, 1]);
-    place(builder, limb, [side * 0.6, 0.98, 0.06], [0.12, 0, side * 0.08], [0.9, 0.85, 0.9]);
-    for (let finger = 0; finger < 4; finger += 1) {
-      const spread: number = (finger - 1.5) * 0.035;
-      place(builder, createCylinderMesh(0.018, 0.006, 0.32, 6), [side * 0.64 + spread, 0.45, 0.1], [0.25, 0, side * 0.1 + spread * 2], [1, 1, 1]);
-    }
-    // Thin legs with a slight knock-kneed angle and curled pointed shoes.
-    place(builder, limb, [side * 0.13, 0.5, 0], [0, 0, -side * 0.05], [1.15, 1, 1.15]);
-    place(builder, createCylinderMesh(0.09, 0.0, 0.42, 10), [side * 0.16, 0.06, 0.16], [Math.PI / 2 - 0.25, 0, 0], [1, 1, 0.7]);
-    place(builder, createSphereMesh(0.035, 8, 6), [side * 0.16, 0.12, 0.38], [0, 0, 0], [1, 1, 1]);
-  }
-  // Three-horned hat with bells.
-  const hornDirections: Array<[number, number]> = [
-    [-1, 0.25],
-    [0, 0.5],
-    [1, 0.25],
+  place(builder, ruff, [0, 2.11, 0], [0, Math.PI / 12, 0], [0.8, 1, 0.64]);
+  // Tattered tunic hem: ragged flaps of uneven length hanging from the waist.
+  const flapLengths: readonly number[] = [0.34, 0.22, 0.4, 0.18, 0.3, 0.26, 0.38, 0.2];
+  flapLengths.forEach((length: number, index: number) => {
+    const angle: number = (index / flapLengths.length) * Math.PI * 2;
+    const x: number = Math.sin(angle) * 0.22;
+    const z: number = Math.cos(angle) * 0.14;
+    place(builder, createBoxMesh(0.11, length, 0.02), [x, 1.08 - length / 2, z], [Math.cos(angle) * 0.18, angle, -Math.sin(angle) * 0.18], [1, 1, 1]);
+  });
+  // Belt.
+  place(builder, createCylinderMesh(0.25, 0.25, 0.05, 14), [0, 1.14, 0], [0, 0, 0], [1, 1, 0.66]);
+  return builder.build();
+}
+
+/** Stuffing bursting from tears in the tunic, plus a Hushling's bonnet hanging from his belt (a trophy). */
+function buildJesterStuffing(): MeshData {
+  const builder = new MeshBuilder();
+  const tufts: ReadonlyArray<[number, number, number, number]> = [
+    [0.15, 1.72, 0.14, 0.06],
+    [0.19, 1.68, 0.11, 0.045],
+    [-0.12, 1.4, 0.15, 0.05],
+    [0.05, 1.9, -0.16, 0.055],
+    [-0.27, 1.95, 0.02, 0.045],
   ];
-  for (const [lateral, lift] of hornDirections) {
-    const baseX: number = JESTER_HEAD_CENTER[0] + lateral * 0.12;
-    const baseY: number = JESTER_HEAD_CENTER[1] + 0.2;
-    place(builder, createCylinderMesh(0.12, 0.045, 0.42, 10), [baseX + lateral * 0.14, baseY + 0.12 + lift * 0.12, -0.02], [0, 0, -lateral * 0.95], [1, 1, 0.8]);
-    place(builder, createCylinderMesh(0.045, 0.0, 0.36, 8), [baseX + lateral * 0.42, baseY + 0.12 + lift * 0.05, -0.02], [0, 0, -lateral * 2.1], [1, 1, 1]);
-    place(builder, createSphereMesh(0.05, 10, 8), [baseX + lateral * 0.55, baseY - 0.06, -0.02], [0, 0, 0], [1, 1, 1]);
+  for (const [x, y, z, r] of tufts) {
+    place(builder, createSphereMesh(r, 8, 6), [x, y, z], [0, 0, 0], [1.2, 0.9, 1]);
+  }
+  // Bonnet: a frilled cloth cup with ties, hung by its ribbon at the left hip.
+  place(builder, createCylinderMesh(0.07, 0.11, 0.12, 12), [-0.26, 0.98, 0.06], [0.3, 0, 0.5], [1, 1, 1]);
+  place(builder, createCylinderMesh(0.13, 0.13, 0.015, 14), [-0.29, 0.93, 0.08], [0.3, 0, 0.5], [1, 1, 1]);
+  builder.appendMesh(createTubeMesh([[-0.22, 1.14, 0.1], [-0.25, 1.06, 0.1], [-0.26, 1.0, 0.08]], 0.008, 6), mat4Identity());
+  return builder.build();
+}
+
+/** Trophy: a curved shard of the Tallyman's lantern glass strapped to his right shoulder. */
+function buildJesterLanternShard(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.09, 0.07, 0.16, 8), [0.33, 2.05, -0.04], [0.2, 0.3, -0.5], [0.9, 1, 0.35]);
+  return builder.build();
+}
+
+/** Trophy: an oversized brass wind-up key driven into his back. */
+function buildJesterWindKey(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.025, 0.025, 0.22, 8), [0, 1.62, -0.28], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  for (const side of [-1, 1]) {
+    place(builder, createCylinderMesh(0.1, 0.1, 0.025, 14), [side * 0.1, 1.62, -0.4], [0, 0, Math.PI / 2], [1, 1, 0.55]);
   }
   return builder.build();
 }
 
 function buildJesterHead(): MeshData {
   const builder = new MeshBuilder();
-  // Elongated porcelain skull with a protruding jaw.
-  place(builder, createSphereMesh(0.22, 20, 14), JESTER_HEAD_CENTER, [0, 0, 0], [0.92, 1.18, 0.95]);
-  place(builder, createSphereMesh(0.14, 16, 10), [0, JESTER_HEAD_CENTER[1] - 0.2, 0.06], [0.2, 0, 0], [1.05, 0.6, 1]);
-  // Rounded cheek bulbs pushing the grin outward.
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
+  // Elongated porcelain skull, jutting chin and a hooked puppet nose.
+  place(builder, createSphereMesh(0.22, 20, 14), [cx, cy, cz], [0, 0, 0], [0.9, 1.16, 0.94]);
+  place(builder, createSphereMesh(0.13, 16, 10), [cx, cy - 0.21, cz + 0.08], [0.35, 0, 0], [1, 0.62, 1.05]);
+  place(builder, createSphereMesh(0.05, 10, 8), [cx, cy - 0.3, cz + 0.17], [0, 0, 0], [1.1, 0.9, 1]);
+  builder.appendMesh(
+    createTubeMesh(
+      [
+        [cx, cy + 0.02, cz + 0.18],
+        [cx, cy - 0.01, cz + 0.27],
+        [cx, cy - 0.06, cz + 0.33],
+        [cx, cy - 0.12, cz + 0.33],
+      ],
+      [0.035, 0.03, 0.022, 0.012],
+      10,
+    ),
+    mat4Identity(),
+  );
+  // Sunken cheeks around the grin.
   for (const side of [-1, 1]) {
-    place(builder, createSphereMesh(0.07, 10, 8), [side * 0.12, JESTER_HEAD_CENTER[1] - 0.1, 0.15], [0, 0, 0], [1, 0.8, 0.7]);
+    place(builder, createSphereMesh(0.06, 10, 8), [cx + side * 0.13, cy - 0.12, cz + 0.13], [0, 0, 0], [1, 0.75, 0.6]);
   }
   return builder.build();
 }
 
+/** Drooping three-horned bell hat (moves with the head). */
+function buildJesterHat(): MeshData {
+  const builder = new MeshBuilder();
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
+  place(builder, createCylinderMesh(0.21, 0.23, 0.1, 16), [cx, cy + 0.2, cz], [0.05, 0, 0], [1, 1, 0.95]);
+  const horns: ReadonlyArray<[number, number]> = [
+    [-1, 0.25],
+    [0, 0.55],
+    [1, 0.25],
+  ];
+  for (const [lateral, lift] of horns) {
+    const base: Vec3Tuple = [cx + lateral * 0.1, cy + 0.24, cz - 0.02];
+    const mid: Vec3Tuple = [cx + lateral * 0.3, cy + 0.42 + lift * 0.15, cz - 0.06];
+    const tip: Vec3Tuple = [cx + lateral * 0.5, cy + 0.2 + lift * 0.1, cz - 0.04];
+    const end: Vec3Tuple = [cx + lateral * 0.55, cy + 0.02, cz - 0.02];
+    builder.appendMesh(createTubeMesh([base, mid, tip, end], [0.11, 0.07, 0.035, 0.015], 10), mat4Identity());
+    place(builder, createSphereMesh(0.045, 10, 8), [end[0], end[1] - 0.04, end[2]], [0, 0, 0], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
+/** Glowing slit eyes and a stitched grin (emissive). */
 function buildJesterEyes(): MeshData {
   const builder = new MeshBuilder();
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
   for (const side of [-1, 1]) {
-    place(builder, createSphereMesh(0.035, 10, 8), [side * 0.082, JESTER_HEAD_CENTER[1] + 0.035, 0.19], [0, 0, side * 0.3], [1.5, 0.55, 0.6]);
+    place(builder, createBoxMesh(0.075, 0.014, 0.02), [cx + side * 0.085, cy + 0.06, cz + 0.19], [0, 0, side * -0.35], [1, 1, 1]);
   }
-  // Thin glowing grin line.
-  place(builder, createBoxMesh(0.2, 0.012, 0.02), [0, JESTER_HEAD_CENTER[1] - 0.14, 0.205], [0, 0, 0], [1, 1, 1]);
+  // Grin: a thin curved seam crossed by stitches.
+  const stitches = 9;
+  for (let index = 0; index < stitches; index += 1) {
+    const t: number = index / (stitches - 1) - 0.5;
+    const x: number = cx + t * 0.26;
+    const y: number = cy - 0.12 + t * t * 0.22;
+    const z: number = cz + 0.2 - Math.abs(t) * 0.05;
+    place(builder, createBoxMesh(0.034, 0.008, 0.014), [x, y, z], [0, 0, t * 0.9], [1, 1, 1]);
+    place(builder, createBoxMesh(0.006, 0.04, 0.014), [x, y, z + 0.002], [0, 0, t * 0.9], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
+/** Sleeve: shoulder at the origin, hanging down -Y with a slight forward bend at the elbow, ruffled cuff. */
+function buildJesterArm(): MeshData {
+  const builder = new MeshBuilder();
+  builder.appendMesh(createTubeMesh([[0, 0, 0], [0, -0.26, 0.01], [0, -0.52, 0.03], [0, -0.78, 0.08], [0, -1.0, 0.12]], [0.075, 0.062, 0.055, 0.048, 0.045], 10), mat4Identity());
+  place(builder, createCylinderMesh(0.09, 0.075, 0.07, 10), [0, -1.02, 0.12], [0.15, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** Porcelain hand at the end of the sleeve: narrow palm and long needle-thin fingers. */
+function buildJesterHand(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createBoxMesh(0.09, 0.12, 0.035), [0, -1.1, 0.13], [0.15, 0, 0], [1, 1, 1]);
+  for (let finger = 0; finger < 4; finger += 1) {
+    const offset: number = (finger - 1.5) * 0.026;
+    const length: number = finger === 1 || finger === 2 ? 0.34 : 0.28;
+    builder.appendMesh(
+      createTubeMesh(
+        [
+          [offset, -1.15, 0.14],
+          [offset * 1.4, -1.15 - length * 0.5, 0.17],
+          [offset * 1.8, -1.15 - length, 0.24],
+        ],
+        [0.012, 0.009, 0.003],
+        6,
+      ),
+      mat4Identity(),
+    );
+  }
+  return builder.build();
+}
+
+/** Exposed gear at the elbow (steel). */
+function buildJesterArmGear(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.07, 0.07, 0.03, 12), [0.06, -0.52, 0.03], [0, 0, Math.PI / 2], [1, 1, 1]);
+  for (let tooth = 0; tooth < 8; tooth += 1) {
+    const angle: number = (tooth / 8) * Math.PI * 2;
+    place(builder, createBoxMesh(0.032, 0.022, 0.022), [0.06, -0.52 + Math.sin(angle) * 0.078, 0.03 + Math.cos(angle) * 0.078], [angle, 0, 0], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
+/** Striped tights on backward-bending legs ending in curled, pointed shoes. Hip at the origin. */
+function buildJesterLeg(): MeshData {
+  const builder = new MeshBuilder();
+  builder.appendMesh(createTubeMesh([[0, 0, 0], [0, -0.24, 0.08], [0, -0.48, 0.14], [0, -0.74, 0.0], [0, -0.96, -0.1]], [0.08, 0.068, 0.058, 0.05, 0.045], 10), mat4Identity());
+  builder.appendMesh(createTubeMesh([[0, -0.98, -0.12], [0, -1.01, 0.05], [0, -0.99, 0.24], [0, -0.93, 0.3]], [0.07, 0.06, 0.035, 0.012], 10), mat4Identity());
+  place(builder, createSphereMesh(0.03, 8, 6), [0, -0.92, 0.31], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** Exposed gear at the knee (steel). */
+function buildJesterLegGear(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.075, 0.075, 0.03, 12), [0.07, -0.48, 0.14], [0, 0, Math.PI / 2], [1, 1, 1]);
+  place(builder, createCylinderMesh(0.02, 0.02, 0.16, 8), [0, -0.48, 0.14], [0, 0, Math.PI / 2], [1, 1, 1]);
   return builder.build();
 }
 
@@ -449,8 +579,17 @@ function buildBreakerSwitchIndicator(): MeshData {
 export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, () => MeshData>> = {
   ...(CAMPAIGN_MESH_BUILDERS as Record<ProceduralMeshBuilderId, () => MeshData>),
   jester_body: buildJesterBody,
+  jester_stuffing: buildJesterStuffing,
+  jester_lantern_shard: buildJesterLanternShard,
+  jester_wind_key: buildJesterWindKey,
   jester_head: buildJesterHead,
+  jester_hat: buildJesterHat,
   jester_eyes: buildJesterEyes,
+  jester_arm: buildJesterArm,
+  jester_hand: buildJesterHand,
+  jester_arm_gear: buildJesterArmGear,
+  jester_leg: buildJesterLeg,
+  jester_leg_gear: buildJesterLegGear,
   gas_mask_shell: buildGasMaskShell,
   gas_mask_lenses: buildGasMaskLenses,
   gas_mask_filter: buildGasMaskFilter,

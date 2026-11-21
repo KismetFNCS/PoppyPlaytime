@@ -3047,12 +3047,21 @@ var MATERIAL_IDS = Object.keys(MATERIAL_PROFILES);
 var IMPORTED_MESH_PROFILES = {
   jester_entity: {
     id: "jester_entity",
-    displayName: "Jester Entity",
+    displayName: "Gully (Jester Entity)",
     importScale: 1,
     parts: [
       { partId: "body", materialId: "jester_entity_fabric", importUri: null, fallbackBuilder: "jester_body" },
+      { partId: "stuffing", materialId: "hymn_paper", importUri: null, fallbackBuilder: "jester_stuffing" },
+      { partId: "shard", materialId: "tallyman_lamp", importUri: null, fallbackBuilder: "jester_lantern_shard" },
+      { partId: "key", materialId: "tether_brass", importUri: null, fallbackBuilder: "jester_wind_key" },
       { partId: "head", materialId: "jester_entity_porcelain", importUri: null, fallbackBuilder: "jester_head" },
-      { partId: "eyes", materialId: "jester_entity_eyes", importUri: null, fallbackBuilder: "jester_eyes" }
+      { partId: "hat", materialId: "jester_entity_fabric", importUri: null, fallbackBuilder: "jester_hat" },
+      { partId: "eyes", materialId: "jester_entity_eyes", importUri: null, fallbackBuilder: "jester_eyes" },
+      { partId: "arm", materialId: "jester_entity_fabric", importUri: null, fallbackBuilder: "jester_arm" },
+      { partId: "hand", materialId: "jester_entity_porcelain", importUri: null, fallbackBuilder: "jester_hand" },
+      { partId: "armGear", materialId: "rusted_steel", importUri: null, fallbackBuilder: "jester_arm_gear" },
+      { partId: "leg", materialId: "jester_entity_fabric", importUri: null, fallbackBuilder: "jester_leg" },
+      { partId: "legGear", materialId: "rusted_steel", importUri: null, fallbackBuilder: "jester_leg_gear" }
     ]
   },
   gas_mask_prop: {
@@ -4263,55 +4272,161 @@ function place2(builder, mesh, translation, rotation, scale) {
   builder.appendMesh(mesh, transform);
 }
 var JESTER_HEAD_CENTER = [0, 2.36, 0];
+var JESTER_JOINTS = { shoulderX: 0.34, shoulderY: 1.96, hipX: 0.13, hipY: 1.04 };
 function buildJesterBody() {
   const builder = new MeshBuilder();
-  const limb = createCylinderMesh(0.07, 0.055, 1, 10);
-  const torso = createCylinderMesh(0.2, 0.32, 0.95, 14);
-  place2(builder, torso, [0, 1.55, 0], [0, 0, 0], [1, 1, 0.62]);
-  place2(builder, createBoxMesh(0.38, 0.22, 0.24), [0, 1.02, 0], [0, 0, 0], [1, 1, 1]);
-  const ruff = createCylinderMesh(0.46, 0.4, 0.06, 12);
+  place2(builder, createCylinderMesh(0.19, 0.31, 0.95, 14), [0, 1.55, 0], [0, 0, 0], [1, 1, 0.62]);
+  place2(builder, createBoxMesh(0.36, 0.2, 0.22), [0, 1.03, 0], [0, 0, 0], [1, 1, 1]);
+  const ruff = createCylinderMesh(0.44, 0.38, 0.06, 12);
   place2(builder, ruff, [0, 2.06, 0], [0, 0, 0], [1, 1, 0.8]);
-  place2(builder, ruff, [0, 2.11, 0], [0, Math.PI / 12, 0], [0.82, 1, 0.66]);
-  for (const side of [-1, 1]) {
-    place2(builder, limb, [side * 0.42, 1.62, 0], [0, 0, side * 0.42], [1, 0.7, 1]);
-    place2(builder, limb, [side * 0.6, 0.98, 0.06], [0.12, 0, side * 0.08], [0.9, 0.85, 0.9]);
-    for (let finger = 0; finger < 4; finger += 1) {
-      const spread = (finger - 1.5) * 0.035;
-      place2(builder, createCylinderMesh(0.018, 6e-3, 0.32, 6), [side * 0.64 + spread, 0.45, 0.1], [0.25, 0, side * 0.1 + spread * 2], [1, 1, 1]);
-    }
-    place2(builder, limb, [side * 0.13, 0.5, 0], [0, 0, -side * 0.05], [1.15, 1, 1.15]);
-    place2(builder, createCylinderMesh(0.09, 0, 0.42, 10), [side * 0.16, 0.06, 0.16], [Math.PI / 2 - 0.25, 0, 0], [1, 1, 0.7]);
-    place2(builder, createSphereMesh(0.035, 8, 6), [side * 0.16, 0.12, 0.38], [0, 0, 0], [1, 1, 1]);
-  }
-  const hornDirections = [
-    [-1, 0.25],
-    [0, 0.5],
-    [1, 0.25]
+  place2(builder, ruff, [0, 2.11, 0], [0, Math.PI / 12, 0], [0.8, 1, 0.64]);
+  const flapLengths = [0.34, 0.22, 0.4, 0.18, 0.3, 0.26, 0.38, 0.2];
+  flapLengths.forEach((length, index) => {
+    const angle = index / flapLengths.length * Math.PI * 2;
+    const x = Math.sin(angle) * 0.22;
+    const z = Math.cos(angle) * 0.14;
+    place2(builder, createBoxMesh(0.11, length, 0.02), [x, 1.08 - length / 2, z], [Math.cos(angle) * 0.18, angle, -Math.sin(angle) * 0.18], [1, 1, 1]);
+  });
+  place2(builder, createCylinderMesh(0.25, 0.25, 0.05, 14), [0, 1.14, 0], [0, 0, 0], [1, 1, 0.66]);
+  return builder.build();
+}
+function buildJesterStuffing() {
+  const builder = new MeshBuilder();
+  const tufts = [
+    [0.15, 1.72, 0.14, 0.06],
+    [0.19, 1.68, 0.11, 0.045],
+    [-0.12, 1.4, 0.15, 0.05],
+    [0.05, 1.9, -0.16, 0.055],
+    [-0.27, 1.95, 0.02, 0.045]
   ];
-  for (const [lateral, lift] of hornDirections) {
-    const baseX = JESTER_HEAD_CENTER[0] + lateral * 0.12;
-    const baseY = JESTER_HEAD_CENTER[1] + 0.2;
-    place2(builder, createCylinderMesh(0.12, 0.045, 0.42, 10), [baseX + lateral * 0.14, baseY + 0.12 + lift * 0.12, -0.02], [0, 0, -lateral * 0.95], [1, 1, 0.8]);
-    place2(builder, createCylinderMesh(0.045, 0, 0.36, 8), [baseX + lateral * 0.42, baseY + 0.12 + lift * 0.05, -0.02], [0, 0, -lateral * 2.1], [1, 1, 1]);
-    place2(builder, createSphereMesh(0.05, 10, 8), [baseX + lateral * 0.55, baseY - 0.06, -0.02], [0, 0, 0], [1, 1, 1]);
+  for (const [x, y, z, r] of tufts) {
+    place2(builder, createSphereMesh(r, 8, 6), [x, y, z], [0, 0, 0], [1.2, 0.9, 1]);
+  }
+  place2(builder, createCylinderMesh(0.07, 0.11, 0.12, 12), [-0.26, 0.98, 0.06], [0.3, 0, 0.5], [1, 1, 1]);
+  place2(builder, createCylinderMesh(0.13, 0.13, 0.015, 14), [-0.29, 0.93, 0.08], [0.3, 0, 0.5], [1, 1, 1]);
+  builder.appendMesh(createTubeMesh([[-0.22, 1.14, 0.1], [-0.25, 1.06, 0.1], [-0.26, 1, 0.08]], 8e-3, 6), mat4Identity());
+  return builder.build();
+}
+function buildJesterLanternShard() {
+  const builder = new MeshBuilder();
+  place2(builder, createCylinderMesh(0.09, 0.07, 0.16, 8), [0.33, 2.05, -0.04], [0.2, 0.3, -0.5], [0.9, 1, 0.35]);
+  return builder.build();
+}
+function buildJesterWindKey() {
+  const builder = new MeshBuilder();
+  place2(builder, createCylinderMesh(0.025, 0.025, 0.22, 8), [0, 1.62, -0.28], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  for (const side of [-1, 1]) {
+    place2(builder, createCylinderMesh(0.1, 0.1, 0.025, 14), [side * 0.1, 1.62, -0.4], [0, 0, Math.PI / 2], [1, 1, 0.55]);
   }
   return builder.build();
 }
 function buildJesterHead() {
   const builder = new MeshBuilder();
-  place2(builder, createSphereMesh(0.22, 20, 14), JESTER_HEAD_CENTER, [0, 0, 0], [0.92, 1.18, 0.95]);
-  place2(builder, createSphereMesh(0.14, 16, 10), [0, JESTER_HEAD_CENTER[1] - 0.2, 0.06], [0.2, 0, 0], [1.05, 0.6, 1]);
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
+  place2(builder, createSphereMesh(0.22, 20, 14), [cx, cy, cz], [0, 0, 0], [0.9, 1.16, 0.94]);
+  place2(builder, createSphereMesh(0.13, 16, 10), [cx, cy - 0.21, cz + 0.08], [0.35, 0, 0], [1, 0.62, 1.05]);
+  place2(builder, createSphereMesh(0.05, 10, 8), [cx, cy - 0.3, cz + 0.17], [0, 0, 0], [1.1, 0.9, 1]);
+  builder.appendMesh(
+    createTubeMesh(
+      [
+        [cx, cy + 0.02, cz + 0.18],
+        [cx, cy - 0.01, cz + 0.27],
+        [cx, cy - 0.06, cz + 0.33],
+        [cx, cy - 0.12, cz + 0.33]
+      ],
+      [0.035, 0.03, 0.022, 0.012],
+      10
+    ),
+    mat4Identity()
+  );
   for (const side of [-1, 1]) {
-    place2(builder, createSphereMesh(0.07, 10, 8), [side * 0.12, JESTER_HEAD_CENTER[1] - 0.1, 0.15], [0, 0, 0], [1, 0.8, 0.7]);
+    place2(builder, createSphereMesh(0.06, 10, 8), [cx + side * 0.13, cy - 0.12, cz + 0.13], [0, 0, 0], [1, 0.75, 0.6]);
+  }
+  return builder.build();
+}
+function buildJesterHat() {
+  const builder = new MeshBuilder();
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
+  place2(builder, createCylinderMesh(0.21, 0.23, 0.1, 16), [cx, cy + 0.2, cz], [0.05, 0, 0], [1, 1, 0.95]);
+  const horns = [
+    [-1, 0.25],
+    [0, 0.55],
+    [1, 0.25]
+  ];
+  for (const [lateral, lift] of horns) {
+    const base = [cx + lateral * 0.1, cy + 0.24, cz - 0.02];
+    const mid = [cx + lateral * 0.3, cy + 0.42 + lift * 0.15, cz - 0.06];
+    const tip = [cx + lateral * 0.5, cy + 0.2 + lift * 0.1, cz - 0.04];
+    const end = [cx + lateral * 0.55, cy + 0.02, cz - 0.02];
+    builder.appendMesh(createTubeMesh([base, mid, tip, end], [0.11, 0.07, 0.035, 0.015], 10), mat4Identity());
+    place2(builder, createSphereMesh(0.045, 10, 8), [end[0], end[1] - 0.04, end[2]], [0, 0, 0], [1, 1, 1]);
   }
   return builder.build();
 }
 function buildJesterEyes() {
   const builder = new MeshBuilder();
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
   for (const side of [-1, 1]) {
-    place2(builder, createSphereMesh(0.035, 10, 8), [side * 0.082, JESTER_HEAD_CENTER[1] + 0.035, 0.19], [0, 0, side * 0.3], [1.5, 0.55, 0.6]);
+    place2(builder, createBoxMesh(0.075, 0.014, 0.02), [cx + side * 0.085, cy + 0.06, cz + 0.19], [0, 0, side * -0.35], [1, 1, 1]);
   }
-  place2(builder, createBoxMesh(0.2, 0.012, 0.02), [0, JESTER_HEAD_CENTER[1] - 0.14, 0.205], [0, 0, 0], [1, 1, 1]);
+  const stitches = 9;
+  for (let index = 0; index < stitches; index += 1) {
+    const t = index / (stitches - 1) - 0.5;
+    const x = cx + t * 0.26;
+    const y = cy - 0.12 + t * t * 0.22;
+    const z = cz + 0.2 - Math.abs(t) * 0.05;
+    place2(builder, createBoxMesh(0.034, 8e-3, 0.014), [x, y, z], [0, 0, t * 0.9], [1, 1, 1]);
+    place2(builder, createBoxMesh(6e-3, 0.04, 0.014), [x, y, z + 2e-3], [0, 0, t * 0.9], [1, 1, 1]);
+  }
+  return builder.build();
+}
+function buildJesterArm() {
+  const builder = new MeshBuilder();
+  builder.appendMesh(createTubeMesh([[0, 0, 0], [0, -0.26, 0.01], [0, -0.52, 0.03], [0, -0.78, 0.08], [0, -1, 0.12]], [0.075, 0.062, 0.055, 0.048, 0.045], 10), mat4Identity());
+  place2(builder, createCylinderMesh(0.09, 0.075, 0.07, 10), [0, -1.02, 0.12], [0.15, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+function buildJesterHand() {
+  const builder = new MeshBuilder();
+  place2(builder, createBoxMesh(0.09, 0.12, 0.035), [0, -1.1, 0.13], [0.15, 0, 0], [1, 1, 1]);
+  for (let finger = 0; finger < 4; finger += 1) {
+    const offset = (finger - 1.5) * 0.026;
+    const length = finger === 1 || finger === 2 ? 0.34 : 0.28;
+    builder.appendMesh(
+      createTubeMesh(
+        [
+          [offset, -1.15, 0.14],
+          [offset * 1.4, -1.15 - length * 0.5, 0.17],
+          [offset * 1.8, -1.15 - length, 0.24]
+        ],
+        [0.012, 9e-3, 3e-3],
+        6
+      ),
+      mat4Identity()
+    );
+  }
+  return builder.build();
+}
+function buildJesterArmGear() {
+  const builder = new MeshBuilder();
+  place2(builder, createCylinderMesh(0.07, 0.07, 0.03, 12), [0.06, -0.52, 0.03], [0, 0, Math.PI / 2], [1, 1, 1]);
+  for (let tooth = 0; tooth < 8; tooth += 1) {
+    const angle = tooth / 8 * Math.PI * 2;
+    place2(builder, createBoxMesh(0.032, 0.022, 0.022), [0.06, -0.52 + Math.sin(angle) * 0.078, 0.03 + Math.cos(angle) * 0.078], [angle, 0, 0], [1, 1, 1]);
+  }
+  return builder.build();
+}
+function buildJesterLeg() {
+  const builder = new MeshBuilder();
+  builder.appendMesh(createTubeMesh([[0, 0, 0], [0, -0.24, 0.08], [0, -0.48, 0.14], [0, -0.74, 0], [0, -0.96, -0.1]], [0.08, 0.068, 0.058, 0.05, 0.045], 10), mat4Identity());
+  builder.appendMesh(createTubeMesh([[0, -0.98, -0.12], [0, -1.01, 0.05], [0, -0.99, 0.24], [0, -0.93, 0.3]], [0.07, 0.06, 0.035, 0.012], 10), mat4Identity());
+  place2(builder, createSphereMesh(0.03, 8, 6), [0, -0.92, 0.31], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+function buildJesterLegGear() {
+  const builder = new MeshBuilder();
+  place2(builder, createCylinderMesh(0.075, 0.075, 0.03, 12), [0.07, -0.48, 0.14], [0, 0, Math.PI / 2], [1, 1, 1]);
+  place2(builder, createCylinderMesh(0.02, 0.02, 0.16, 8), [0, -0.48, 0.14], [0, 0, Math.PI / 2], [1, 1, 1]);
   return builder.build();
 }
 function buildGasMaskShell() {
@@ -4602,8 +4717,17 @@ function buildBreakerSwitchIndicator() {
 var PROCEDURAL_MESH_BUILDERS = {
   ...CAMPAIGN_MESH_BUILDERS,
   jester_body: buildJesterBody,
+  jester_stuffing: buildJesterStuffing,
+  jester_lantern_shard: buildJesterLanternShard,
+  jester_wind_key: buildJesterWindKey,
   jester_head: buildJesterHead,
+  jester_hat: buildJesterHat,
   jester_eyes: buildJesterEyes,
+  jester_arm: buildJesterArm,
+  jester_hand: buildJesterHand,
+  jester_arm_gear: buildJesterArmGear,
+  jester_leg: buildJesterLeg,
+  jester_leg_gear: buildJesterLegGear,
   gas_mask_shell: buildGasMaskShell,
   gas_mask_lenses: buildGasMaskLenses,
   gas_mask_filter: buildGasMaskFilter,
@@ -5839,7 +5963,14 @@ var EntityBrain = class {
     const { sight, hearing, observed } = this.perceive(deltaSeconds, context);
     if (this.graceSeconds > 0) {
       this.graceSeconds = Math.max(0, this.graceSeconds - deltaSeconds);
-      this.awareness = Math.min(this.awareness, profile.awareness.alertThreshold * 0.8);
+      if (this.state === "hunting" || this.state === "catchKill") {
+        this.catchSeconds = 0;
+        this.catchResolved = false;
+        this.transition(profile.stalking.enabled ? "stalking" : "alert");
+      }
+      if (this.state !== "stalking") {
+        this.awareness = Math.min(this.awareness, profile.awareness.alertThreshold * 0.8);
+      }
     }
     const perceivedRecently = sight.visible || this.secondsSincePerceived < 0.5;
     const lightFrozen = profile.freezeIlluminanceThreshold !== null && context.illuminanceAt([view.position[0], view.position[1] + profile.vision.eyeHeight * 0.7, view.position[2]]) > profile.freezeIlluminanceThreshold;
@@ -5891,7 +6022,7 @@ var EntityBrain = class {
       case "stalking": {
         this.stalkSeconds += deltaSeconds;
         const sprintingNearby = hearing.source === "footstepRun" && distanceToPlayer < 12;
-        if (distanceToPlayer <= profile.stalking.escalateDistance || this.stalkSeconds >= profile.stalking.patienceSeconds || sprintingNearby) {
+        if (this.graceSeconds <= 0 && (distanceToPlayer <= profile.stalking.escalateDistance || this.stalkSeconds >= profile.stalking.patienceSeconds || sprintingNearby)) {
           this.transition("hunting");
           break;
         }
@@ -6275,6 +6406,14 @@ var DIALOGUE = {
   ],
   "choirMother.entrance": [{ speaker: "mabel", text: "Hear that hymn? She\u2019s coming down from the loft. Don\u2019t let her see you.", seconds: 3.6 }],
   "jester.entrance": [{ speaker: "mabel", text: "Wait. The archive doors behind you were sealed. Who opened them?", seconds: 3.4 }],
+  "jester.vulnerable": [
+    { speaker: "mabel", text: "Listen to him grind. The archive water\u2019s got into his joints. He can\u2019t shake off a hit anymore.", seconds: 4 },
+    { speaker: "mabel", text: "Keep your eyes on him so he freezes, then strike. Four good hits and Gully stops for good.", seconds: 4 }
+  ],
+  "jester.defeated": [
+    { speaker: "mabel", text: "He\u2019s down. All those bells, finally quiet.", seconds: 3 },
+    { speaker: "mabel", text: "He was a mascot once. Kids used to queue to shake his hand. I\u2019m sorry, Gully.", seconds: 4 }
+  ],
   "choirMother.defeated": [{ speaker: "mabel", text: "She\u2019s down. The little ones are going quiet. That nursery won\u2019t sing again.", seconds: 3.8 }]
 };
 var LORE_TAPES = [
@@ -7793,7 +7932,7 @@ var THREAT_PROFILES = {
     },
     hearing: { radiusMultiplier: 0.7, occlusionFactor: 0.5, awarenessGain: 0.25 },
     awareness: { sightGainPerSecond: 1.6, decayPerSecond: 0.08, alertThreshold: 0.2, huntThreshold: 0.65, forgetThreshold: 0.08 },
-    speeds: { patrol: 1.4, alert: 2.4, stalk: 4.2, hunt: 5.1, observed: 0.6 },
+    speeds: { patrol: 1.4, alert: 2.4, stalk: 4.2, hunt: 5.1, observed: 0 },
     turnRateRadiansPerSecond: 4,
     stalking: { enabled: true, preferredDistanceMinimum: 6, preferredDistanceMaximum: 11, patienceSeconds: 14, escalateDistance: 4.5 },
     freezesWhenObserved: true,
@@ -7929,6 +8068,27 @@ var TypedEventBus = class {
 };
 
 // src/world/JesterEntity.ts
+function poseNoise(index, channel) {
+  const value = Math.sin(index * 12.9898 + channel * 78.233) * 43758.5453;
+  return value - Math.floor(value);
+}
+function poseAt(index) {
+  const n = (channel, minimum, maximum) => minimum + (maximum - minimum) * poseNoise(index, channel);
+  if (index === 0) {
+    return { headRoll: 0.42, headYaw: 0.12, headPitch: 0.08, bodyLean: 0.08, bodyRoll: -0.05, armRaise: [-0.15, -0.95], armOut: [0.12, 0.25], legSwing: [0.05, -0.08] };
+  }
+  return {
+    headRoll: n(1, -0.8, 0.8),
+    headYaw: n(2, -0.55, 0.55),
+    headPitch: n(3, -0.25, 0.35),
+    bodyLean: n(4, -0.05, 0.32),
+    bodyRoll: n(5, -0.18, 0.18),
+    armRaise: [n(6, -1.7, 0.25), n(7, -1.7, 0.25)],
+    armOut: [n(8, 0, 0.95), n(9, 0, 0.95)],
+    legSwing: [n(10, -0.35, 0.35), n(11, -0.35, 0.35)]
+  };
+}
+var POSE_SNAP_SECONDS = 0.32;
 var JesterEntity = class {
   kind = "jester";
   position = [0, 0, 0];
@@ -7941,6 +8101,8 @@ var JesterEntity = class {
   headTwitchStrength = 0.25;
   disturbance = { position: [0, 2, 0], radius: 9, strength: 0 };
   animationTime = 0;
+  poseIndex = 0;
+  movingSeconds = 0;
   model;
   constructor(meshes) {
     this.model = meshes.get("jester_entity");
@@ -7951,6 +8113,13 @@ var JesterEntity = class {
   advanceAnimation(deltaSeconds) {
     this.animationTime += deltaSeconds;
     this.disturbance.position = [this.position[0], this.position[1] + 2.2, this.position[2]];
+    if (this.gait > 0.04 || this.lunging) {
+      this.movingSeconds += deltaSeconds;
+      if (this.movingSeconds >= POSE_SNAP_SECONDS) {
+        this.movingSeconds = 0;
+        this.poseIndex += 1;
+      }
+    }
   }
   /** Alias kept for menu / cinematic callers that only need idle motion. */
   updateIdle(deltaSeconds) {
@@ -7958,30 +8127,53 @@ var JesterEntity = class {
   }
   collectDrawItems(output) {
     const time = this.animationTime;
-    const gait = clamp(this.gait, 0, 1);
-    const stride = 0.25 + gait * 0.75;
-    const sway = Math.sin(time * 1.7) * 0.035 + Math.sin(time * 7.3) * 0.01 * stride;
-    const bob = Math.abs(Math.sin(time * (3.1 + gait * 4))) * 0.04 * stride;
-    const lean = 0.06 * stride + (this.lunging ? 0.35 : 0);
-    const root = mat4Compose([this.position[0], this.position[1] + bob, this.position[2]], [lean, this.yawRadians, sway], [1, 1, 1]);
+    const pose = poseAt(this.poseIndex);
+    const breathe = Math.sin(time * 1.4) * 8e-3;
+    const lean = pose.bodyLean + (this.lunging ? 0.35 : 0);
+    const root = mat4Compose([this.position[0], this.position[1] + breathe, this.position[2]], [lean, this.yawRadians, pose.bodyRoll], [1, 1, 1]);
     const twitchTick = Math.floor(time * 6);
     const twitchNoise = Math.sin(twitchTick * 12.9898) * 43758.5453;
     const twitchAmount = (twitchNoise - Math.floor(twitchNoise) - 0.5) * this.headTwitchStrength;
     const scanYaw = Math.sin(time * 1.3) * 0.9 * this.scanAmount;
-    const headTilt = Math.sin(time * 0.9) * 0.22 + twitchAmount;
     const pivot = mat4Translation(0, JESTER_HEAD_HEIGHT - 0.15, 0);
     const unpivot = mat4Translation(0, -(JESTER_HEAD_HEIGHT - 0.15), 0);
-    const headLocal = mat4Multiply(mat4Multiply(pivot, mat4Compose([0, 0, 0], [twitchAmount * 0.4, twitchAmount * 0.6 + scanYaw, headTilt], [1, 1, 1])), unpivot);
+    const headLocal = mat4Multiply(
+      mat4Multiply(pivot, mat4Compose([0, 0, 0], [pose.headPitch + twitchAmount * 0.4, pose.headYaw + twitchAmount * 0.6 + scanYaw, pose.headRoll + twitchAmount], [1, 1, 1])),
+      unpivot
+    );
     const headWorld = mat4Multiply(root, headLocal);
+    const armRaise = (index) => this.lunging ? -1.45 : pose.armRaise[index];
+    const armOut = (index) => this.lunging ? 0.25 : pose.armOut[index];
+    const armWorld = (side, index) => mat4Multiply(root, mat4Compose([side * JESTER_JOINTS.shoulderX, JESTER_JOINTS.shoulderY, 0], [armRaise(index), 0, side * armOut(index)], [1, 1, 1]));
+    const legWorld = (side, index) => mat4Multiply(root, mat4Compose([side * JESTER_JOINTS.hipX, JESTER_JOINTS.hipY, 0], [pose.legSwing[index] - lean * 0.6, 0, side * 0.04], [1, 1, 1]));
+    const limbs = [
+      { side: -1, index: 0 },
+      { side: 1, index: 1 }
+    ];
     const eyePulse = this.eyeGlow * (0.75 + 0.25 * Math.sin(time * 5.1));
     for (const part of this.model.parts) {
-      const isHeadPart = part.partId === "head" || part.partId === "eyes";
-      output.push({
-        mesh: part.gpuMesh,
-        materialId: part.materialId,
-        modelMatrix: isHeadPart ? headWorld : root,
-        emissiveBoost: part.partId === "eyes" ? eyePulse : part.partId === "head" ? 0.6 + eyePulse * 0.4 : 1
-      });
+      const emissiveBoost = part.partId === "eyes" ? eyePulse : part.partId === "head" ? 0.6 + eyePulse * 0.4 : part.partId === "shard" ? 0.5 : 1;
+      const push = (modelMatrix) => {
+        output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix, emissiveBoost });
+      };
+      switch (part.partId) {
+        case "head":
+        case "hat":
+        case "eyes":
+          push(headWorld);
+          break;
+        case "arm":
+        case "hand":
+        case "armGear":
+          for (const limb of limbs) push(armWorld(limb.side, limb.index));
+          break;
+        case "leg":
+        case "legGear":
+          for (const limb of limbs) push(legWorld(limb.side, limb.index));
+          break;
+        default:
+          push(root);
+      }
     }
   }
 };
@@ -8337,7 +8529,7 @@ var ThreatDirector = class {
       if (report.footstep && withinEarshot) {
         this.audio.playSpatialCue(managed.profile.audio.footstepCue, view.position, 0.5 + view.gait * 0.6);
       }
-      if (report.idleCue && withinEarshot) {
+      if (report.idleCue && withinEarshot && !(managed.kind === "jester" && report.observedByPlayer)) {
         this.audio.playSpatialCue(managed.profile.audio.idleCue, view.headPosition(), 0.6);
       }
       const disturbanceProfile = { jester: [10, 0.9], tallyman: [6, 0.5], choirMother: [9, 0.7], hushling: [0, 0] };
@@ -10211,7 +10403,8 @@ var QUEST_FLAG_IDS = [
   "hushlingDefeated",
   "tallymanIntroduced",
   "hushlingsIntroduced",
-  "choirMotherIntroduced"
+  "choirMotherIntroduced",
+  "jesterShowdownHint"
 ];
 function createEmptyQuestFlags() {
   const record = {};
@@ -12357,6 +12550,8 @@ var HOTBAR_KEY_CODES = ["Digit1", "Digit2", "Digit3", "Digit4"];
 var STRIKE_RADIUS = { jester: 0.75, tallyman: 0.7, choirMother: 0.95, hushling: 0.5 };
 var THREAT_DISPLAY_NAMES = { jester: "THE JESTER", tallyman: "THE TALLYMAN", choirMother: "THE CHOIR MOTHER", hushling: "HUSHLING" };
 var JESTER_ENTRANCE_CHUNK = 22;
+var GULLY_SHOWDOWN_CHUNK = 28;
+var GULLY_SHOWDOWN_STRIKES = 4;
 var THREAT_ENTRANCES = [
   { kind: "tallyman", flag: "tallymanIntroduced", chunk: 7, dialogue: "tallyman.entrance", cue: "tallymanStep", graceSeconds: 8 },
   { kind: "hushling", flag: "hushlingsIntroduced", chunk: 14, dialogue: "hushling.entrance", cue: "hushlingSkitter", graceSeconds: 6 },
@@ -12728,6 +12923,9 @@ var ActiveLevelStreamerState = class {
         if (kind === "choirMother") {
           threats.setDefeatable("choirMother", null);
           this.campaign?.say("choirMother.defeated");
+        } else if (kind === "jester") {
+          threats.setDefeatable("jester", null);
+          this.campaign?.say("jester.defeated");
         }
         break;
     }
@@ -12739,7 +12937,7 @@ var ActiveLevelStreamerState = class {
    */
   updateEntrances(threats, worldEvents, deltaSeconds) {
     const services = this.services;
-    if (this.entrance === null && worldEvents.flag("jesterAwakened") >= 1 && !threats.isJesterAwake && this.currentChunk >= JESTER_ENTRANCE_CHUNK) {
+    if (this.entrance === null && worldEvents.flag("jesterAwakened") >= 1 && worldEvents.flag("jesterDefeated") < 1 && !threats.isJesterAwake && this.currentChunk >= JESTER_ENTRANCE_CHUNK) {
       threats.awakenJester(this.entranceSpawnBehind(), this.playerPosition());
     }
     if (this.entrance === null) {
@@ -12784,8 +12982,12 @@ var ActiveLevelStreamerState = class {
   }
   /** Decides which monsters can be beaten for good right now; everything else can only be staggered. */
   updateCombatScenes(threats, worldEvents) {
-    const choirMotherBeaten = worldEvents.flag("choirMotherDefeated") >= 1;
-    if (choirMotherBeaten) {
+    this.updateChoirMotherScene(threats, worldEvents);
+    this.updateGullyShowdown(threats, worldEvents);
+  }
+  /** Act III: once the chapel music boxes are silenced, the Choir Mother falls to three strikes. */
+  updateChoirMotherScene(threats, worldEvents) {
+    if (worldEvents.flag("choirMotherDefeated") >= 1) {
       for (const managed of threats.activeThreats) {
         if (managed.kind === "choirMother") {
           threats.retire(managed.id);
@@ -12799,6 +13001,27 @@ var ActiveLevelStreamerState = class {
       if (worldEvents.flag("choirMotherVulnerableHint") < 1) {
         worldEvents.setFlag("choirMotherVulnerableHint", 1);
         this.campaign?.say("choirMother.vulnerable");
+      }
+    }
+  }
+  /**
+   * Act IV finale: in the last archive halls the floodwater has seized Gully's joints. Strikes landed while he stands
+   * frozen under the player's gaze finally hurt him; four of them end him for good.
+   */
+  updateGullyShowdown(threats, worldEvents) {
+    if (worldEvents.flag("jesterDefeated") >= 1) {
+      for (const managed of threats.activeThreats) {
+        if (managed.kind === "jester") {
+          threats.retire(managed.id);
+        }
+      }
+      return;
+    }
+    if (threats.isJesterAwake && this.currentChunk >= GULLY_SHOWDOWN_CHUNK && !threats.isDefeatable("jester")) {
+      threats.setDefeatable("jester", GULLY_SHOWDOWN_STRIKES);
+      if (worldEvents.flag("jesterShowdownHint") < 1) {
+        worldEvents.setFlag("jesterShowdownHint", 1);
+        this.campaign?.say("jester.vulnerable");
       }
     }
   }

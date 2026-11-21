@@ -530,8 +530,17 @@ export type ImportedMeshId =
 
 export type ProceduralMeshBuilderId =
   | 'jester_body'
+  | 'jester_stuffing'
+  | 'jester_lantern_shard'
+  | 'jester_wind_key'
   | 'jester_head'
+  | 'jester_hat'
   | 'jester_eyes'
+  | 'jester_arm'
+  | 'jester_hand'
+  | 'jester_arm_gear'
+  | 'jester_leg'
+  | 'jester_leg_gear'
   | 'gas_mask_shell'
   | 'gas_mask_lenses'
   | 'gas_mask_filter'
@@ -605,12 +614,21 @@ export interface ImportedMeshProfile {
 export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMeshProfile>> = {
   jester_entity: {
     id: 'jester_entity',
-    displayName: 'Jester Entity',
+    displayName: 'Gully (Jester Entity)',
     importScale: 1,
     parts: [
       { partId: 'body', materialId: 'jester_entity_fabric', importUri: null, fallbackBuilder: 'jester_body' },
+      { partId: 'stuffing', materialId: 'hymn_paper', importUri: null, fallbackBuilder: 'jester_stuffing' },
+      { partId: 'shard', materialId: 'tallyman_lamp', importUri: null, fallbackBuilder: 'jester_lantern_shard' },
+      { partId: 'key', materialId: 'tether_brass', importUri: null, fallbackBuilder: 'jester_wind_key' },
       { partId: 'head', materialId: 'jester_entity_porcelain', importUri: null, fallbackBuilder: 'jester_head' },
+      { partId: 'hat', materialId: 'jester_entity_fabric', importUri: null, fallbackBuilder: 'jester_hat' },
       { partId: 'eyes', materialId: 'jester_entity_eyes', importUri: null, fallbackBuilder: 'jester_eyes' },
+      { partId: 'arm', materialId: 'jester_entity_fabric', importUri: null, fallbackBuilder: 'jester_arm' },
+      { partId: 'hand', materialId: 'jester_entity_porcelain', importUri: null, fallbackBuilder: 'jester_hand' },
+      { partId: 'armGear', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'jester_arm_gear' },
+      { partId: 'leg', materialId: 'jester_entity_fabric', importUri: null, fallbackBuilder: 'jester_leg' },
+      { partId: 'legGear', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'jester_leg_gear' },
     ],
   },
   gas_mask_prop: {

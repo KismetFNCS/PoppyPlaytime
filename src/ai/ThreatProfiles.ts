@@ -131,7 +131,7 @@ export const THREAT_PROFILES: Readonly<Record<ThreatKind, ThreatProfile>> = {
     },
     hearing: { radiusMultiplier: 0.7, occlusionFactor: 0.5, awarenessGain: 0.25 },
     awareness: { sightGainPerSecond: 1.6, decayPerSecond: 0.08, alertThreshold: 0.2, huntThreshold: 0.65, forgetThreshold: 0.08 },
-    speeds: { patrol: 1.4, alert: 2.4, stalk: 4.2, hunt: 5.1, observed: 0.6 },
+    speeds: { patrol: 1.4, alert: 2.4, stalk: 4.2, hunt: 5.1, observed: 0 },
     turnRateRadiansPerSecond: 4,
     stalking: { enabled: true, preferredDistanceMinimum: 6, preferredDistanceMaximum: 11, patienceSeconds: 14, escalateDistance: 4.5 },
     freezesWhenObserved: true,

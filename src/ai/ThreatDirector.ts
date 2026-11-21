@@ -287,7 +287,7 @@ export class ThreatDirector {
       if (report.footstep && withinEarshot) {
         this.audio.playSpatialCue(managed.profile.audio.footstepCue, view.position, 0.5 + view.gait * 0.6);
       }
-      if (report.idleCue && withinEarshot) {
+      if (report.idleCue && withinEarshot && !(managed.kind === 'jester' && report.observedByPlayer)) {
         this.audio.playSpatialCue(managed.profile.audio.idleCue, view.headPosition(), 0.6);
       }
       // Light disturbance: lights stutter around threats that are actively closing in.
