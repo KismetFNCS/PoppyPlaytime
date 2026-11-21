@@ -219,6 +219,37 @@ const TexSynth = {
       out[4] = r < 0.18 ? 0.1 : 1;
       out[5] = 1;
     },
+    cloth(s, t, out) {
+      // plain weave + slubs + frayed tears
+      const wu = Math.sin(s * Math.PI * 2 * 96), wv = Math.sin(t * Math.PI * 2 * 96);
+      const over = (Math.floor(s * 96) + Math.floor(t * 96)) % 2 === 0;
+      const weave = over ? 0.5 + 0.5 * Math.abs(wu) : 0.5 + 0.5 * Math.abs(wv);
+      const slub = TexSynth.fbmA(s, t, 4, 64, 3, 131);
+      const tear = TexSynth.fbm(s, t, 6, 4, 132) > 0.7 ? 1 : 0;
+      const g = (0.62 + weave * 0.28 + (slub - 0.5) * 0.25) * (tear ? 0.35 : 1);
+      out[0] = g; out[1] = g; out[2] = g;
+      out[3] = weave * 0.6 + slub * 0.3 - tear * 0.3;
+      out[4] = 1;
+      out[5] = 1.05;
+    },
+    glass(s, t, out) {
+      const smudge = TexSynth.fbm(s, t, 4, 3, 141);
+      const g = 0.9 + smudge * 0.1;
+      out[0] = g; out[1] = g; out[2] = g;
+      out[3] = 0.5;
+      out[4] = 1;
+      out[5] = 0.7 + smudge * 0.8;
+    },
+    burnt(s, t, out) {
+      const strands = TexSynth.fbmA(s, t, 96, 8, 4, 151);
+      const char = smoothstep(0.5, 0.68, TexSynth.fbm(s, t, 5, 5, 152));
+      const embers = TexSynth.valueNoise(s * 64, t * 64, 64, 153) > 0.985 ? 1 : 0;
+      let g = (0.55 + strands * 0.45) * lerp(1, 0.12, char);
+      out[0] = g * (1 + embers * 0.6); out[1] = g * lerp(1, 0.9, char); out[2] = g * lerp(1, 0.85, char);
+      out[3] = strands * 0.7 - char * 0.4;
+      out[4] = 1;
+      out[5] = lerp(1, 1.6, char);
+    },
     rubber(s, t, out) {
       const n = TexSynth.fbm(s, t, 32, 3, 121);
       const g = 0.8 + n * 0.2;
@@ -233,7 +264,8 @@ const TexSynth = {
   layerPlan: [
     ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelain', 2.5], ['fur', 5.0],
     ['fur', 5.0], ['steel', 2.0], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
-    ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5]
+    ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5],
+    ['fur', 4.0], ['cloth', 3.5], ['glass', 0.5], ['burnt', 5.0]
   ],
 
   // Synthesizes one layer into the given Uint8Array slices.

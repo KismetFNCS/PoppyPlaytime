@@ -51,12 +51,12 @@ const GrabPack = {
   // Muzzle positions follow the camera (view-model space -> world)
   updateMuzzles(cam) {
     for (let s = 0; s < 2; s++) {
-      const x = s === 0 ? -0.22 : 0.22;
+      const x = s === 0 ? -0.2 : 0.2;
       const m = this.muzzle[s];
       V3.copy(m, cam.eye);
       V3.addScaled(m, m, Renderer.camRight, x);
-      V3.addScaled(m, m, Renderer.camUp, -0.19);
-      V3.addScaled(m, m, Renderer.camFwd, 0.46);
+      V3.addScaled(m, m, Renderer.camUp, -0.17);
+      V3.addScaled(m, m, Renderer.camFwd, 0.45);
     }
   },
 

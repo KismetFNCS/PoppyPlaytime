@@ -191,6 +191,7 @@ const Game = {
     GrabPack.reset();
     Particles.clear();
     Monster.reset();
+    Cast.reset();
     EventBus.clear();
     sfxLog.length = 0;
     const pose = CHECKPOINT_POSES[0];
@@ -249,6 +250,7 @@ const Game = {
     GrabPack.reset();
     Particles.clear();
     Monster.reset();
+    Cast.reset();
     EventBus.clear();
     this.chaseActive = false; this.invulnerable = false; this.victoryTimer = -1; this.threat = 0;
     this.stage = cp.stage;
@@ -383,6 +385,7 @@ const Game = {
     Monster.update(dt);
     EventBus.dispatch();
     if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
+    Cast.update(dt);   // the monster or a hazard handed control to an override state
     Streaming.update(Player.body.pos);
     Lights.update(dt, this.time, Streaming.visible);
     Particles.update(dt, Player.cam.eye);
@@ -401,6 +404,7 @@ const Game = {
     const chase = this.chaseActive || Monster.state === MSTATE.LINE_OF_SIGHT_CHASE;
     const next = chase ? STATE.CHASE_SEQUENCE : GrabPack.tetheredHand() ? STATE.INTERACTIVE_PUZZLE : STATE.GAMEPLAY_ACTIVE;
     if (next !== state && this.isGameplay()) setState(next);
+    Pip.update(dt);
     UI.updateHud(dt);
   },
 
@@ -536,6 +540,7 @@ const Game = {
     Lights.submitFixtures(vis);
     this.submitPuzzles(vis);
     Monster.submit();
+    Cast.submit(vis);
     if (this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
@@ -632,68 +637,120 @@ const Game = {
     const cam = Player.cam, right = Renderer.camRight, up = Renderer.camUp, fwd = Renderer.camFwd;
     for (let s = 0; s < 2; s++) {
       const h = GrabPack.hands[s];
-      const mat = s === 0 ? MAT.handTeal : MAT.handAmber;
       const m = GrabPack.muzzle[s];
-      // launcher barrel from below the frame to the muzzle (view model)
       const side = s === 0 ? -1 : 1;
+      // corrugated hose from the pack (below the frame) to the launcher collar
       V3.copy(_g.a, cam.eye);
-      V3.addScaled(_g.a, _g.a, right, side * 0.34 + Player.swayX);
-      V3.addScaled(_g.a, _g.a, up, -0.52 - Player.swayY);
-      V3.addScaled(_g.a, _g.a, fwd, 0.05);
-      V3.copy(_g.b, m);
-      V3.addScaled(_g.b, _g.b, fwd, -0.06 - h.recoil * 0.05);
-      RenderQueue.seg('cyl', MAT.steel, _g.a, _g.b, 0.055, false);
-      V3.lerp(_g.c, _g.a, _g.b, 0.55);
-      const band = RenderQueue.seg('cyl', mat, _g.c, _g.b, 0.062, false);
-      if (band && h.tethered) { band.emis[0] = 0.1 * h.energized; band.emis[1] = 0.5 * h.energized; band.emis[2] = 0.7 * h.energized; }
+      V3.addScaled(_g.a, _g.a, right, side * 0.33 + Player.swayX);
+      V3.addScaled(_g.a, _g.a, up, -0.42 - Player.swayY);
+      V3.addScaled(_g.a, _g.a, fwd, 0.24);
       if (h.state === HAND.DOCKED) {
-        V3.copy(_g.d, m);
-        V3.addScaled(_g.d, _g.d, right, Player.swayX * 0.5);
-        V3.addScaled(_g.d, _g.d, up, -Player.swayY * 0.5);
-        this.drawHand(_g.d, fwd, up, s, 0.15 + h.grip * 0.8, 0.85, false, h);
+        // docked: raised, fingers up and slightly forward, backs of the gloves toward the camera
+        V3.copy(_g.hp, m);
+        V3.addScaled(_g.hp, _g.hp, right, Player.swayX * 0.5);
+        V3.addScaled(_g.hp, _g.hp, up, -Player.swayY * 0.5 - h.recoil * 0.03);
+        V3.addScaled(_g.hp, _g.hp, fwd, h.recoil * 0.05);
+        V3.scale(_g.hf, fwd, 0.5); V3.addScaled(_g.hf, _g.hf, up, 0.84); V3.addScaled(_g.hf, _g.hf, right, -side * 0.16); V3.normalize(_g.hf, _g.hf);
+        // hose runs from the pack into the bottom of the cuff
+        V3.addScaled(_g.b, _g.hp, _g.hf, -0.13);
+        this.drawHose(_g.a, _g.b, up, h);
+        V3.scale(_g.hu, fwd, -1);
+        this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.1 + h.grip * 0.85, 1.0, false, h, true);
       } else {
-        // orientation: flying -> along velocity; latched -> into the surface
+        V3.copy(_g.b, m);
+        this.drawHose(_g.a, _g.b, up, h);
+        // out in the world: flying -> along velocity; latched -> palm pressed into the surface
         if (h.state === HAND.LATCHED) V3.scale(_g.e, h.latchNormal, -1); else V3.copy(_g.e, h.dir);
         if (V3.len(_g.e) < 0.5) V3.copy(_g.e, fwd);
         const upRef = Math.abs(_g.e[1]) > 0.9 ? right : _g.up;
-        this.drawHand(h.pos, _g.e, upRef, s, h.state === HAND.LATCHED ? h.grip : 0.1, 1, true, h);
+        this.drawHand(h.pos, _g.e, upRef, s, h.state === HAND.LATCHED ? h.grip * 0.6 : 0.05, 1.15, true, h, false);
       }
     }
   },
-  drawHand(pos, f, upRef, side, curl, scale, shadow, h) {
+  // ribbed rubber hose with steel clamp rings, sagging slightly between its ends
+  drawHose(a, b, up, h) {
+    const R = RenderQueue, N = 7;
+    for (let i = 0; i < N; i++) {
+      const t0 = i / N, t1 = (i + 1) / N;
+      V3.lerp(_g.p0, a, b, t0); V3.addScaled(_g.p0, _g.p0, up, -Math.sin(t0 * Math.PI) * 0.035);
+      V3.lerp(_g.p1, a, b, t1); V3.addScaled(_g.p1, _g.p1, up, -Math.sin(t1 * Math.PI) * 0.035);
+      const it = R.seg('cylLow', MAT.rubber, _g.p0, _g.p1, 0.024, false);
+      if (it) it.tint[3] = 0.04;
+      // corrugation ring at each joint
+      V3.sub(_g.c, _g.p1, _g.p0); V3.normalize(_g.c, _g.c);
+      if (i === N - 1) continue;
+      const ring = R.push('torus', MAT.copper, false);
+      if (ring) { ringMatrix(ring.model, _g.p1, _g.c, 0.027); ring.tint[3] = 0.05; }
+    }
+    // hose clamp where it meets the gauntlet
+    V3.sub(_g.c, b, a); V3.normalize(_g.c, _g.c);
+    const clamp = R.push('torus', MAT.copper, false);
+    if (clamp) { ringMatrix(clamp.model, b, _g.c, 0.03); clamp.tint[3] = 0.08; if (h.tethered) { clamp.emis[0] = 0.1 * h.energized; clamp.emis[1] = 0.5 * h.energized; clamp.emis[2] = 0.7 * h.energized; } }
+  },
+  drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
     const R = RenderQueue, mat = side === 0 ? MAT.handTeal : MAT.handAmber;
     V3.cross(_g.r, f, upRef); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, _g.r, f); V3.normalize(_g.u, _g.u);
     const r = _g.r, u = _g.u, s = scale;
+    const glow = h.tethered ? h.energized : 0;
+    const lift = viewModel ? 0.1 : 0;
     // custom gauntlet models: one per side, or a single model shared by both
     const custom = Assets.slot(side === 0 ? 'handLeft' : 'handRight') || Assets.slot(side === 0 ? 'handRight' : 'handLeft');
     if (custom) {
       basisMatrix(_g.m, pos, r, u, f, s, s, s);
       const it = AssetQueue.push(custom, _g.m, shadow);
-      if (it && h.tethered) { it.emis[0] = 0.15 * h.energized; it.emis[1] = 0.6 * h.energized; it.emis[2] = 0.9 * h.energized; }
+      if (it) { it.tint[3] = lift; if (glow) { it.emis[0] = 0.15 * glow; it.emis[1] = 0.6 * glow; it.emis[2] = 0.9 * glow; } }
       return;
     }
-    // cuff (steel) behind the palm
-    V3.addScaled(_g.p0, pos, f, -0.13 * s); V3.addScaled(_g.p1, pos, f, -0.035 * s);
-    R.seg('cyl', MAT.steel, _g.p0, _g.p1, 0.05 * s, shadow);
-    // palm block
-    const it = R.push('box', mat, shadow);
-    if (it) basisMatrix(it.model, pos, r, u, f, 0.105 * s, 0.035 * s, 0.1 * s);
-    if (it && h.tethered) { it.emis[0] = 0.15 * h.energized; it.emis[1] = 0.6 * h.energized; it.emis[2] = 0.9 * h.energized; }
-    // four fingers, two segments each, curling around the palm's right axis
-    for (let i = 0; i < 4; i++) {
-      const off = (i - 1.5) * 0.026 * s * (side === 0 ? -1 : 1);
-      V3.addScaled(_g.p0, pos, f, 0.05 * s); V3.addScaled(_g.p0, _g.p0, r, off);
-      const c1 = curl * 0.9, c2 = curl * 1.6;
-      V3.addScaled(_g.p1, _g.p0, f, Math.cos(c1) * 0.045 * s); V3.addScaled(_g.p1, _g.p1, u, -Math.sin(c1) * 0.045 * s);
-      V3.addScaled(_g.p2, _g.p1, f, Math.cos(c2) * 0.04 * s); V3.addScaled(_g.p2, _g.p2, u, -Math.sin(c2) * 0.04 * s);
-      R.seg('cylLow', mat, _g.p0, _g.p1, 0.011 * s, shadow);
-      R.seg('cylLow', MAT.steel, _g.p1, _g.p2, 0.0095 * s, shadow);
+    const mirror = side === 0 ? -1 : 1;   // thumb on the inside of each hand
+    // wrist cuff with clamp rings
+    V3.addScaled(_g.p0, pos, f, -0.115 * s); V3.addScaled(_g.p1, pos, f, -0.03 * s);
+    const cuff = R.seg('cyl', mat, _g.p0, _g.p1, 0.04 * s, shadow);
+    if (cuff) { cuff.tint[0] = cuff.tint[1] = cuff.tint[2] = 0.55; cuff.tint[3] = lift * 0.5; }
+    for (let k = 0; k < 2; k++) {
+      V3.addScaled(_g.p2, pos, f, (-0.1 + k * 0.045) * s);
+      const ring = R.push('torus', MAT.copper, shadow);
+      if (ring) { ringMatrix(ring.model, _g.p2, f, 0.041 * s); ring.model[4] *= 0.5; ring.model[5] *= 0.5; ring.model[6] *= 0.5; ring.tint[3] = lift; }
     }
-    // thumb
-    V3.addScaled(_g.p0, pos, r, (side === 0 ? 1 : -1) * 0.055 * s);
-    V3.addScaled(_g.p1, _g.p0, f, 0.045 * s); V3.addScaled(_g.p1, _g.p1, r, (side === 0 ? 1 : -1) * 0.02 * (1 - curl) * s); V3.addScaled(_g.p1, _g.p1, u, -0.02 * curl * s);
-    R.seg('cylLow', mat, _g.p0, _g.p1, 0.012 * s, shadow);
+    // padded palm (rounded) and a riveted knuckle plate on the back
+    V3.addScaled(_g.p0, pos, f, 0.012 * s);
+    let it = R.push('sphere', mat, shadow);
+    if (it) { basisMatrix(it.model, _g.p0, r, u, f, 0.058 * s, 0.027 * s, 0.062 * s); it.tint[3] = lift; it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow; }
+    V3.addScaled(_g.p0, pos, u, 0.022 * s); V3.addScaled(_g.p0, _g.p0, f, 0.046 * s);
+    it = R.push('box', MAT.copper, shadow);
+    if (it) { basisMatrix(it.model, _g.p0, r, u, f, 0.07 * s, 0.009 * s, 0.018 * s); it.tint[3] = lift * 0.5; }
+    // four jointed fingers, three phalanges each, fanned when open and curled when gripping
+    for (let i = 0; i < 4; i++) {
+      const L = HAND_FINGERS[i];
+      const splay = (i - 1.5) * 0.09 * (1 - curl) * mirror;
+      V3.scale(_g.d, f, Math.cos(splay)); V3.addScaled(_g.d, _g.d, r, Math.sin(splay));
+      V3.addScaled(_g.p0, pos, f, 0.058 * s); V3.addScaled(_g.p0, _g.p0, r, (i - 1.5) * 0.026 * s * mirror);
+      let ang = 0;
+      for (let j = 0; j < 3; j++) {
+        ang += curl * (j === 0 ? 0.95 : 1.15);
+        V3.scale(_g.c, _g.d, Math.cos(ang)); V3.addScaled(_g.c, _g.c, u, -Math.sin(ang));
+        V3.addScaled(_g.p1, _g.p0, _g.c, L[j] * s);
+        const seg = R.seg('cylLow', mat, _g.p0, _g.p1, (0.0125 - j * 0.0012) * s, shadow);
+        if (seg) seg.tint[3] = lift;
+        const kn = R.push('sphereLow', j === 0 ? MAT.copper : mat, shadow);
+        if (kn) { const kr = (0.0145 - j * 0.0012) * s; M4.compose(kn.model, _g.p0[0], _g.p0[1], _g.p0[2], 0, 0, 0, kr, kr, kr); kn.tint[3] = lift; }
+        V3.copy(_g.p0, _g.p1);
+      }
+      const tip = R.push('sphereLow', mat, shadow);
+      if (tip) { const tr = 0.0105 * s; M4.compose(tip.model, _g.p0[0], _g.p0[1], _g.p0[2], 0, 0, 0, tr, tr, tr); tip.tint[3] = lift; }
+    }
+    // opposable thumb: two phalanges swinging from the side toward the palm as the grip closes
+    V3.addScaled(_g.p0, pos, r, -mirror * 0.05 * s); V3.addScaled(_g.p0, _g.p0, u, -0.008 * s);
+    V3.scale(_g.d, f, 0.62); V3.addScaled(_g.d, _g.d, r, -mirror * 0.72 * (1 - curl * 0.7)); V3.addScaled(_g.d, _g.d, u, -0.3 * curl); V3.normalize(_g.d, _g.d);
+    for (let j = 0; j < 2; j++) {
+      V3.addScaled(_g.p1, _g.p0, _g.d, (j === 0 ? 0.036 : 0.03) * s);
+      const seg = R.seg('cylLow', mat, _g.p0, _g.p1, 0.0135 * s, shadow);
+      if (seg) seg.tint[3] = lift;
+      V3.copy(_g.p0, _g.p1);
+      V3.scale(_g.d, _g.d, 0.8); V3.addScaled(_g.d, _g.d, f, 0.25 + curl * 0.2); V3.addScaled(_g.d, _g.d, r, mirror * 0.25 * curl); V3.normalize(_g.d, _g.d);
+    }
+    const tip = R.push('sphereLow', mat, shadow);
+    if (tip) { const tr = 0.012 * s; M4.compose(tip.model, _g.p0[0], _g.p0[1], _g.p0[2], 0, 0, 0, tr, tr, tr); tip.tint[3] = lift; }
   },
 
   render() {
@@ -704,9 +761,24 @@ const Game = {
 };
 const _g = {
   v: V3.create(), a: V3.create(), b: V3.create(), c: V3.create(), d: V3.create(), e: V3.create(), r: V3.create(), u: V3.create(),
-  m: M4.create(), up: V3.create(0, 1, 0), p0: V3.create(), p1: V3.create(), p2: V3.create(),
+  m: M4.create(), hp: V3.create(), hf: V3.create(), hu: V3.create(), up: V3.create(0, 1, 0), p0: V3.create(), p1: V3.create(), p2: V3.create(),
   idle: hexToLinear(PALETTE.relayIdle), linked: hexToLinear(PALETTE.relayLinked), red: hexToLinear(PALETTE.receptacleIdle)
 };
+// Finger phalanx lengths (index, middle, ring, little), metres at scale 1.
+const HAND_FINGERS = [[0.042, 0.03, 0.024], [0.046, 0.034, 0.026], [0.043, 0.031, 0.025], [0.035, 0.025, 0.02]];
+// Torus (ring around local Y) oriented so its axis follows direction d, radius rad.
+function ringMatrix(o, p, d, rad) {
+  let hx = 0, hy = 1, hz = 0;
+  if (Math.abs(d[1]) > 0.9) { hx = 1; hy = 0; }
+  let xx = hy * d[2] - hz * d[1], xy = hz * d[0] - hx * d[2], xz = hx * d[1] - hy * d[0];
+  const xl = Math.hypot(xx, xy, xz) || 1; xx /= xl; xy /= xl; xz /= xl;
+  const zx = xy * d[2] - xz * d[1], zy = xz * d[0] - xx * d[2], zz = xx * d[1] - xy * d[0];
+  o[0] = xx * rad; o[1] = xy * rad; o[2] = xz * rad; o[3] = 0;
+  o[4] = d[0] * rad; o[5] = d[1] * rad; o[6] = d[2] * rad; o[7] = 0;
+  o[8] = zx * rad; o[9] = zy * rad; o[10] = zz * rad; o[11] = 0;
+  o[12] = p[0]; o[13] = p[1]; o[14] = p[2]; o[15] = 1;
+  return o;
+}
 // Model matrix from an orthonormal basis (columns r, u, f) scaled per axis.
 function basisMatrix(o, p, r, u, f, sx, sy, sz) {
   o[0] = r[0] * sx; o[1] = r[1] * sx; o[2] = r[2] * sx; o[3] = 0;
@@ -736,6 +808,7 @@ const Loader = {
         Level.uploadBatches();
         Assets.uploadPending();
         Monster.init();
+        Cast.init();
         if (Audio.ctx && !Audio.emittersBuilt) Audio.buildEmitters();
         this.phase = 3;
         return;

@@ -1,0 +1,471 @@
+// =====================================================================================
+// SUPPORTING CAST (original designs, genre-inspired):
+//   THE USHER       - hooded, robed watcher on spindly black machine limbs; its face is a CRT lens
+//                     showing one roving eye. Appears at vantage points and vanishes when confronted.
+//   MARIGOLD        - cracked porcelain display doll (ash-blonde ringlets, mustard pinafore, one
+//                     hollow socket, one amber glass eye) whose head follows you when you look away.
+//   MISTER THIMBLE  - scorched plush bear slumped in the foundry; thimble cap, one glowing violet eye.
+//   PIP             - pocket companion on the HUD: cog-shaped casing with an LED dot-matrix face that
+//                     reacts to the game (talks with hints, cheers, panics, glitches).
+// =====================================================================================
+// CHARACTER PALETTE (UI CONTRACT addendum)
+//   Usher screen bg #04121a, sclera #e8eef2, iris #3fd4a8, pupil #050608, static #c8d2dc
+//   Pip casing #d9a63a, casing shadow #8a6420, screen #07090c, LED #f2f4f0, LED happy #7dff6a,
+//   LED scared #b98cff, LED love #ff6aa8, antenna tip #ff3b2e
+//   Source: [ASSUMED] original character colours chosen to differ from the reference characters
+//   (teal-green iris instead of blue, cog casing instead of a star, green/violet LED moods).
+const CAST_COLORS = {
+  screenBg: '#04121a', sclera: '#e8eef2', iris: '#3fd4a8', pupil: '#050608', static: '#c8d2dc',
+  pipCase: '#d9a63a', pipShade: '#8a6420', pipScreen: '#07090c', led: '#f2f4f0', ledHappy: '#7dff6a',
+  ledScared: '#b98cff', ledLove: '#ff6aa8', antenna: '#ff3b2e'
+};
+
+const Cast = {
+  usher: {
+    pos: V3.create(0, -50, 0), yaw: 0, headYaw: 0, state: 'HIDDEN', timer: 0, stareTime: 0, used: new Uint8Array(4),
+    eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
+  },
+  doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0 },
+  plush: { pos: V3.create(-5.15, 0, -68.6), yaw: -Math.PI / 2, headYaw: 0, eyeGlow: 0.4 },
+  screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
+  tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
+
+  // Usher vantage points per stage: [x, z, facing yaw]
+  PERCHES: [[-10.6, -21.6, -2.4], [8.6, -46.4, 0.7], [4.6, -88.8, 0.4]],
+
+  init() {
+    // CRT face: a dynamic canvas texture drawn through the textured G-buffer path
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 96;
+    this.screenCanvas = cv; this.screenCtx = cv.getContext('2d');
+    this.drawScreen(0);
+    const gl = Renderer.gl;
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    // unit quad facing -Z (the Usher's forward), UV top-left origin
+    const v = new Float32Array([
+      -0.5, -0.5, 0, 0, 0, -1, 1, 1, 0.5, -0.5, 0, 0, 0, -1, 0, 1, 0.5, 0.5, 0, 0, 0, -1, 0, 0, -0.5, 0.5, 0, 0, 0, -1, 1, 0
+    ]);
+    const idx = new Uint16Array([0, 2, 1, 0, 3, 2]);
+    const mat = { baseColor: new Float32Array([1, 1, 1, 1]), image: null, tex, rough: 0.12, metal: 0, emissive: new Float32Array(3), cutoff: -1, doubleSided: true, texEmissive: 3.2 };
+    const asset = { name: 'usher-screen', prims: [{ vertices: v, indices: idx, node: M4.create(), material: mat, gpu: null, tris: 2 }], materials: [mat], fit: M4.create(), ready: true, size: V3.create(1, 1, 0) };
+    Assets.upload(asset);
+    mat.tex = tex;
+    this.screen = asset;
+  },
+  // context restore: rebuild the screen texture and quad
+  reupload() { if (this.screen) { this.screen.prims[0].gpu = null; this.init(); } },
+
+  reset() {
+    const U = this.usher;
+    U.state = 'HIDDEN'; U.timer = 0; U.stareTime = 0; U.used.fill(0); U.glitch = 0; U.perch = -1;
+    V3.set(U.pos, 0, -50, 0);
+    const D = this.doll; D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0;
+    this.plush.headYaw = 0; this.plush.eyeGlow = 0.4;
+    Pip.reset();
+  },
+
+  update(dt) {
+    this.updateUsher(dt);
+    this.updateDoll(dt);
+    this.updatePlush(dt);
+    // CRT face animation at ~15 fps
+    this.screenTimer -= dt;
+    if (this.screenTimer <= 0 && this.usher.state !== 'HIDDEN') {
+      this.screenTimer = 1 / 15;
+      this.drawScreen(Game.time);
+      const gl = Renderer.gl;
+      gl.bindTexture(gl.TEXTURE_2D, this.screen.materials[0].tex);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.screenCanvas);
+    }
+  },
+
+  updateUsher(dt) {
+    const U = this.usher;
+    const stagePerch = Game.stage === 1 ? 0 : Game.stage === 2 ? 1 : Game.stage === 3 ? 2 : -1;
+    if (U.state === 'HIDDEN' && stagePerch >= 0 && !U.used[stagePerch]) {
+      const P = this.PERCHES[stagePerch];
+      const sector = Level.sectorAt(P[0], P[1]);
+      // only materialise when the player is in that sector but far away
+      if (Streaming.current === sector && Math.hypot(Player.body.pos[0] - P[0], Player.body.pos[2] - P[1]) > 12) {
+        U.state = 'WATCHING'; U.perch = stagePerch; U.timer = 0; U.stareTime = 0;
+        V3.set(U.pos, P[0], 0, P[1]); U.yaw = P[2]; U.headYaw = 0;
+      }
+    }
+    if (U.state === 'HIDDEN') return;
+    U.timer += dt;
+    U.sway += dt;
+    const eye = Player.eyePos;
+    const dx = eye[0] - U.pos[0], dz = eye[2] - U.pos[2], d = Math.hypot(dx, dz) || 1;
+    const want = wrapAngle(Math.atan2(-dx, -dz) - U.yaw);
+    U.headYaw = damp(U.headYaw, clamp(want, -1.1, 1.1), 3, dt);
+    // pupil tracks the player relative to where the face points
+    U.eyeX = damp(U.eyeX, clamp((want - U.headYaw) * 1.5, -1, 1), 6, dt);
+    U.eyeY = damp(U.eyeY, clamp((eye[1] - 2.2) / d * 2, -1, 1), 6, dt);
+    U.blink = Math.max(0, U.blink - dt * 6);
+    if (gameRng() < dt * 0.25) U.blink = 1;
+    if (U.state === 'WATCHING') {
+      // the player stares straight at it or walks up to it -> it glitches out of existence
+      V3.set(this.tmp, U.pos[0], 2.1, U.pos[2]);
+      V3.sub(this.tmp2, this.tmp, Player.cam.eye); const dl = V3.len(this.tmp2); V3.scale(this.tmp2, this.tmp2, 1 / dl);
+      const looking = V3.dot(this.tmp2, Renderer.camFwd) > Math.cos(9 * DEG) && Physics.lineOfSight(Player.cam.eye, this.tmp, LAYER.SIGHT);
+      U.stareTime = looking ? U.stareTime + dt : Math.max(0, U.stareTime - dt * 0.5);
+      if (U.stareTime > 0.7 || d < 7 || U.timer > 40) {
+        U.state = 'VANISHING'; U.timer = 0; U.glitch = 1;
+        sfx('usherGlitch', this.tmp);
+        Pip.react('scared', 2.5);
+        Player.addTrauma(0.25);
+      }
+    } else if (U.state === 'VANISHING') {
+      U.glitch = 1;
+      if (U.timer > 0.55) { U.state = 'HIDDEN'; U.used[U.perch] = 1; V3.set(U.pos, 0, -50, 0); }
+    }
+  },
+
+  updateDoll(dt) {
+    const D = this.doll;
+    if (Streaming.current !== 1 && !Streaming.visible[1]) return;
+    const head = this.tmp;
+    V3.set(head, D.pos[0], D.pos[1] + 0.62, D.pos[2]);
+    const eye = Player.eyePos;
+    const dx = eye[0] - head[0], dy = eye[1] - head[1], dz = eye[2] - head[2], d = Math.hypot(dx, dz) || 1;
+    const targetYaw = clamp(wrapAngle(Math.atan2(-dx, -dz) - D.yaw), -1.6, 1.6);
+    const targetPitch = clamp(Math.atan2(dy, d), -0.5, 0.6);
+    V3.sub(this.tmp2, head, Player.cam.eye); V3.normalize(this.tmp2, this.tmp2);
+    const watched = V3.dot(this.tmp2, Renderer.camFwd) > Math.cos(38 * DEG);
+    D.tickCool = Math.max(0, D.tickCool - dt);
+    if (!watched && d < 11) {
+      // when nobody is looking, the head is already facing you
+      if (Math.abs(targetYaw - D.headYaw) > 0.3) D.snapped = true;
+      D.headYaw = targetYaw; D.headPitch = targetPitch;
+    } else if (watched && D.snapped && D.tickCool <= 0) {
+      D.snapped = false; D.tickCool = 4;
+      sfx('dollTick', head);
+      Pip.react('scared', 1.5);
+    } else if (watched) {
+      // under observation it only creeps a few degrees
+      D.headYaw = damp(D.headYaw, targetYaw, 0.25, dt);
+      D.headPitch = damp(D.headPitch, targetPitch, 0.25, dt);
+    }
+    D.blink = Math.max(0, D.blink - dt * 5);
+    if (gameRng() < dt * 0.12) D.blink = 1;
+  },
+
+  updatePlush(dt) {
+    const P = this.plush;
+    if (!Streaming.visible[3]) return;
+    const eye = Player.eyePos;
+    const want = clamp(wrapAngle(Math.atan2(-(eye[0] - P.pos[0]), -(eye[2] - P.pos[2])) - P.yaw), -1.0, 1.0);
+    const d = Math.hypot(eye[0] - P.pos[0], eye[2] - P.pos[2]);
+    P.headYaw = damp(P.headYaw, d < 14 ? want : 0, Game.chaseActive ? 2.5 : 0.6, dt);
+    P.eyeGlow = damp(P.eyeGlow, Game.chaseActive ? 1.6 : 0.45 + 0.2 * Math.sin(Game.time * 2), 3, dt);
+  },
+
+  // ---------- CRT face ----------
+  drawScreen(t) {
+    const c = this.screenCtx, W = 128, H = 96, U = this.usher, C = CAST_COLORS;
+    c.fillStyle = C.screenBg; c.fillRect(0, 0, W, H);
+    if (U.glitch > 0.05) {
+      for (let i = 0; i < 260; i++) { c.fillStyle = gameRng() < 0.5 ? C.static : C.pupil; c.fillRect(gameRng() * W, gameRng() * H, 2 + gameRng() * 6, 1 + gameRng() * 2); }
+      return;
+    }
+    const cx = 64 + Math.sin(t * 0.7) * 2, cy = 50;
+    const open = 1 - U.blink;
+    // almond-shaped eye
+    c.save();
+    c.beginPath();
+    c.ellipse(cx, cy, 44, 26 * open + 1, 0, 0, Math.PI * 2);
+    c.clip();
+    const g = c.createRadialGradient(cx, cy, 4, cx, cy, 46);
+    g.addColorStop(0, C.sclera); g.addColorStop(1, C.static);
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    const ix = cx + U.eyeX * 18, iy = cy - U.eyeY * 8;
+    c.fillStyle = C.iris; c.beginPath(); c.arc(ix, iy, 17, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = C.screenBg; c.lineWidth = 1;
+    for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; c.beginPath(); c.moveTo(ix + Math.cos(a) * 8, iy + Math.sin(a) * 8); c.lineTo(ix + Math.cos(a) * 16, iy + Math.sin(a) * 16); c.stroke(); }
+    c.fillStyle = C.pupil; c.beginPath(); c.arc(ix, iy, 7 + Math.sin(t * 3) * 1.5, 0, Math.PI * 2); c.fill();
+    c.fillStyle = C.sclera; c.fillRect(ix - 9, iy - 9, 4, 4);
+    c.restore();
+    // scanlines + rolling band
+    c.fillStyle = 'rgba(0,0,0,0.35)';
+    for (let y = 0; y < H; y += 2) c.fillRect(0, y, W, 1);
+    c.fillStyle = 'rgba(255,255,255,0.06)'; c.fillRect(0, (t * 30) % H, W, 6);
+  },
+
+  // ---------- rendering ----------
+  submit(vis) {
+    if (this.usher.state !== 'HIDDEN' && vis[Level.sectorAt(this.usher.pos[0], this.usher.pos[2])]) this.submitUsher();
+    if (vis[1]) this.submitDoll();
+    if (vis[3]) this.submitPlush();
+  },
+
+  // local (x right, y up, z back) -> world for a root at p with yaw
+  pt(out, p, yaw, x, y, z) {
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    out[0] = p[0] + x * c + z * s; out[1] = p[1] + y; out[2] = p[2] - x * s + z * c;
+    return out;
+  },
+
+  submitUsher() {
+    const U = this.usher, R = RenderQueue, p = U.pos, yaw = U.yaw;
+    const sw = Math.sin(U.sway * 1.3) * 0.03, jit = U.glitch > 0 ? (gameRng() - 0.5) * 0.12 : 0;
+    const a = this.tmp, b = this.tmp2;
+    // spindly legs under the robe: thigh, shin, splayed claw toes
+    for (const sx of [-1, 1]) {
+      this.pt(a, p, yaw, sx * 0.16, 0.95, 0.05); this.pt(b, p, yaw, sx * 0.24, 0.5, -0.12);
+      R.seg('cylLow', MAT.steel, a, b, 0.035);
+      R.trs('sphereLow', MAT.steel, b[0], b[1], b[2], 0, 0, 0, 0.05, 0.05, 0.05);
+      this.pt(a, p, yaw, sx * 0.22, 0.06, -0.02);
+      R.seg('cylLow', MAT.steel, b, a, 0.028);
+      for (let k = -1; k <= 1; k++) { this.pt(b, p, yaw, sx * 0.22 + k * 0.07, 0.01, -0.2); R.seg('cone', MAT.steel, a, b, 0.016); }
+      this.pt(b, p, yaw, sx * 0.22, 0.02, 0.12); R.seg('cone', MAT.steel, a, b, 0.014);
+    }
+    // robe: layered cones with a tattered hem of hanging strips
+    this.pt(a, p, yaw, 0, 0.42, 0);
+    let it = R.trs('cone', MAT.canvas, a[0] + jit, a[1], a[2], yaw, 0, 0, 0.5, 1.55, 0.44);
+    this.pt(a, p, yaw, 0, 0.8, 0.02);
+    R.trs('cone', MAT.canvas, a[0] + jit, a[1], a[2], yaw + 0.4, 0, 0, 0.44, 1.3, 0.4);
+    for (let i = 0; i < 14; i++) {
+      const ang = i / 14 * Math.PI * 2, len = 0.35 + ((i * 37) % 11) / 22;
+      const hx = Math.cos(ang) * 0.46, hz = Math.sin(ang) * 0.4;
+      this.pt(a, p, yaw, hx, 0.5, hz);
+      this.pt(b, p, yaw, hx * 1.08 + Math.sin(U.sway * 2 + i) * 0.03, 0.5 - len, hz * 1.08);
+      it = R.push('box', MAT.canvas);
+      if (it) { M4.segment(it.model, b, a, 1); it.model[0] *= 0.07; it.model[1] *= 0.07; it.model[2] *= 0.07; it.model[8] *= 0.012; it.model[9] *= 0.012; it.model[10] *= 0.012; M4.multiply(it.model, it.model, _cast.boxUp); }
+    }
+    // shoulders + arms: long black machine arms with clawed hands
+    for (const sx of [-1, 1]) {
+      this.pt(a, p, yaw, sx * 0.3, 1.85, 0.02);
+      R.trs('sphereLow', MAT.canvas, a[0], a[1], a[2], yaw, 0, 0, 0.17, 0.14, 0.17);
+      const reach = sx < 0 ? 0.25 + Math.sin(U.sway) * 0.05 : 0.05;
+      this.pt(b, p, yaw, sx * 0.52, 1.35 + sw, -0.18 - reach);
+      R.seg('cylLow', MAT.steel, a, b, 0.032);
+      R.trs('sphereLow', MAT.steel, b[0], b[1], b[2], 0, 0, 0, 0.045, 0.045, 0.045);
+      const elbow = V3.copy(_cast.e, b);
+      this.pt(a, p, yaw, sx * 0.5, 0.9 + sw, -0.35 - reach * 1.6);
+      R.seg('cylLow', MAT.steel, elbow, a, 0.026);
+      for (let k = 0; k < 4; k++) {
+        const fx = sx * 0.5 + (k - 1.5) * 0.035, fz = -0.42 - reach * 1.6;
+        this.pt(b, p, yaw, fx, 0.72 + sw + Math.abs(k - 1.5) * 0.03, fz - 0.06);
+        R.seg('cone', MAT.steel, a, b, 0.012);
+      }
+    }
+    // hood with a peaked back, the CRT face recessed in the opening
+    const hy = U.headYaw + yaw;
+    this.pt(a, p, yaw, 0, 2.2, 0.0);
+    this.pt(a, p, hy, 0, 2.2, 0.06);
+    R.trs('sphere', MAT.canvas, a[0] + jit, a[1], a[2], hy, 0.1, 0, 0.27, 0.33, 0.27);
+    this.pt(b, p, hy, 0, 2.28, 0.2);
+    R.trs('cone', MAT.canvas, b[0], b[1], b[2], hy, -2.0, 0, 0.18, 0.36, 0.18);
+    this.pt(b, p, hy, 0, 2.17, -0.25);
+    R.trs('box', MAT.steel, b[0], b[1], b[2], hy, 0, 0, 0.38, 0.3, 0.1);
+    this.pt(b, p, hy, 0, 2.17, -0.305);
+    M4.compose(this.m, b[0] + jit, b[1], b[2], hy, 0, 0, 0.33, 0.25, 1);
+    AssetQueue.push(this.screen, this.m, false);
+  },
+
+  submitDoll() {
+    const D = this.doll, R = RenderQueue, p = D.pos, yaw = D.yaw;
+    const a = this.tmp, b = this.tmp2;
+    // pinafore skirt + striped petticoat (seated)
+    this.pt(a, p, yaw, 0, 0.0, 0.02);
+    let it = R.trs('cone', MAT.paint, a[0], a[1], a[2], yaw, 0, 0, 0.24, 0.42, 0.22);
+    this.pt(a, p, yaw, 0, 0.0, 0.02);
+    it = R.trs('cyl', MAT.canvas, a[0], a[1], a[2], yaw, 0, 0, 0.215, 0.07, 0.2);
+    if (it) { it.tint[0] = 3.2; it.tint[1] = 3.0; it.tint[2] = 2.6; }
+    // bodice
+    this.pt(a, p, yaw, 0, 0.38, 0.03);
+    it = R.trs('sphere', MAT.paint, a[0], a[1], a[2], yaw, 0, 0, 0.1, 0.14, 0.08);
+    // legs stretched forward, black shoes
+    for (const sx of [-1, 1]) {
+      this.pt(a, p, yaw, sx * 0.07, 0.06, -0.05); this.pt(b, p, yaw, sx * 0.08, 0.04, -0.34);
+      R.seg('cylLow', MAT.porcelain, a, b, 0.032);
+      R.trs('sphereLow', MAT.rubber, b[0], b[1] + 0.01, b[2] - 0.02, yaw, 0, 0, 0.038, 0.032, 0.055);
+      // arms resting on the lap
+      this.pt(a, p, yaw, sx * 0.12, 0.44, 0.03); this.pt(b, p, yaw, sx * 0.1, 0.2, -0.12);
+      R.seg('cylLow', MAT.porcelain, a, b, 0.022);
+      R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], 0, 0, 0, 0.028, 0.028, 0.028);
+    }
+    // head: cracked porcelain, one hollow socket, one amber glass eye, ash-blonde ringlets, mustard bow
+    const hy = yaw + D.headYaw, hp = D.headPitch;
+    this.pt(a, p, yaw, 0, 0.62, 0.02);
+    a[1] += 0.03;
+    R.trs('sphere', MAT.porcelain, a[0], a[1], a[2], hy, hp, 0.08, 0.14, 0.158, 0.134);
+    M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1.22, 1.22, 1.22);
+    const eye = (x, y, z, out) => { V3.set(this.local, x, y, z); return M4.transformPoint(out, this.m, this.local); };
+    eye(-0.04, 0.012, -0.095, b);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0, 0.03, 0.026 * (1 - D.blink * 0.9), 0.016);
+    eye(0.042, 0.01, -0.098, b);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0, 0.034, 0.034, 0.02, false);
+    eye(0.042, 0.008, -0.106, b);
+    it = R.trs('sphereLow', MAT.lens, b[0], b[1], b[2], hy, hp, 0, 0.017, 0.017 * (1 - D.blink * 0.9), 0.008, false);
+    if (it) { it.emis[0] = 0.6; it.emis[1] = 0.32; it.emis[2] = 0.05; }
+    eye(0, -0.06, -0.098, b);
+    it = R.trs('sphereLow', MAT.paint, b[0], b[1], b[2], hy, hp, 0, 0.02, 0.008, 0.01, false);
+    if (it) { it.tint[0] = 1.2; it.tint[1] = 0.35; it.tint[2] = 0.35; }
+    for (let i = 0; i < 16; i++) {
+      const ang = (i / 16) * Math.PI * 1.6 - 0.8 + Math.PI;
+      const rx = Math.sin(ang) * 0.11, rz = Math.cos(ang) * 0.1;
+      eye(rx, 0.06 + (i % 3) * 0.025, rz * -1 + 0.01, b);
+      R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2], 0, 0, 0, 0.055, 0.055, 0.055, i % 2 === 0);
+      if (i % 3 === 0) {
+        eye(rx * 1.2, -0.06, -rz * 1.2 + 0.02, this.local);
+        V3.copy(_cast.e, this.local);
+        R.seg('cylLow', MAT.furLight, b, _cast.e, 0.022, false);
+      }
+    }
+    eye(0.07, 0.13, -0.02, b);
+    it = R.trs('sphereLow', MAT.paint, b[0], b[1], b[2], hy, 0, 0.6, 0.05, 0.03, 0.03);
+  },
+
+  submitPlush() {
+    const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw;
+    const a = this.tmp, b = this.tmp2;
+    // slumped body, pale belly patch, splayed legs and drooping arms
+    this.pt(a, p, yaw, 0, 0.55, 0.12);
+    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], yaw, -0.25, 0, 0.42, 0.52, 0.36);
+    this.pt(a, p, yaw, 0, 0.5, -0.17);
+    R.trs('sphere', MAT.furLight, a[0], a[1], a[2], yaw, -0.25, 0, 0.26, 0.32, 0.12);
+    for (const sx of [-1, 1]) {
+      this.pt(a, p, yaw, sx * 0.24, 0.18, -0.1); this.pt(b, p, yaw, sx * 0.4, 0.13, -0.6);
+      R.seg('cyl', MAT.burnt, a, b, 0.14);
+      R.trs('sphere', MAT.burnt, b[0], b[1], b[2], yaw, 0, 0, 0.16, 0.15, 0.12);
+      R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2] , yaw, 0, 0, 0.1, 0.11, 0.06);
+      this.pt(a, p, yaw, sx * 0.38, 0.82, 0.08); this.pt(b, p, yaw, sx * 0.55, 0.3, -0.12);
+      R.seg('cyl', MAT.burnt, a, b, 0.1);
+      R.trs('sphere', MAT.burnt, b[0], b[1], b[2], 0, 0, 0, 0.12, 0.11, 0.12);
+    }
+    // head turns slowly toward the player
+    const hy = yaw + P.headYaw;
+    this.pt(a, p, yaw, 0, 1.18, 0.1);
+    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], hy, 0.15, 0.12, 0.34, 0.3, 0.3);
+    M4.compose(this.m, a[0], a[1], a[2], hy, 0.15, 0.12, 1, 1, 1);
+    const hp = (x, y, z, out) => { V3.set(this.local, x, y, z); return M4.transformPoint(out, this.m, this.local); };
+    hp(0, -0.08, -0.24, b);
+    R.trs('sphere', MAT.furLight, b[0], b[1], b[2], hy, 0, 0, 0.15, 0.11, 0.1);
+    hp(0, -0.03, -0.33, b);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], 0, 0, 0, 0.045, 0.035, 0.035);
+    for (const sx of [-1, 1]) {
+      hp(sx * 0.24, 0.24, 0.02, b);
+      R.trs('sphere', MAT.burnt, b[0], b[1], b[2], hy, 0, sx * 0.3, 0.11, 0.11, 0.05);
+      hp(sx * 0.24, 0.24, -0.01, b);
+      R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2], hy, 0, sx * 0.3, 0.06, 0.06, 0.03);
+    }
+    // stitched grin
+    for (let i = -3; i <= 3; i++) {
+      hp(i * 0.03, -0.16 - Math.abs(i) * -0.008, -0.27 + Math.abs(i) * 0.012, b);
+      R.trs('box', MAT.rubber, b[0], b[1], b[2], hy, 0, 0, 0.008, 0.04, 0.008, false);
+    }
+    // one sewn button eye, one glowing violet glass eye
+    hp(-0.12, 0.06, -0.26, b);
+    R.trs('cyl', MAT.rubber, b[0], b[1], b[2], hy, Math.PI / 2, 0, 0.055, 0.02, 0.055);
+    hp(0.12, 0.06, -0.27, b);
+    let it = R.trs('sphereLow', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.055, 0.055, 0.03, false);
+    if (it) { const g = P.eyeGlow; it.emis[0] = 1.1 * g; it.emis[1] = 0.25 * g; it.emis[2] = 1.6 * g; it.tint[0] = 0.6; it.tint[1] = 0.25; it.tint[2] = 1.0; }
+    // copper thimble cap with dimples
+    hp(0.04, 0.27, 0.02, b);
+    R.trs('cyl', MAT.copper, b[0], b[1], b[2], hy, 0, 0.25, 0.11, 0.16, 0.11);
+    hp(0.08, 0.42, 0.02, b);
+    R.trs('sphereLow', MAT.copper, b[0], b[1], b[2], hy, 0, 0.25, 0.1, 0.04, 0.1);
+  }
+};
+const _cast = {
+  e: V3.create(),
+  boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })()
+};
+
+// =====================================================================================
+// PIP: HUD companion with an LED dot-matrix face (16 x 12 LEDs)
+// =====================================================================================
+const PIP_W = 16, PIP_H = 12;
+const Pip = {
+  canvas: null, ctx: null, mood: 'smile', moodTimer: 0, blink: 0, talk: 0, time: 0, lastHint: '', grid: new Uint8Array(PIP_W * PIP_H),
+  init() {
+    this.canvas = document.getElementById('pipCanvas');
+    this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
+    EventBus.on(EV.POWER_ON, () => this.react('happy', 3));
+    EventBus.on(EV.DENY, () => this.react('sad', 2));
+    EventBus.on(EV.RELAY_LINK, () => this.react('wink', 1.2));
+    EventBus.on(EV.CHECKPOINT, () => this.react('sunny', 2.5));
+    EventBus.on(EV.CABLE_SNAP, () => this.react('surprised', 1.5));
+  },
+  reset() { this.mood = 'smile'; this.moodTimer = 0; this.talk = 0; this.lastHint = ''; },
+  react(mood, secs) { this.mood = mood; this.moodTimer = secs; if (mood !== 'scared') sfx('pipChirp'); },
+  // derive the current expression from the game state; event reactions override for a while
+  update(dt) {
+    if (!this.ctx) return;
+    this.time += dt;
+    this.moodTimer -= dt;
+    let mood = this.moodTimer > 0 ? this.mood : 'smile';
+    if (state === STATE.JUMPSCARE || state === STATE.FAILURE_STATE) mood = 'static';
+    else if (state === STATE.CHASE_SEQUENCE) mood = 'panic';
+    else if (this.moodTimer <= 0 && Game.threat > 0.55) mood = 'scared';
+    else if (state === STATE.VICTORY) mood = 'love';
+    if (GrabPack.hintTimer > 0 && GrabPack.hint !== this.lastHint) { this.lastHint = GrabPack.hint; this.talk = Math.min(2.2, GrabPack.hint.length * 0.045); }
+    if (GrabPack.hintTimer <= 0) this.lastHint = '';
+    this.talk = Math.max(0, this.talk - dt);
+    if (this.talk > 0 && (mood === 'smile' || mood === 'sad' || mood === 'happy')) mood = 'talk';
+    this.blink = Math.max(0, this.blink - dt * 7);
+    if (gameRng() < dt * 0.3) this.blink = 1;
+    this.current = mood;
+    this.draw(mood);
+  },
+  setDot(x, y) { if (x >= 0 && y >= 0 && x < PIP_W && y < PIP_H) this.grid[y * PIP_W + x] = 1; },
+  compose(mood) {
+    const g = this.grid; g.fill(0);
+    const t = this.time, blinkShut = this.blink > 0.5;
+    const eyes = (h, gap, y0) => { for (const ex of [8 - gap, 7 + gap]) for (let y = 0; y < h; y++) this.setDot(ex, y0 + y); };
+    if (mood === 'static') { for (let i = 0; i < g.length; i++) g[i] = gameRng() < 0.35 ? 1 : 0; return; }
+    if (mood === 'love') {
+      const heart = ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'];
+      for (let y = 0; y < heart.length; y++) for (let x = 0; x < 7; x++) if (heart[y][x] === '1') this.setDot(4 + x, 3 + y);
+      return;
+    }
+    if (mood === 'sunny') {
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + t; this.setDot(Math.round(7.5 + Math.cos(a) * 6.5), Math.round(5.5 + Math.sin(a) * 5)); }
+    }
+    if (blinkShut && mood !== 'panic' && mood !== 'surprised') { for (const ex of [4, 11]) { this.setDot(ex - 1, 4); this.setDot(ex, 4); this.setDot(ex + 1, 4); } }
+    else if (mood === 'wink') { for (let y = 2; y < 5; y++) this.setDot(4, y); this.setDot(10, 4); this.setDot(11, 4); this.setDot(12, 4); }
+    else if (mood === 'scared' || mood === 'panic' || mood === 'surprised') { for (const ex of [4, 11]) { this.setDot(ex, 2); this.setDot(ex - 1, 3); this.setDot(ex + 1, 3); this.setDot(ex, 4); } }
+    else if (mood === 'sad') { this.setDot(3, 3); this.setDot(4, 3); this.setDot(5, 4); this.setDot(10, 4); this.setDot(11, 3); this.setDot(12, 3); for (const ex of [4, 11]) this.setDot(ex, 5); }
+    else eyes(3, 4, 2);
+    // mouths
+    if (mood === 'smile' || mood === 'wink' || mood === 'sunny') { for (let x = 4; x <= 11; x++) this.setDot(x, x === 4 || x === 11 ? 7 : 8); }
+    else if (mood === 'happy') { for (let x = 3; x <= 12; x++) { this.setDot(x, 7); if (x > 3 && x < 12) this.setDot(x, 8); if (x > 4 && x < 11) this.setDot(x, 9); } }
+    else if (mood === 'talk') { const o = Math.abs(Math.sin(t * 16)) > 0.5; for (let x = 5; x <= 10; x++) { this.setDot(x, 7); if (o) this.setDot(x, 9); } if (o) { this.setDot(4, 8); this.setDot(11, 8); } }
+    else if (mood === 'sad') { for (let x = 5; x <= 10; x++) this.setDot(x, x === 5 || x === 10 ? 9 : 8); }
+    else if (mood === 'scared') { for (let x = 4; x <= 11; x++) this.setDot(x, 8 + ((x + Math.floor(t * 6)) % 2)); }
+    else if (mood === 'panic') { for (let x = 4; x <= 11; x++) { this.setDot(x, 7); this.setDot(x, 10); } for (let x = 4; x <= 11; x += 2) { this.setDot(x, 8); this.setDot(x, 9); } }
+    else if (mood === 'surprised') { this.setDot(7, 8); this.setDot(8, 8); this.setDot(6, 9); this.setDot(9, 9); this.setDot(7, 10); this.setDot(8, 10); }
+  },
+  draw(mood) {
+    const c = this.ctx, W = this.canvas.width, H = this.canvas.height, C = CAST_COLORS;
+    c.clearRect(0, 0, W, H);
+    const cx = W / 2, cy = H / 2 + 4, R = W * 0.4;
+    // cog-shaped casing with an antenna and a speaker grille
+    c.fillStyle = C.antenna; c.beginPath(); c.arc(cx + R * 0.55, cy - R * 1.12, 4, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = C.pipShade; c.lineWidth = 3; c.beginPath(); c.moveTo(cx + R * 0.45, cy - R * 0.8); c.lineTo(cx + R * 0.55, cy - R * 1.1); c.stroke();
+    c.fillStyle = C.pipShade;
+    for (let k = 0; k < 10; k++) { c.save(); c.translate(cx, cy + 3); c.rotate(k / 10 * Math.PI * 2); c.fillRect(-7, -R - 6, 14, 12); c.restore(); }
+    c.fillStyle = C.pipCase;
+    for (let k = 0; k < 10; k++) { c.save(); c.translate(cx, cy); c.rotate(k / 10 * Math.PI * 2); c.fillRect(-6, -R - 6, 12, 12); c.restore(); }
+    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.fill();
+    c.fillStyle = C.pipShade;
+    for (let k = 0; k < 6; k++) { c.beginPath(); c.arc(cx - R * 0.55 + (k % 3) * 6, cy + R * 0.62 + Math.floor(k / 3) * 6, 1.6, 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = C.pipScreen; c.beginPath(); c.ellipse(cx, cy - 2, R * 0.78, R * 0.62, 0, 0, Math.PI * 2); c.fill();
+    // LED matrix
+    this.compose(mood);
+    const color = mood === 'happy' || mood === 'sunny' ? C.ledHappy : mood === 'scared' || mood === 'panic' ? C.ledScared : mood === 'love' ? C.ledLove : C.led;
+    const sx = R * 1.3 / PIP_W, sy = R * 1.0 / PIP_H, ox = cx - (PIP_W - 1) * sx / 2, oy = cy - 2 - (PIP_H - 1) * sy / 2;
+    const jitter = mood === 'panic' ? (Math.sin(this.time * 50) > 0 ? 1 : -1) : 0;
+    for (let y = 0; y < PIP_H; y++) for (let x = 0; x < PIP_W; x++) {
+      const on = this.grid[y * PIP_W + x];
+      c.fillStyle = on ? color : 'rgba(255,255,255,0.05)';
+      c.fillRect(ox + x * sx - 1.2 + jitter, oy + y * sy - 1.2, on ? 2.6 : 1.6, on ? 2.6 : 1.6);
+    }
+  }
+};

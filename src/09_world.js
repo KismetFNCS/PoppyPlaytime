@@ -116,6 +116,8 @@ const QUAD_CORNERS = new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]
 const Lights = {
   visible: { items: [], count: 0 },
   threatPos: V3.create(0, -100, 0), threatLevel: 0, globalDim: 1, blackout: 0,
+  // soft fill carried with the camera so the gauntlets read when the flashlight points past them
+  viewFill: { pos: V3.create(), color: hexToLinear(LIGHTING.flashColor), current: 0, base: 0.55, radius: 1.3, scatter: 0, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
     list.count = 0;
@@ -137,6 +139,15 @@ const Lights = {
         if (list.count >= list.items.length) list.items.push(null);
         list.items[list.count++] = L;
       }
+    }
+    const F = this.viewFill;
+    F.current = Game.isGameplay() || state === STATE.PAUSED ? F.base : 0;
+    if (F.current > 0) {
+      V3.copy(F.pos, Player.cam.eye);
+      V3.addScaled(F.pos, F.pos, Renderer.camUp, 0.08);
+      V3.addScaled(F.pos, F.pos, Renderer.camFwd, 0.1);
+      if (list.count >= list.items.length) list.items.push(null);
+      list.items[list.count++] = F;
     }
   },
   haloCount() {

@@ -11,7 +11,7 @@
 // LIGHTING CONTRACT
 // ============================================================
 // KEY LIGHT (player-carried flashlight spot, the only shadow-casting light)
-//   Direction: camera forward, offset 0.18 m right / 0.22 m down of the eye
+//   Direction: camera forward, mounted at chest height: 0.30 m below / 0.12 m ahead of the eye (clear of both gauntlets)
 //     Source: [ASSUMED] genre convention for first-person horror (hand-held lamp, shadows slide with view).
 //   Color: #ffe2b8
 //     Source: [ASSUMED] incandescent warm white, contrasts the cool fluorescent fill seen in 1.jpg.
@@ -87,6 +87,15 @@
 // MATERIAL 14: amber lens / eye (emissive)  Base #edcd41, emissive strength 6
 //     Source: [SAMPLED] 1.jpg eye glow (60%, 37%) median 7px patch = #edcd41.
 // MATERIAL 15: black rubber / gaskets  Base #151515, rough 0.9 (non-emissive materials use emissive #000000)
+//     Source: [ASSUMED].
+// MATERIAL 16: light fur / doll hair (ash-blonde ringlets, plush)  Base #d8cba8, rough 0.9, tile 3.0
+//     Source: [ASSUMED] original doll palette (deliberately not the reference doll's red hair).
+// MATERIAL 17: woven canvas (hoods, robes, dresses)  Base #2a2622, rough 0.95, tile 2.0
+//     Source: [ESTIMATED] 7.jpg robe reads near-black with grey fold highlights.
+// MATERIAL 18: screen glass (CRT faces, LED panels)  Base #050608, rough 0.12, metal 0.0
+//     Source: [ESTIMATED] 7.jpg / 8.jpg glossy black screens.
+// MATERIAL 19: scorched plush  Base #6a4632, rough 0.97, tile 3.0
+//     Source: [ESTIMATED] 9.webp burnt fur, mid brown with char-black patches.
 //     Source: [ASSUMED].
 // ============================================================
 // SCALE & COMPOSITION CONTRACT
@@ -172,7 +181,7 @@ function hexToLinear(h, scale) {
 
 const LIGHTING = {
   flashColor: '#ffe2b8', flashIntensity: 24.0, flashRange: 26.0, flashOuterDeg: 27.0, flashInnerDeg: 18.0,
-  flashOffset: [0.18, -0.22, 0.0],
+  flashOffset: [0.0, -0.3, 0.12],
   fillColor: '#a9bcd8',
   emergencyColor: '#ff3b2e',
   hazardColor: '#ffb030',
@@ -201,7 +210,11 @@ const MATERIALS = [
   { name: 'paint', base: '#b39a4a', rough: 0.8, metal: 0.0, tile: 0.25, emis: '#000000', emisStr: 0 },
   { name: 'copper', base: '#b87333', rough: 0.35, metal: 0.9, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'lens', base: '#edcd41', rough: 0.2, metal: 0.0, tile: 1.0, emis: '#edcd41', emisStr: 6.0 },
-  { name: 'rubber', base: '#151515', rough: 0.9, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 }
+  { name: 'rubber', base: '#151515', rough: 0.9, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
+  { name: 'furLight', base: '#d8cba8', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'canvas', base: '#2a2622', rough: 0.95, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'screen', base: '#050608', rough: 0.12, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
+  { name: 'burnt', base: '#6a4632', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 }
 ];
 const MAT = Object.create(null);
 for (let i = 0; i < MATERIALS.length; i++) MAT[MATERIALS[i].name] = i;

@@ -50,6 +50,7 @@
   #hud .hand.l { left: 3vw; color: var(--handL); }
   #hud .hand.r { right: 3vw; color: var(--handR); }
   #hud .hand.away { opacity: 0.45; }
+  #pipCanvas { position: absolute; left: 2.4vw; bottom: calc(3.5vh + 58px); width: clamp(64px, 13vh, 128px); height: clamp(64px, 13vh, 128px); filter: drop-shadow(0 0 6px var(--void)); }
   #hud .cable { position: absolute; left: 50%; bottom: 3.5vh; transform: translateX(-50%); width: min(40vw, 380px); display: none; font-size: clamp(14px, 1.7vh, 18px); text-align: center; color: var(--live); }
   #hud .cable .bar { height: 6px; margin-top: 0.5vh; background: var(--panelFill); border: 1px solid var(--live); }
   #hud .cable .bar i { display: block; height: 100%; width: 0; background: var(--live); }
@@ -175,6 +176,7 @@
     <div class="sub" id="hudSub"></div>
     <div class="hand l" id="hudHandL">L &middot; TEAL</div>
     <div class="hand r" id="hudHandR">R &middot; AMBER</div>
+    <canvas id="pipCanvas" width="128" height="128" aria-label="PIP companion"></canvas>
     <div class="cable" id="hudCable"><span id="hudCableText">TETHER</span><div class="bar"><i id="hudCableBar"></i></div></div>
     <button class="pausebtn" id="btnHudPause" data-act="pause" aria-label="Pause">II</button>
     <button class="mute" id="btnMute" data-act="mute" aria-label="Mute">SND</button>

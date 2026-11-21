@@ -30,6 +30,17 @@ Route: Intake Lift → Reclamation Hall (circuit puzzle 1, a found tape) → Pre
 stalks the ducts and hunts by sound; a steam lever and circuit puzzle 2) → Spool Foundry (scripted chase, a
 high shutter lever) → Freight Lift (ending tape).
 
+## Cast
+
+All original designs, built to read like the genre without copying any existing character:
+
+- **The Spoolwright** (Experiment 6-06): the stalker. A spool-bodied machine on six needle legs with a cracked porcelain mask.
+- **The Usher**: a hooded, robed watcher on spindly black machine limbs whose face is a CRT lens showing one roving teal eye. It appears at vantage points in each area and glitches out of existence if you stare at it or walk up to it.
+- **Marigold**: a cracked porcelain display doll (ash-blonde ringlets, mustard pinafore, one hollow socket, one amber glass eye) sitting near the first tape. Look away and her head is already turned toward you; catch her and she ticks.
+- **Mister Thimble**: a scorched plush bear slumped in the Spool Foundry, with a copper thimble cap and one glowing violet eye that brightens when the chase starts.
+- **PIP**: your pocket companion on the HUD. A cog-shaped device with an LED dot-matrix face that talks with the hints, cheers when a circuit closes, sulks when one is refused, winks at relays, panics in chases and fills with static when you're caught.
+- **The TetherRig**: jointed gauntlets (teal left, amber right) with brass knuckles and corrugated hoses, raised in view and launched by mouse buttons.
+
 ## Custom models
 
 Drop `.glb` files into `assets/` to replace the creature, its mask, either gauntlet or the tapes, or to
@@ -63,6 +74,7 @@ src/12_player.js    input (keyboard/mouse/pointer-lock/gamepad/touch), player co
 src/13_vhs_ui.js    VHS transmission archive, settings, menus, HUD, F1/F2 overlays
 src/14_game.js      global state machine, director, checkpoints, jumpscare/failure/victory, scene submit
 src/15_harness.js   __TEST__ / __TEST_FIDELITY__ hooks and the embedded self-test (F9)
+src/18_characters.js  the Usher, Marigold, Mister Thimble and the PIP HUD companion
 src/16_assets.js    .glb loader, model slots, manifest + drag-and-drop + IndexedDB persistence
 src/17_boot.js      main loop, error resilience, resize/DPI, input wiring
 assets/             your .glb models + assets.json manifest (see assets/README.md)
@@ -70,6 +82,7 @@ tools/build.mjs     concatenates src/ into index.html
 tools/static_check.py  structural/static checks on the built file
 tools/run_game.cjs  headless runner: harness + screenshots at 1920/768/320 widths
 tools/shots.cjs     captures named gameplay poses for visual review
+tools/cast_shots.cjs  renders the cast and gauntlets for visual review
 tools/make_sample_glb.mjs  regenerates assets/examples/sample_crate.glb
 ```
 

@@ -413,6 +413,18 @@ const SFX = {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
     o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t + 0.08);
   },
+  usherGlitch(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 6, 0.4);
+    Audio.noise(t, 0.5, 0.5, 4000, 'bandpass', out, 0.7);
+    Audio.tone(t, 'square', 60, 55, 0.5, 0.25, out);
+    Audio.tone(t + 0.05, 'sawtooth', 2400, 300, 0.45, 0.08, out);
+  },
+  dollTick(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 3, 0.6);
+    Audio.ring(t, [2900, 4100], 0.08, 0.12, out);
+    Audio.noise(t, 0.03, 0.15, 3000, 'highpass', out);
+  },
+  pipChirp(t) { Audio.tone(t, 'square', 1180, 1560, 0.05, 0.05, Audio.buses.ui); Audio.tone(t + 0.06, 'square', 1560, 1320, 0.05, 0.04, Audio.buses.ui); },
   tapeGlitch(t) { Audio.noise(t, 0.12, 0.2, 2500, 'bandpass', Audio.buses.voice, 0.8); }
 };
 // Minimum re-trigger interval per sound (seconds) to avoid voice pile-ups.

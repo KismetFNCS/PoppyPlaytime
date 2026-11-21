@@ -545,6 +545,42 @@ async function runAll() {
     check('save: corrupt checkpoint data is ignored safely', Game.hasSave === false && T.getLastError() === null);
 
     await breathe();
+    // ---------------- supporting cast + PIP ----------------
+    {
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+      Doors.setOpen('D0', true); Level.doorById('D0').open = 1; Game.stage = 1;
+      T.setPlayerPose(6, 0, -14, 0, 0); T.step(DT, 4);
+      check('usher: materialises at its hall vantage point', Cast.usher.state === 'WATCHING', Cast.usher.state);
+      T.aimAt(Cast.usher.pos[0], 2.15, Cast.usher.pos[2]);
+      T.step(DT, 60);
+      check('usher: staring at it makes it glitch away', Cast.usher.state === 'VANISHING' || Cast.usher.state === 'HIDDEN', Cast.usher.state);
+      check('sound: usher glitch', T.getSfxLog().includes('usherGlitch'), '');
+      T.step(DT, 60);
+      check('usher: gone for good from that perch', Cast.usher.state === 'HIDDEN' && Cast.usher.used[0] === 1, Cast.usher.state);
+      // doll: look away, then back -> its head has turned to face you
+      T.setPlayerPose(7.5, 0, -4.5, 0, 0); T.aimAt(10.6, 1.6, -6.6); T.step(DT, 3);
+      Cast.doll.tickCool = 0; Cast.doll.snapped = false; Cast.doll.headYaw = 0.59;
+      const yaw0 = Cast.doll.headYaw = 0.59;
+      T.setPlayerPose(9.6, 0, -9.5, 0, 0); T.aimAt(9.6, 1.6, -20); T.step(DT, 3);
+      check('doll: head snaps toward you while unobserved', Math.abs(Cast.doll.headYaw - yaw0) > 0.3 && Cast.doll.snapped, yaw0.toFixed(2) + ' -> ' + Cast.doll.headYaw.toFixed(2));
+      T.aimAt(10.6, 1.6, -6.6); T.step(DT, 3);
+      check('doll: porcelain tick when you catch it', T.getSfxLog().includes('dollTick') && !Cast.doll.snapped, '');
+      // PIP expressions follow events
+      EventBus.emit(EV.POWER_ON, 0, 0, 0, 0, 0); T.step(DT, 2);
+      check('pip: cheers on POWER_ON', Pip.current === 'happy', Pip.current);
+      EventBus.emit(EV.DENY, 0, 0, 0, 0, 0); T.step(DT, 2);
+      check('pip: sad on a refused circuit', Pip.current === 'sad', Pip.current);
+      Pip.moodTimer = 0; GrabPack.showHint('Test hint for the companion'); T.step(DT, 2);
+      check('pip: talks while a hint is shown', Pip.current === 'talk', Pip.current);
+      check('pip: LED matrix lit', Pip.grid.some(v => v === 1));
+      T.setStepRender(true); T.setPlayerPose(-2.6, 0, -66.6, 0, 0);
+      for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
+      T.aimAt(-5.15, 0.9, -68.6); T.step(DT, 2);
+      check('cast: plush + gauntlets render without errors', T.getLastError() === null && RenderQueue.count > 100, RenderQueue.count + ' items');
+      T.setStepRender(false);
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+    }
+
     // ---------------- custom .glb assets ----------------
     {
       const isTest = n => /^harness_/.test(n);

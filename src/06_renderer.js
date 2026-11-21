@@ -42,9 +42,9 @@ void main() {
 const FS_GBUF = SHADER_COMMON + `
 uniform sampler2DArray uAlbedoTex;
 uniform sampler2DArray uNormalTex;
-uniform vec4 uMatA[16];
-uniform vec4 uMatB[16];
-uniform vec3 uMatE[16];
+uniform vec4 uMatA[24];
+uniform vec4 uMatB[24];
+uniform vec3 uMatE[24];
 uniform mat3 uNormalMat;
 uniform vec4 uTint;
 uniform vec3 uEmisAdd;
@@ -126,6 +126,7 @@ uniform vec4 uBaseColor;
 uniform vec2 uRoughMetal;
 uniform vec3 uEmissive;
 uniform float uCutoff;
+uniform float uTexEmissive;
 uniform vec4 uTint;
 uniform vec3 uEmisAdd;
 in vec3 vNormal;
@@ -139,7 +140,7 @@ void main() {
   if (c.a < uCutoff) discard;
   vec3 n = normalize(gl_FrontFacing ? vNormal : -vNormal);
   vec3 albedo = c.rgb * uTint.rgb;
-  vec3 emis = uEmissive + uEmisAdd + albedo * uTint.a;
+  vec3 emis = uEmissive + uEmisAdd + albedo * uTint.a + c.rgb * uTexEmissive;
   oAlbedo = vec4(sqrt(clamp(albedo, 0.0, 1.0)), clamp(uRoughMetal.x, 0.05, 1.0));
   oNormal = vec4(n * 0.5 + 0.5, clamp(uRoughMetal.y, 0.0, 1.0));
   oEmis = vec4(min(emis * 0.125, vec3(1.0)), 1.0);
@@ -604,6 +605,7 @@ const Renderer = {
     if (this.albedoData) this.uploadMaterialArrays();
     if (Level.batches.length) Level.uploadBatches();
     if (typeof Assets !== 'undefined') Assets.reupload();
+    if (typeof Cast !== 'undefined' && Cast.screen) Cast.reupload();
     this.uploadMaterialUniforms();
     this.allocTargets();
     this.ok = true;
@@ -777,7 +779,7 @@ const Renderer = {
   },
   uploadMaterialUniforms() {
     const gl = this.gl, p = this.progs.gbuf;
-    const A = new Float32Array(64), B = new Float32Array(64), E = new Float32Array(48);
+    const A = new Float32Array(96), B = new Float32Array(96), E = new Float32Array(72);
     for (let i = 0; i < MATERIALS.length; i++) {
       const m = MATERIALS[i], base = hexToLinear(m.base), em = hexToLinear(m.emis);
       A[i * 4] = base[0]; A[i * 4 + 1] = base[1]; A[i * 4 + 2] = base[2]; A[i * 4 + 3] = m.rough;
@@ -1033,6 +1035,7 @@ const Renderer = {
           gl.uniform2f(this.u('gbufTex', 'uRoughMetal'), m.rough, m.metal);
           gl.uniform3fv(this.u('gbufTex', 'uEmissive'), m.emissive);
           gl.uniform1f(this.u('gbufTex', 'uCutoff'), m.cutoff);
+          gl.uniform1f(this.u('gbufTex', 'uTexEmissive'), m.texEmissive || 0);
           gl.uniform1i(this.u('gbufTex', 'uHasTex'), m.tex ? 1 : 0);
           gl.bindTexture(gl.TEXTURE_2D, m.tex || this.white);
           if (m.doubleSided) gl.disable(gl.CULL_FACE); else gl.enable(gl.CULL_FACE);
@@ -1227,7 +1230,7 @@ function inverseToneMapHex(hex, exposure, out) {
 
 // ---------- render queue: logic pushes draw items, the renderer consumes them ----------
 const RenderQueue = {
-  items: [], count: 0, cap: 640,
+  items: [], count: 0, cap: 1100,
   init() {
     for (let i = 0; i < this.cap; i++) this.items.push({ mesh: 'box', model: M4.create(), mat: 0, tint: new Float32Array([1, 1, 1, 0]), emis: new Float32Array(3), castShadow: true });
   },

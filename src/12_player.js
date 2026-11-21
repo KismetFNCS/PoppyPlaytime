@@ -303,6 +303,7 @@ const Player = {
     V3.copy(this.flashPos, this.cam.eye);
     V3.addScaled(this.flashPos, this.flashPos, Renderer.camRight, LIGHTING.flashOffset[0]);
     V3.addScaled(this.flashPos, this.flashPos, Renderer.camUp, LIGHTING.flashOffset[1]);
+    V3.addScaled(this.flashPos, this.flashPos, Renderer.camFwd, LIGHTING.flashOffset[2]);
     LIGHTING.keyDir[0] = this.flashDir[0]; LIGHTING.keyDir[1] = this.flashDir[1]; LIGHTING.keyDir[2] = this.flashDir[2];
   },
 
