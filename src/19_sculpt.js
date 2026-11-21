@@ -429,10 +429,12 @@ const SCULPTS = {
       { t: 'ell', c: [0.1, -0.14, -0.27], r: [0.05, 0.035, 0.04], m: R, k: 0.005 },
       { t: 'ell', c: [-0.2, 0.12, -0.18], r: [0.06, 0.05, 0.05], m: R, k: 0.005 }
     ];
-    for (let i = 0; i < 9; i++) {
-      const a = -0.9 + i * 0.225, x = Math.sin(a) * 0.12, z = -0.3 - Math.cos(a) * 0.02 + 0.02;
-      n.push({ t: 'cap', a: [x, -0.11, z], b: [x + Math.sin(i * 3.1) * 0.008, -0.145, z - 0.005], r: 0.011, r2: 0.002, m: T, k: 0.002 });
-      n.push({ t: 'cap', a: [x, -0.2, z + 0.01], b: [x - Math.sin(i * 2.3) * 0.008, -0.165, z], r: 0.01, r2: 0.002, m: T, k: 0.002 });
+    // blunt square teeth, slightly uneven, upper and lower rows
+    for (let i = 0; i < 7; i++) {
+      const a = -0.78 + i * 0.26, x = Math.sin(a) * 0.12, z = -0.31 - Math.cos(a) * 0.015 + 0.02;
+      const hu = 0.017 + ((i * 5) % 3) * 0.003, hl = 0.015 + ((i * 7) % 3) * 0.003;
+      n.push({ t: 'box', c: [x, -0.115 - hu, z], h: [0.0145, hu, 0.01], rr: 0.003, rot: [a * 0.9, 0, Math.sin(i * 2.7) * 0.08], m: T, k: 0.002 });
+      n.push({ t: 'box', c: [x, -0.192 + hl, z + 0.006], h: [0.0135, hl, 0.01], rr: 0.003, rot: [a * 0.9, 0, -Math.sin(i * 1.9) * 0.08], m: T, k: 0.002 });
     }
     for (let i = 0; i < 8; i++) {
       const a = i / 8 * Math.PI * 2;

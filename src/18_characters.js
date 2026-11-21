@@ -188,7 +188,7 @@ const Cast = {
     const want = clamp(wrapAngle(Math.atan2(-(eye[0] - P.pos[0]), -(eye[2] - P.pos[2])) - P.yaw), -1.0, 1.0);
     const d = Math.hypot(eye[0] - P.pos[0], eye[2] - P.pos[2]);
     P.headYaw = damp(P.headYaw, d < 14 ? want : 0, Game.chaseActive ? 2.5 : 0.6, dt);
-    P.eyeGlow = damp(P.eyeGlow, Game.chaseActive || P.lunge > 0 ? 1.8 : 0.45 + 0.2 * Math.sin(Game.time * 2), 3, dt);
+    P.eyeGlow = damp(P.eyeGlow, Game.chaseActive || P.lunge > 0 ? 1.1 : 0.5 + 0.15 * Math.sin(Game.time * 2), 3, dt);
     // the voice box crackles to life when you come close, then he lunges once
     if (!P.talked && d < 9) {
       P.talked = true;
@@ -367,8 +367,8 @@ const Cast = {
     if (it) it.model.set(this.m);
     // glowing violet glass eye in the right socket
     V3.set(this.local, 0.12, 0.06, -0.265); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.054, 0.054, 0.034, false);
-    if (it) { const g = P.eyeGlow; it.emis[0] = 1.1 * g; it.emis[1] = 0.25 * g; it.emis[2] = 1.6 * g; it.tint[0] = 0.6; it.tint[1] = 0.25; it.tint[2] = 1.0; }
+    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.054, 0.054, 0.034, false);
+    if (it) { const g = P.eyeGlow; it.emis[0] = 0.55 * g; it.emis[1] = 0.08 * g; it.emis[2] = 1.05 * g; }
   }
 };
 const _cast = {
