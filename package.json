@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "bundle": "esbuild src/main.ts --bundle --format=esm --target=es2022 --sourcemap --outfile=dist/main.js",
     "build": "npm run typecheck && npm run bundle",
-    "dev": "esbuild src/main.ts --bundle --format=esm --target=es2022 --sourcemap --outfile=dist/main.js --servedir=. --serve=0.0.0.0:8080"
+    "dev": "esbuild src/main.ts --bundle --format=esm --target=es2022 --sourcemap --outfile=dist/main.js --servedir=. --serve=0.0.0.0:8080",
+    "build:single": "npm run build && node scripts/build-single.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
