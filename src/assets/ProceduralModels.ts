@@ -1,9 +1,9 @@
 import { CAMPAIGN_MESH_BUILDERS } from './CampaignModels';
 import type { ProceduralMeshBuilderId } from './AssetManifest';
 import type { MeshData } from '../graphics/Geometry';
-import { MeshBuilder, createBoxMesh, createCylinderMesh, createSphereMesh } from '../graphics/Geometry';
+import { MeshBuilder, createBoxMesh, createCylinderMesh, createSphereMesh, createTubeMesh } from '../graphics/Geometry';
 import type { Mat4 } from '../math/Mat4';
-import { mat4Compose } from '../math/Mat4';
+import { mat4Compose, mat4Identity } from '../math/Mat4';
 import { SeededRandom } from '../math/Random';
 
 /**
@@ -152,31 +152,86 @@ function buildFoundationRebar(): MeshData {
 // Tether Rig, relay plates, anchors and gates. Local +Z is the "facing" axis (claw travel, launcher aim, plate normal).
 // ---------------------------------------------------------------------------------------------------------------------
 
-const CLAW_TALON_COUNT: number = 3;
+/**
+ * Tether hands: riveted steel work-gauntlets launched on the cables. Fingers reach along +Z in a half-curled grasp,
+ * palm facing -Y, back of the hand (what the player sees) facing +Y. `mirror` = -1 builds the right hand.
+ */
+type HandSide = 1 | -1;
 
-/** Magnetic claw: hexagonal puck with three hooked talons spaced 120 degrees apart around the travel axis. */
-function buildTetherClawShell(): MeshData {
+const FINGER_LAYOUT: ReadonlyArray<{ readonly x: number; readonly length: number; readonly splay: number }> = [
+  { x: -0.039, length: 0.86, splay: -0.2 },
+  { x: -0.013, length: 1, splay: -0.06 },
+  { x: 0.013, length: 0.96, splay: 0.06 },
+  { x: 0.038, length: 0.76, splay: 0.2 },
+];
+
+/** Joint chain for one finger: three phalanges, open hand with a gentle natural curl and spread. */
+function fingerJoints(baseX: number, lengthScale: number, splay: number): Vec3Tuple[] {
+  const segments: readonly number[] = [0.05 * lengthScale, 0.036 * lengthScale, 0.028 * lengthScale];
+  const curls: readonly number[] = [0.06, 0.1, 0.12];
+  const joints: Vec3Tuple[] = [[baseX, 0.004, 0.05]];
+  let angle = 0;
+  let current: Vec3Tuple = joints[0] as Vec3Tuple;
+  segments.forEach((length: number, index: number) => {
+    angle += curls[index] as number;
+    current = [current[0] + Math.sin(splay) * length, current[1] - Math.sin(angle) * length, current[2] + Math.cos(angle) * Math.cos(splay) * length];
+    joints.push(current);
+  });
+  return joints;
+}
+
+function thumbJoints(mirror: HandSide): Vec3Tuple[] {
+  // Left hand palm-down: thumb on the +X side, splayed wide; mirrored for the right hand.
+  const side: number = -mirror;
+  return [
+    [side * 0.044, -0.002, -0.025],
+    [side * 0.074, -0.004, 0.0],
+    [side * 0.096, -0.006, 0.026],
+    [side * 0.11, -0.008, 0.05],
+  ];
+}
+
+type Vec3Tuple = [number, number, number];
+
+function buildTetherHandShell(mirror: HandSide): MeshData {
   const builder = new MeshBuilder();
-  place(builder, createCylinderMesh(0.085, 0.07, 0.09, 6), [0, 0, -0.02], [Math.PI / 2, 0, 0], [1, 1, 1]);
-  place(builder, createCylinderMesh(0.03, 0.03, 0.08, 8), [0, 0, -0.1], [Math.PI / 2, 0, 0], [1, 1, 1]);
-  for (let talon = 0; talon < CLAW_TALON_COUNT; talon += 1) {
-    const angle: number = (talon / CLAW_TALON_COUNT) * Math.PI * 2;
-    const radialX: number = Math.cos(angle);
-    const radialY: number = Math.sin(angle);
-    // Base segment: leans outward 35 degrees from the travel axis.
-    const baseCenter: [number, number, number] = [radialX * 0.085, radialY * 0.085, 0.07];
-    const outwardTilt = 0.6;
-    place(builder, createCylinderMesh(0.018, 0.014, 0.12, 6), baseCenter, [Math.PI / 2 - radialY * outwardTilt, 0, radialX * outwardTilt], [1, 1, 1]);
-    // Hook segment: bends back toward the axis, ending in a point.
-    const hookCenter: [number, number, number] = [radialX * 0.1, radialY * 0.1, 0.14];
-    place(builder, createCylinderMesh(0.014, 0.0, 0.08, 6), hookCenter, [Math.PI / 2 + radialY * 0.9, 0, -radialX * 0.9], [1, 1, 1]);
+  // Wrist cuff: ribbed collar where the cable couples in.
+  place(builder, createCylinderMesh(0.046, 0.05, 0.05, 10), [0, 0, -0.085], [Math.PI / 2, 0, 0], [1, 0.78, 1]);
+  for (const ringZ of [-0.1, -0.072]) {
+    place(builder, createCylinderMesh(0.054, 0.054, 0.008, 10), [0, 0, ringZ], [Math.PI / 2, 0, 0], [1, 0.8, 1]);
   }
+  place(builder, createCylinderMesh(0.02, 0.02, 0.05, 8), [0, 0, -0.125], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  // Back plate and palm block, slightly tapered toward the knuckles.
+  place(builder, createBoxMesh(0.11, 0.032, 0.12), [0, 0, -0.008], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(0.09, 0.012, 0.085), [0, 0.022, -0.01], [0.06, 0, 0], [1, 1, 1]);
+  // Rivets on the back plate.
+  for (const [rx, rz] of [[-0.038, -0.045], [0.038, -0.045], [-0.038, 0.032], [0.038, 0.032]] as const) {
+    place(builder, createSphereMesh(0.006, 6, 4), [rx, 0.03, rz], [0, 0, 0], [1, 0.6, 1]);
+  }
+  // Knuckle bar.
+  place(builder, createCylinderMesh(0.012, 0.012, 0.1, 8), [0, 0.006, 0.05], [0, 0, Math.PI / 2], [1, 1, 1]);
+  // Fingers: plated phalanges with knuckle balls at every joint.
+  for (const finger of FINGER_LAYOUT) {
+    const joints: Vec3Tuple[] = fingerJoints(finger.x, finger.length, finger.splay);
+    builder.appendMesh(createTubeMesh(joints, [0.0135, 0.0128, 0.0118, 0.0105], 10), mat4Identity());
+    joints.slice(0, -1).forEach((joint: Vec3Tuple) => place(builder, createSphereMesh(0.0145, 8, 6), joint, [0, 0, 0], [1, 1, 1]));
+  }
+  const thumb: Vec3Tuple[] = thumbJoints(mirror);
+  builder.appendMesh(createTubeMesh(thumb, [0.016, 0.0145, 0.013, 0.011], 10), mat4Identity());
+  thumb.slice(0, -1).forEach((joint: Vec3Tuple) => place(builder, createSphereMesh(0.014, 8, 6), joint, [0, 0, 0], [1, 1, 1]));
   return builder.build();
 }
 
-function buildTetherClawCore(): MeshData {
+/** Emissive parts: polarity lamp on the back of the hand, palm pad, and fingertip contacts. */
+function buildTetherHandCore(mirror: HandSide): MeshData {
   const builder = new MeshBuilder();
-  place(builder, createSphereMesh(0.032, 12, 8), [0, 0, 0.035], [0, 0, 0], [1, 1, 0.7]);
+  place(builder, createCylinderMesh(0.012, 0.012, 0.006, 12), [0, 0.03, -0.03], [0, 0, 0], [1, 1, 1]);
+  place(builder, createSphereMesh(0.03, 12, 8), [0, -0.018, 0.0], [0, 0, 0], [1.2, 0.25, 1.2]);
+  for (const finger of FINGER_LAYOUT) {
+    const tip: Vec3Tuple = fingerJoints(finger.x, finger.length, finger.splay)[3] as Vec3Tuple;
+    place(builder, createSphereMesh(0.011, 8, 6), tip, [0, 0, 0], [1, 1, 1]);
+  }
+  place(builder, createSphereMesh(0.009, 8, 6), thumbJoints(mirror)[3] as Vec3Tuple, [0, 0, 0], [1, 1, 1]);
   return builder.build();
 }
 
@@ -204,12 +259,14 @@ function buildRelayPlateFrame(): MeshData {
   return builder.build();
 }
 
-/** Relay plate core: polarity disc with three radial contact bars matching the claw's talon layout. */
+const PLATE_CONTACT_BARS: number = 3;
+
+/** Relay plate core: polarity disc with three radial contact bars around the contact face. */
 function buildRelayPlateCore(): MeshData {
   const builder = new MeshBuilder();
   place(builder, createCylinderMesh(0.2, 0.2, 0.025, 24), [0, 0.05, 0.065], [Math.PI / 2, 0, 0], [1, 1, 1]);
-  for (let bar = 0; bar < CLAW_TALON_COUNT; bar += 1) {
-    const angle: number = (bar / CLAW_TALON_COUNT) * Math.PI * 2 + Math.PI / 2;
+  for (let bar = 0; bar < PLATE_CONTACT_BARS; bar += 1) {
+    const angle: number = (bar / PLATE_CONTACT_BARS) * Math.PI * 2 + Math.PI / 2;
     place(builder, createBoxMesh(0.03, 0.12, 0.02), [Math.cos(angle) * 0.27, 0.05 + Math.sin(angle) * 0.27, 0.06], [0, 0, angle - Math.PI / 2], [1, 1, 1]);
   }
   place(builder, createBoxMesh(0.4, 0.05, 0.02), [0, -0.33, 0.06], [0, 0, 0], [1, 1, 1]);
@@ -351,8 +408,10 @@ export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, 
   gas_mask_filter: buildGasMaskFilter,
   foundation_slabs: buildFoundationSlabs,
   foundation_rebar: buildFoundationRebar,
-  tether_claw_shell: buildTetherClawShell,
-  tether_claw_core: buildTetherClawCore,
+  tether_hand_shell_left: () => buildTetherHandShell(1),
+  tether_hand_shell_right: () => buildTetherHandShell(-1),
+  tether_hand_core_left: () => buildTetherHandCore(1),
+  tether_hand_core_right: () => buildTetherHandCore(-1),
   tether_launcher_body: buildTetherLauncherBody,
   relay_plate_frame: buildRelayPlateFrame,
   relay_plate_core: buildRelayPlateCore,

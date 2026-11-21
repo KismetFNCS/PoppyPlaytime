@@ -106,14 +106,16 @@ export interface TetherControlInput {
 
 /** Camera-space socket offsets (right, up, forward) for each launcher barrel. */
 const SOCKET_OFFSETS: Readonly<Record<ClawSide, Vec3>> = {
-  left: [-0.24, -0.23, 0.44],
-  right: [0.24, -0.23, 0.44],
+  left: [-0.23, -0.2, 0.44],
+  right: [0.23, -0.2, 0.44],
 };
+/** Visual scale of the launched hands (collision uses the hand's centre point, not the mesh). */
+const HAND_SCALE: number = 1.6;
 const SIDE_POLARITY: Readonly<Record<ClawSide, Polarity>> = { left: 'teal', right: 'rose' };
 const CLAW_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal', rose: 'tether_claw_rose' };
 
 /**
- * Tether Rig: two wrist launchers, each firing a polarity-coded magnetic claw on a cable.
+ * Tether Rig: two wrist launchers, each firing a polarity-coded steel hand on a cable.
  *
  * Claw state machine:  holstered → extending → (latched | retracting) → retracting → holstered
  *  - extending: forward projection loop, swept ray per frame, distance clamped to `maximumRange`
@@ -483,7 +485,7 @@ export class TetherRig {
       this.pushModel(output, 'tether_launcher', mat4FromBasis(socket, basis.right, basis.up, basis.forward), 1);
       const [clawX, clawY, clawZ] = orthonormalBasisFromForward(claw.direction, basis.up);
       const corePulse: number = claw.phase === 'latched' ? 2.2 : 0.8 + 0.2 * Math.sin(timeSeconds * 6 + (side === 'left' ? 0 : 1.7));
-      this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(claw.position, clawX, clawY, clawZ), corePulse);
+      this.pushModel(output, CLAW_MODEL[claw.polarity], mat4FromBasis(claw.position, vec3Scale(clawX, HAND_SCALE), vec3Scale(clawY, HAND_SCALE), vec3Scale(clawZ, HAND_SCALE)), corePulse);
       if (claw.phase !== 'holstered') {
         const span: number = vec3Distance(socket, claw.position);
         const visualLength: number =

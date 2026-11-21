@@ -176,7 +176,7 @@ export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   ],
   'mask.hint': [{ speaker: 'mabel', text: 'The bench ahead has the old respirators. The lower vents have been leaking since ’87.', seconds: 3.8 }],
   'toxic.warning': [{ speaker: 'mabel', text: 'Green air is plasticiser off-gas. Mask on, and don’t sprint in it — you’ll gulp it through the filter.', seconds: 4.4 }],
-  'relay.explain': [{ speaker: 'mabel', text: 'Those plates only take one polarity. Teal claw for teal plates, rose for rose. The rig was my design — trust it.', seconds: 4.6 }],
+  'relay.explain': [{ speaker: 'mabel', text: 'Those plates only take one polarity. Teal hand for teal plates, rose hand for rose. The rig was my design — trust it.', seconds: 4.6 }],
   'crawl.mabel': [{ speaker: 'mabel', text: 'The ceiling came down in the collapse. Get low and keep moving.', seconds: 3.2 }],
   'act2.enter': [{ speaker: 'pa', text: 'Sorting Halls. All workers will be counted at the end of the shift.', seconds: 3.6 }],
   'act2.foreman': [
