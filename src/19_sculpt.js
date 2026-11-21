@@ -355,7 +355,11 @@ const SCULPTS = {
   sp_mask: () => {
     // withered, chipped porcelain face frozen in a huge ear-to-ear grin of big, uneven, blocky teeth
     const P = MAT.porcelain, D = MAT.rubber, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.43, 0.31], m: P, n: [0.004, 30] },
+      // a rounder porcelain mask shell, with a raised rim round its edge and a dark strap behind
+      { t: 'ell', c: [0, 0, 0], r: [0.37, 0.41, 0.33], m: P, n: [0.004, 30] },
+      { t: 'tor', c: [0, 0, 0.13], R: 0.355, r: 0.022, rot: [0, Math.PI / 2, 0], m: P, k: 0.03 },
+      { t: 'ell', c: [0, 0, 0.2], r: [0.33, 0.37, 0.16], op: 's', k: 0.03, sm: D },
+      { t: 'cap', a: [-0.36, 0.05, 0.12], b: [0.36, 0.05, 0.12], r: 0.025, m: D, k: 0.01 },
       { t: 'cap', a: [-0.2, 0.13, -0.23], b: [0.2, 0.13, -0.23], r: 0.05, m: P, k: 0.07 },
       { t: 'ell', c: [0, -0.3, -0.1], r: [0.16, 0.11, 0.13], m: P, k: 0.08 },
       // sunken, withered hollows
@@ -369,19 +373,18 @@ const SCULPTS = {
       { t: 'sph', c: [-0.02, -0.03, -0.33], r: 0.016, op: 's', k: 0.005, sm: D }
     ];
     // the grin: a wide crescent carved across the face, corners curling up into the cheeks
-    const arc = a => [Math.sin(a) * 0.285, -0.15 + a * a * 0.09, -Math.cos(a) * 0.27 + 0.005];
+    const arc = a => [Math.sin(a) * 0.3, -0.15 + a * a * 0.085, -Math.cos(a) * 0.29 + 0.005];
     for (let i = 0; i <= 14; i++) {
       const a = -1.05 + i * 0.15, [x, y, z] = arc(a), edge = Math.abs(a) > 0.9;
       n.push({ t: 'ell', c: [x, y, z], r: [0.06, edge ? 0.04 : 0.078, 0.09], rot: [a, 0, 0], op: 's', k: 0.012, sm: D });
     }
-    // two rows of big blocky teeth, stained and chipped, a few missing
-    for (let i = 0; i < 13; i++) {
-      const a = -0.9 + i * 0.15;
-      if (i === 3 || i === 10) continue;
+    // a full grin: two complete rows of big, even, blocky teeth filling the whole mouth
+    for (let i = 0; i < 15; i++) {
+      const a = -0.98 + i * 0.14;
       const [x, y, z] = arc(a);
-      const hu = 0.034 - Math.abs(a) * 0.01 + (i % 3) * 0.003, hl = 0.03 - Math.abs(a) * 0.01 + ((i + 1) % 3) * 0.003;
-      n.push({ t: 'box', c: [x * 0.995, y + 0.004 + hu, z + 0.012], h: [0.02, hu, 0.016], rr: 0.006, rot: [a, 0, Math.sin(i * 2.3) * 0.05], m: P, k: 0.002 });
-      if (i !== 7) n.push({ t: 'box', c: [x * 0.995, y - 0.004 - hl, z + 0.014], h: [0.019, hl, 0.015], rr: 0.006, rot: [a, 0, -Math.sin(i * 1.7) * 0.05], m: P, k: 0.002 });
+      const hu = 0.04 - Math.abs(a) * 0.014, hl = 0.036 - Math.abs(a) * 0.014;
+      n.push({ t: 'box', c: [x * 0.995, y + 0.003 + hu, z + 0.012], h: [0.0185, hu, 0.016], rr: 0.005, rot: [a, 0, 0], m: P, k: 0.002 });
+      n.push({ t: 'box', c: [x * 0.995, y - 0.003 - hl, z + 0.014], h: [0.0175, hl, 0.015], rr: 0.005, rot: [a, 0, 0], m: P, k: 0.002 });
     }
     // crazing cracks across the whole face
     const cracks = [[0.05, 0.3, -0.25, 0.12, 0.13, -0.29], [0.12, 0.13, -0.29, 0.07, 0.02, -0.31], [-0.2, 0.22, -0.22, -0.28, 0.0, -0.18],
