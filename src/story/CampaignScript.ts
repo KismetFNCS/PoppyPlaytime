@@ -165,7 +165,11 @@ export type DialogueId =
   | 'combat.first'
   | 'combat.resisted'
   | 'choirMother.vulnerable'
-  | 'choirMother.defeated';
+  | 'choirMother.defeated'
+  | 'tallyman.entrance'
+  | 'hushling.entrance'
+  | 'choirMother.entrance'
+  | 'jester.entrance';
 
 export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   'intro.wake': [{ speaker: 'pa', text: 'Night shift, report to your stations. Night shift, report to your stations.', seconds: 3.5 }],
@@ -232,6 +236,16 @@ export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
     { speaker: 'mabel', text: 'The song’s stopped. Without it she can’t hold herself together.', seconds: 3.4 },
     { speaker: 'mabel', text: 'Hit her with the rig. Three good strikes and she comes apart.', seconds: 3.4 },
   ],
+  'tallyman.entrance': [
+    { speaker: 'pa', text: 'Attention. Time-and-motion inspection in progress. Remain at your stations.', seconds: 3.4 },
+    { speaker: 'mabel', text: 'Lights are dipping up ahead. Something heavy just stepped onto the line. Get low.', seconds: 3.8 },
+  ],
+  'hushling.entrance': [
+    { speaker: 'pip', text: '*frantic ticking*', seconds: 1.6 },
+    { speaker: 'mabel', text: 'Those cribs aren’t empty. Something in them is waking up.', seconds: 3.2 },
+  ],
+  'choirMother.entrance': [{ speaker: 'mabel', text: 'Hear that hymn? She’s coming down from the loft. Don’t let her see you.', seconds: 3.6 }],
+  'jester.entrance': [{ speaker: 'mabel', text: 'Wait. The archive doors behind you were sealed. Who opened them?', seconds: 3.4 }],
   'choirMother.defeated': [{ speaker: 'mabel', text: 'She’s down. The little ones are going quiet. That nursery won’t sing again.', seconds: 3.8 }],
 };
 

@@ -29,7 +29,7 @@ import { WorldEventSystem } from '../gameplay/WorldEventSystem';
 import type { SceneEnvironment } from '../graphics/SceneRenderer';
 import type { PointLight } from '../graphics/LightingSystem';
 import type { Vec3 } from '../math/Vec3';
-import { clamp, smoothstep, vec3Add } from '../math/Vec3';
+import { clamp, smoothstep, vec3Add, vec3Scale } from '../math/Vec3';
 import type { CrosshairKind, HotbarSlotSnapshot, HudSnapshot } from '../ui/hud/HudController';
 import { HudController, POLARITY_HUD_COLORS } from '../ui/hud/HudController';
 import { PauseMenu } from '../ui/PauseMenu';
@@ -69,8 +69,6 @@ const MUSIC_BOX_CHIME_SECONDS: number = 2.6;
 const LEVEL_WORLD_SEED: number = 0x5eed_0006;
 const LEVEL_ENVIRONMENT: SceneEnvironment = { ambientColor: [0.012, 0.011, 0.016], clearColor: [0, 0, 0] };
 const METERS_PER_CHUNK: number = 4;
-const ENTITY_AWAKEN_DISTANCE_METERS: number = 16;
-const ENTITY_AWAKEN_SECONDS: number = 14;
 const ENTITY_SPAWN_BEHIND_METERS: number = 15;
 const MASK_STATION_PICKUP_ID: string = 'pickup.gasMask.1';
 const INTERACT_REACH_METERS: number = 2.4;
@@ -111,6 +109,27 @@ interface PendingDeath {
 const STRIKE_RADIUS: Readonly<Record<ThreatKind, number>> = { jester: 0.75, tallyman: 0.7, choirMother: 0.95, hushling: 0.5 };
 const THREAT_DISPLAY_NAMES: Readonly<Record<ThreatKind, string>> = { jester: 'THE JESTER', tallyman: 'THE TALLYMAN', choirMother: 'THE CHOIR MOTHER', hushling: 'HUSHLING' };
 
+interface ThreatEntrance {
+  readonly kind: ThreatKind;
+  readonly flag: QuestFlagId;
+  /** First campaign chunk where the entrance plays. */
+  readonly chunk: number;
+  readonly dialogue: DialogueId;
+  readonly cue: SpatialCueId;
+  readonly graceSeconds: number;
+}
+
+const JESTER_ENTRANCE_CHUNK: number = 22;
+/** One entrance per monster, in story order: Tallyman (Act II), Hushlings and Choir Mother (Act III), Jester (Act IV). */
+const THREAT_ENTRANCES: readonly ThreatEntrance[] = [
+  { kind: 'tallyman', flag: 'tallymanIntroduced', chunk: 7, dialogue: 'tallyman.entrance', cue: 'tallymanStep', graceSeconds: 8 },
+  { kind: 'hushling', flag: 'hushlingsIntroduced', chunk: 14, dialogue: 'hushling.entrance', cue: 'hushlingSkitter', graceSeconds: 6 },
+  { kind: 'choirMother', flag: 'choirMotherIntroduced', chunk: 16, dialogue: 'choirMother.entrance', cue: 'choirHymn', graceSeconds: 8 },
+  { kind: 'jester', flag: 'jesterAwakened', chunk: JESTER_ENTRANCE_CHUNK, dialogue: 'jester.entrance', cue: 'jesterBells', graceSeconds: 6 },
+];
+const ENTRANCE_FLICKER_SECONDS: number = 1.6;
+const ENTRANCE_ARRIVAL_SECONDS: number = 1.1;
+
 export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.ActiveLevelStreamer>, TriggerActionHost {
   public readonly id = GameStateId.ActiveLevelStreamer;
   private streamer: LevelStreamer | null = null;
@@ -131,7 +150,6 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private yawRadians: number = 0;
   private pitchRadians: number = 0;
   private sessionSeconds: number = 0;
-  private spawnZ: number = 0;
   private currentChunk: number = 0;
   private dread: number = 0;
   private objectiveOpacity: number = 0;
@@ -153,6 +171,8 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private leavingLevel: boolean = false;
   private campaign: CampaignDirector | null = null;
   private pip: PipCompanion | null = null;
+  /** The entrance scene currently playing (lights stutter, cue, line, then the monster arrives). */
+  private entrance: { readonly definition: ThreatEntrance; seconds: number; arrived: boolean } | null = null;
   /** Where each launched hand was last frame, for swept hit tests against monsters. */
   private readonly handTrail: Record<'left' | 'right', { position: Vec3; phase: string }> = {
     left: { position: [0, 0, 0], phase: 'holstered' },
@@ -226,7 +246,6 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       this.yawRadians = 0;
       this.pitchRadians = 0;
     }
-    this.spawnZ = this.motor.position[2];
 
     // Systems.
     const rig = new TetherRig(services.gl, services.meshes, this.tetherEvents);
@@ -236,6 +255,12 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     const worldEvents = new WorldEventSystem(streamer, this, LEVEL_TRIGGER_RULES);
     worldEvents.restoreFlags(save.questFlags as Partial<Record<QuestFlagId, number>>);
     this.worldEvents = worldEvents;
+    for (const entrance of THREAT_ENTRANCES) {
+      if (entrance.kind !== 'jester' && worldEvents.flag(entrance.flag) < 1) {
+        this.threats.lockKind(entrance.kind);
+      }
+    }
+    this.entrance = null;
     this.campaign = new CampaignDirector({
       flag: (flag: QuestFlagId) => worldEvents.flag(flag),
       setFlag: (flag: QuestFlagId, value: number) => worldEvents.setFlag(flag, value),
@@ -489,6 +514,59 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         }
         break;
     }
+  }
+
+  /**
+   * Each monster enters the story once, at a fixed point, with a short scene: the lights stutter, its sound and a warning
+   * line play, and it arrives during the flicker with a grace period before it can notice the player. Until then its
+   * kind is locked out of the level entirely, so gates and noise can't pull it in early.
+   */
+  private updateEntrances(threats: ThreatDirector, worldEvents: WorldEventSystem, deltaSeconds: number): void {
+    const services: GameServices = this.services;
+    // A Jester that has already made its entrance keeps stalking after a checkpoint reload.
+    if (this.entrance === null && worldEvents.flag('jesterAwakened') >= 1 && !threats.isJesterAwake && this.currentChunk >= JESTER_ENTRANCE_CHUNK) {
+      threats.awakenJester(this.entranceSpawnBehind(), this.playerPosition());
+    }
+    if (this.entrance === null) {
+      if (this.cinematics.locksControls || this.pendingDeath !== null) {
+        return;
+      }
+      const next: ThreatEntrance | undefined = THREAT_ENTRANCES.find(
+        (candidate: ThreatEntrance) => worldEvents.flag(candidate.flag) < 1 && this.currentChunk >= candidate.chunk,
+      );
+      if (next === undefined) {
+        return;
+      }
+      this.entrance = { definition: next, seconds: 0, arrived: false };
+      this.campaign?.say(next.dialogue);
+      const forward: Vec3 = [-Math.sin(this.yawRadians), 0, -Math.cos(this.yawRadians)];
+      const cueAt: Vec3 = next.kind === 'jester' ? vec3Add(this.motor.position, vec3Scale(forward, -10)) : vec3Add(this.motor.position, vec3Scale(forward, 10));
+      services.audio.playSpatialCue(next.cue, cueAt, 1.3);
+    }
+    const entrance = this.entrance;
+    entrance.seconds += deltaSeconds;
+    const flickering: boolean = entrance.seconds < ENTRANCE_FLICKER_SECONDS;
+    services.lighting.globalIntensityScale = flickering ? 0.25 + 0.75 * Math.abs(Math.sin(entrance.seconds * 17)) * (0.4 + 0.6 * Math.abs(Math.sin(entrance.seconds * 5.3))) : 1;
+    if (!entrance.arrived && entrance.seconds >= ENTRANCE_ARRIVAL_SECONDS) {
+      entrance.arrived = true;
+      const definition: ThreatEntrance = entrance.definition;
+      if (definition.kind === 'jester') {
+        const jester: ManagedThreat = threats.awakenJester(this.entranceSpawnBehind(), this.playerPosition());
+        jester.brain.graceSeconds = definition.graceSeconds;
+        worldEvents.notify('threatAwakened', { kind: 'jester', position: jester.view.position });
+      } else {
+        threats.unlockKind(definition.kind, definition.graceSeconds);
+      }
+      worldEvents.setFlag(definition.flag, 1);
+    }
+    if (!flickering && entrance.arrived) {
+      services.lighting.globalIntensityScale = 1;
+      this.entrance = null;
+    }
+  }
+
+  private entranceSpawnBehind(): Vec3 {
+    return [0, 0, Math.min(chunkStartZ(0) - 1, this.motor.position[2] + ENTITY_SPAWN_BEHIND_METERS)];
   }
 
   /** Decides which monsters can be beaten for good right now; everything else can only be staggered. */
@@ -1283,16 +1361,9 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       }
     }
 
-    // 13. Threats: awaken the Jester, then tick every brain.
-    if (!threats.isJesterAwake) {
-      const travelled: number = this.spawnZ - this.motor.position[2];
-      if (travelled > ENTITY_AWAKEN_DISTANCE_METERS || (this.sessionSeconds > ENTITY_AWAKEN_SECONDS && travelled > 6)) {
-        const spawnPosition: Vec3 = [0, 0, Math.min(chunkStartZ(0) - 1, this.motor.position[2] + ENTITY_SPAWN_BEHIND_METERS)];
-        const jester: ManagedThreat = threats.awakenJester(spawnPosition, this.playerPosition());
-        worldEvents.notify('threatAwakened', { kind: 'jester', position: jester.view.position });
-      }
-    }
-this.updateCombatScenes(threats, worldEvents);
+    // 13. Threats: scripted entrances (no monster appears before its scene), then tick every brain.
+    this.updateEntrances(threats, worldEvents, deltaSeconds);
+    this.updateCombatScenes(threats, worldEvents);
     threats.update(deltaSeconds, this.buildPlayerSignature());
     this.dread = threats.dreadAt(this.playerPosition());
     services.audio.setDreadLevel(this.dread);

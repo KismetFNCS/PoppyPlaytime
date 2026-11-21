@@ -89,7 +89,7 @@ export const LEVEL_TRIGGER_RULES: readonly TriggerRule[] = [
     actions: [
       { type: 'incrementFlag', flag: 'relayPlatesPowered', amount: 1 },
       { type: 'emitNoise', source: 'relayEngaged', at: 'event', loudness: 1 },
-      { type: 'emitNoise', source: 'gateMoving', at: 'player', loudness: 0.8 },
+      { type: 'emitNoise', source: 'gateMoving', at: 'player', loudness: 0.45 },
     ],
     once: false,
   },

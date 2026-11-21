@@ -78,6 +78,8 @@ export class EntityBrain {
   private catchResolved: boolean = false;
   /** Seconds left in a hand-strike stun (no movement, no catching). */
   public stunSeconds: number = 0;
+  /** Entrance grace: awareness is capped below the alert threshold while this counts down. */
+  public graceSeconds: number = 0;
   /** After a stun wears off the threat shrugs off further strikes for a while, so it can't be stun-locked. */
   public stunImmuneSeconds: number = 0;
   private path: Vec3[] | null = null;
@@ -296,6 +298,10 @@ export class EntityBrain {
     }
 
     const { sight, hearing, observed } = this.perceive(deltaSeconds, context);
+    if (this.graceSeconds > 0) {
+      this.graceSeconds = Math.max(0, this.graceSeconds - deltaSeconds);
+      this.awareness = Math.min(this.awareness, profile.awareness.alertThreshold * 0.8);
+    }
     const perceivedRecently: boolean = sight.visible || this.secondsSincePerceived < 0.5;
     // Light-frozen threats stop dead; look-away threats crawl at their observed speed.
     const lightFrozen: boolean = profile.freezeIlluminanceThreshold !== null && context.illuminanceAt([view.position[0], view.position[1] + profile.vision.eyeHeight * 0.7, view.position[2]]) > profile.freezeIlluminanceThreshold;

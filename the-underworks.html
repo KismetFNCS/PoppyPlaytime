@@ -5648,6 +5648,8 @@ var EntityBrain = class {
   catchResolved = false;
   /** Seconds left in a hand-strike stun (no movement, no catching). */
   stunSeconds = 0;
+  /** Entrance grace: awareness is capped below the alert threshold while this counts down. */
+  graceSeconds = 0;
   /** After a stun wears off the threat shrugs off further strikes for a while, so it can't be stun-locked. */
   stunImmuneSeconds = 0;
   path = null;
@@ -5835,6 +5837,10 @@ var EntityBrain = class {
       };
     }
     const { sight, hearing, observed } = this.perceive(deltaSeconds, context);
+    if (this.graceSeconds > 0) {
+      this.graceSeconds = Math.max(0, this.graceSeconds - deltaSeconds);
+      this.awareness = Math.min(this.awareness, profile.awareness.alertThreshold * 0.8);
+    }
     const perceivedRecently = sight.visible || this.secondsSincePerceived < 0.5;
     const lightFrozen = profile.freezeIlluminanceThreshold !== null && context.illuminanceAt([view.position[0], view.position[1] + profile.vision.eyeHeight * 0.7, view.position[2]]) > profile.freezeIlluminanceThreshold;
     const freezeCap = (speed) => lightFrozen ? 0 : observed ? Math.min(speed, profile.speeds.observed) : speed;
@@ -6259,6 +6265,16 @@ var DIALOGUE = {
     { speaker: "mabel", text: "The song\u2019s stopped. Without it she can\u2019t hold herself together.", seconds: 3.4 },
     { speaker: "mabel", text: "Hit her with the rig. Three good strikes and she comes apart.", seconds: 3.4 }
   ],
+  "tallyman.entrance": [
+    { speaker: "pa", text: "Attention. Time-and-motion inspection in progress. Remain at your stations.", seconds: 3.4 },
+    { speaker: "mabel", text: "Lights are dipping up ahead. Something heavy just stepped onto the line. Get low.", seconds: 3.8 }
+  ],
+  "hushling.entrance": [
+    { speaker: "pip", text: "*frantic ticking*", seconds: 1.6 },
+    { speaker: "mabel", text: "Those cribs aren\u2019t empty. Something in them is waking up.", seconds: 3.2 }
+  ],
+  "choirMother.entrance": [{ speaker: "mabel", text: "Hear that hymn? She\u2019s coming down from the loft. Don\u2019t let her see you.", seconds: 3.6 }],
+  "jester.entrance": [{ speaker: "mabel", text: "Wait. The archive doors behind you were sealed. Who opened them?", seconds: 3.4 }],
   "choirMother.defeated": [{ speaker: "mabel", text: "She\u2019s down. The little ones are going quiet. That nursery won\u2019t sing again.", seconds: 3.8 }]
 };
 var LORE_TAPES = [
@@ -8128,6 +8144,8 @@ var ThreatDirector = class {
   /** Spawn ids that already caught / were dismissed this session (never respawn). */
   retiredSpawnIds = /* @__PURE__ */ new Set();
   clockSeconds = 0;
+  /** Kinds that may not spawn from level placements yet (their entrance scene hasn't played). */
+  lockedKinds = /* @__PURE__ */ new Set();
   suppressed = false;
   get activeThreats() {
     return [...this.threats.values()];
@@ -8190,7 +8208,7 @@ var ThreatDirector = class {
       }
     });
     for (const [spawnId, spawn] of residentSpawns) {
-      if (!this.threats.has(spawnId) && !this.retiredSpawnIds.has(spawnId)) {
+      if (!this.threats.has(spawnId) && !this.retiredSpawnIds.has(spawnId) && !this.lockedKinds.has(spawn.kind)) {
         const managed = this.register(spawnId, spawn.kind, spawn.position, spawn.patrolRoute, spawn.chunkIndex, false);
         managed.brain.activate("patrolling", 0, null);
       }
@@ -8261,6 +8279,24 @@ var ThreatDirector = class {
       return { outcome: "defeated", strikesLeft: 0 };
     }
     return { outcome: "stunned", strikesLeft: required - landed };
+  }
+  lockKind(kind) {
+    this.lockedKinds.add(kind);
+  }
+  /** Lets a kind spawn from its level placements; newly placed ones start with an entrance grace period. */
+  unlockKind(kind, graceSeconds) {
+    if (!this.lockedKinds.delete(kind)) {
+      return;
+    }
+    this.syncWithStreamer();
+    for (const managed of this.threats.values()) {
+      if (managed.kind === kind) {
+        managed.brain.graceSeconds = Math.max(managed.brain.graceSeconds, graceSeconds);
+      }
+    }
+  }
+  isKindLocked(kind) {
+    return this.lockedKinds.has(kind);
   }
   get isJesterAwake() {
     return this.threats.has(JESTER_THREAT_ID);
@@ -9524,7 +9560,7 @@ var LEVEL_TRIGGER_RULES = [
     actions: [
       { type: "incrementFlag", flag: "relayPlatesPowered", amount: 1 },
       { type: "emitNoise", source: "relayEngaged", at: "event", loudness: 1 },
-      { type: "emitNoise", source: "gateMoving", at: "player", loudness: 0.8 }
+      { type: "emitNoise", source: "gateMoving", at: "player", loudness: 0.45 }
     ],
     once: false
   },
@@ -10172,7 +10208,10 @@ var QUEST_FLAG_IDS = [
   "jesterDefeated",
   "tallymanDefeated",
   "choirMotherDefeated",
-  "hushlingDefeated"
+  "hushlingDefeated",
+  "tallymanIntroduced",
+  "hushlingsIntroduced",
+  "choirMotherIntroduced"
 ];
 function createEmptyQuestFlags() {
   const record = {};
@@ -12304,8 +12343,6 @@ var MUSIC_BOX_CHIME_SECONDS = 2.6;
 var LEVEL_WORLD_SEED = 1592590342;
 var LEVEL_ENVIRONMENT = { ambientColor: [0.012, 0.011, 0.016], clearColor: [0, 0, 0] };
 var METERS_PER_CHUNK = 4;
-var ENTITY_AWAKEN_DISTANCE_METERS = 16;
-var ENTITY_AWAKEN_SECONDS = 14;
 var ENTITY_SPAWN_BEHIND_METERS = 15;
 var MASK_STATION_PICKUP_ID = "pickup.gasMask.1";
 var INTERACT_REACH_METERS = 2.4;
@@ -12319,6 +12356,15 @@ var AUTOSAVE_INTERVAL_SECONDS = 45;
 var HOTBAR_KEY_CODES = ["Digit1", "Digit2", "Digit3", "Digit4"];
 var STRIKE_RADIUS = { jester: 0.75, tallyman: 0.7, choirMother: 0.95, hushling: 0.5 };
 var THREAT_DISPLAY_NAMES = { jester: "THE JESTER", tallyman: "THE TALLYMAN", choirMother: "THE CHOIR MOTHER", hushling: "HUSHLING" };
+var JESTER_ENTRANCE_CHUNK = 22;
+var THREAT_ENTRANCES = [
+  { kind: "tallyman", flag: "tallymanIntroduced", chunk: 7, dialogue: "tallyman.entrance", cue: "tallymanStep", graceSeconds: 8 },
+  { kind: "hushling", flag: "hushlingsIntroduced", chunk: 14, dialogue: "hushling.entrance", cue: "hushlingSkitter", graceSeconds: 6 },
+  { kind: "choirMother", flag: "choirMotherIntroduced", chunk: 16, dialogue: "choirMother.entrance", cue: "choirHymn", graceSeconds: 8 },
+  { kind: "jester", flag: "jesterAwakened", chunk: JESTER_ENTRANCE_CHUNK, dialogue: "jester.entrance", cue: "jesterBells", graceSeconds: 6 }
+];
+var ENTRANCE_FLICKER_SECONDS = 1.6;
+var ENTRANCE_ARRIVAL_SECONDS = 1.1;
 var ActiveLevelStreamerState = class {
   constructor(services, backdrop) {
     this.services = services;
@@ -12360,7 +12406,6 @@ var ActiveLevelStreamerState = class {
   yawRadians = 0;
   pitchRadians = 0;
   sessionSeconds = 0;
-  spawnZ = 0;
   currentChunk = 0;
   dread = 0;
   objectiveOpacity = 0;
@@ -12382,6 +12427,8 @@ var ActiveLevelStreamerState = class {
   leavingLevel = false;
   campaign = null;
   pip = null;
+  /** The entrance scene currently playing (lights stutter, cue, line, then the monster arrives). */
+  entrance = null;
   /** Where each launched hand was last frame, for swept hit tests against monsters. */
   handTrail = {
     left: { position: [0, 0, 0], phase: "holstered" },
@@ -12431,7 +12478,6 @@ var ActiveLevelStreamerState = class {
       this.yawRadians = 0;
       this.pitchRadians = 0;
     }
-    this.spawnZ = this.motor.position[2];
     const rig = new TetherRig(services.gl, services.meshes, this.tetherEvents);
     this.rig = rig;
     this.relayNetwork = new RelayPlateNetwork(this.tetherEvents, streamer, rig);
@@ -12439,6 +12485,12 @@ var ActiveLevelStreamerState = class {
     const worldEvents = new WorldEventSystem(streamer, this, LEVEL_TRIGGER_RULES);
     worldEvents.restoreFlags(save.questFlags);
     this.worldEvents = worldEvents;
+    for (const entrance of THREAT_ENTRANCES) {
+      if (entrance.kind !== "jester" && worldEvents.flag(entrance.flag) < 1) {
+        this.threats.lockKind(entrance.kind);
+      }
+    }
+    this.entrance = null;
     this.campaign = new CampaignDirector({
       flag: (flag) => worldEvents.flag(flag),
       setFlag: (flag, value) => worldEvents.setFlag(flag, value),
@@ -12679,6 +12731,56 @@ var ActiveLevelStreamerState = class {
         }
         break;
     }
+  }
+  /**
+   * Each monster enters the story once, at a fixed point, with a short scene: the lights stutter, its sound and a warning
+   * line play, and it arrives during the flicker with a grace period before it can notice the player. Until then its
+   * kind is locked out of the level entirely, so gates and noise can't pull it in early.
+   */
+  updateEntrances(threats, worldEvents, deltaSeconds) {
+    const services = this.services;
+    if (this.entrance === null && worldEvents.flag("jesterAwakened") >= 1 && !threats.isJesterAwake && this.currentChunk >= JESTER_ENTRANCE_CHUNK) {
+      threats.awakenJester(this.entranceSpawnBehind(), this.playerPosition());
+    }
+    if (this.entrance === null) {
+      if (this.cinematics.locksControls || this.pendingDeath !== null) {
+        return;
+      }
+      const next = THREAT_ENTRANCES.find(
+        (candidate) => worldEvents.flag(candidate.flag) < 1 && this.currentChunk >= candidate.chunk
+      );
+      if (next === void 0) {
+        return;
+      }
+      this.entrance = { definition: next, seconds: 0, arrived: false };
+      this.campaign?.say(next.dialogue);
+      const forward = [-Math.sin(this.yawRadians), 0, -Math.cos(this.yawRadians)];
+      const cueAt = next.kind === "jester" ? vec3Add(this.motor.position, vec3Scale(forward, -10)) : vec3Add(this.motor.position, vec3Scale(forward, 10));
+      services.audio.playSpatialCue(next.cue, cueAt, 1.3);
+    }
+    const entrance = this.entrance;
+    entrance.seconds += deltaSeconds;
+    const flickering = entrance.seconds < ENTRANCE_FLICKER_SECONDS;
+    services.lighting.globalIntensityScale = flickering ? 0.25 + 0.75 * Math.abs(Math.sin(entrance.seconds * 17)) * (0.4 + 0.6 * Math.abs(Math.sin(entrance.seconds * 5.3))) : 1;
+    if (!entrance.arrived && entrance.seconds >= ENTRANCE_ARRIVAL_SECONDS) {
+      entrance.arrived = true;
+      const definition = entrance.definition;
+      if (definition.kind === "jester") {
+        const jester = threats.awakenJester(this.entranceSpawnBehind(), this.playerPosition());
+        jester.brain.graceSeconds = definition.graceSeconds;
+        worldEvents.notify("threatAwakened", { kind: "jester", position: jester.view.position });
+      } else {
+        threats.unlockKind(definition.kind, definition.graceSeconds);
+      }
+      worldEvents.setFlag(definition.flag, 1);
+    }
+    if (!flickering && entrance.arrived) {
+      services.lighting.globalIntensityScale = 1;
+      this.entrance = null;
+    }
+  }
+  entranceSpawnBehind() {
+    return [0, 0, Math.min(chunkStartZ(0) - 1, this.motor.position[2] + ENTITY_SPAWN_BEHIND_METERS)];
   }
   /** Decides which monsters can be beaten for good right now; everything else can only be staggered. */
   updateCombatScenes(threats, worldEvents) {
@@ -13377,14 +13479,7 @@ var ActiveLevelStreamerState = class {
         }
       }
     }
-    if (!threats.isJesterAwake) {
-      const travelled = this.spawnZ - this.motor.position[2];
-      if (travelled > ENTITY_AWAKEN_DISTANCE_METERS || this.sessionSeconds > ENTITY_AWAKEN_SECONDS && travelled > 6) {
-        const spawnPosition = [0, 0, Math.min(chunkStartZ(0) - 1, this.motor.position[2] + ENTITY_SPAWN_BEHIND_METERS)];
-        const jester = threats.awakenJester(spawnPosition, this.playerPosition());
-        worldEvents.notify("threatAwakened", { kind: "jester", position: jester.view.position });
-      }
-    }
+    this.updateEntrances(threats, worldEvents, deltaSeconds);
     this.updateCombatScenes(threats, worldEvents);
     threats.update(deltaSeconds, this.buildPlayerSignature());
     this.dread = threats.dreadAt(this.playerPosition());

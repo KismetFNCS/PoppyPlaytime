@@ -65,6 +65,8 @@ export class ThreatDirector {
   /** Spawn ids that already caught / were dismissed this session (never respawn). */
   private readonly retiredSpawnIds: Set<string> = new Set();
   private clockSeconds: number = 0;
+  /** Kinds that may not spawn from level placements yet (their entrance scene hasn't played). */
+  private readonly lockedKinds: Set<ThreatKind> = new Set();
   public suppressed: boolean = false;
 
   public constructor(
@@ -144,7 +146,7 @@ export class ThreatDirector {
       }
     });
     for (const [spawnId, spawn] of residentSpawns) {
-      if (!this.threats.has(spawnId) && !this.retiredSpawnIds.has(spawnId)) {
+      if (!this.threats.has(spawnId) && !this.retiredSpawnIds.has(spawnId) && !this.lockedKinds.has(spawn.kind)) {
         const managed: ManagedThreat = this.register(spawnId, spawn.kind, spawn.position, spawn.patrolRoute, spawn.chunkIndex, false);
         managed.brain.activate('patrolling', 0, null);
       }
@@ -221,6 +223,27 @@ export class ThreatDirector {
       return { outcome: 'defeated', strikesLeft: 0 };
     }
     return { outcome: 'stunned', strikesLeft: required - landed };
+  }
+
+  public lockKind(kind: ThreatKind): void {
+    this.lockedKinds.add(kind);
+  }
+
+  /** Lets a kind spawn from its level placements; newly placed ones start with an entrance grace period. */
+  public unlockKind(kind: ThreatKind, graceSeconds: number): void {
+    if (!this.lockedKinds.delete(kind)) {
+      return;
+    }
+    this.syncWithStreamer();
+    for (const managed of this.threats.values()) {
+      if (managed.kind === kind) {
+        managed.brain.graceSeconds = Math.max(managed.brain.graceSeconds, graceSeconds);
+      }
+    }
+  }
+
+  public isKindLocked(kind: ThreatKind): boolean {
+    return this.lockedKinds.has(kind);
   }
 
   public get isJesterAwake(): boolean {
