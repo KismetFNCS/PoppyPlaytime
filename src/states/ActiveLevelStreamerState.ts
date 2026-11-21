@@ -1136,8 +1136,9 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       if (this.endingCountdown <= 0) {
         this.endingCountdown = -1;
         services.input.releasePointerLock();
+        const lastLine = this.campaign?.subtitle ?? null;
+        this.ending.beginChoice(lastLine !== null ? { speaker: lastLine.speakerName, text: lastLine.text } : null);
         this.campaign?.say('ending.prompt');
-        this.ending.beginChoice();
       }
     }
     // Chapel music boxes chime in space while they play.
@@ -1308,9 +1309,13 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (zone !== null) {
       post.fog.toxicVolume = { ...post.fog.toxicVolume, minimum: zone.bounds.minimum, maximum: zone.bounds.maximum, density: 0.11 * zone.concentration };
     }
-    this.hud.draw(context, this.buildHudSnapshot(frame.elapsedSeconds));
+    // The ending owns the screen: no HUD, objectives or subtitles under the choice, epilogue or credits.
+    const endingActive: boolean = this.ending.isActive;
+    if (!endingActive) {
+      this.hud.draw(context, this.buildHudSnapshot(frame.elapsedSeconds));
+    }
     const campaign: CampaignDirector | null = this.campaign;
-    if (campaign !== null) {
+    if (campaign !== null && !endingActive) {
       if (act !== null) {
         drawObjectives(context, `ACT ${act.numeral} · ${act.title}`, campaign.objectives, (1 - this.letterbox) * (this.paused ? 0 : 0.9));
       }

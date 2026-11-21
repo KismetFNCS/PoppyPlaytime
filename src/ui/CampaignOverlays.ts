@@ -214,6 +214,7 @@ export class EndingSequence {
   private ending: EndingDefinition | null = null;
   private readonly choiceGroup: UIFocusGroup;
   private pendingChoice: EndingId | null = null;
+  private choiceQuote: { readonly speaker: string; readonly text: string } | null = null;
 
   public constructor(onCue: (cue: UiCue) => void, private readonly onChosen: (ending: EndingId) => void, private readonly onFinished: () => void) {
     const style = { font: UI_FONTS.menuButton, paddingX: 26, paddingY: 14, hoverIndent: 0, align: 'center' } as const;
@@ -230,7 +231,9 @@ export class EndingSequence {
     return this.phase !== 'hidden';
   }
 
-  public beginChoice(): void {
+  /** `quote` is the line on screen when the choice opens; it is shown above the buttons instead of as a subtitle. */
+  public beginChoice(quote: { readonly speaker: string; readonly text: string } | null = null): void {
+    this.choiceQuote = quote;
     this.phase = 'choice';
     this.elapsed = 0;
     this.choiceGroup.focusedIndex = 0;
@@ -279,13 +282,22 @@ export class EndingSequence {
     context.save();
     context.textAlign = 'center';
     if (this.phase === 'choice') {
-      context.globalAlpha = clamp(this.elapsed, 0, 1) * 0.75;
+      context.globalAlpha = clamp(this.elapsed, 0, 1) * 0.85;
       context.fillStyle = '#000000';
       context.fillRect(0, 0, WIDTH, HEIGHT);
       context.globalAlpha = clamp(this.elapsed, 0, 1);
       context.font = UI_FONTS.chapter;
       context.fillStyle = UI_COLORS.accentRed;
-      context.fillText('LINE CONTROL · OPERATOR INPUT REQUIRED', WIDTH / 2, 430);
+      context.fillText('LINE CONTROL · OPERATOR INPUT REQUIRED', WIDTH / 2, 360);
+      if (this.choiceQuote !== null) {
+        context.font = 'italic 400 30px "Georgia", serif';
+        const lines: string[] = wrapText(context, `“${this.choiceQuote.text}”`, 1100).slice(0, 3);
+        context.fillStyle = UI_COLORS.textPrimary;
+        lines.forEach((line: string, index: number) => context.fillText(line, WIDTH / 2, 430 + index * 40));
+        context.font = UI_FONTS.small;
+        context.fillStyle = UI_COLORS.textDim;
+        context.fillText(`— ${this.choiceQuote.speaker.toUpperCase()}`, WIDTH / 2, 430 + lines.length * 40 + 12);
+      }
       context.textAlign = 'left';
       this.choiceGroup.draw(context, timeSeconds);
     } else if (this.phase === 'epilogue' && this.ending !== null) {
