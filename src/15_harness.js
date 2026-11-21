@@ -494,7 +494,14 @@ async function runAll() {
 
     await breathe();
     // ---------------- scripted chase ----------------
-    T.setPlayerPose(0, 0, -52, 0, 0); T.step(DT, 3);
+    T.setPlayerPose(0, 0, -49.5, 0, 0); T.step(DT, 3);
+    check('reveal: the Spoolwright stands frozen at the far end of the foundry', Monster.creeping && Monster.visible && !Monster.scripted, JSON.stringify(T.monster()));
+    const cz0 = Monster.pos[2];
+    for (let i = 0; i < 60; i++) { T.aimAt(Monster.head[0], Monster.head[1], Monster.head[2]); T.step(DT, 1); }
+    check('reveal: it does not move while you watch it', Monster.pos[2] === cz0, Monster.pos[2].toFixed(2));
+    T.clearSfxLog(); T.aimAt(0, 1.6, -40); T.step(DT, 40);
+    check('reveal: look away and it jerks closer in a new pose, bells jingling', Monster.pos[2] > cz0 + 1 && T.getSfxLog().includes('bells'), Monster.pos[2].toFixed(2));
+    for (let i = 0; i < 14 && !Ambush.active; i++) { T.aimAt(0, 1.6, -40); T.step(DT, 40); }
     check('chase: trigger slams D2 and spawns the Spoolwright', Monster.scripted && Level.doorById('D2').target === 0 && Level.doorById('D2').locked, JSON.stringify(T.monster()));
     check('state: CHASE_SEQUENCE during the scripted chase', T.getState() === 'CHASE_SEQUENCE', T.getState());
     T.step(DT, 30);

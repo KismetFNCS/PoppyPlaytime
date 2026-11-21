@@ -320,12 +320,18 @@ const Game = {
         Monster.reset();
         this.stage = 3; UI.setObjective(OBJECTIVES[3]); this.saveCheckpoint(3);
         break;
+      case 'foundryCreep':
+        // the reveal: it stands at the far end of the foundry; every time you look away it is closer
+        Monster.startCreep();
+        GrabPack.showHint('Something is standing at the far end... don\'t look away from it.');
+        if (Cast.plush.mode === 'FOLLOW') Dialogue.say('THIMBLE', '(whispering) Don\'t... look away from it. Every time you do, it gets closer.');
+        break;
       case 'startChase': {
         const d2 = Level.doorById('D2');
         Doors.setOpen('D2', false, true); d2.locked = true;
         let v = 0;
         for (let i = 0; i < Level.vents.length; i++) if (Level.vents[i].sector === 3) v = i;
-        Monster.startScriptedChase(v);
+        if (Monster.creeping) Monster.creepToChase(); else Monster.startScriptedChase(v);
         this.chaseActive = true;
         V3.set(_g.v, Level.vents[v].pos[0], Level.vents[v].pos[1], Level.vents[v].pos[2]);
         this.fracture[0] = _g.v[0]; this.fracture[1] = _g.v[1]; this.fracture[2] = _g.v[2]; this.fracture[3] = 4.5; this.fractureAmt = 1;

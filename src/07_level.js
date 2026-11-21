@@ -428,7 +428,8 @@ const Level = {
 
     // ---------- triggers ----------
     this.trigger(-10, -30, 10, -24.6, 'enterGallery');
-    this.trigger(-6, -55, 6, -50.5, 'startChase');
+    this.trigger(-6, -50.4, 6, -48.6, 'foundryCreep');
+    this.trigger(-6, -62, 6, -58.5, 'startChase');
     this.trigger(-2.4, -97.5, 2.4, -93.2, 'reachLift');
 
     this.finishBatches();

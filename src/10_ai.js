@@ -50,6 +50,8 @@ const Monster = {
   legs: [], bodyBob: 0, lean: 0, armReach: 0, jaw: 0, headTilt: 0, flinchAmt: 0, breathe: 0,
   // the head tracks you in sudden, jerky snaps (and cocks sideways now and then)
   lookYaw: 0, lookPitch: 0, lookRoll: 0, snapTimer: 0,
+  // the foundry reveal: frozen while watched, jerking closer in a new twisted pose whenever you look away
+  creeping: false, unseenT: 0, creepCool: 0, bellT: 0,
   catchCooldown: 0, sector: -1, sightRange: 20,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
 
@@ -87,6 +89,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
+    this.creeping = false; this.unseenT = 0; this.creepCool = 0; this.bellT = 0;
     this.kill.on = false; this.kill.grab = 0; this.kill.join = 0; this.kill.stab = 0; this.kill.wind = 0;
     this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0; this.stunImmune = 0; this.retreatAfterStun = false; this.retreatTimer = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
@@ -360,6 +363,10 @@ const Monster = {
     this.flinchAmt = damp(this.flinchAmt, 0, 5, dt);
     this.stateTime += dt;
     if (!this.active) { this.visible = false; return; }
+    if (this.creeping) { this.updateCreep(dt); return; }
+    // the bells on its hat jingle softly while it moves, and stay silent when it is still
+    this.bellT -= dt;
+    if (this.visible && this.speed > 1 && this.bellT <= 0) { this.bellT = 0.45; sfx('bells', this.head); }
     if (this.state === MSTATE.MENU_POSE) { this.animateIdle(dt); this.visible = true; return; }
     if (this.state === MSTATE.JUMPSCARE_EXECUTION) { this.visible = true; return; }
     if (this.bossHold) { this.visible = !this.inVent; this.animateIdle(dt); this.animateLegs(dt, this.airborne); return; }
@@ -457,6 +464,52 @@ const Monster = {
     this.headTilt = Math.sin(this.breathe * 0.7) * 0.25 + noise1(this.breathe * 2.3) * 0.15;
     this.updateLook(dt);
     this.jaw = damp(this.jaw, this.state === MSTATE.LINE_OF_SIGHT_CHASE ? 0.7 + 0.3 * noise1(this.breathe * 8) : 0.12 + 0.1 * noise1(this.breathe), 6, dt);
+  },
+
+  // ---------- foundry reveal ----------
+  startCreep() {
+    this.reset();
+    this.active = true; this.visible = true; this.inVent = false; this.creeping = true; this.sector = 3;
+    V3.set(this.pos, 0.6, 0, -69.2);
+    this.yaw = 0;
+    this.lookRoll = 0.9; this.headTilt = 0.4; this.lean = 0.25; this.armReach = 0.3;
+    this.snapLegs();
+    this.creepCool = 1.2;
+  },
+  updateCreep(dt) {
+    const eye = Player.cam.eye;
+    this.bodyPoint(this.head, Math.sin(this.headTilt) * 0.15, 2.72, -0.74);
+    V3.sub(this.tmp, this.head, eye);
+    const l = V3.len(this.tmp) || 1;
+    const seen = V3.dot(this.tmp, Renderer.camFwd) / l > 0.6 && Enemies.clearLine(eye, this.head);
+    this.unseenT = seen ? 0 : this.unseenT + dt;
+    this.creepCool -= dt;
+    const b = Player.body.pos, d = V3.distXZ(this.pos, b);
+    if (!seen && this.unseenT > 0.3 && this.creepCool <= 0) this.creepJerk(d);
+    if (d < 5.6 || (d < 7.5 && this.unseenT > 2.5)) {
+      for (const t of Level.triggers) if (t.action === 'startChase') t.fired = true;
+      Game.action('startChase');
+    }
+  },
+  // out of sight it jerks closer into a new, twisted pose; the bells jingle as it moves
+  creepJerk(d) {
+    const b = Player.body.pos;
+    const dx = b[0] - this.pos[0], dz = b[2] - this.pos[2], l = Math.hypot(dx, dz) || 1;
+    const step = Math.max(0, Math.min(d - 4.4, 2.2 + gameRng() * 1.4));
+    this.pos[0] = clamp(this.pos[0] + dx / l * step + (gameRng() - 0.5) * 1.6, -4.4, 4.4);
+    this.pos[2] += dz / l * step;
+    this.yaw = Math.atan2(-(b[0] - this.pos[0]), -(b[2] - this.pos[2])) + (gameRng() - 0.5) * 0.7;
+    this.lookYaw = (gameRng() - 0.5) * 0.8; this.lookPitch = (gameRng() - 0.5) * 0.5;
+    this.lookRoll = (gameRng() < 0.5 ? -1 : 1) * (0.5 + gameRng() * 1.0);
+    this.headTilt = (gameRng() - 0.5) * 1.2; this.lean = -0.15 + gameRng() * 0.6; this.armReach = gameRng();
+    this.bodyBob = (gameRng() - 0.5) * 0.2;
+    this.snapLegs();
+    this.creepCool = 0.55;
+    sfx('bells', this.head); sfx('headSnap', this.head);
+  },
+  creepToChase() {
+    this.creeping = false; this.scripted = true; this.active = true; this.inVent = false; this.sector = 3;
+    this.setState(MSTATE.LINE_OF_SIGHT_CHASE);
   },
 
   // the head does not turn smoothly: it holds still, then SNAPS to look straight at you, sometimes cocked

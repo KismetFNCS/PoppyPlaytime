@@ -605,6 +605,11 @@ const SFX = {
     Audio.noise(t, 0.6, 0.2, 5000, 'bandpass', out, 1.5);
   },
   // a porcelain neck snapping round: a dry crack with a grinding click
+  // small jester bells, jingling softly
+  bells(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 5, 0.6);
+    for (let k = 0; k < 5; k++) Audio.ring(t + k * 0.045 + Math.random() * 0.03, [Audio.vary(2900 + (k % 3) * 340), Audio.vary(6100 + (k % 2) * 450)], 0.3, 0.045, out);
+  },
   headSnap(t, pos) {
     const out = Audio.dest(pos, 'sfx', 4, 0.6);
     Audio.noise(t, 0.04, 0.45, 3800, 'highpass', out);

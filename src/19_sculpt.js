@@ -405,6 +405,17 @@ const SCULPTS = {
       const ang = k / 6 * Math.PI * 2 + 0.5;
       n.push({ t: 'box', c: [Math.sin(ang) * 0.181, 0.27, Math.cos(ang) * 0.181], h: [0.03, 0.03, 0.006], rot: [ang, 0, Math.PI / 4], m: k % 2 ? GO : TE, k: 0.004 });
     }
+    // two long, drooping cloth tails flopping off the crown, each ending in a bell
+    for (const [sx, m] of [[-1, TE], [1, GO]]) {
+      const pts = [[sx * 0.08, 0.38, 0.0], [sx * 0.24, 0.42, 0.04], [sx * 0.34, 0.3, 0.06], [sx * 0.37, 0.12, 0.05], [sx * 0.36, -0.06, 0.04]];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const r0 = 0.055 - i * 0.011, r1 = 0.055 - (i + 1) * 0.011;
+        n.push({ t: 'cap', a: pts[i], b: pts[i + 1], r: r0, r2: Math.max(0.012, r1), m, k: 0.03, n: [0.008, 30] });
+      }
+      const e = pts[pts.length - 1];
+      n.push({ t: 'sph', c: [e[0], e[1] - 0.04, e[2]], r: 0.036, m: GO, k: 0.006 });
+      n.push({ t: 'box', c: [e[0], e[1] - 0.058, e[2]], h: [0.026, 0.004, 0.004], op: 's', sm: MAT.rubber });
+    }
     // bells dangling on frayed ribbons from the band
     for (const [ang, len, m] of [[1.9, 0.16, RO], [2.6, 0.22, TE], [-2.2, 0.18, GO]]) {
       const x = Math.sin(ang) * 0.18, z = Math.cos(ang) * 0.18;
@@ -418,7 +429,7 @@ const SCULPTS = {
     }
     // grime and scorch smudges
     for (let k = 0; k < 7; k++) { const ang = k * 2.3; n.push({ t: 'sph', c: [Math.sin(ang) * 0.175, 0.08 + (k * 0.047) % 0.3, Math.cos(ang) * 0.175], r: 0.03, m: MAT.burnt, k: 0.01 }); }
-    return SDF.mesh(n, [-0.36, -0.28, -0.36], [0.36, 0.48, 0.36], 64);
+    return SDF.mesh(n, [-0.46, -0.3, -0.36], [0.46, 0.5, 0.36], 66);
   },
   // Filthy, ragged jester's motley on a skeletal upper torso (origin at the chest, facing -z): ruby cloth with
   // teal and orange harlequin diamonds, a pleated teal/ruby ruff, a dagged hem of pointed tatters, pom-pom

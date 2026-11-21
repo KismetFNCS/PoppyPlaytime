@@ -126,7 +126,7 @@ const Companion = {
     const b = Player.body.pos, d = Math.hypot(b[0] - P.pos[0], b[2] - P.pos[2]);
     // the Spoolwright is close: warn, then hide in the vents
     const M = Monster;
-    const threat = M.active && M.visible && !M.inVent && !Game.chaseActive && V3.dist(M.pos, b) < 14;
+    const threat = M.active && M.visible && !M.inVent && !M.creeping && !Game.chaseActive && V3.dist(M.pos, b) < 14;
     if (threat && this.lineCool.threat <= 0) {
       this.lineCool.threat = 30; Dialogue.clear(); this.sayLines('THIMBLE', COMPANION_LINES.threat);
       P.mode = 'HIDE'; P.hidden = true; this.hideTimer = 0;
