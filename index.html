@@ -178,7 +178,7 @@
     <div class="sub" id="hudSub"></div>
     <div class="dialog" id="hudDialog"><b id="hudDialogName"></b><span id="hudDialogText"></span></div>
     <div class="hand l" id="hudHandL">L &middot; TEAL</div>
-    <div class="hand r" id="hudHandR">R &middot; AMBER</div>
+    <div class="hand r" id="hudHandR">R &middot; ROSE</div>
     <canvas id="pipCanvas" width="128" height="128" aria-label="PIP companion"></canvas>
     <div class="cable" id="hudCable"><span id="hudCableText">TETHER</span><div class="bar"><i id="hudCableBar"></i></div></div>
     <button class="pausebtn" id="btnHudPause" data-act="pause" aria-label="Pause">II</button>
@@ -231,7 +231,7 @@ window.addEventListener('error', function (e) {
 // MERRIWEATHER WORKS - CHAPTER 6: "RESURRECTION"
 // Fan-made survival-horror engine slice. Original setting, characters and names:
 //   Merriweather Toy Works, Sector 06 "Reclamation"; Experiment 6-06 "The Spoolwright";
-//   the LIFELINE (dual extendable gauntlets, TEAL left / AMBER right).
+//   the LIFELINE (dual extendable gauntlets, TEAL left / ROSE right).
 // Every mesh, texture, sound and UI element below is generated in code at runtime.
 // =====================================================================================
 //
@@ -300,8 +300,8 @@ window.addEventListener('error', function (e) {
 //     Source: [SAMPLED] 5.jpg (60%, 12%) #6b5b5e, darkened 45% to albedo.
 // MATERIAL 8: LIFELINE teal gauntlet   Base #2fb8b0, rough 0.4, metal 0.3
 //     Source: [ASSUMED] original tool identity (not the source game's palette).
-// MATERIAL 9: LIFELINE amber gauntlet  Base #e8892a, rough 0.4, metal 0.3
-//     Source: [ASSUMED] original tool identity.
+// MATERIAL 9: LIFELINE rose gauntlet  Base #f4a3a8, rough 0.42, metal 0.2
+//     Source: [ASSUMED] user-requested very light red / almost pink right hand.
 // MATERIAL 10: power cable (rubber, live glow #4fe3ff)
 //   Base #1a1a1c, rough 0.7, emissive #4fe3ff when energized
 //     Source: [ASSUMED] cyan current reads against the red/amber palette.
@@ -316,7 +316,7 @@ window.addEventListener('error', function (e) {
 //     Source: [SAMPLED] 1.jpg eye glow (60%, 37%) median 7px patch = #edcd41.
 // MATERIAL 15: black rubber / gaskets  Base #151515, rough 0.9 (non-emissive materials use emissive #000000)
 //     Source: [ASSUMED].
-// MATERIAL 16: light fur / doll hair (ash-blonde ringlets, plush)  Base #d8cba8, rough 0.9, tile 3.0
+// MATERIAL 16: light fur / doll hair (ash-blonde ringlets, plush)  Base #b9aa86, rough 0.9, tile 3.0
 //     Source: [ASSUMED] original doll palette (deliberately not the reference doll's red hair).
 // MATERIAL 17: woven canvas (hoods, robes, dresses)  Base #2a2622, rough 0.95, tile 2.0
 //     Source: [ESTIMATED] 7.jpg robe reads near-black with grey fold highlights.
@@ -355,7 +355,7 @@ window.addEventListener('error', function (e) {
 //   Source: [SAMPLED] 1.jpg button fill (15%, 64%) = #2c2c2b; selected fill (20%, 63.5%) = #30302e; button rows 470-692.
 // ELEMENT: HUD crosshair (GAMEPLAY) center 50%, 50%, 6 px dot, #d8dde6; hot state accent #4fe3ff.
 //   Source: [ASSUMED] minimal FPS reticle.
-// ELEMENT: HUD hand chips (GAMEPLAY) bottom 3.5%, left 3% teal #2fb8b0 / right 3% amber #e8892a.
+// ELEMENT: HUD hand chips (GAMEPLAY) bottom 3.5%, left 3% teal #2fb8b0 / right 3% rose #f4a3a8.
 //   Source: [ASSUMED].
 // ELEMENT: failure title "SIGNAL LOST" (FAILURE_STATE) center 50%, 42%, color #ff3b2e, chroma #ff0044 / #00e5ff.
 //   Source: [ASSUMED] VHS dropout card.
@@ -432,14 +432,14 @@ const MATERIALS = [
   { name: 'furBlue', base: '#0c77d9', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'steel', base: '#3a3438', rough: 0.38, metal: 0.85, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'handTeal', base: '#2fb8b0', rough: 0.4, metal: 0.3, tile: 2.0, emis: '#000000', emisStr: 0 },
-  { name: 'handAmber', base: '#e8892a', rough: 0.4, metal: 0.3, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'handRose', base: '#f4a3a8', rough: 0.42, metal: 0.2, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'cable', base: '#1a1a1c', rough: 0.7, metal: 0.0, tile: 4.0, emis: '#4fe3ff', emisStr: 0 },
   { name: 'wood', base: '#6e5238', rough: 0.85, metal: 0.0, tile: 0.6, emis: '#000000', emisStr: 0 },
   { name: 'paint', base: '#b39a4a', rough: 0.8, metal: 0.0, tile: 0.25, emis: '#000000', emisStr: 0 },
   { name: 'copper', base: '#b87333', rough: 0.35, metal: 0.9, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'lens', base: '#edcd41', rough: 0.2, metal: 0.0, tile: 1.0, emis: '#edcd41', emisStr: 6.0 },
   { name: 'rubber', base: '#151515', rough: 0.9, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'furLight', base: '#d8cba8', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'furLight', base: '#b9aa86', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'canvas', base: '#2a2622', rough: 0.95, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'screen', base: '#050608', rough: 0.12, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'burnt', base: '#6a4632', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 }
@@ -459,7 +459,7 @@ const SCALE = {
 const PALETTE = {
   void: '#06090e', titleText: '#f2f2f2', ruleColor: '#9aa4b5', descText: '#e0e0e0',
   btnFill: '#2c2c2b', btnHover: '#4a4a48', btnActive: '#5c5c5a', btnBorder: '#bdbdbd', btnText: '#e6e6e6',
-  hudText: '#d8dde6', accent: '#4fe3ff', handL: '#2fb8b0', handR: '#e8892a', danger: '#ff3b2e',
+  hudText: '#d8dde6', accent: '#4fe3ff', handL: '#2fb8b0', handR: '#f4a3a8', danger: '#ff3b2e',
   chromaA: '#ff0044', chromaB: '#00e5ff', panelFill: '#0b0c10', dimText: '#8b919c', focusRing: '#4fe3ff',
   reportBg: '#050608', reportText: '#d8dde6', gridLine: '#ff00ff', live: '#4fe3ff',
   relayIdle: '#ffb030', relayLinked: '#5cff9a', sourceGlow: '#4fe3ff', receptacleIdle: '#ff3b2e'
@@ -3268,12 +3268,12 @@ const NAV_DIRS = new Int8Array([1, 0, -1, 0, 0, 1, 0, -1, 1, 1, 1, -1, -1, 1, -1
 
 // ===== module: 08_grabpack.js =====
 // =====================================================================================
-// LIFELINE: two launchable gauntlets (LEFT = TEAL, RIGHT = AMBER) with inertial flight,
+// LIFELINE: two launchable gauntlets (LEFT = TEAL, RIGHT = ROSE) with inertial flight,
 // Verlet power cables, peg wrapping (2D sweep test in XZ) and circuit closure.
 // =====================================================================================
 
 const HAND = { DOCKED: 0, FLYING: 1, LATCHED: 2, RETRACTING: 3 };
-const HAND_NAMES = ['TEAL', 'AMBER'];
+const HAND_NAMES = ['TEAL', 'ROSE'];
 const MAX_WRAPS = 16;
 
 function makeHand(side) {
@@ -4454,11 +4454,11 @@ const Monster = {
       return;
     }
     const B = this.tmp, H = this.tmp2, X = this.tmp3;
-    // ---- abdomen: lumpy fur sac built from overlapping tufts ----
-    for (let i = 0; i < FUR_SAC.length; i += 5) {
-      this.bodyPoint(B, FUR_SAC[i], FUR_SAC[i + 1] + Math.sin(this.breathe * 1.7 + i) * 0.02, FUR_SAC[i + 2]);
-      const r = FUR_SAC[i + 3];
-      R.trs('sphere', FUR_SAC[i + 4] ? MAT.furBlue : MAT.furViolet, B[0], B[1], B[2], yaw + i * 0.3, lean + i * 0.11, 0, r, r * 0.85, r * 1.1);
+    // ---- sculpted torso: lumpy fur sac, spool drum, copper flanges, bone ribcage and spine ----
+    let it;
+    if (Sculpt.ready('sp_body')) {
+      it = R.push('sp_body', MAT.furViolet);
+      if (it) M4.compose(it.model, this.pos[0], this.pos[1] + 1.35 + this.bodyBob, this.pos[2], yaw, lean, 0, 1, 1, 1);
     }
     // glowing red pressure tanks strapped on top of the sac
     for (const sx of [-0.16, 0.16]) {
@@ -4470,35 +4470,7 @@ const Monster = {
     }
     this.bodyPoint(B, 0, 1.92, 0.75);
     R.trs('box', MAT.rubber, B[0], B[1], B[2], yaw, lean, 0, 0.48, 0.03, 0.06);
-    // ---- thorax: armoured drum with copper flanges and an exposed bone ribcage ----
-    this.bodyPoint(B, 0, 1.45, 0);
-    let it = R.push('cyl', MAT.furBlue);
-    if (it) { M4.compose(it.model, B[0], B[1], B[2], yaw, lean, Math.PI / 2, 0.5, 1.0, 0.5); M4.multiply(it.model, it.model, _mh.centerY); }
-    for (const sx of [-0.52, 0.52]) {
-      this.bodyPoint(H, sx, 1.45, 0);
-      it = R.push('cyl', MAT.copper);
-      if (it) { M4.compose(it.model, H[0], H[1], H[2], yaw, lean, Math.PI / 2, 0.7, 0.08, 0.7); M4.multiply(it.model, it.model, _mh.centerY); }
-      this.bodyPoint(H, sx * 1.12, 1.45, 0);
-      R.trs('sphereLow', MAT.steel, H[0], H[1], H[2], 0, 0, 0, 0.11, 0.11, 0.11);
-    }
-    for (let k = 0; k < 5; k++) {
-      this.bodyPoint(B, 0, 1.42, -0.36 + k * 0.18);
-      it = R.push('torus', MAT.porcelain);
-      if (it) {
-        M4.compose(it.model, B[0], B[1], B[2], yaw, lean + Math.PI / 2, 0, 0.6 - Math.abs(k - 2) * 0.05, 0.25, 0.55 - Math.abs(k - 2) * 0.05);
-        it.tint[0] = 0.85; it.tint[1] = 0.82; it.tint[2] = 0.76;
-      }
-    }
-    // spine: vertebrae from tail to neck
-    for (let k = 0; k < 7; k++) {
-      this.bodyPoint(B, 0, 1.78 - k * 0.02, 1.0 - k * 0.24);
-      R.trs('sphereLow', MAT.porcelain, B[0], B[1], B[2], yaw, 0, 0, 0.075, 0.06, 0.07);
-    }
-    this.bodyPoint(B, 0, 1.55, -0.2); this.bodyPoint(H, 0, 1.45, 0.9);
-    R.seg('cyl', MAT.steel, B, H, 0.07);
     // amber core lamp in the chest housing
-    this.bodyPoint(B, 0, 1.62, -0.45);
-    R.trs('cyl', MAT.steel, B[0], B[1], B[2], yaw, lean + Math.PI / 2, 0, 0.16, 0.08, 0.16);
     this.bodyPoint(B, 0, 1.62, -0.53);
     it = R.trs('sphere', MAT.lens, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1, false);
     if (it) { const g = 1.6 + Math.sin(this.breathe * 3) * 0.5; it.emis[0] = g; it.emis[1] = g * 0.75; it.emis[2] = g * 0.15; }
@@ -4589,34 +4561,29 @@ const Monster = {
       AssetQueue.push(customHead, this.m, true);
       return;
     }
-    // canvas hood behind the mask
-    let it = R.push('cone', MAT.furViolet);
-    if (it) {
-      M4.compose(it.model, p[0], p[1], p[2], yaw, pitch + 1.2, roll, 0.42 * s, 0.75 * s, 0.42 * s);
-      M4.multiply(it.model, it.model, _mh.hoodOffset);
-    }
-    // porcelain mask
-    R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
-    // eye sockets: the left holds the amber lens, the right is a hollow
     const m = this.m;
     M4.compose(m, p[0], p[1], p[2], yaw, pitch, roll, s, s, s);
-    this.headLocal(m, -0.12, 0.08, -0.27, this.eye);
-    it = R.trs('sphere', MAT.lens, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.075 * s, 0.075 * s, 0.05 * s, false);
-    if (it) { it.emis[0] = 3.5; it.emis[1] = 2.6; it.emis[2] = 0.4; }
-    this.headLocal(m, 0.12, 0.08, -0.26, this.tmp3);
-    R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.08 * s, 0.09 * s, 0.05 * s, false);
-    // stitched grin: dark mouth slot + porcelain teeth, jaw drops with this.jaw
-    const jaw = this.jaw;
-    this.headLocal(m, 0, -0.16 - jaw * 0.05, -0.26, this.tmp3);
-    R.trs('box', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.34 * s, (0.05 + jaw * 0.14) * s, 0.06 * s, false);
-    for (let i = 0; i < 9; i++) {
-      const tx = -0.15 + i * 0.0375;
-      const curve = Math.abs(tx) * 0.35;
-      this.headLocal(m, tx, -0.13 + curve, -0.285 + curve * 0.4, this.tmp3);
-      R.trs('box', MAT.porcelain, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.026 * s, 0.05 * s, 0.02 * s, false);
-      this.headLocal(m, tx, -0.2 - jaw * 0.14 + curve, -0.28 + curve * 0.4, this.tmp3);
-      R.trs('box', MAT.porcelain, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.026 * s, 0.045 * s, 0.02 * s, false);
+    let it;
+    if (Sculpt.ready('sp_mask')) {
+      // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
+      it = R.push('sp_mask', MAT.porcelain); if (it) it.model.set(m);
+      it = R.push('sp_hood', MAT.canvas); if (it) it.model.set(m);
+      // the jaw unhinges for the lunge: a dark gullet opening under the grin
+      if (this.jaw > 0.35) {
+        this.headLocal(m, 0, -0.2 - this.jaw * 0.08, -0.25, this.tmp3);
+        R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.17 * s, (0.04 + this.jaw * 0.08) * s, 0.07 * s, false);
+      }
+    } else {
+      R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }
+    // amber glass lens seated in the left socket
+    this.headLocal(m, -0.125, 0.06, -0.265, this.eye);
+    it = R.trs('sphere', MAT.lens, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.06 * s, 0.06 * s, 0.04 * s, false);
+    if (it) { it.emis[0] = 3.5; it.emis[1] = 2.6; it.emis[2] = 0.4; }
+    // a pinpoint pupil glowing deep in the hollow right socket
+    this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
+    it = R.trs('sphereLow', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], 0, 0, 0, 0.012 * s, 0.012 * s, 0.012 * s, false);
+    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.2; it.emis[2] = 0.2; }
     // crown of sewing needles
     for (let i = 0; i < 7; i++) {
       const a = -1.2 + i * 0.4;
@@ -5448,7 +5415,7 @@ const TAPES = [
     lines: [
       'Welcome to Sector Six: Reclamation. Down here, nothing is ever thrown away.',
       'Broken toys, broken machines, broken ideas... we stitch them back together, good as new!',
-      'This is your LIFELINE pack: two reaching hands on live cables. Teal on the left, amber on the right.',
+      'This is your LIFELINE pack: two reaching hands on live cables. Teal on the left, rose on the right.',
       'Latch a hand onto a power node, carry the current around the relays, and close the circuit.',
       'And remember: if you hear clicking in the ducts, keep your footsteps soft.'
     ]
@@ -5772,7 +5739,7 @@ const UI = {
         H[key] = code;
         const el = s === 0 ? E.hudHandL : E.hudHandR;
         const stateTxt = h.tethered ? 'LIVE' : h.state === HAND.DOCKED ? 'READY' : h.state === HAND.FLYING ? 'FIRED' : h.state === HAND.LATCHED ? 'GRIP' : 'RECALL';
-        el.textContent = (s === 0 ? 'L · TEAL ' : 'R · AMBER ') + stateTxt;
+        el.textContent = (s === 0 ? 'L · TEAL ' : 'R · ROSE ') + stateTxt;
         el.classList.toggle('away', h.state !== HAND.DOCKED && !h.tethered);
       }
     }
@@ -6558,7 +6525,7 @@ const Game = {
     if (clamp) { ringMatrix(clamp.model, b, _g.c, 0.03); clamp.tint[3] = 0.08; if (h.tethered) { clamp.emis[0] = 0.1 * h.energized; clamp.emis[1] = 0.5 * h.energized; clamp.emis[2] = 0.7 * h.energized; } }
   },
   drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
-    const R = RenderQueue, mat = side === 0 ? MAT.handTeal : MAT.handAmber;
+    const R = RenderQueue, mat = side === 0 ? MAT.handTeal : MAT.handRose;
     V3.cross(_g.r, f, upRef); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, _g.r, f); V3.normalize(_g.u, _g.u);
     const r = _g.r, u = _g.u, s = scale;
@@ -6669,7 +6636,12 @@ const Loader = {
         TexSynth.buildLayer(this.layer, Renderer.albedoData, Renderer.normalData);
         this.layer++;
         UI.setLoading(0.05 + 0.85 * this.layer / MATERIALS.length, 'Synthesizing material ' + this.layer + '/' + MATERIALS.length + ': ' + MATERIALS[this.layer - 1].name);
-        if (this.layer >= MATERIALS.length) this.phase = 2;
+        if (this.layer >= MATERIALS.length) this.phase = 5;
+        return;
+      }
+      if (this.phase === 5) {
+        if (Sculpt.step()) this.phase = 2;
+        UI.setLoading(0.9 + 0.05 * Sculpt.built / SCULPT_ORDER.length, 'Sculpting characters ' + Sculpt.built + '/' + SCULPT_ORDER.length + '...');
         return;
       }
       if (this.phase === 2) {
@@ -7035,7 +7007,7 @@ async function runAll() {
     T.step(DT, 60);
     check('hand: recalls and docks', GrabPack.hands[0].state === HAND.DOCKED, GrabPack.hands[0].state);
     T.aimAt(0, 4.4, -20); click(1); T.step(DT, 2);
-    check('hand: right click fires AMBER hand', GrabPack.hands[1].state !== HAND.DOCKED, GrabPack.hands[1].state);
+    check('hand: right click fires ROSE hand', GrabPack.hands[1].state !== HAND.DOCKED, GrabPack.hands[1].state);
     check('cable: Verlet nodes finite while flying', Array.from(GrabPack.hands[1].nodes).every(Number.isFinite));
     T.step(DT, 90);
     check('hand: reach limit returns the hand', GrabPack.hands[1].state === HAND.DOCKED, GrabPack.hands[1].state);
@@ -8224,11 +8196,9 @@ const Cast = {
       for (let k = -1; k <= 1; k++) { this.pt(b, p, yaw, sx * 0.22 + k * 0.07, 0.01, -0.2); R.seg('cone', MAT.steel, a, b, 0.016); }
       this.pt(b, p, yaw, sx * 0.22, 0.02, 0.12); R.seg('cone', MAT.steel, a, b, 0.014);
     }
-    // robe: layered cones with a tattered hem of hanging strips
-    this.pt(a, p, yaw, 0, 0.42, 0);
-    let it = R.trs('cone', MAT.canvas, a[0] + jit, a[1], a[2], yaw, 0, 0, 0.5, 1.55, 0.44);
-    this.pt(a, p, yaw, 0, 0.8, 0.02);
-    R.trs('cone', MAT.canvas, a[0] + jit, a[1], a[2], yaw + 0.4, 0, 0, 0.44, 1.3, 0.4);
+    // sculpted robe with a frayed hem, plus hanging strips that sway
+    let it = R.push('us_robe', MAT.canvas);
+    if (it) M4.compose(it.model, p[0] + jit, p[1], p[2], yaw, 0, Math.sin(U.sway * 0.8) * 0.015, 1, 1, 1);
     for (let i = 0; i < 14; i++) {
       const ang = i / 14 * Math.PI * 2, len = 0.35 + ((i * 37) % 11) / 22;
       const hx = Math.cos(ang) * 0.46, hz = Math.sin(ang) * 0.4;
@@ -8256,122 +8226,68 @@ const Cast = {
     }
     // hood with a peaked back, the CRT face recessed in the opening
     const hy = U.headYaw + yaw;
-    this.pt(a, p, yaw, 0, 2.2, 0.0);
-    this.pt(a, p, hy, 0, 2.2, 0.06);
-    R.trs('sphere', MAT.canvas, a[0] + jit, a[1], a[2], hy, 0.1, 0, 0.27, 0.33, 0.27);
-    this.pt(b, p, hy, 0, 2.28, 0.2);
-    R.trs('cone', MAT.canvas, b[0], b[1], b[2], hy, -2.0, 0, 0.18, 0.36, 0.18);
-    this.pt(b, p, hy, 0, 2.17, -0.25);
-    R.trs('box', MAT.steel, b[0], b[1], b[2], hy, 0, 0, 0.38, 0.3, 0.1);
-    this.pt(b, p, hy, 0, 2.17, -0.305);
-    M4.compose(this.m, b[0] + jit, b[1], b[2], hy, 0, 0, 0.33, 0.25, 1);
+    // sculpted hood; the CRT sits in its opening inside a steel bezel
+    this.pt(a, p, yaw, 0, 2.2, 0.02);
+    M4.compose(this.m2, a[0] + jit, a[1], a[2], hy, 0.08, 0, 1, 1, 1);
+    it = R.push('us_hood', MAT.canvas); if (it) it.model.set(this.m2);
+    V3.set(this.local, 0, -0.03, -0.16); M4.transformPoint(b, this.m2, this.local);
+    R.trs('box', MAT.steel, b[0], b[1], b[2], hy, 0.08, 0, 0.36, 0.28, 0.12);
+    V3.set(this.local, 0, -0.03, -0.225); M4.transformPoint(b, this.m2, this.local);
+    M4.compose(this.m, b[0], b[1], b[2], hy, 0.08, 0, 0.31, 0.23, 1);
     AssetQueue.push(this.screen, this.m, false);
   },
 
   submitDoll() {
     const D = this.doll, R = RenderQueue, p = D.pos, yaw = D.yaw;
     const a = this.tmp, b = this.tmp2;
-    // pinafore skirt + striped petticoat (seated)
-    this.pt(a, p, yaw, 0, 0.0, 0.02);
-    let it = R.trs('cone', MAT.paint, a[0], a[1], a[2], yaw, 0, 0, 0.24, 0.42, 0.22);
-    this.pt(a, p, yaw, 0, 0.0, 0.02);
-    it = R.trs('cyl', MAT.canvas, a[0], a[1], a[2], yaw, 0, 0, 0.215, 0.07, 0.2);
-    if (it) { it.tint[0] = 3.2; it.tint[1] = 3.0; it.tint[2] = 2.6; }
-    // bodice
-    this.pt(a, p, yaw, 0, 0.38, 0.03);
-    it = R.trs('sphere', MAT.paint, a[0], a[1], a[2], yaw, 0, 0, 0.1, 0.14, 0.08);
-    // legs stretched forward, black shoes
-    for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.07, 0.06, -0.05); this.pt(b, p, yaw, sx * 0.08, 0.04, -0.34);
-      R.seg('cylLow', MAT.porcelain, a, b, 0.032);
-      R.trs('sphereLow', MAT.rubber, b[0], b[1] + 0.01, b[2] - 0.02, yaw, 0, 0, 0.038, 0.032, 0.055);
-      // arms resting on the lap
-      this.pt(a, p, yaw, sx * 0.12, 0.44, 0.03); this.pt(b, p, yaw, sx * 0.1, 0.2, -0.12);
-      R.seg('cylLow', MAT.porcelain, a, b, 0.022);
-      R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], 0, 0, 0, 0.028, 0.028, 0.028);
-    }
-    // head: cracked porcelain, one hollow socket, one amber glass eye, ash-blonde ringlets, mustard bow
+    if (!Sculpt.ready('mg_body')) return;
+    // sculpted seated body (dress, pinafore, ruffled petticoat, porcelain limbs, shoes)
+    let it = R.push('mg_body', MAT.paint);
+    if (it) M4.compose(it.model, p[0], p[1], p[2], yaw, 0, 0, 1, 1, 1);
+    // sculpted head turns on the neck
     const hy = yaw + D.headYaw, hp = D.headPitch;
-    this.pt(a, p, yaw, 0, 0.62, 0.02);
-    a[1] += 0.03;
-    R.trs('sphere', MAT.porcelain, a[0], a[1], a[2], hy, hp, 0.08, 0.14, 0.158, 0.134);
-    M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1.22, 1.22, 1.22);
-    const eye = (x, y, z, out) => { V3.set(this.local, x, y, z); return M4.transformPoint(out, this.m, this.local); };
-    eye(-0.04, 0.012, -0.095, b);
-    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0, 0.03, 0.026 * (1 - D.blink * 0.9), 0.016);
-    eye(0.042, 0.01, -0.098, b);
-    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0, 0.034, 0.034, 0.02, false);
-    eye(0.042, 0.008, -0.106, b);
-    it = R.trs('sphereLow', MAT.lens, b[0], b[1], b[2], hy, hp, 0, 0.017, 0.017 * (1 - D.blink * 0.9), 0.008, false);
-    if (it) { it.emis[0] = 0.6; it.emis[1] = 0.32; it.emis[2] = 0.05; }
-    eye(0, -0.06, -0.098, b);
-    it = R.trs('sphereLow', MAT.paint, b[0], b[1], b[2], hy, hp, 0, 0.02, 0.008, 0.01, false);
-    if (it) { it.tint[0] = 1.2; it.tint[1] = 0.35; it.tint[2] = 0.35; }
-    for (let i = 0; i < 16; i++) {
-      const ang = (i / 16) * Math.PI * 1.6 - 0.8 + Math.PI;
-      const rx = Math.sin(ang) * 0.11, rz = Math.cos(ang) * 0.1;
-      eye(rx, 0.06 + (i % 3) * 0.025, rz * -1 + 0.01, b);
-      R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2], 0, 0, 0, 0.055, 0.055, 0.055, i % 2 === 0);
-      if (i % 3 === 0) {
-        eye(rx * 1.2, -0.06, -rz * 1.2 + 0.02, this.local);
-        V3.copy(_cast.e, this.local);
-        R.seg('cylLow', MAT.furLight, b, _cast.e, 0.022, false);
-      }
-    }
-    eye(0.07, 0.13, -0.02, b);
-    it = R.trs('sphereLow', MAT.paint, b[0], b[1], b[2], hy, 0, 0.6, 0.05, 0.03, 0.03);
+    this.pt(a, p, yaw, 0, 0.66, 0.03);
+    M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1, 1, 1);
+    it = R.push('mg_head', MAT.porcelain);
+    if (it) it.model.set(this.m);
+    // amber glass eye in the intact socket; the lid closes on blinks
+    V3.set(this.local, 0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, hp, 0.08, 0.022, 0.022 * (1 - D.blink * 0.9), 0.012, false);
+    if (it) { it.emis[0] = 0.7; it.emis[1] = 0.38; it.emis[2] = 0.06; }
+    V3.set(this.local, 0.05, 0.013, -0.106); M4.transformPoint(b, this.m, this.local);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008, 0.006, false);
+    // faint glint deep in the empty socket
+    V3.set(this.local, -0.05, 0.016, -0.1); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], 0, 0, 0, 0.004, 0.004, 0.004, false);
+    if (it) { it.emis[0] = 0.5; it.emis[1] = 0.5; it.emis[2] = 0.55; }
   },
 
   submitPlush() {
     const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw;
     const a = this.tmp, b = this.tmp2;
-    // slumped body, pale belly patch, splayed legs and drooping arms
+    if (!Sculpt.ready('th_body')) return;
     const L = P.armRaise;
-    this.pt(a, p, yaw, 0, 0.55 + L * 0.15, 0.12 - L * 0.25);
-    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], yaw, -0.25 + L * 0.5, 0, 0.42, 0.52, 0.36);
-    this.pt(a, p, yaw, 0, 0.5, -0.17);
-    R.trs('sphere', MAT.furLight, a[0], a[1], a[2], yaw, -0.25, 0, 0.26, 0.32, 0.12);
+    // body rears up and forward during the lunge
+    this.pt(a, p, yaw, 0, L * 0.12, -L * 0.22);
+    let it = R.push('th_body', MAT.burnt);
+    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, 1, 1, 1);
+    // arms: limp at rest, thrown up and forward for the "hug"
     for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.24, 0.18, -0.1); this.pt(b, p, yaw, sx * 0.4, 0.13, -0.6);
-      R.seg('cyl', MAT.burnt, a, b, 0.14);
-      R.trs('sphere', MAT.burnt, b[0], b[1], b[2], yaw, 0, 0, 0.16, 0.15, 0.12);
-      R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2] , yaw, 0, 0, 0.1, 0.11, 0.06);
-      this.pt(a, p, yaw, sx * 0.38, 0.82 + L * 0.2, 0.08 - L * 0.3); this.pt(b, p, yaw, sx * (0.55 - L * 0.15), 0.3 + L * 1.0, -0.12 - L * 0.75);
-      R.seg('cyl', MAT.burnt, a, b, 0.1);
-      R.trs('sphere', MAT.burnt, b[0], b[1], b[2], 0, 0, 0, 0.12, 0.11, 0.12);
+      this.pt(a, p, yaw, sx * 0.4, 0.86 + L * 0.2, 0.08 - L * 0.3);
+      this.pt(b, p, yaw, sx * (0.6 - L * 0.2), 0.3 + L * 1.05, -0.14 - L * 0.8);
+      it = R.push('th_arm', MAT.burnt);
+      if (it) M4.segment(it.model, a, b, 1);
     }
-    // head turns slowly toward the player
+    // head
     const hy = yaw + P.headYaw;
-    this.pt(a, p, yaw, 0, 1.18 + L * 0.25, 0.1 - L * 0.45);
-    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), 0.34, 0.3, 0.3);
+    this.pt(a, p, yaw, 0, 1.2 + L * 0.25, 0.1 - L * 0.45);
     M4.compose(this.m, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), 1, 1, 1);
-    const hp = (x, y, z, out) => { V3.set(this.local, x, y, z); return M4.transformPoint(out, this.m, this.local); };
-    hp(0, -0.08, -0.24, b);
-    R.trs('sphere', MAT.furLight, b[0], b[1], b[2], hy, 0, 0, 0.15, 0.11, 0.1);
-    hp(0, -0.03, -0.33, b);
-    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], 0, 0, 0, 0.045, 0.035, 0.035);
-    for (const sx of [-1, 1]) {
-      hp(sx * 0.24, 0.24, 0.02, b);
-      R.trs('sphere', MAT.burnt, b[0], b[1], b[2], hy, 0, sx * 0.3, 0.11, 0.11, 0.05);
-      hp(sx * 0.24, 0.24, -0.01, b);
-      R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2], hy, 0, sx * 0.3, 0.06, 0.06, 0.03);
-    }
-    // stitched grin
-    for (let i = -3; i <= 3; i++) {
-      hp(i * 0.03, -0.16 - Math.abs(i) * -0.008, -0.27 + Math.abs(i) * 0.012, b);
-      R.trs('box', MAT.rubber, b[0], b[1], b[2], hy, 0, 0, 0.008, 0.04, 0.008, false);
-    }
-    // one sewn button eye, one glowing violet glass eye
-    hp(-0.12, 0.06, -0.26, b);
-    R.trs('cyl', MAT.rubber, b[0], b[1], b[2], hy, Math.PI / 2, 0, 0.055, 0.02, 0.055);
-    hp(0.12, 0.06, -0.27, b);
-    let it = R.trs('sphereLow', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.055, 0.055, 0.03, false);
+    it = R.push('th_head', MAT.burnt);
+    if (it) it.model.set(this.m);
+    // glowing violet glass eye in the right socket
+    V3.set(this.local, 0.12, 0.06, -0.265); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.045, 0.045, 0.028, false);
     if (it) { const g = P.eyeGlow; it.emis[0] = 1.1 * g; it.emis[1] = 0.25 * g; it.emis[2] = 1.6 * g; it.tint[0] = 0.6; it.tint[1] = 0.25; it.tint[2] = 1.0; }
-    // copper thimble cap with dimples
-    hp(0.04, 0.27, 0.02, b);
-    R.trs('cyl', MAT.copper, b[0], b[1], b[2], hy, 0, 0.25, 0.11, 0.16, 0.11);
-    hp(0.08, 0.42, 0.02, b);
-    R.trs('sphereLow', MAT.copper, b[0], b[1], b[2], hy, 0, 0.25, 0.1, 0.04, 0.1);
   }
 };
 const _cast = {
@@ -8527,6 +8443,386 @@ const Pip = {
       c.fillRect(ox + x * sx - 1.2 + jitter, oy + y * sy - 1.2, on ? 2.6 : 1.6, on ? 2.6 : 1.6);
     }
   }
+};
+
+// ===== module: 19_sculpt.js =====
+// =====================================================================================
+// SCULPT: signed-distance-field character modelling meshed at load time (naive Surface Nets).
+//   A model is a list of nodes evaluated in order:
+//     op 'u' smooth union (k), 's' smooth subtraction (carves; `sm` = material of the cut face)
+//   shapes: sph (c, r) | ell (c, r[3]) | cap (a, b, r, r2 tapered) | box (c, h[3], rr, rot) |
+//           tor (c, R, r, rot) | cyl (c, r, h, rr, rot)
+//   optional per node: n = [amplitude, frequency] noise displacement (fur lumps, frayed hems)
+//   Each vertex stores the material of the dominant node, so one draw call renders a
+//   multi-material character with smooth normals.
+// =====================================================================================
+
+const SDF = {
+  // 3D value noise for surface displacement
+  hash3(x, y, z) {
+    let n = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(z | 0, 2147483647);
+    n = Math.imul(n ^ (n >>> 13), 1274126177);
+    return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+  },
+  noise3(x, y, z) {
+    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+    const xf = x - xi, yf = y - yi, zf = z - zi;
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf);
+    const a = lerp(lerp(this.hash3(xi, yi, zi), this.hash3(xi + 1, yi, zi), u), lerp(this.hash3(xi, yi + 1, zi), this.hash3(xi + 1, yi + 1, zi), u), v);
+    const b = lerp(lerp(this.hash3(xi, yi, zi + 1), this.hash3(xi + 1, yi, zi + 1), u), lerp(this.hash3(xi, yi + 1, zi + 1), this.hash3(xi + 1, yi + 1, zi + 1), u), v);
+    return lerp(a, b, w) * 2 - 1;
+  },
+  smin(a, b, k) { if (k <= 0) return Math.min(a, b); const h = clamp(0.5 + 0.5 * (b - a) / k, 0, 1); return lerp(b, a, h) - k * h * (1 - h); },
+  smax(a, b, k) { return -this.smin(-a, -b, k); },
+
+  // Precompute inverse rotations for rotated shapes (yaw, pitch, roll in radians).
+  prepare(nodes) {
+    for (const n of nodes) {
+      if (n.rot) {
+        const m = M4.compose(M4.create(), 0, 0, 0, n.rot[0], n.rot[1], n.rot[2], 1, 1, 1);
+        n.inv = new Float32Array([m[0], m[4], m[8], m[1], m[5], m[9], m[2], m[6], m[10]]); // transpose = inverse
+      }
+      if (n.t === 'cap') {
+        n.ab = [n.b[0] - n.a[0], n.b[1] - n.a[1], n.b[2] - n.a[2]];
+        n.abl2 = n.ab[0] * n.ab[0] + n.ab[1] * n.ab[1] + n.ab[2] * n.ab[2] || 1e-9;
+      }
+      // bounding sphere (centre + radius) for culling nodes that cannot affect a sample
+      const pad = (n.n ? Math.abs(n.n[0]) : 0) + (n.k || 0);
+      if (n.t === 'cap') {
+        n.bc = [(n.a[0] + n.b[0]) / 2, (n.a[1] + n.b[1]) / 2, (n.a[2] + n.b[2]) / 2];
+        n.br = Math.sqrt(n.abl2) / 2 + Math.max(n.r, n.r2 === undefined ? n.r : n.r2) + pad;
+      } else {
+        n.bc = n.c;
+        n.br = pad + (n.t === 'sph' ? n.r : n.t === 'ell' ? Math.max(n.r[0], n.r[1], n.r[2]) : n.t === 'box' ? Math.hypot(n.h[0], n.h[1], n.h[2])
+          : n.t === 'tor' ? n.R + n.r : Math.hypot(n.r, n.h));
+      }
+    }
+    return nodes;
+  },
+
+  shape(n, x, y, z) {
+    let px = x, py = y, pz = z;
+    if (n.c) { px -= n.c[0]; py -= n.c[1]; pz -= n.c[2]; }
+    if (n.inv) {
+      const I = n.inv, qx = I[0] * px + I[1] * py + I[2] * pz, qy = I[3] * px + I[4] * py + I[5] * pz, qz = I[6] * px + I[7] * py + I[8] * pz;
+      px = qx; py = qy; pz = qz;
+    }
+    switch (n.t) {
+      case 'sph': return Math.sqrt(px * px + py * py + pz * pz) - n.r;
+      case 'ell': {
+        const r = n.r;
+        const k0 = Math.sqrt((px / r[0]) ** 2 + (py / r[1]) ** 2 + (pz / r[2]) ** 2);
+        const k1 = Math.sqrt((px / (r[0] * r[0])) ** 2 + (py / (r[1] * r[1])) ** 2 + (pz / (r[2] * r[2])) ** 2) || 1e-9;
+        return k0 * (k0 - 1) / k1;
+      }
+      case 'cap': {
+        const ax = x - n.a[0], ay = y - n.a[1], az = z - n.a[2];
+        const t = clamp((ax * n.ab[0] + ay * n.ab[1] + az * n.ab[2]) / n.abl2, 0, 1);
+        const dx = ax - n.ab[0] * t, dy = ay - n.ab[1] * t, dz = az - n.ab[2] * t;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz) - lerp(n.r, n.r2 === undefined ? n.r : n.r2, t);
+      }
+      case 'box': {
+        const rr = n.rr || 0;
+        const qx = Math.abs(px) - n.h[0] + rr, qy = Math.abs(py) - n.h[1] + rr, qz = Math.abs(pz) - n.h[2] + rr;
+        const ox = Math.max(qx, 0), oy = Math.max(qy, 0), oz = Math.max(qz, 0);
+        return Math.sqrt(ox * ox + oy * oy + oz * oz) + Math.min(Math.max(qx, Math.max(qy, qz)), 0) - rr;
+      }
+      case 'tor': {
+        const q = Math.sqrt(px * px + pz * pz) - n.R;
+        return Math.sqrt(q * q + py * py) - n.r;
+      }
+      case 'cyl': {
+        const rr = n.rr || 0;
+        const dx = Math.sqrt(px * px + pz * pz) - n.r + rr, dy = Math.abs(py) - n.h + rr;
+        return Math.min(Math.max(dx, dy), 0) + Math.sqrt(Math.max(dx, 0) ** 2 + Math.max(dy, 0) ** 2) - rr;
+      }
+    }
+    return 1e9;
+  },
+
+  // Evaluate the whole model; writes the dominant material into SDF.mat.
+  mat: 0,
+  eval(nodes, x, y, z) {
+    let d = 1e9, mat = 0;
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      // conservative cull: the shape is at least this far away
+      const bd = Math.sqrt((x - n.bc[0]) ** 2 + (y - n.bc[1]) ** 2 + (z - n.bc[2]) ** 2) - n.br;
+      if (n.op === 's' ? bd > -d + 1e-3 : bd > d + 1e-3) continue;
+      let s = this.shape(n, x, y, z);
+      if (n.n) s -= n.n[0] * this.noise3(x * n.n[1], y * n.n[1], z * n.n[1]);
+      if (n.op === 's') {
+        const nd = this.smax(d, -s, n.k || 0);
+        if (-s > d - 1e-4 && n.sm !== undefined) mat = n.sm;
+        d = nd;
+      } else {
+        if (s < d) mat = n.m;
+        d = this.smin(d, s, n.k || 0);
+      }
+    }
+    this.mat = mat;
+    return d;
+  },
+
+  // Naive Surface Nets over [min, max] with roughly `res` cells on the longest axis.
+  mesh(nodes, min, max, res) {
+    this.prepare(nodes);
+    const ext = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+    const h = ext / res;
+    const nx = Math.ceil((max[0] - min[0]) / h), ny = Math.ceil((max[1] - min[1]) / h), nz = Math.ceil((max[2] - min[2]) / h);
+    const sx = nx + 1, sy = ny + 1, sz = nz + 1;
+    const vals = new Float32Array(sx * sy * sz);
+    // narrow band: a coarse pass (every C cells) decides where the fine field is needed
+    const C = 4, cx = Math.ceil(nx / C) + 1, cy = Math.ceil(ny / C) + 1, cz = Math.ceil(nz / C) + 1;
+    const coarse = new Float32Array(cx * cy * cz);
+    for (let k = 0; k < cz; k++) for (let j = 0; j < cy; j++) for (let i = 0; i < cx; i++) {
+      coarse[(k * cy + j) * cx + i] = this.eval(nodes, min[0] + i * C * h, min[1] + j * C * h, min[2] + k * C * h);
+    }
+    const band = C * h * 1.6;
+    for (let k = 0; k < sz; k++) for (let j = 0; j < sy; j++) for (let i = 0; i < sx; i++) {
+      const ci = Math.min(cx - 1, Math.round(i / C)), cj = Math.min(cy - 1, Math.round(j / C)), ck = Math.min(cz - 1, Math.round(k / C));
+      const dc = coarse[(ck * cy + cj) * cx + ci];
+      vals[(k * sy + j) * sx + i] = Math.abs(dc) > band ? dc : this.eval(nodes, min[0] + i * h, min[1] + j * h, min[2] + k * h);
+    }
+    const V = (i, j, k) => vals[(k * sy + j) * sx + i];
+    const cellVert = new Int32Array(nx * ny * nz).fill(-1);
+    const verts = [], idx = [];
+    const e = h * 0.5;
+    const corner = new Float32Array(8);
+    for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      let mask = 0;
+      for (let c = 0; c < 8; c++) {
+        const v = V(i + (c & 1), j + ((c >> 1) & 1), k + ((c >> 2) & 1));
+        corner[c] = v;
+        if (v < 0) mask |= 1 << c;
+      }
+      if (mask === 0 || mask === 255) continue;
+      // vertex = mean of edge crossings
+      let px = 0, py = 0, pz = 0, cnt = 0;
+      for (let ed = 0; ed < 12; ed++) {
+        const a = SN_EDGES[ed * 2], b = SN_EDGES[ed * 2 + 1];
+        const va = corner[a], vb = corner[b];
+        if ((va < 0) === (vb < 0)) continue;
+        const t = va / (va - vb);
+        px += (a & 1) + (((b & 1) - (a & 1)) * t);
+        py += ((a >> 1) & 1) + ((((b >> 1) & 1) - ((a >> 1) & 1)) * t);
+        pz += ((a >> 2) & 1) + ((((b >> 2) & 1) - ((a >> 2) & 1)) * t);
+        cnt++;
+      }
+      const x = min[0] + (i + px / cnt) * h, y = min[1] + (j + py / cnt) * h, z = min[2] + (k + pz / cnt) * h;
+      // smooth normal from the field gradient; material from the field at the vertex
+      const gx = this.eval(nodes, x + e, y, z) - this.eval(nodes, x - e, y, z);
+      const gy = this.eval(nodes, x, y + e, z) - this.eval(nodes, x, y - e, z);
+      const gz = this.eval(nodes, x, y, z + e) - this.eval(nodes, x, y, z - e);
+      const gl = Math.hypot(gx, gy, gz) || 1;
+      this.eval(nodes, x, y, z);
+      cellVert[(k * ny + j) * nx + i] = verts.length / 7;
+      verts.push(x, y, z, gx / gl, gy / gl, gz / gl, this.mat);
+    }
+    const cv = (i, j, k) => (i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz ? -1 : cellVert[(k * ny + j) * nx + i]);
+    const quad = (a, b, c, d, flip) => {
+      if (a < 0 || b < 0 || c < 0 || d < 0) return;
+      if (flip) idx.push(a, c, b, a, d, c); else idx.push(a, b, c, a, c, d);
+    };
+    for (let k = 0; k < sz; k++) for (let j = 0; j < sy; j++) for (let i = 0; i < sx; i++) {
+      const v0 = V(i, j, k);
+      if (i < nx) { const v1 = V(i + 1, j, k); if ((v0 < 0) !== (v1 < 0)) quad(cv(i, j - 1, k - 1), cv(i, j, k - 1), cv(i, j, k), cv(i, j - 1, k), v0 >= 0); }
+      if (j < ny) { const v1 = V(i, j + 1, k); if ((v0 < 0) !== (v1 < 0)) quad(cv(i - 1, j, k - 1), cv(i - 1, j, k), cv(i, j, k), cv(i, j, k - 1), v0 >= 0); }
+      if (k < nz) { const v1 = V(i, j, k + 1); if ((v0 < 0) !== (v1 < 0)) quad(cv(i - 1, j - 1, k), cv(i, j - 1, k), cv(i, j, k), cv(i - 1, j, k), v0 >= 0); }
+    }
+    const vertices = new Float32Array(verts);
+    const indices = vertices.length / 7 > 65535 ? new Uint32Array(idx) : new Uint16Array(idx);
+    return { vertices, indices };
+  }
+};
+const SN_EDGES = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 1, 3, 4, 6, 5, 7, 0, 4, 1, 5, 2, 6, 3, 7]);
+
+// ---------- character models ----------
+const SCULPTS = {
+  // Spoolwright porcelain mask: brow, cheekbones, two sockets, carved grin with teeth, cracks.
+  sp_mask: () => {
+    const P = MAT.porcelain, D = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.42, 0.31], m: P },
+      { t: 'ell', c: [0.15, -0.07, -0.2], r: [0.1, 0.08, 0.09], m: P, k: 0.08 },
+      { t: 'ell', c: [-0.15, -0.07, -0.2], r: [0.1, 0.08, 0.09], m: P, k: 0.08 },
+      { t: 'cap', a: [-0.19, 0.12, -0.23], b: [0.19, 0.12, -0.23], r: 0.05, m: P, k: 0.07 },
+      { t: 'ell', c: [0, -0.3, -0.13], r: [0.15, 0.1, 0.12], m: P, k: 0.08 },
+      { t: 'sph', c: [0.125, 0.055, -0.3], r: 0.085, op: 's', k: 0.025, sm: D },
+      { t: 'sph', c: [-0.125, 0.06, -0.3], r: 0.075, op: 's', k: 0.025, sm: D },
+      { t: 'ell', c: [0, -0.15, -0.3], r: [0.23, 0.065, 0.13], op: 's', k: 0.02, sm: D },
+      { t: 'sph', c: [0.02, -0.02, -0.33], r: 0.018, op: 's', k: 0.005, sm: D },
+      { t: 'sph', c: [-0.02, -0.02, -0.33], r: 0.018, op: 's', k: 0.005, sm: D }
+    ];
+    for (let i = 0; i < 11; i++) {
+      const x = -0.19 + i * 0.038, curve = Math.abs(x) * 0.25;
+      n.push({ t: 'box', c: [x, -0.115 + curve, -0.27 + curve * 0.6], h: [0.014, 0.024, 0.03], rr: 0.006, m: P, k: 0.004 });
+      n.push({ t: 'box', c: [x, -0.19 + curve, -0.27 + curve * 0.6], h: [0.014, 0.022, 0.03], rr: 0.006, m: P, k: 0.004 });
+    }
+    const cracks = [[0.05, 0.25, -0.26, 0.12, 0.13, -0.29], [0.12, 0.13, -0.29, 0.07, 0.02, -0.31], [-0.2, 0.2, -0.22, -0.27, 0.0, -0.18], [0.24, -0.02, -0.2, 0.3, -0.18, -0.12]];
+    for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.007, op: 's', sm: D });
+    return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 70);
+  },
+  // Torn canvas hood that frames the mask
+  sp_hood: () => {
+    const C = MAT.canvas, n = [
+      { t: 'ell', c: [0, 0.06, 0.07], r: [0.43, 0.52, 0.42], m: C, n: [0.02, 14] },
+      { t: 'cap', a: [0, 0.3, 0.25], b: [0, 0.62, 0.55], r: 0.13, r2: 0.03, m: C, k: 0.12 },
+      { t: 'ell', c: [0, 0.04, 0.05], r: [0.37, 0.46, 0.37], op: 's', k: 0.02, sm: C },
+      { t: 'box', c: [0, -0.05, -0.38], h: [0.42, 0.55, 0.28], op: 's', k: 0.05, sm: C, n: [0.04, 9] }
+    ];
+    return SDF.mesh(n, [-0.5, -0.55, -0.42], [0.5, 0.75, 0.75], 52);
+  },
+  // Spoolwright torso (pivot at y 1.35): lumpy fur sac, spool drum with flanges, ribcage, spine
+  sp_body: () => {
+    const n = [];
+    for (let i = 0; i < FUR_SAC.length; i += 5) {
+      n.push({ t: 'ell', c: [FUR_SAC[i], FUR_SAC[i + 1] - 1.35, FUR_SAC[i + 2]], r: [FUR_SAC[i + 3], FUR_SAC[i + 3] * 0.85, FUR_SAC[i + 3] * 1.1], m: FUR_SAC[i + 4] ? MAT.furBlue : MAT.furViolet, k: 0.16, n: [0.03, 11] });
+    }
+    n.push({ t: 'cyl', c: [0, 0.1, 0], r: 0.5, h: 0.5, rr: 0.06, rot: [0, 0, Math.PI / 2], m: MAT.furBlue, k: 0.05, n: [0.015, 18] });
+    for (const sx of [-0.53, 0.53]) n.push({ t: 'cyl', c: [sx, 0.1, 0], r: 0.7, h: 0.035, rr: 0.02, rot: [0, 0, Math.PI / 2], m: MAT.copper, k: 0.01 });
+    for (let k = 0; k < 5; k++) {
+      const s = 1 - Math.abs(k - 2) * 0.08;
+      n.push({ t: 'tor', c: [0, 0.07, -0.36 + k * 0.18], R: 0.56 * s, r: 0.035, rot: [0, Math.PI / 2, 0], m: MAT.porcelain, k: 0.02 });
+    }
+    for (let k = 0; k < 8; k++) n.push({ t: 'ell', c: [0, 0.45 - k * 0.02, 1.05 - k * 0.22], r: [0.08, 0.065, 0.075], m: MAT.porcelain, k: 0.04 });
+    n.push({ t: 'cyl', c: [0, 0.27, -0.45], r: 0.17, h: 0.06, rr: 0.02, rot: [0, Math.PI / 2, 0], m: MAT.steel, k: 0.03 });
+    return SDF.mesh(n, [-0.9, -0.75, -0.75], [0.9, 0.95, 2.25], 80);
+  },
+  // Marigold seated body: mustard dress, cream pinafore + petticoat ruffle, porcelain limbs, black shoes
+  mg_body: () => {
+    const Y = MAT.paint, W = MAT.furLight, P = MAT.porcelain, B = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0.13, 0.02], r: [0.25, 0.15, 0.24], m: Y, n: [0.008, 40] },
+      { t: 'tor', c: [0, 0.04, 0.02], R: 0.23, r: 0.04, m: W, k: 0.02, n: [0.012, 55] },
+      { t: 'ell', c: [0, 0.35, 0.03], r: [0.1, 0.15, 0.08], m: Y, k: 0.06 },
+      { t: 'box', c: [0, 0.3, -0.045], h: [0.075, 0.13, 0.012], rr: 0.01, m: W, k: 0.01 },
+      { t: 'ell', c: [0, 0.16, -0.17], r: [0.13, 0.1, 0.04], m: W, k: 0.03 },
+      { t: 'tor', c: [0, 0.49, 0.03], R: 0.045, r: 0.018, m: W, k: 0.01 },
+      { t: 'cap', a: [0, 0.48, 0.03], b: [0, 0.57, 0.03], r: 0.024, m: P, k: 0.01 }
+    ];
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'ell', c: [sx * 0.115, 0.45, 0.03], r: [0.055, 0.045, 0.05], m: Y, k: 0.03 });
+      n.push({ t: 'cap', a: [sx * 0.12, 0.43, 0.03], b: [sx * 0.135, 0.3, -0.04], r: 0.025, m: P, k: 0.015 });
+      n.push({ t: 'cap', a: [sx * 0.135, 0.3, -0.04], b: [sx * 0.1, 0.22, -0.13], r: 0.022, m: P, k: 0.015 });
+      n.push({ t: 'sph', c: [sx * 0.095, 0.21, -0.145], r: 0.028, m: P, k: 0.01 });
+      n.push({ t: 'cap', a: [sx * 0.07, 0.07, -0.08], b: [sx * 0.08, 0.05, -0.32], r: 0.033, r2: 0.028, m: P, k: 0.02 });
+      n.push({ t: 'ell', c: [sx * 0.08, 0.045, -0.37], r: [0.038, 0.032, 0.058], m: B, k: 0.012 });
+    }
+    return SDF.mesh(n, [-0.33, -0.02, -0.46], [0.33, 0.62, 0.3], 64);
+  },
+  // Marigold head: big doll head, broken cheek, hollow socket, glass-eye socket, ash-blonde ringlets, bow
+  mg_head: () => {
+    const P = MAT.porcelain, H = MAT.furLight, D = MAT.rubber, Y = MAT.paint;
+    const n = [
+      { t: 'ell', c: [0, 0.035, 0.025], r: [0.158, 0.152, 0.152], m: H, n: [0.006, 60] },
+      { t: 'ell', c: [0, -0.03, -0.12], r: [0.14, 0.14, 0.09], op: 's', k: 0.02, sm: H },
+      { t: 'ell', c: [0, 0, 0], r: [0.14, 0.155, 0.135], m: P },
+      { t: 'ell', c: [0.07, -0.05, -0.085], r: [0.052, 0.045, 0.045], m: P, k: 0.05 },
+      { t: 'ell', c: [-0.07, -0.05, -0.085], r: [0.052, 0.045, 0.045], m: P, k: 0.05 },
+      { t: 'sph', c: [0, -0.012, -0.136], r: 0.014, m: P, k: 0.012 },
+      { t: 'sph', c: [-0.05, 0.016, -0.125], r: 0.034, op: 's', k: 0.008, sm: D },
+      { t: 'sph', c: [0.05, 0.013, -0.125], r: 0.029, op: 's', k: 0.008, sm: D },
+      { t: 'ell', c: [0, -0.072, -0.125], r: [0.022, 0.007, 0.02], op: 's', k: 0.004, sm: D },
+      { t: 'box', c: [-0.105, 0.065, -0.085], h: [0.05, 0.055, 0.05], rot: [0.4, 0.5, 0.7], op: 's', k: 0.004, sm: D, n: [0.012, 70] }
+    ];
+    // ringlets: spiralling chains of curls around the sides and back
+    for (let r = 0; r < 12; r++) {
+      const ang = Math.PI * 0.35 + (r / 11) * Math.PI * 1.3;
+      const bx = Math.sin(ang) * 0.15, bz = -Math.cos(ang) * 0.14 + 0.02;
+      for (let s = 0; s < 7; s++) {
+        const a = s * 1.6 + r;
+        n.push({ t: 'sph', c: [bx * (1 + s * 0.02) + Math.cos(a) * 0.018, 0.02 - s * 0.026, bz * (1 + s * 0.02) + Math.sin(a) * 0.018], r: 0.025 - s * 0.0012, m: H, k: 0.012 });
+      }
+    }
+    // mustard bow on the right side of the head
+    n.push({ t: 'ell', c: [0.1, 0.15, -0.02], r: [0.05, 0.03, 0.025], rot: [0, 0, 0.5], m: Y, k: 0.01 });
+    n.push({ t: 'ell', c: [0.17, 0.11, -0.02], r: [0.05, 0.03, 0.025], rot: [0, 0, 0.5], m: Y, k: 0.01 });
+    n.push({ t: 'sph', c: [0.135, 0.13, -0.03], r: 0.022, m: Y, k: 0.01 });
+    return SDF.mesh(n, [-0.23, -0.2, -0.2], [0.24, 0.22, 0.23], 66);
+  },
+  // Mister Thimble: slumped body with belly patch, stitches, scorch holes and splayed legs
+  th_body: () => {
+    const B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0.55, 0.12], r: [0.42, 0.52, 0.36], m: B, n: [0.025, 9] },
+      { t: 'ell', c: [0, 0.5, -0.16], r: [0.26, 0.32, 0.13], m: W, k: 0.05 },
+      { t: 'cap', a: [-0.1, 0.72, -0.27], b: [0.12, 0.3, -0.26], r: 0.008, op: 's', sm: D },
+      { t: 'sph', c: [0.25, 0.75, -0.12], r: 0.08, op: 's', k: 0.02, sm: W, n: [0.02, 30] },
+      { t: 'sph', c: [-0.3, 0.4, -0.06], r: 0.06, op: 's', k: 0.02, sm: W, n: [0.02, 30] }
+    ];
+    for (let i = 0; i < 6; i++) n.push({ t: 'box', c: [-0.08 + i * 0.04 * 1.0, 0.68 - i * 0.075, -0.27], h: [0.03, 0.006, 0.01], rot: [0, 0, 0.3], m: D, k: 0.004 });
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cap', a: [sx * 0.24, 0.18, -0.1], b: [sx * 0.4, 0.13, -0.58], r: 0.15, r2: 0.13, m: B, k: 0.08, n: [0.02, 9] });
+      n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.66], r: [0.15, 0.15, 0.08], m: B, k: 0.05 });
+      n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.71], r: [0.1, 0.1, 0.03], m: W, k: 0.02 });
+    }
+    return SDF.mesh(n, [-0.62, -0.05, -0.82], [0.62, 1.12, 0.55], 66);
+  },
+  // Mister Thimble's head (centre origin): muzzle, nose, cupped ears, button-eye, stitched mouth, thimble cap
+  th_head: () => {
+    const B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: B, n: [0.02, 10] },
+      { t: 'ell', c: [0, -0.08, -0.24], r: [0.16, 0.115, 0.11], m: W, k: 0.06 },
+      { t: 'ell', c: [0, -0.03, -0.34], r: [0.05, 0.036, 0.032], m: D, k: 0.015 },
+      { t: 'cap', a: [-0.08, -0.15, -0.31], b: [0.08, -0.15, -0.31], r: 0.007, op: 's', sm: D },
+      { t: 'cyl', c: [-0.12, 0.06, -0.27], r: 0.055, h: 0.014, rr: 0.006, rot: [0, Math.PI / 2, 0], m: D, k: 0.01 },
+      { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: B },
+      { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: B },
+      { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.05, op: 's', k: 0.01, sm: D },
+      { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 }
+    ];
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2;
+      n.push({ t: 'sph', c: [0.04 + Math.cos(a) * 0.112 + 0.02, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
+    }
+    for (let i = -3; i <= 3; i++) n.push({ t: 'box', c: [i * 0.025, -0.15, -0.315 + Math.abs(i) * 0.008], h: [0.004, 0.022, 0.006], m: D, k: 0.003 });
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'sph', c: [sx * 0.25, 0.24, 0.02], r: 0.11, m: B, k: 0.05 });
+      n.push({ t: 'sph', c: [sx * 0.26, 0.25, -0.06], r: 0.07, op: 's', k: 0.02, sm: W });
+    }
+    return SDF.mesh(n, [-0.42, -0.36, -0.4], [0.42, 0.46, 0.36], 66);
+  },
+  // Mister Thimble's arm: shoulder at y 0, paw at y 1 (stretched along the arm when drawn)
+  th_arm: () => {
+    const n = [
+      { t: 'cap', a: [0, 0.05, 0], b: [0, 0.8, 0], r: 0.11, r2: 0.09, m: MAT.burnt, n: [0.015, 12] },
+      { t: 'ell', c: [0, 0.9, 0], r: [0.13, 0.12, 0.1], m: MAT.burnt, k: 0.05 },
+      { t: 'ell', c: [0, 0.93, -0.06], r: [0.08, 0.07, 0.04], m: MAT.furLight, k: 0.02 }
+    ];
+    return SDF.mesh(n, [-0.18, -0.08, -0.16], [0.18, 1.06, 0.16], 44);
+  },
+  // The Usher's robe (ground origin): tapered, layered, frayed hem
+  us_robe: () => {
+    const C = MAT.canvas, n = [
+      { t: 'cap', a: [0, 0.35, 0], b: [0, 1.95, 0], r: 0.52, r2: 0.2, m: C, n: [0.03, 7] },
+      { t: 'ell', c: [0, 1.82, 0.02], r: [0.38, 0.18, 0.24], m: C, k: 0.12 },
+      { t: 'box', c: [0, 0.1, 0], h: [0.8, 0.28, 0.8], op: 's', k: 0.02, sm: C, n: [0.12, 6] },
+      { t: 'cap', a: [0, 0.2, -0.2], b: [0, 1.3, -0.45], r: 0.08, op: 's', k: 0.05, sm: C }
+    ];
+    return SDF.mesh(n, [-0.65, 0.2, -0.65], [0.65, 2.2, 0.65], 60);
+  },
+  // The Usher's hood (head origin), opening facing -z
+  us_hood: () => {
+    const C = MAT.canvas, n = [
+      { t: 'ell', c: [0, 0.03, 0.05], r: [0.29, 0.36, 0.32], m: C, n: [0.012, 16] },
+      { t: 'cap', a: [0, 0.18, 0.22], b: [0, 0.45, 0.42], r: 0.1, r2: 0.02, m: C, k: 0.1 },
+      { t: 'ell', c: [0, 0, 0.0], r: [0.24, 0.31, 0.27], op: 's', k: 0.02, sm: MAT.rubber },
+      { t: 'box', c: [0, -0.03, -0.3], h: [0.2, 0.25, 0.18], rr: 0.06, op: 's', k: 0.04, sm: MAT.rubber }
+    ];
+    return SDF.mesh(n, [-0.35, -0.4, -0.35], [0.35, 0.55, 0.6], 52);
+  }
+};
+const SCULPT_ORDER = Object.keys(SCULPTS);
+
+const Sculpt = {
+  built: 0,
+  // Build one model per call (the loader calls this once per frame); returns true when done.
+  step() {
+    if (this.built >= SCULPT_ORDER.length) return true;
+    const name = SCULPT_ORDER[this.built++];
+    PRIM[name] = SCULPTS[name]();
+    if (Renderer.ok) Renderer.meshes[name] = Renderer.uploadMesh(PRIM[name]);
+    return this.built >= SCULPT_ORDER.length;
+  },
+  ready(name) { return !!Renderer.meshes[name]; }
 };
 </script>
 </body>

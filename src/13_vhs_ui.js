@@ -17,7 +17,7 @@ const TAPES = [
     lines: [
       'Welcome to Sector Six: Reclamation. Down here, nothing is ever thrown away.',
       'Broken toys, broken machines, broken ideas... we stitch them back together, good as new!',
-      'This is your LIFELINE pack: two reaching hands on live cables. Teal on the left, amber on the right.',
+      'This is your LIFELINE pack: two reaching hands on live cables. Teal on the left, rose on the right.',
       'Latch a hand onto a power node, carry the current around the relays, and close the circuit.',
       'And remember: if you hear clicking in the ducts, keep your footsteps soft.'
     ]
@@ -341,7 +341,7 @@ const UI = {
         H[key] = code;
         const el = s === 0 ? E.hudHandL : E.hudHandR;
         const stateTxt = h.tethered ? 'LIVE' : h.state === HAND.DOCKED ? 'READY' : h.state === HAND.FLYING ? 'FIRED' : h.state === HAND.LATCHED ? 'GRIP' : 'RECALL';
-        el.textContent = (s === 0 ? 'L · TEAL ' : 'R · AMBER ') + stateTxt;
+        el.textContent = (s === 0 ? 'L · TEAL ' : 'R · ROSE ') + stateTxt;
         el.classList.toggle('away', h.state !== HAND.DOCKED && !h.tethered);
       }
     }

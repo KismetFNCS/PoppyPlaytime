@@ -336,7 +336,7 @@ async function runAll() {
     T.step(DT, 60);
     check('hand: recalls and docks', GrabPack.hands[0].state === HAND.DOCKED, GrabPack.hands[0].state);
     T.aimAt(0, 4.4, -20); click(1); T.step(DT, 2);
-    check('hand: right click fires AMBER hand', GrabPack.hands[1].state !== HAND.DOCKED, GrabPack.hands[1].state);
+    check('hand: right click fires ROSE hand', GrabPack.hands[1].state !== HAND.DOCKED, GrabPack.hands[1].state);
     check('cable: Verlet nodes finite while flying', Array.from(GrabPack.hands[1].nodes).every(Number.isFinite));
     T.step(DT, 90);
     check('hand: reach limit returns the hand', GrabPack.hands[1].state === HAND.DOCKED, GrabPack.hands[1].state);

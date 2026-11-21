@@ -692,7 +692,7 @@ const Game = {
     if (clamp) { ringMatrix(clamp.model, b, _g.c, 0.03); clamp.tint[3] = 0.08; if (h.tethered) { clamp.emis[0] = 0.1 * h.energized; clamp.emis[1] = 0.5 * h.energized; clamp.emis[2] = 0.7 * h.energized; } }
   },
   drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
-    const R = RenderQueue, mat = side === 0 ? MAT.handTeal : MAT.handAmber;
+    const R = RenderQueue, mat = side === 0 ? MAT.handTeal : MAT.handRose;
     V3.cross(_g.r, f, upRef); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, _g.r, f); V3.normalize(_g.u, _g.u);
     const r = _g.r, u = _g.u, s = scale;
@@ -803,7 +803,12 @@ const Loader = {
         TexSynth.buildLayer(this.layer, Renderer.albedoData, Renderer.normalData);
         this.layer++;
         UI.setLoading(0.05 + 0.85 * this.layer / MATERIALS.length, 'Synthesizing material ' + this.layer + '/' + MATERIALS.length + ': ' + MATERIALS[this.layer - 1].name);
-        if (this.layer >= MATERIALS.length) this.phase = 2;
+        if (this.layer >= MATERIALS.length) this.phase = 5;
+        return;
+      }
+      if (this.phase === 5) {
+        if (Sculpt.step()) this.phase = 2;
+        UI.setLoading(0.9 + 0.05 * Sculpt.built / SCULPT_ORDER.length, 'Sculpting characters ' + Sculpt.built + '/' + SCULPT_ORDER.length + '...');
         return;
       }
       if (this.phase === 2) {

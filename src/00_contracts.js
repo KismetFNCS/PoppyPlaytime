@@ -3,7 +3,7 @@
 // MERRIWEATHER WORKS - CHAPTER 6: "RESURRECTION"
 // Fan-made survival-horror engine slice. Original setting, characters and names:
 //   Merriweather Toy Works, Sector 06 "Reclamation"; Experiment 6-06 "The Spoolwright";
-//   the LIFELINE (dual extendable gauntlets, TEAL left / AMBER right).
+//   the LIFELINE (dual extendable gauntlets, TEAL left / ROSE right).
 // Every mesh, texture, sound and UI element below is generated in code at runtime.
 // =====================================================================================
 //
@@ -72,8 +72,8 @@
 //     Source: [SAMPLED] 5.jpg (60%, 12%) #6b5b5e, darkened 45% to albedo.
 // MATERIAL 8: LIFELINE teal gauntlet   Base #2fb8b0, rough 0.4, metal 0.3
 //     Source: [ASSUMED] original tool identity (not the source game's palette).
-// MATERIAL 9: LIFELINE amber gauntlet  Base #e8892a, rough 0.4, metal 0.3
-//     Source: [ASSUMED] original tool identity.
+// MATERIAL 9: LIFELINE rose gauntlet  Base #f4a3a8, rough 0.42, metal 0.2
+//     Source: [ASSUMED] user-requested very light red / almost pink right hand.
 // MATERIAL 10: power cable (rubber, live glow #4fe3ff)
 //   Base #1a1a1c, rough 0.7, emissive #4fe3ff when energized
 //     Source: [ASSUMED] cyan current reads against the red/amber palette.
@@ -88,7 +88,7 @@
 //     Source: [SAMPLED] 1.jpg eye glow (60%, 37%) median 7px patch = #edcd41.
 // MATERIAL 15: black rubber / gaskets  Base #151515, rough 0.9 (non-emissive materials use emissive #000000)
 //     Source: [ASSUMED].
-// MATERIAL 16: light fur / doll hair (ash-blonde ringlets, plush)  Base #d8cba8, rough 0.9, tile 3.0
+// MATERIAL 16: light fur / doll hair (ash-blonde ringlets, plush)  Base #b9aa86, rough 0.9, tile 3.0
 //     Source: [ASSUMED] original doll palette (deliberately not the reference doll's red hair).
 // MATERIAL 17: woven canvas (hoods, robes, dresses)  Base #2a2622, rough 0.95, tile 2.0
 //     Source: [ESTIMATED] 7.jpg robe reads near-black with grey fold highlights.
@@ -127,7 +127,7 @@
 //   Source: [SAMPLED] 1.jpg button fill (15%, 64%) = #2c2c2b; selected fill (20%, 63.5%) = #30302e; button rows 470-692.
 // ELEMENT: HUD crosshair (GAMEPLAY) center 50%, 50%, 6 px dot, #d8dde6; hot state accent #4fe3ff.
 //   Source: [ASSUMED] minimal FPS reticle.
-// ELEMENT: HUD hand chips (GAMEPLAY) bottom 3.5%, left 3% teal #2fb8b0 / right 3% amber #e8892a.
+// ELEMENT: HUD hand chips (GAMEPLAY) bottom 3.5%, left 3% teal #2fb8b0 / right 3% rose #f4a3a8.
 //   Source: [ASSUMED].
 // ELEMENT: failure title "SIGNAL LOST" (FAILURE_STATE) center 50%, 42%, color #ff3b2e, chroma #ff0044 / #00e5ff.
 //   Source: [ASSUMED] VHS dropout card.
@@ -204,14 +204,14 @@ const MATERIALS = [
   { name: 'furBlue', base: '#0c77d9', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'steel', base: '#3a3438', rough: 0.38, metal: 0.85, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'handTeal', base: '#2fb8b0', rough: 0.4, metal: 0.3, tile: 2.0, emis: '#000000', emisStr: 0 },
-  { name: 'handAmber', base: '#e8892a', rough: 0.4, metal: 0.3, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'handRose', base: '#f4a3a8', rough: 0.42, metal: 0.2, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'cable', base: '#1a1a1c', rough: 0.7, metal: 0.0, tile: 4.0, emis: '#4fe3ff', emisStr: 0 },
   { name: 'wood', base: '#6e5238', rough: 0.85, metal: 0.0, tile: 0.6, emis: '#000000', emisStr: 0 },
   { name: 'paint', base: '#b39a4a', rough: 0.8, metal: 0.0, tile: 0.25, emis: '#000000', emisStr: 0 },
   { name: 'copper', base: '#b87333', rough: 0.35, metal: 0.9, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'lens', base: '#edcd41', rough: 0.2, metal: 0.0, tile: 1.0, emis: '#edcd41', emisStr: 6.0 },
   { name: 'rubber', base: '#151515', rough: 0.9, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'furLight', base: '#d8cba8', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
+  { name: 'furLight', base: '#b9aa86', rough: 0.9, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'canvas', base: '#2a2622', rough: 0.95, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'screen', base: '#050608', rough: 0.12, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'burnt', base: '#6a4632', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 }
@@ -231,7 +231,7 @@ const SCALE = {
 const PALETTE = {
   void: '#06090e', titleText: '#f2f2f2', ruleColor: '#9aa4b5', descText: '#e0e0e0',
   btnFill: '#2c2c2b', btnHover: '#4a4a48', btnActive: '#5c5c5a', btnBorder: '#bdbdbd', btnText: '#e6e6e6',
-  hudText: '#d8dde6', accent: '#4fe3ff', handL: '#2fb8b0', handR: '#e8892a', danger: '#ff3b2e',
+  hudText: '#d8dde6', accent: '#4fe3ff', handL: '#2fb8b0', handR: '#f4a3a8', danger: '#ff3b2e',
   chromaA: '#ff0044', chromaB: '#00e5ff', panelFill: '#0b0c10', dimText: '#8b919c', focusRing: '#4fe3ff',
   reportBg: '#050608', reportText: '#d8dde6', gridLine: '#ff00ff', live: '#4fe3ff',
   relayIdle: '#ffb030', relayLinked: '#5cff9a', sourceGlow: '#4fe3ff', receptacleIdle: '#ff3b2e'

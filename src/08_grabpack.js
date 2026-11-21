@@ -1,10 +1,10 @@
 // =====================================================================================
-// LIFELINE: two launchable gauntlets (LEFT = TEAL, RIGHT = AMBER) with inertial flight,
+// LIFELINE: two launchable gauntlets (LEFT = TEAL, RIGHT = ROSE) with inertial flight,
 // Verlet power cables, peg wrapping (2D sweep test in XZ) and circuit closure.
 // =====================================================================================
 
 const HAND = { DOCKED: 0, FLYING: 1, LATCHED: 2, RETRACTING: 3 };
-const HAND_NAMES = ['TEAL', 'AMBER'];
+const HAND_NAMES = ['TEAL', 'ROSE'];
 const MAX_WRAPS = 16;
 
 function makeHand(side) {

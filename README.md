@@ -16,7 +16,7 @@ Open `index.html` in a current desktop Chrome, Edge or Firefox (WebGL2 required)
 | Move / sprint / crouch | WASD (arrows) / Shift / C | Left stick / L3 / B | Left stick / RUN |
 | Look | Mouse (arrow keys turn) | Right stick | Drag right half |
 | Fire TEAL hand (left) | Left mouse or Q | LB / LT | L |
-| Fire AMBER hand (right) | Right mouse or R | RB / RT | R |
+| Fire ROSE hand (right) | Right mouse or R | RB / RT | R |
 | Jump / interact | Space / E | A / X | JUMP / USE |
 | Flashlight / mute / pause | F / M / Esc or P | Y / – / Start | – / SND / II |
 | Debug / fidelity overlay / self-test | F1 / F2 / F9 | | `?test=1` |
@@ -39,7 +39,9 @@ All original designs, built to read like the genre without copying any existing 
 - **Marigold**: a cracked porcelain display doll (ash-blonde ringlets, mustard pinafore, one hollow socket, one amber glass eye) who acts as your guide. She introduces herself near the first tape, talks you through each area, moves ahead of you through the factory while you aren't looking, and waits in the freight lift at the end. Look away and her head is already turned toward you; catch her and she ticks.
 - **Mister Thimble**: a scorched plush bear slumped in the Spool Foundry, with a copper thimble cap and one glowing violet eye. His broken voice box crackles when you approach, and he lunges once ("HUG TIME!") before apologising.
 - **PIP**: your pocket companion on the HUD. A cog-shaped device with an LED dot-matrix face that talks with the hints, cheers when a circuit closes, sulks when one is refused, winks at relays, panics in chases and fills with static when you're caught.
-- **The LIFELINE pack**: two big jointed gloves (teal left, amber right) held up in view on corrugated hoses, fired with the mouse buttons.
+- **The LIFELINE pack**: two big jointed gloves (teal left, rose right) held up in view on corrugated hoses, fired with the mouse buttons.
+
+The supporting characters and the Spoolwright's mask, hood and torso are sculpted: each is described as smoothly blended shapes with carved details (eye sockets, grins, teeth, cracks, ringlets, stitches), and turned into a single smooth, multi-material mesh while the game loads (`src/19_sculpt.js`).
 
 Characters speak through on-screen dialogue with a name label and their own synthesized voice.
 
@@ -76,6 +78,7 @@ src/12_player.js    input (keyboard/mouse/pointer-lock/gamepad/touch), player co
 src/13_vhs_ui.js    VHS transmission archive, settings, menus, HUD, F1/F2 overlays
 src/14_game.js      global state machine, director, checkpoints, jumpscare/failure/victory, scene submit
 src/15_harness.js   __TEST__ / __TEST_FIDELITY__ hooks and the embedded self-test (F9)
+src/19_sculpt.js    signed-distance-field sculpting + Surface Nets meshing for the characters
 src/18_characters.js  the Usher, Marigold, Mister Thimble and the PIP HUD companion
 src/16_assets.js    .glb loader, model slots, manifest + drag-and-drop + IndexedDB persistence
 src/17_boot.js      main loop, error resilience, resize/DPI, input wiring

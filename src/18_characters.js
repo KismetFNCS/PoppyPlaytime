@@ -267,11 +267,9 @@ const Cast = {
       for (let k = -1; k <= 1; k++) { this.pt(b, p, yaw, sx * 0.22 + k * 0.07, 0.01, -0.2); R.seg('cone', MAT.steel, a, b, 0.016); }
       this.pt(b, p, yaw, sx * 0.22, 0.02, 0.12); R.seg('cone', MAT.steel, a, b, 0.014);
     }
-    // robe: layered cones with a tattered hem of hanging strips
-    this.pt(a, p, yaw, 0, 0.42, 0);
-    let it = R.trs('cone', MAT.canvas, a[0] + jit, a[1], a[2], yaw, 0, 0, 0.5, 1.55, 0.44);
-    this.pt(a, p, yaw, 0, 0.8, 0.02);
-    R.trs('cone', MAT.canvas, a[0] + jit, a[1], a[2], yaw + 0.4, 0, 0, 0.44, 1.3, 0.4);
+    // sculpted robe with a frayed hem, plus hanging strips that sway
+    let it = R.push('us_robe', MAT.canvas);
+    if (it) M4.compose(it.model, p[0] + jit, p[1], p[2], yaw, 0, Math.sin(U.sway * 0.8) * 0.015, 1, 1, 1);
     for (let i = 0; i < 14; i++) {
       const ang = i / 14 * Math.PI * 2, len = 0.35 + ((i * 37) % 11) / 22;
       const hx = Math.cos(ang) * 0.46, hz = Math.sin(ang) * 0.4;
@@ -299,122 +297,68 @@ const Cast = {
     }
     // hood with a peaked back, the CRT face recessed in the opening
     const hy = U.headYaw + yaw;
-    this.pt(a, p, yaw, 0, 2.2, 0.0);
-    this.pt(a, p, hy, 0, 2.2, 0.06);
-    R.trs('sphere', MAT.canvas, a[0] + jit, a[1], a[2], hy, 0.1, 0, 0.27, 0.33, 0.27);
-    this.pt(b, p, hy, 0, 2.28, 0.2);
-    R.trs('cone', MAT.canvas, b[0], b[1], b[2], hy, -2.0, 0, 0.18, 0.36, 0.18);
-    this.pt(b, p, hy, 0, 2.17, -0.25);
-    R.trs('box', MAT.steel, b[0], b[1], b[2], hy, 0, 0, 0.38, 0.3, 0.1);
-    this.pt(b, p, hy, 0, 2.17, -0.305);
-    M4.compose(this.m, b[0] + jit, b[1], b[2], hy, 0, 0, 0.33, 0.25, 1);
+    // sculpted hood; the CRT sits in its opening inside a steel bezel
+    this.pt(a, p, yaw, 0, 2.2, 0.02);
+    M4.compose(this.m2, a[0] + jit, a[1], a[2], hy, 0.08, 0, 1, 1, 1);
+    it = R.push('us_hood', MAT.canvas); if (it) it.model.set(this.m2);
+    V3.set(this.local, 0, -0.03, -0.16); M4.transformPoint(b, this.m2, this.local);
+    R.trs('box', MAT.steel, b[0], b[1], b[2], hy, 0.08, 0, 0.36, 0.28, 0.12);
+    V3.set(this.local, 0, -0.03, -0.225); M4.transformPoint(b, this.m2, this.local);
+    M4.compose(this.m, b[0], b[1], b[2], hy, 0.08, 0, 0.31, 0.23, 1);
     AssetQueue.push(this.screen, this.m, false);
   },
 
   submitDoll() {
     const D = this.doll, R = RenderQueue, p = D.pos, yaw = D.yaw;
     const a = this.tmp, b = this.tmp2;
-    // pinafore skirt + striped petticoat (seated)
-    this.pt(a, p, yaw, 0, 0.0, 0.02);
-    let it = R.trs('cone', MAT.paint, a[0], a[1], a[2], yaw, 0, 0, 0.24, 0.42, 0.22);
-    this.pt(a, p, yaw, 0, 0.0, 0.02);
-    it = R.trs('cyl', MAT.canvas, a[0], a[1], a[2], yaw, 0, 0, 0.215, 0.07, 0.2);
-    if (it) { it.tint[0] = 3.2; it.tint[1] = 3.0; it.tint[2] = 2.6; }
-    // bodice
-    this.pt(a, p, yaw, 0, 0.38, 0.03);
-    it = R.trs('sphere', MAT.paint, a[0], a[1], a[2], yaw, 0, 0, 0.1, 0.14, 0.08);
-    // legs stretched forward, black shoes
-    for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.07, 0.06, -0.05); this.pt(b, p, yaw, sx * 0.08, 0.04, -0.34);
-      R.seg('cylLow', MAT.porcelain, a, b, 0.032);
-      R.trs('sphereLow', MAT.rubber, b[0], b[1] + 0.01, b[2] - 0.02, yaw, 0, 0, 0.038, 0.032, 0.055);
-      // arms resting on the lap
-      this.pt(a, p, yaw, sx * 0.12, 0.44, 0.03); this.pt(b, p, yaw, sx * 0.1, 0.2, -0.12);
-      R.seg('cylLow', MAT.porcelain, a, b, 0.022);
-      R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], 0, 0, 0, 0.028, 0.028, 0.028);
-    }
-    // head: cracked porcelain, one hollow socket, one amber glass eye, ash-blonde ringlets, mustard bow
+    if (!Sculpt.ready('mg_body')) return;
+    // sculpted seated body (dress, pinafore, ruffled petticoat, porcelain limbs, shoes)
+    let it = R.push('mg_body', MAT.paint);
+    if (it) M4.compose(it.model, p[0], p[1], p[2], yaw, 0, 0, 1, 1, 1);
+    // sculpted head turns on the neck
     const hy = yaw + D.headYaw, hp = D.headPitch;
-    this.pt(a, p, yaw, 0, 0.62, 0.02);
-    a[1] += 0.03;
-    R.trs('sphere', MAT.porcelain, a[0], a[1], a[2], hy, hp, 0.08, 0.14, 0.158, 0.134);
-    M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1.22, 1.22, 1.22);
-    const eye = (x, y, z, out) => { V3.set(this.local, x, y, z); return M4.transformPoint(out, this.m, this.local); };
-    eye(-0.04, 0.012, -0.095, b);
-    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0, 0.03, 0.026 * (1 - D.blink * 0.9), 0.016);
-    eye(0.042, 0.01, -0.098, b);
-    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0, 0.034, 0.034, 0.02, false);
-    eye(0.042, 0.008, -0.106, b);
-    it = R.trs('sphereLow', MAT.lens, b[0], b[1], b[2], hy, hp, 0, 0.017, 0.017 * (1 - D.blink * 0.9), 0.008, false);
-    if (it) { it.emis[0] = 0.6; it.emis[1] = 0.32; it.emis[2] = 0.05; }
-    eye(0, -0.06, -0.098, b);
-    it = R.trs('sphereLow', MAT.paint, b[0], b[1], b[2], hy, hp, 0, 0.02, 0.008, 0.01, false);
-    if (it) { it.tint[0] = 1.2; it.tint[1] = 0.35; it.tint[2] = 0.35; }
-    for (let i = 0; i < 16; i++) {
-      const ang = (i / 16) * Math.PI * 1.6 - 0.8 + Math.PI;
-      const rx = Math.sin(ang) * 0.11, rz = Math.cos(ang) * 0.1;
-      eye(rx, 0.06 + (i % 3) * 0.025, rz * -1 + 0.01, b);
-      R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2], 0, 0, 0, 0.055, 0.055, 0.055, i % 2 === 0);
-      if (i % 3 === 0) {
-        eye(rx * 1.2, -0.06, -rz * 1.2 + 0.02, this.local);
-        V3.copy(_cast.e, this.local);
-        R.seg('cylLow', MAT.furLight, b, _cast.e, 0.022, false);
-      }
-    }
-    eye(0.07, 0.13, -0.02, b);
-    it = R.trs('sphereLow', MAT.paint, b[0], b[1], b[2], hy, 0, 0.6, 0.05, 0.03, 0.03);
+    this.pt(a, p, yaw, 0, 0.66, 0.03);
+    M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1, 1, 1);
+    it = R.push('mg_head', MAT.porcelain);
+    if (it) it.model.set(this.m);
+    // amber glass eye in the intact socket; the lid closes on blinks
+    V3.set(this.local, 0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, hp, 0.08, 0.022, 0.022 * (1 - D.blink * 0.9), 0.012, false);
+    if (it) { it.emis[0] = 0.7; it.emis[1] = 0.38; it.emis[2] = 0.06; }
+    V3.set(this.local, 0.05, 0.013, -0.106); M4.transformPoint(b, this.m, this.local);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008, 0.006, false);
+    // faint glint deep in the empty socket
+    V3.set(this.local, -0.05, 0.016, -0.1); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], 0, 0, 0, 0.004, 0.004, 0.004, false);
+    if (it) { it.emis[0] = 0.5; it.emis[1] = 0.5; it.emis[2] = 0.55; }
   },
 
   submitPlush() {
     const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw;
     const a = this.tmp, b = this.tmp2;
-    // slumped body, pale belly patch, splayed legs and drooping arms
+    if (!Sculpt.ready('th_body')) return;
     const L = P.armRaise;
-    this.pt(a, p, yaw, 0, 0.55 + L * 0.15, 0.12 - L * 0.25);
-    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], yaw, -0.25 + L * 0.5, 0, 0.42, 0.52, 0.36);
-    this.pt(a, p, yaw, 0, 0.5, -0.17);
-    R.trs('sphere', MAT.furLight, a[0], a[1], a[2], yaw, -0.25, 0, 0.26, 0.32, 0.12);
+    // body rears up and forward during the lunge
+    this.pt(a, p, yaw, 0, L * 0.12, -L * 0.22);
+    let it = R.push('th_body', MAT.burnt);
+    if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, 1, 1, 1);
+    // arms: limp at rest, thrown up and forward for the "hug"
     for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.24, 0.18, -0.1); this.pt(b, p, yaw, sx * 0.4, 0.13, -0.6);
-      R.seg('cyl', MAT.burnt, a, b, 0.14);
-      R.trs('sphere', MAT.burnt, b[0], b[1], b[2], yaw, 0, 0, 0.16, 0.15, 0.12);
-      R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2] , yaw, 0, 0, 0.1, 0.11, 0.06);
-      this.pt(a, p, yaw, sx * 0.38, 0.82 + L * 0.2, 0.08 - L * 0.3); this.pt(b, p, yaw, sx * (0.55 - L * 0.15), 0.3 + L * 1.0, -0.12 - L * 0.75);
-      R.seg('cyl', MAT.burnt, a, b, 0.1);
-      R.trs('sphere', MAT.burnt, b[0], b[1], b[2], 0, 0, 0, 0.12, 0.11, 0.12);
+      this.pt(a, p, yaw, sx * 0.4, 0.86 + L * 0.2, 0.08 - L * 0.3);
+      this.pt(b, p, yaw, sx * (0.6 - L * 0.2), 0.3 + L * 1.05, -0.14 - L * 0.8);
+      it = R.push('th_arm', MAT.burnt);
+      if (it) M4.segment(it.model, a, b, 1);
     }
-    // head turns slowly toward the player
+    // head
     const hy = yaw + P.headYaw;
-    this.pt(a, p, yaw, 0, 1.18 + L * 0.25, 0.1 - L * 0.45);
-    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), 0.34, 0.3, 0.3);
+    this.pt(a, p, yaw, 0, 1.2 + L * 0.25, 0.1 - L * 0.45);
     M4.compose(this.m, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), 1, 1, 1);
-    const hp = (x, y, z, out) => { V3.set(this.local, x, y, z); return M4.transformPoint(out, this.m, this.local); };
-    hp(0, -0.08, -0.24, b);
-    R.trs('sphere', MAT.furLight, b[0], b[1], b[2], hy, 0, 0, 0.15, 0.11, 0.1);
-    hp(0, -0.03, -0.33, b);
-    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], 0, 0, 0, 0.045, 0.035, 0.035);
-    for (const sx of [-1, 1]) {
-      hp(sx * 0.24, 0.24, 0.02, b);
-      R.trs('sphere', MAT.burnt, b[0], b[1], b[2], hy, 0, sx * 0.3, 0.11, 0.11, 0.05);
-      hp(sx * 0.24, 0.24, -0.01, b);
-      R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2], hy, 0, sx * 0.3, 0.06, 0.06, 0.03);
-    }
-    // stitched grin
-    for (let i = -3; i <= 3; i++) {
-      hp(i * 0.03, -0.16 - Math.abs(i) * -0.008, -0.27 + Math.abs(i) * 0.012, b);
-      R.trs('box', MAT.rubber, b[0], b[1], b[2], hy, 0, 0, 0.008, 0.04, 0.008, false);
-    }
-    // one sewn button eye, one glowing violet glass eye
-    hp(-0.12, 0.06, -0.26, b);
-    R.trs('cyl', MAT.rubber, b[0], b[1], b[2], hy, Math.PI / 2, 0, 0.055, 0.02, 0.055);
-    hp(0.12, 0.06, -0.27, b);
-    let it = R.trs('sphereLow', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.055, 0.055, 0.03, false);
+    it = R.push('th_head', MAT.burnt);
+    if (it) it.model.set(this.m);
+    // glowing violet glass eye in the right socket
+    V3.set(this.local, 0.12, 0.06, -0.265); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, 0, 0, 0.045, 0.045, 0.028, false);
     if (it) { const g = P.eyeGlow; it.emis[0] = 1.1 * g; it.emis[1] = 0.25 * g; it.emis[2] = 1.6 * g; it.tint[0] = 0.6; it.tint[1] = 0.25; it.tint[2] = 1.0; }
-    // copper thimble cap with dimples
-    hp(0.04, 0.27, 0.02, b);
-    R.trs('cyl', MAT.copper, b[0], b[1], b[2], hy, 0, 0.25, 0.11, 0.16, 0.11);
-    hp(0.08, 0.42, 0.02, b);
-    R.trs('sphereLow', MAT.copper, b[0], b[1], b[2], hy, 0, 0.25, 0.1, 0.04, 0.1);
   }
 };
 const _cast = {
