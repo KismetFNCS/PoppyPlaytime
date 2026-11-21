@@ -118,6 +118,8 @@ const Lights = {
   threatPos: V3.create(0, -100, 0), threatLevel: 0, globalDim: 1, blackout: 0,
   // soft fill carried with the camera so the gauntlets read when the flashlight points past them
   viewFill: { pos: V3.create(), color: hexToLinear(LIGHTING.flashColor), current: 0, base: 0.55, radius: 1.3, scatter: 0, fixture: 'none', sector: 0 },
+  // red glow from the gas inside the Spoolwright's ribcage (linear RGB, deep red)
+  monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
     list.count = 0;
@@ -148,6 +150,16 @@ const Lights = {
       V3.addScaled(F.pos, F.pos, Renderer.camFwd, 0.1);
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = F;
+    }
+    const G = this.monsterGlow;
+    if (Monster.visible && !Assets.slot('monster') && Game.isGameplay()) {
+      Monster.bodyPoint(G.pos, 0, 1.42, -0.2);
+      G.sector = Level.sectorAt(G.pos[0], G.pos[2]);
+      G.current = sectorVisible[G.sector] ? G.base * (0.8 + 0.25 * Math.sin(time * 4.3) + 0.1 * Math.sin(time * 11)) : 0;
+      if (G.current > 0) {
+        if (list.count >= list.items.length) list.items.push(null);
+        list.items[list.count++] = G;
+      }
     }
   },
   haloCount() {

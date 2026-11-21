@@ -29,6 +29,9 @@ const PINS = new Float32Array([
 const PIN_COLORS = [[1.25, 0.32, 0.3], [0.32, 0.9, 1.2], [1.3, 1.05, 0.35], [0.45, 1.15, 0.45], [1.15, 0.5, 1.1]];
 const TAPE_SEGS = 16;
 // fur sac tufts: local x, y, z, radius, blue (1) or violet (0)
+// stolen plush arms: shoulder attachment points (local) and per-arm fur tint (teal, rose, pink)
+const TROPHY_ARMS = new Float32Array([-0.28, 1.0, -0.45, 0.27, 0.97, -0.42, 0.04, 0.9, -0.36]);
+const TROPHY_TINT = [[0.32, 1.25, 1.15], [1.7, 0.55, 0.68], [1.75, 1.0, 1.1]];
 const FUR_SAC = new Float32Array([
   0, 1.5, 0.95, 0.62, 0, -0.32, 1.42, 0.8, 0.42, 1, 0.32, 1.44, 0.82, 0.42, 0, 0, 1.72, 0.85, 0.45, 0,
   0, 1.38, 1.4, 0.45, 1, -0.22, 1.25, 1.55, 0.3, 0, 0.24, 1.3, 1.5, 0.3, 1, 0, 1.15, 1.75, 0.28, 0
@@ -506,17 +509,32 @@ const Monster = {
     // glowing red pressure tanks strapped on top of the sac
     for (const sx of [-0.16, 0.16]) {
       this.bodyPoint(B, sx, 1.95, 0.55); this.bodyPoint(H, sx, 1.95, 0.95);
-      let tk = R.seg('cyl', MAT.lens, B, H, 0.085);
+      let tk = R.seg('cyl', MAT.screen, B, H, 0.085);
       if (tk) { tk.tint[0] = 1.0; tk.tint[1] = 0.12; tk.tint[2] = 0.1; tk.emis[0] = 1.1 + Math.sin(this.breathe * 4 + sx) * 0.3; tk.emis[1] = 0.05; tk.emis[2] = 0.04; }
       this.bodyPoint(X, sx, 1.95, 0.5); R.seg('cyl', MAT.steel, X, B, 0.095);
       this.bodyPoint(X, sx, 1.95, 1.0); R.seg('cyl', MAT.steel, H, X, 0.095);
     }
+    // two more canisters slung low on the flanks
+    for (const sx of [-0.5, 0.5]) {
+      this.bodyPoint(B, sx, 1.62, 0.3); this.bodyPoint(H, sx * 1.04, 1.78, 0.68);
+      let tk = R.seg('cyl', MAT.screen, B, H, 0.07);
+      if (tk) { tk.tint[0] = 1.0; tk.tint[1] = 0.12; tk.tint[2] = 0.1; tk.emis[0] = 0.9 + Math.sin(this.breathe * 3.3 + sx * 4) * 0.3; tk.emis[1] = 0.04; tk.emis[2] = 0.03; }
+      this.bodyPoint(X, sx * 0.99, 1.6, 0.25); R.seg('cyl', MAT.steel, X, B, 0.08);
+    }
     this.bodyPoint(B, 0, 1.92, 0.75);
     R.trs('box', MAT.rubber, B[0], B[1], B[2], yaw, lean, 0, 0.48, 0.03, 0.06);
+    // red gas swirling inside the open ribcage (it also casts a red light, see Lights.monsterGlow)
+    for (let k = 0; k < 3; k++) {
+      const ph = this.breathe * (1.7 + k * 0.6) + k * 2.1;
+      this.bodyPoint(B, Math.sin(ph) * 0.1, 1.42 + Math.cos(ph * 1.3) * 0.06, -0.15 + k * 0.15);
+      const r = 0.3 + 0.05 * Math.sin(ph * 2);
+      it = R.trs('sphere', MAT.screen, B[0], B[1], B[2], yaw + ph, lean, 0, r, r * 0.9, r, false);
+      if (it) { it.tint[0] = 1.0; it.tint[1] = 0.1; it.tint[2] = 0.08; const g = 0.9 + 0.35 * Math.sin(ph * 3); it.emis[0] = g; it.emis[1] = g * 0.06; it.emis[2] = g * 0.04; }
+    }
     // amber core lamp in the chest housing
     this.bodyPoint(B, 0, 1.62, -0.53);
-    it = R.trs('sphere', MAT.lens, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1, false);
-    if (it) { const g = 1.6 + Math.sin(this.breathe * 3) * 0.5; it.emis[0] = g; it.emis[1] = g * 0.75; it.emis[2] = g * 0.15; }
+    it = R.trs('sphere', MAT.screen, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1, false);
+    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.75; it.tint[2] = 0.3; const g = 1.6 + Math.sin(this.breathe * 3) * 0.5; it.emis[0] = g; it.emis[1] = g * 0.75; it.emis[2] = g * 0.15; }
     // torn plush flaps hanging from the flanks (remains of the toy skin)
     for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) {
       this.bodyPoint(B, sx * 0.48, 1.2, -0.15 + k * 0.28);
@@ -524,27 +542,57 @@ const Monster = {
       it = R.push('box', k === 1 ? MAT.furBlue : MAT.furViolet);
       if (it) { M4.segment(it.model, H, B, 1); it.model[0] *= 0.16; it.model[1] *= 0.16; it.model[2] *= 0.16; it.model[8] *= 0.035; it.model[9] *= 0.035; it.model[10] *= 0.035; M4.multiply(it.model, it.model, _mh.boxUp); }
     }
+    // ---- upper torso: a tattered tailor's coat over a skeletal frame ----
+    this.bodyPoint(B, 0, 1.75, -0.38);
+    this.bodyPoint(this.chest, 0, 2.0, -0.48);
+    R.seg('cyl', MAT.steel, B, this.chest, 0.06);
+    if (Sculpt.ready('sp_coat')) {
+      it = R.push('sp_coat', MAT.clothWine);
+      if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
+      if (it) { it.tint[0] = 1.7; it.tint[1] = 1.45; it.tint[2] = 1.45; }
+    }
+    // three stolen plush arms dangle from under the chest: teal, rose (wearing a teal ring) and pink
+    for (let k = 0; k < 3; k++) {
+      const ax = TROPHY_ARMS[k * 3], ay = TROPHY_ARMS[k * 3 + 1], az = TROPHY_ARMS[k * 3 + 2];
+      const sw = Math.sin(this.breathe * 2.2 + k * 1.9) * 0.12, drag = Math.min(1, this.speed / 5) * 0.45;
+      this.bodyPoint(B, ax, ay, az);
+      this.bodyPoint(H, ax * 1.9 + sw, ay - 0.72 + drag * 0.25, az - 0.42 + drag + Math.cos(this.breathe * 1.7 + k) * 0.08);
+      it = Sculpt.ready('sp_trophyArm') ? R.push('sp_trophyArm', MAT.furLight) : null;
+      if (it) {
+        M4.segment(it.model, B, H, 1);
+        const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2];
+        if (k === 1) {
+          // teal ring on the rose hand's ring finger
+          V3.set(_mh.local, 0.015, 0.93, -0.018); M4.transformPoint(X, it.model, _mh.local);
+          V3.sub(_mh.dir, H, B); V3.normalize(_mh.dir, _mh.dir);
+          const rg = R.push('torus', MAT.handTeal);
+          if (rg) ringMatrix(rg.model, X, _mh.dir, 0.019);
+        }
+      }
+    }
     // ---- neck: segmented cable bundle up to the mask ----
-    this.bodyPoint(B, 0, 1.75, -0.35);
-    this.bodyPoint(this.chest, 0, 2.15, -0.55);
+    this.bodyPoint(B, 0, 2.24, -0.5);
     const hx = Math.sin(this.headTilt) * 0.15;
-    this.bodyPoint(this.head, hx, 2.55 + this.flinchAmt * 0.2, -0.8);
-    R.seg('cyl', MAT.steel, B, this.chest, 0.07);
-    for (let k = 1; k < 4; k++) { V3.lerp(X, this.chest, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
-    R.seg('cyl', MAT.rubber, this.chest, this.head, 0.05);
+    this.bodyPoint(this.head, hx, 2.72 + this.flinchAmt * 0.2, -0.74);
+    for (let k = 1; k < 4; k++) { V3.lerp(X, B, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
+    R.seg('cyl', MAT.rubber, B, this.head, 0.05);
     for (const off of [-0.05, 0.05]) {
-      this.bodyPoint(X, off, 1.8, -0.3);
+      this.bodyPoint(X, off, 2.2, -0.45);
       it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
       if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
     }
     this.submitHead(this.head, yaw + this.headTilt * 0.4, -0.15 + lean * 0.5, this.headTilt * 0.6, 1.15);
     // ---- arms: long thin machine arms ending in needle fingers ----
     for (const side of [-1, 1]) {
-      this.bodyPoint(B, side * 0.42, 1.75, -0.4);
+      this.bodyPoint(B, side * 0.3, 2.14, -0.47);
       const reach = this.armReach;
-      this.bodyPoint(H, side * (0.95 - reach * 0.35), 1.6 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
-      R.trs('sphere', MAT.steel, B[0], B[1], B[2], 0, 0, 0, 0.09, 0.09, 0.09);
+      this.bodyPoint(H, side * (0.95 - reach * 0.35), 1.75 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
+      R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
       R.seg('cyl', MAT.steel, B, H, 0.045);
+      // ragged coat sleeve over the upper arm
+      V3.lerp(X, B, H, 0.72);
+      R.seg('cyl', MAT.clothWine, B, X, 0.08);
+      R.seg('cone', MAT.canvas, X, H, 0.085);
       this.bodyPoint(X, side * (0.75 - reach * 0.4), 1.2 + reach * 0.9, -1.55 - reach * 0.9);
       R.seg('cyl', MAT.steel, H, X, 0.035);
       R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
@@ -607,7 +655,6 @@ const Monster = {
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
       it = R.push('sp_mask', MAT.porcelain); if (it) it.model.set(m);
-      it = R.push('sp_hood', MAT.canvas); if (it) it.model.set(m);
       // the jaw unhinges for the lunge: a dark gullet opening under the grin
       if (this.jaw > 0.35) {
         this.headLocal(m, 0, -0.2 - this.jaw * 0.08, -0.25, this.tmp3);
@@ -616,20 +663,19 @@ const Monster = {
     } else {
       R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }
-    // amber glass lens seated in the left socket
-    this.headLocal(m, -0.125, 0.06, -0.265, this.eye);
-    it = R.trs('sphere', MAT.lens, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.06 * s, 0.06 * s, 0.04 * s, false);
-    if (it) { it.emis[0] = 3.5; it.emis[1] = 2.6; it.emis[2] = 0.4; }
-    // a pinpoint pupil glowing deep in the hollow right socket
-    this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
-    it = R.trs('sphereLow', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], 0, 0, 0, 0.012 * s, 0.012 * s, 0.012 * s, false);
-    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.2; it.emis[2] = 0.2; }
-    // crown of sewing needles
-    for (let i = 0; i < 7; i++) {
-      const a = -1.2 + i * 0.4;
-      this.headLocal(m, Math.sin(a) * 0.2, 0.3 + Math.cos(a) * 0.08, 0.05, this.tmp3);
-      this.headLocal(m, Math.sin(a) * 0.55, 0.62 + Math.cos(a) * 0.35, 0.28, this.hitPoint);
-      R.seg('cone', MAT.steel, this.tmp3, this.hitPoint, 0.022 * s);
+    // one solid glowing amber eye in the left socket (no pupil)
+    this.headLocal(m, -0.125, 0.06, -0.255, this.eye);
+    it = R.trs('sphere', MAT.screen, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.066 * s, 0.066 * s, 0.045 * s, false);
+    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.7; it.tint[2] = 0.25; it.emis[0] = 3.6; it.emis[1] = 2.2; it.emis[2] = 0.35; }
+    // a faint ember haze fills the hollow right socket
+    this.headLocal(m, 0.125, 0.055, -0.24, this.tmp3);
+    it = R.trs('sphereLow', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.05 * s, 0.05 * s, 0.03 * s, false);
+    if (it) { it.emis[0] = 0.3; it.emis[1] = 0.06; it.emis[2] = 0.03; }
+    // battered tailor's top hat, cocked to one side
+    if (Sculpt.ready('sp_hat')) {
+      this.headLocal(m, 0.05, 0.36, 0.04, this.tmp3);
+      it = R.push('sp_hat', MAT.canvas);
+      if (it) M4.compose(it.model, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw + 0.3, pitch - 0.1, roll - 0.22, s, s, s);
     }
   },
   headLocal(m, x, y, z, out) { V3.set(_mh.local, x, y, z); return M4.transformPoint(out, m, _mh.local); },
@@ -654,6 +700,7 @@ const Monster = {
   }
 };
 const _mh = {
+  dir: V3.create(),
   tapePrev: V3.create(),
   boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })(),
   groupStepping: new Uint8Array(2), spheres: [V3.create(), V3.create()], radii: new Float32Array([1.0, 0.6]), local: V3.create(), pole: V3.create(),

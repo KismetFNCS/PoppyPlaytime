@@ -144,15 +144,6 @@
     <div class="panel">
       <h2>SETTINGS</h2>
       <div id="settingsRows"></div>
-      <div class="assets">
-        <div>CUSTOM MODELS (.GLB)</div>
-        <div class="btns">
-          <button class="mbtn" id="btnLoadAssets" data-act="loadAssets">LOAD .GLB FILES</button>
-          <button class="mbtn" id="btnClearAssets" data-act="clearAssets">CLEAR MODELS</button>
-        </div>
-        <div class="hint">Name files monster, monster_head, hand_left, hand_right or tape to replace those models; any other name is placed as a prop in front of you. You can also drag files onto the window. See assets/README.md.</div>
-        <ul id="assetList"></ul>
-      </div>
       <button class="mbtn" id="btnSettingsBack" data-act="settingsBack">BACK</button>
     </div>
   </div>
@@ -213,8 +204,6 @@
 </div>
 <div id="debug"></div>
 <div id="fid"><div class="grid"></div><div class="anch" id="fidAnchors"></div><div class="ctrl"><label>Load reference <input type="file" id="fidFile" accept="image/*"></label><br><label>Opacity <input type="range" id="fidOpacity" min="0" max="100" value="50"></label><label><input type="checkbox" id="fidSplit"> split</label></div></div>
-<input type="file" id="assetFile" accept=".glb,model/gltf-binary" multiple hidden>
-<div id="dropHint">DROP .GLB MODELS TO LOAD THEM</div>
 <div id="toast" role="status" aria-live="polite"></div>
 <pre id="fatal"></pre>
 <pre id="report"></pre>
@@ -3987,6 +3976,8 @@ const Lights = {
   threatPos: V3.create(0, -100, 0), threatLevel: 0, globalDim: 1, blackout: 0,
   // soft fill carried with the camera so the gauntlets read when the flashlight points past them
   viewFill: { pos: V3.create(), color: hexToLinear(LIGHTING.flashColor), current: 0, base: 0.55, radius: 1.3, scatter: 0, fixture: 'none', sector: 0 },
+  // red glow from the gas inside the Spoolwright's ribcage (linear RGB, deep red)
+  monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
     list.count = 0;
@@ -4017,6 +4008,16 @@ const Lights = {
       V3.addScaled(F.pos, F.pos, Renderer.camFwd, 0.1);
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = F;
+    }
+    const G = this.monsterGlow;
+    if (Monster.visible && !Assets.slot('monster') && Game.isGameplay()) {
+      Monster.bodyPoint(G.pos, 0, 1.42, -0.2);
+      G.sector = Level.sectorAt(G.pos[0], G.pos[2]);
+      G.current = sectorVisible[G.sector] ? G.base * (0.8 + 0.25 * Math.sin(time * 4.3) + 0.1 * Math.sin(time * 11)) : 0;
+      if (G.current > 0) {
+        if (list.count >= list.items.length) list.items.push(null);
+        list.items[list.count++] = G;
+      }
     }
   },
   haloCount() {
@@ -4194,6 +4195,9 @@ const PINS = new Float32Array([
 const PIN_COLORS = [[1.25, 0.32, 0.3], [0.32, 0.9, 1.2], [1.3, 1.05, 0.35], [0.45, 1.15, 0.45], [1.15, 0.5, 1.1]];
 const TAPE_SEGS = 16;
 // fur sac tufts: local x, y, z, radius, blue (1) or violet (0)
+// stolen plush arms: shoulder attachment points (local) and per-arm fur tint (teal, rose, pink)
+const TROPHY_ARMS = new Float32Array([-0.28, 1.0, -0.45, 0.27, 0.97, -0.42, 0.04, 0.9, -0.36]);
+const TROPHY_TINT = [[0.32, 1.25, 1.15], [1.7, 0.55, 0.68], [1.75, 1.0, 1.1]];
 const FUR_SAC = new Float32Array([
   0, 1.5, 0.95, 0.62, 0, -0.32, 1.42, 0.8, 0.42, 1, 0.32, 1.44, 0.82, 0.42, 0, 0, 1.72, 0.85, 0.45, 0,
   0, 1.38, 1.4, 0.45, 1, -0.22, 1.25, 1.55, 0.3, 0, 0.24, 1.3, 1.5, 0.3, 1, 0, 1.15, 1.75, 0.28, 0
@@ -4671,17 +4675,32 @@ const Monster = {
     // glowing red pressure tanks strapped on top of the sac
     for (const sx of [-0.16, 0.16]) {
       this.bodyPoint(B, sx, 1.95, 0.55); this.bodyPoint(H, sx, 1.95, 0.95);
-      let tk = R.seg('cyl', MAT.lens, B, H, 0.085);
+      let tk = R.seg('cyl', MAT.screen, B, H, 0.085);
       if (tk) { tk.tint[0] = 1.0; tk.tint[1] = 0.12; tk.tint[2] = 0.1; tk.emis[0] = 1.1 + Math.sin(this.breathe * 4 + sx) * 0.3; tk.emis[1] = 0.05; tk.emis[2] = 0.04; }
       this.bodyPoint(X, sx, 1.95, 0.5); R.seg('cyl', MAT.steel, X, B, 0.095);
       this.bodyPoint(X, sx, 1.95, 1.0); R.seg('cyl', MAT.steel, H, X, 0.095);
     }
+    // two more canisters slung low on the flanks
+    for (const sx of [-0.5, 0.5]) {
+      this.bodyPoint(B, sx, 1.62, 0.3); this.bodyPoint(H, sx * 1.04, 1.78, 0.68);
+      let tk = R.seg('cyl', MAT.screen, B, H, 0.07);
+      if (tk) { tk.tint[0] = 1.0; tk.tint[1] = 0.12; tk.tint[2] = 0.1; tk.emis[0] = 0.9 + Math.sin(this.breathe * 3.3 + sx * 4) * 0.3; tk.emis[1] = 0.04; tk.emis[2] = 0.03; }
+      this.bodyPoint(X, sx * 0.99, 1.6, 0.25); R.seg('cyl', MAT.steel, X, B, 0.08);
+    }
     this.bodyPoint(B, 0, 1.92, 0.75);
     R.trs('box', MAT.rubber, B[0], B[1], B[2], yaw, lean, 0, 0.48, 0.03, 0.06);
+    // red gas swirling inside the open ribcage (it also casts a red light, see Lights.monsterGlow)
+    for (let k = 0; k < 3; k++) {
+      const ph = this.breathe * (1.7 + k * 0.6) + k * 2.1;
+      this.bodyPoint(B, Math.sin(ph) * 0.1, 1.42 + Math.cos(ph * 1.3) * 0.06, -0.15 + k * 0.15);
+      const r = 0.3 + 0.05 * Math.sin(ph * 2);
+      it = R.trs('sphere', MAT.screen, B[0], B[1], B[2], yaw + ph, lean, 0, r, r * 0.9, r, false);
+      if (it) { it.tint[0] = 1.0; it.tint[1] = 0.1; it.tint[2] = 0.08; const g = 0.9 + 0.35 * Math.sin(ph * 3); it.emis[0] = g; it.emis[1] = g * 0.06; it.emis[2] = g * 0.04; }
+    }
     // amber core lamp in the chest housing
     this.bodyPoint(B, 0, 1.62, -0.53);
-    it = R.trs('sphere', MAT.lens, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1, false);
-    if (it) { const g = 1.6 + Math.sin(this.breathe * 3) * 0.5; it.emis[0] = g; it.emis[1] = g * 0.75; it.emis[2] = g * 0.15; }
+    it = R.trs('sphere', MAT.screen, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1, false);
+    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.75; it.tint[2] = 0.3; const g = 1.6 + Math.sin(this.breathe * 3) * 0.5; it.emis[0] = g; it.emis[1] = g * 0.75; it.emis[2] = g * 0.15; }
     // torn plush flaps hanging from the flanks (remains of the toy skin)
     for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) {
       this.bodyPoint(B, sx * 0.48, 1.2, -0.15 + k * 0.28);
@@ -4689,27 +4708,57 @@ const Monster = {
       it = R.push('box', k === 1 ? MAT.furBlue : MAT.furViolet);
       if (it) { M4.segment(it.model, H, B, 1); it.model[0] *= 0.16; it.model[1] *= 0.16; it.model[2] *= 0.16; it.model[8] *= 0.035; it.model[9] *= 0.035; it.model[10] *= 0.035; M4.multiply(it.model, it.model, _mh.boxUp); }
     }
+    // ---- upper torso: a tattered tailor's coat over a skeletal frame ----
+    this.bodyPoint(B, 0, 1.75, -0.38);
+    this.bodyPoint(this.chest, 0, 2.0, -0.48);
+    R.seg('cyl', MAT.steel, B, this.chest, 0.06);
+    if (Sculpt.ready('sp_coat')) {
+      it = R.push('sp_coat', MAT.clothWine);
+      if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
+      if (it) { it.tint[0] = 1.7; it.tint[1] = 1.45; it.tint[2] = 1.45; }
+    }
+    // three stolen plush arms dangle from under the chest: teal, rose (wearing a teal ring) and pink
+    for (let k = 0; k < 3; k++) {
+      const ax = TROPHY_ARMS[k * 3], ay = TROPHY_ARMS[k * 3 + 1], az = TROPHY_ARMS[k * 3 + 2];
+      const sw = Math.sin(this.breathe * 2.2 + k * 1.9) * 0.12, drag = Math.min(1, this.speed / 5) * 0.45;
+      this.bodyPoint(B, ax, ay, az);
+      this.bodyPoint(H, ax * 1.9 + sw, ay - 0.72 + drag * 0.25, az - 0.42 + drag + Math.cos(this.breathe * 1.7 + k) * 0.08);
+      it = Sculpt.ready('sp_trophyArm') ? R.push('sp_trophyArm', MAT.furLight) : null;
+      if (it) {
+        M4.segment(it.model, B, H, 1);
+        const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2];
+        if (k === 1) {
+          // teal ring on the rose hand's ring finger
+          V3.set(_mh.local, 0.015, 0.93, -0.018); M4.transformPoint(X, it.model, _mh.local);
+          V3.sub(_mh.dir, H, B); V3.normalize(_mh.dir, _mh.dir);
+          const rg = R.push('torus', MAT.handTeal);
+          if (rg) ringMatrix(rg.model, X, _mh.dir, 0.019);
+        }
+      }
+    }
     // ---- neck: segmented cable bundle up to the mask ----
-    this.bodyPoint(B, 0, 1.75, -0.35);
-    this.bodyPoint(this.chest, 0, 2.15, -0.55);
+    this.bodyPoint(B, 0, 2.24, -0.5);
     const hx = Math.sin(this.headTilt) * 0.15;
-    this.bodyPoint(this.head, hx, 2.55 + this.flinchAmt * 0.2, -0.8);
-    R.seg('cyl', MAT.steel, B, this.chest, 0.07);
-    for (let k = 1; k < 4; k++) { V3.lerp(X, this.chest, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
-    R.seg('cyl', MAT.rubber, this.chest, this.head, 0.05);
+    this.bodyPoint(this.head, hx, 2.72 + this.flinchAmt * 0.2, -0.74);
+    for (let k = 1; k < 4; k++) { V3.lerp(X, B, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
+    R.seg('cyl', MAT.rubber, B, this.head, 0.05);
     for (const off of [-0.05, 0.05]) {
-      this.bodyPoint(X, off, 1.8, -0.3);
+      this.bodyPoint(X, off, 2.2, -0.45);
       it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
       if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
     }
     this.submitHead(this.head, yaw + this.headTilt * 0.4, -0.15 + lean * 0.5, this.headTilt * 0.6, 1.15);
     // ---- arms: long thin machine arms ending in needle fingers ----
     for (const side of [-1, 1]) {
-      this.bodyPoint(B, side * 0.42, 1.75, -0.4);
+      this.bodyPoint(B, side * 0.3, 2.14, -0.47);
       const reach = this.armReach;
-      this.bodyPoint(H, side * (0.95 - reach * 0.35), 1.6 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
-      R.trs('sphere', MAT.steel, B[0], B[1], B[2], 0, 0, 0, 0.09, 0.09, 0.09);
+      this.bodyPoint(H, side * (0.95 - reach * 0.35), 1.75 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
+      R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
       R.seg('cyl', MAT.steel, B, H, 0.045);
+      // ragged coat sleeve over the upper arm
+      V3.lerp(X, B, H, 0.72);
+      R.seg('cyl', MAT.clothWine, B, X, 0.08);
+      R.seg('cone', MAT.canvas, X, H, 0.085);
       this.bodyPoint(X, side * (0.75 - reach * 0.4), 1.2 + reach * 0.9, -1.55 - reach * 0.9);
       R.seg('cyl', MAT.steel, H, X, 0.035);
       R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
@@ -4772,7 +4821,6 @@ const Monster = {
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
       it = R.push('sp_mask', MAT.porcelain); if (it) it.model.set(m);
-      it = R.push('sp_hood', MAT.canvas); if (it) it.model.set(m);
       // the jaw unhinges for the lunge: a dark gullet opening under the grin
       if (this.jaw > 0.35) {
         this.headLocal(m, 0, -0.2 - this.jaw * 0.08, -0.25, this.tmp3);
@@ -4781,20 +4829,19 @@ const Monster = {
     } else {
       R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }
-    // amber glass lens seated in the left socket
-    this.headLocal(m, -0.125, 0.06, -0.265, this.eye);
-    it = R.trs('sphere', MAT.lens, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.06 * s, 0.06 * s, 0.04 * s, false);
-    if (it) { it.emis[0] = 3.5; it.emis[1] = 2.6; it.emis[2] = 0.4; }
-    // a pinpoint pupil glowing deep in the hollow right socket
-    this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
-    it = R.trs('sphereLow', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], 0, 0, 0, 0.012 * s, 0.012 * s, 0.012 * s, false);
-    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.2; it.emis[2] = 0.2; }
-    // crown of sewing needles
-    for (let i = 0; i < 7; i++) {
-      const a = -1.2 + i * 0.4;
-      this.headLocal(m, Math.sin(a) * 0.2, 0.3 + Math.cos(a) * 0.08, 0.05, this.tmp3);
-      this.headLocal(m, Math.sin(a) * 0.55, 0.62 + Math.cos(a) * 0.35, 0.28, this.hitPoint);
-      R.seg('cone', MAT.steel, this.tmp3, this.hitPoint, 0.022 * s);
+    // one solid glowing amber eye in the left socket (no pupil)
+    this.headLocal(m, -0.125, 0.06, -0.255, this.eye);
+    it = R.trs('sphere', MAT.screen, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.066 * s, 0.066 * s, 0.045 * s, false);
+    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.7; it.tint[2] = 0.25; it.emis[0] = 3.6; it.emis[1] = 2.2; it.emis[2] = 0.35; }
+    // a faint ember haze fills the hollow right socket
+    this.headLocal(m, 0.125, 0.055, -0.24, this.tmp3);
+    it = R.trs('sphereLow', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.05 * s, 0.05 * s, 0.03 * s, false);
+    if (it) { it.emis[0] = 0.3; it.emis[1] = 0.06; it.emis[2] = 0.03; }
+    // battered tailor's top hat, cocked to one side
+    if (Sculpt.ready('sp_hat')) {
+      this.headLocal(m, 0.05, 0.36, 0.04, this.tmp3);
+      it = R.push('sp_hat', MAT.canvas);
+      if (it) M4.compose(it.model, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw + 0.3, pitch - 0.1, roll - 0.22, s, s, s);
     }
   },
   headLocal(m, x, y, z, out) { V3.set(_mh.local, x, y, z); return M4.transformPoint(out, m, _mh.local); },
@@ -4819,6 +4866,7 @@ const Monster = {
   }
 };
 const _mh = {
+  dir: V3.create(),
   tapePrev: V3.create(),
   boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })(),
   groupStepping: new Uint8Array(2), spheres: [V3.create(), V3.create()], radii: new Float32Array([1.0, 0.6]), local: V3.create(), pole: V3.create(),
@@ -6228,8 +6276,6 @@ const Game = {
       case 'mainmenu': setState(STATE.MAIN_MENU); break;
       case 'mute': this.toggleMute(); break;
       case 'skipTape': VHS.finish(); break;
-      case 'loadAssets': document.getElementById('assetFile').click(); break;
-      case 'clearAssets': Assets.clear(true).then(() => toast('Custom models cleared - procedural models restored')); break;
       case 'rewind': if (state === STATE.FAILURE_STATE) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
       case 'winDone': if (state === STATE.VICTORY) setState(STATE.MAIN_MENU); break;
     }
@@ -7790,8 +7836,7 @@ async function runAll() {
 // CUSTOM ASSETS: glTF 2.0 binary (.glb) loader + slot system.
 //   Sources, all optional (the procedural art stays as the fallback):
 //     1. assets/assets.json manifest      (when the game is served over http/https)
-//     2. drag-and-drop .glb onto the window, or SETTINGS > CUSTOM MODELS > LOAD
-//        (dropped files are kept in IndexedDB so they survive reloads)
+//     (the old settings-screen loader / drag-and-drop was removed; its saved models are wiped at boot)
 //   Slots: monster, monsterHead, handLeft, handRight, tape, prop.
 //   Supported: meshes (triangles), node hierarchy (TRS / matrix), POSITION / NORMAL / TEXCOORD_0,
 //   8/16/32-bit indices, normalized integer attributes, baseColorFactor + baseColorTexture (PNG/JPEG),
@@ -8193,12 +8238,8 @@ const Assets = {
 
   // Boot-time sources: IndexedDB (any protocol) and the manifest (http/https only).
   async loadStartup() {
-    try {
-      const recs = await AssetStore.getAll();
-      for (const r of recs || []) {
-        try { await this.loadBuffer(r.data, r.name, Object.assign({ slot: r.slot }, r.opts || {})); } catch (err) { /* reported by loadBuffer */ }
-      }
-    } catch (err) { /* IndexedDB unavailable */ }
+    // models saved by the old in-game loader are wiped so they can no longer replace the built-in models
+    try { await AssetStore.clear(); } catch (err) { /* IndexedDB unavailable */ }
     if (!/^https?:$/.test(location.protocol)) return;
     let manifest = null;
     try {
@@ -8256,17 +8297,7 @@ function toast(text) {
 
 function initAssetInput() {
   AssetQueue.init();
-  const input = document.getElementById('assetFile');
-  input.addEventListener('change', () => { Assets.loadFiles(input.files); input.value = ''; });
-  window.addEventListener('dragover', e => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') >= 0) { e.preventDefault(); document.getElementById('dropHint').classList.add('on'); } });
-  window.addEventListener('dragleave', e => { if (!e.relatedTarget) document.getElementById('dropHint').classList.remove('on'); });
-  window.addEventListener('drop', e => {
-    document.getElementById('dropHint').classList.remove('on');
-    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
-    e.preventDefault();
-    Audio.init();
-    Assets.loadFiles(e.dataTransfer.files);
-  });
+  // (the settings-screen loader and drag-and-drop were removed; models come only from the assets/ folder)
 }
 
 // ===== module: 17_boot.js =====
@@ -9320,27 +9351,38 @@ const SCULPTS = {
     for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.008, op: 's', sm: D, n: [0.004, 60] });
     return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 80);
   },
-  // Spoolwright femur (y 0 -> 1 along the bone): armour plates, bolts, a hydraulic ram
+  // Spoolwright femur (y 0 -> 1 along the bone): plated I-beam with lightening holes, hip drum, knee
+  // knuckle, a copper hydraulic ram and rivets
   sp_femur: () => {
-    const S = MAT.steel, n = [
-      { t: 'box', c: [0, 0.5, 0], h: [0.075, 0.42, 0.05], rr: 0.02, m: S },
-      { t: 'box', c: [0, 0.45, 0.055], h: [0.06, 0.3, 0.012], rr: 0.006, m: S, k: 0.01 },
-      { t: 'cap', a: [0.07, 0.15, 0], b: [0.07, 0.8, 0], r: 0.022, m: MAT.copper, k: 0.01 },
-      { t: 'cyl', c: [0, 0.03, 0], r: 0.09, h: 0.06, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 },
-      { t: 'cyl', c: [0, 0.97, 0], r: 0.075, h: 0.06, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 }
+    const S = MAT.steel, C = MAT.copper, n = [
+      { t: 'box', c: [0, 0.5, 0], h: [0.085, 0.4, 0.06], rr: 0.025, m: S, n: [0.002, 40] },
+      { t: 'box', c: [0, 0.5, 0.068], h: [0.07, 0.32, 0.01], rr: 0.006, m: S, k: 0.01 },
+      { t: 'box', c: [0, 0.5, -0.068], h: [0.07, 0.32, 0.01], rr: 0.006, m: S, k: 0.01 },
+      { t: 'cyl', c: [0, 0.02, 0], r: 0.12, h: 0.08, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 },
+      { t: 'cyl', c: [0, 0.02, 0], r: 0.05, h: 0.1, rr: 0.01, rot: [0, 0, Math.PI / 2], m: C, k: 0.01 },
+      { t: 'cyl', c: [0, 0.98, 0], r: 0.09, h: 0.075, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 },
+      { t: 'cap', a: [0.11, 0.12, 0], b: [0.11, 0.55, 0], r: 0.034, m: C, k: 0.01 },
+      { t: 'cap', a: [0.11, 0.55, 0], b: [0.11, 0.88, 0], r: 0.016, m: S, k: 0.005 },
+      { t: 'sph', c: [0.1, 0.1, 0], r: 0.03, m: S, k: 0.02 },
+      { t: 'sph', c: [0.1, 0.9, 0], r: 0.026, m: S, k: 0.02 }
     ];
-    for (let i = 0; i < 4; i++) n.push({ t: 'sph', c: [0.05 * (i % 2 ? 1 : -1), 0.25 + i * 0.15, 0.07], r: 0.012, m: MAT.copper, k: 0.004 });
-    return SDF.mesh(n, [-0.15, -0.08, -0.12], [0.15, 1.08, 0.12], 64);
+    for (let i = 0; i < 3; i++) n.push({ t: 'cyl', c: [-0.01, 0.3 + i * 0.2, 0], r: 0.03, h: 0.1, rot: [0, Math.PI / 2, 0], op: 's', k: 0.01, sm: MAT.rubber });
+    for (let i = 0; i < 6; i++) for (const z of [-0.08, 0.08]) n.push({ t: 'sph', c: [0.055 * (i % 2 ? 1 : -1), 0.22 + i * 0.11, z], r: 0.011, m: C, k: 0.004 });
+    return SDF.mesh(n, [-0.2, -0.12, -0.14], [0.2, 1.1, 0.14], 68);
   },
-  // Spoolwright tibia (knee at y 0, tip at y 1): ribbed shaft flaring into a hooked blade
+  // Spoolwright tibia (knee at y 0, tip at y 1): knuckle, two plated shaft sections with a copper collar,
+  // ribbed sleeve, and a flat hooked blade
   sp_tibia: () => {
-    const S = MAT.steel, n = [
-      { t: 'cap', a: [0, 0.02, 0], b: [0, 0.62, 0], r: 0.055, r2: 0.04, m: S },
-      { t: 'box', c: [0.02, 0.8, 0], h: [0.05, 0.2, 0.012], rr: 0.006, rot: [0, 0, 0.12], m: S, k: 0.03 },
-      { t: 'cap', a: [0.03, 0.7, 0], b: [-0.03, 1.0, 0], r: 0.02, r2: 0.002, m: S, k: 0.03 }
+    const S = MAT.steel, C = MAT.copper, n = [
+      { t: 'cyl', c: [0, 0.02, 0], r: 0.08, h: 0.07, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 },
+      { t: 'box', c: [0, 0.26, 0], h: [0.06, 0.2, 0.045], rr: 0.02, m: S, k: 0.03, n: [0.002, 40] },
+      { t: 'tor', c: [0, 0.48, 0], R: 0.055, r: 0.016, m: C, k: 0.01 },
+      { t: 'box', c: [0, 0.62, 0], h: [0.048, 0.14, 0.038], rr: 0.015, m: S, k: 0.03 },
+      { t: 'box', c: [0.012, 0.84, 0], h: [0.05, 0.11, 0.011], rr: 0.004, rot: [0, 0, 0.1], m: S, k: 0.03 },
+      { t: 'cap', a: [0.012, 0.92, 0], b: [-0.045, 1.01, 0], r: 0.02, r2: 0.002, m: S, k: 0.02 }
     ];
-    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, 0.1 + i * 0.11, 0], R: 0.055 - i * 0.003, r: 0.009, m: MAT.copper, k: 0.005 });
-    return SDF.mesh(n, [-0.1, -0.05, -0.08], [0.1, 1.05, 0.08], 64);
+    for (let i = 0; i < 3; i++) n.push({ t: 'tor', c: [0, 0.14 + i * 0.1, 0], R: 0.06, r: 0.008, rot: [0, 0, 0], m: C, k: 0.004 });
+    return SDF.mesh(n, [-0.12, -0.1, -0.1], [0.12, 1.05, 0.1], 64);
   },
   // Torn canvas hood that frames the mask
   sp_pincushion: () => {
@@ -9350,29 +9392,112 @@ const SCULPTS = {
     n.push({ t: 'cyl', c: [0, -0.2, 0], r: 0.16, h: 0.04, rr: 0.02, m: MAT.steel, k: 0.04 });
     return SDF.mesh(n, [-0.42, -0.3, -0.38], [0.42, 0.3, 0.38], 56);
   },
-  sp_hood: () => {
-    const C = MAT.canvas, n = [
-      { t: 'ell', c: [0, 0.06, 0.07], r: [0.43, 0.52, 0.42], m: C, n: [0.02, 14] },
-      { t: 'cap', a: [0, 0.3, 0.25], b: [0, 0.62, 0.55], r: 0.13, r2: 0.03, m: C, k: 0.12 },
-      { t: 'ell', c: [0, 0.04, 0.05], r: [0.37, 0.46, 0.37], op: 's', k: 0.02, sm: C },
-      { t: 'box', c: [0, -0.05, -0.38], h: [0.42, 0.55, 0.28], op: 's', k: 0.05, sm: C, n: [0.04, 9] }
+  // Battered tailor's top hat (base at y 0): dented black felt crown, curled brim, a measuring-tape band,
+  // a spool of red thread tucked in the band, a torn hole and two pins stuck through the crown
+  sp_hat: () => {
+    const F = MAT.canvas, n = [
+      { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: F, n: [0.006, 25] },
+      { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: F, k: 0.05 },
+      { t: 'sph', c: [0.13, 0.36, -0.12], r: 0.07, op: 's', k: 0.04, sm: F },
+      { t: 'cyl', c: [0, 0.015, 0], r: 0.29, h: 0.012, rr: 0.01, m: F, k: 0.02, n: [0.008, 18] },
+      { t: 'tor', c: [0, 0.03, 0], R: 0.28, r: 0.016, m: F, k: 0.02, n: [0.006, 30] },
+      { t: 'cyl', c: [0, 0.07, 0], r: 0.177, h: 0.034, rr: 0.004, m: MAT.paint, k: 0.004 },
+      { t: 'sph', c: [-0.16, 0.26, 0.06], r: 0.04, op: 's', k: 0.01, sm: MAT.rubber, n: [0.01, 60] },
+      { t: 'cyl', c: [0.2, 0.1, 0.05], r: 0.045, h: 0.05, rr: 0.006, m: MAT.lining, k: 0.004, n: [0.003, 120] },
+      { t: 'cyl', c: [0.2, 0.152, 0.05], r: 0.062, h: 0.008, rr: 0.004, m: MAT.wood, k: 0.004 },
+      { t: 'cyl', c: [0.2, 0.048, 0.05], r: 0.062, h: 0.008, rr: 0.004, m: MAT.wood, k: 0.004 }
     ];
-    return SDF.mesh(n, [-0.5, -0.55, -0.42], [0.5, 0.75, 0.75], 52);
+    for (let i = 0; i < 28; i++) {
+      const a = i / 28 * Math.PI * 2;
+      n.push({ t: 'box', c: [Math.cos(a) * 0.181, 0.07 + (i % 4 === 0 ? 0.012 : 0.02), Math.sin(a) * 0.181], h: [0.003, i % 4 === 0 ? 0.022 : 0.014, 0.003], m: MAT.rubber, k: 0.001 });
+    }
+    for (const [x, z, h] of [[-0.08, -0.15, 0.3], [0.12, 0.1, 0.25]]) {
+      n.push({ t: 'cap', a: [x * 0.6, h - 0.05, z * 0.6], b: [x * 1.6, h + 0.08, z * 1.6], r: 0.006, m: MAT.steel, k: 0.002 });
+      n.push({ t: 'sph', c: [x * 1.6, h + 0.08, z * 1.6], r: 0.022, m: MAT.lining, k: 0.004 });
+    }
+    return SDF.mesh(n, [-0.34, -0.03, -0.34], [0.34, 0.48, 0.34], 64);
+  },
+  // Tattered tailor's coat on a skeletal upper torso (origin at the chest, facing -z): wine cloth with black
+  // lapels and collar, frayed tails, brass buttons, a measuring tape around the neck, ribs showing through
+  sp_coat: () => {
+    const W = MAT.clothWine, K = MAT.canvas, P = MAT.porcelain, Y = MAT.paint, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.22, 0.28, 0.15], m: W, n: [0.01, 20] },
+      { t: 'cap', a: [-0.25, 0.15, 0.01], b: [0.25, 0.15, 0.01], r: 0.085, m: W, k: 0.08 },
+      { t: 'box', c: [0, -0.34, 0.03], h: [0.21, 0.14, 0.14], rr: 0.03, m: W, k: 0.08, n: [0.03, 9] },
+      { t: 'box', c: [-0.1, -0.52, 0.1], h: [0.08, 0.13, 0.025], rr: 0.01, rot: [0, -0.25, 0.05], m: W, k: 0.04, n: [0.03, 14] },
+      { t: 'box', c: [0.1, -0.54, 0.1], h: [0.08, 0.15, 0.025], rr: 0.01, rot: [0, -0.3, -0.06], m: W, k: 0.04, n: [0.03, 14] },
+      { t: 'box', c: [0, -0.3, -0.15], h: [0.05, 0.22, 0.09], op: 's', k: 0.02, sm: K },
+      { t: 'box', c: [0, -0.06, -0.15], h: [0.055, 0.17, 0.06], op: 's', k: 0.02, sm: MAT.rubber },
+      { t: 'box', c: [0, 0.27, 0.05], h: [0.17, 0.07, 0.09], rr: 0.03, m: K, k: 0.03, n: [0.01, 30] },
+      { t: 'ell', c: [0, 0.31, 0], r: [0.11, 0.12, 0.09], op: 's', k: 0.02, sm: K },
+      { t: 'box', c: [-0.085, 0.06, -0.14], h: [0.05, 0.15, 0.012], rot: [0, 0, 0.32], m: K, k: 0.01 },
+      { t: 'box', c: [0.085, 0.06, -0.14], h: [0.05, 0.15, 0.012], rot: [0, 0, -0.32], m: K, k: 0.01 },
+      { t: 'sph', c: [0.16, -0.15, -0.1], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.012, 50] },
+      { t: 'box', c: [-0.15, -0.2, -0.12], h: [0.05, 0.045, 0.012], rr: 0.008, rot: [0.3, 0.6, 0.2], m: K, k: 0.006 }
+    ];
+    // ribs and breastbone showing through the open front
+    n.push({ t: 'cap', a: [0, 0.08, -0.11], b: [0, -0.2, -0.11], r: 0.014, m: P, k: 0.01 });
+    for (let i = 0; i < 4; i++) {
+      const y = 0.04 - i * 0.07;
+      n.push({ t: 'cap', a: [-0.07, y - 0.02, -0.1], b: [0.07, y - 0.02, -0.1], r: 0.011, m: P, k: 0.006 });
+    }
+    for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.105, -0.12 + i * 0.09, -0.152], r: 0.016, h: 0.006, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.003 });
+    // measuring tape slung around the neck, hanging down both sides with tick marks
+    n.push({ t: 'cap', a: [-0.1, 0.26, 0.07], b: [0.1, 0.26, 0.07], r: 0.012, m: Y, k: 0.01 });
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'box', c: [sx * 0.08, 0.0, -0.165], h: [0.022, 0.25, 0.004], rot: [0, 0, sx * 0.06], m: Y, k: 0.006 });
+      for (let i = 0; i < 9; i++) n.push({ t: 'box', c: [sx * (0.08 + 0.012) - sx * i * 0.0028, 0.2 - i * 0.055, -0.17], h: [0.009, 0.0025, 0.002], m: MAT.rubber, k: 0.001 });
+    }
+    // cross-stitched repair along a seam
+    for (let i = 0; i < 4; i++) {
+      const y = 0.12 - i * 0.06, x = -0.2, z = -0.05;
+      n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: Y, k: 0.002 });
+      n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: Y, k: 0.002 });
+    }
+    return SDF.mesh(n, [-0.4, -0.72, -0.3], [0.4, 0.42, 0.3], 72);
+  },
+  // Stolen plush arm (shoulder at y 0, fingertips at y 1), coloured per draw: shaggy fur sleeve, a frayed
+  // torn shoulder, and a soft four-fingered hand
+  sp_trophyArm: () => {
+    const M = -1, n = [
+      { t: 'cap', a: [0, 0.03, 0], b: [0, 0.72, 0], r: 0.075, r2: 0.062, m: M, n: [0.012, 14] },
+      { t: 'sph', c: [0, 0.03, 0], r: 0.088, m: M, k: 0.04, n: [0.022, 18] },
+      { t: 'cap', a: [0, 0.72, 0], b: [0, 0.79, -0.005], r: 0.05, m: M, k: 0.03 },
+      { t: 'ell', c: [0, 0.85, -0.012], r: [0.062, 0.065, 0.026], m: M, k: 0.03 },
+      { t: 'cap', a: [0.05, 0.82, -0.02], b: [0.088, 0.9, -0.045], r: 0.017, m: M, k: 0.02 }
+    ];
+    for (let i = 0; i < 26; i++) {
+      const a = i * 2.4, y = 0.08 + (i * 0.027) % 0.64;
+      n.push({ t: 'sph', c: [Math.cos(a) * 0.058, y, Math.sin(a) * 0.058], r: 0.026 + (i % 3) * 0.006, m: M, k: 0.05, n: [0.012, 55] });
+    }
+    for (let f = 0; f < 4; f++) {
+      const x = -0.045 + f * 0.03, len = f === 1 || f === 2 ? 0.075 : 0.06;
+      n.push({ t: 'cap', a: [x, 0.89, -0.012], b: [x * 1.15, 0.89 + len * 0.6, -0.022], r: 0.015, m: M, k: 0.012 });
+      n.push({ t: 'cap', a: [x * 1.15, 0.89 + len * 0.6, -0.022], b: [x * 1.2, 0.89 + len, -0.05], r: 0.014, m: M, k: 0.01 });
+    }
+    return SDF.mesh(n, [-0.14, -0.08, -0.12], [0.14, 1.06, 0.12], 56);
   },
   // Spoolwright torso (pivot at y 1.35): lumpy fur sac, spool drum with flanges, ribcage, spine
   sp_body: () => {
-    const n = [];
+    const V = MAT.furViolet, n = [];
     for (let i = 0; i < FUR_SAC.length; i += 5) {
-      n.push({ t: 'ell', c: [FUR_SAC[i], FUR_SAC[i + 1] - 1.35, FUR_SAC[i + 2]], r: [FUR_SAC[i + 3], FUR_SAC[i + 3] * 0.85, FUR_SAC[i + 3] * 1.1], m: FUR_SAC[i + 4] ? MAT.furBlue : MAT.furViolet, k: 0.16, n: [0.03, 11] });
+      n.push({ t: 'ell', c: [FUR_SAC[i], FUR_SAC[i + 1] - 1.35, FUR_SAC[i + 2]], r: [FUR_SAC[i + 3], FUR_SAC[i + 3] * 0.85, FUR_SAC[i + 3] * 1.1], m: V, k: 0.16, n: [0.035, 11] });
     }
-    n.push({ t: 'cyl', c: [0, 0.1, 0], r: 0.5, h: 0.5, rr: 0.06, rot: [0, 0, Math.PI / 2], m: MAT.furBlue, k: 0.05, n: [0.015, 18] });
-    for (const sx of [-0.53, 0.53]) n.push({ t: 'cyl', c: [sx, 0.1, 0], r: 0.7, h: 0.035, rr: 0.02, rot: [0, 0, Math.PI / 2], m: MAT.copper, k: 0.01 });
-    for (let k = 0; k < 5; k++) {
-      const s = 1 - Math.abs(k - 2) * 0.08;
-      n.push({ t: 'tor', c: [0, 0.07, -0.36 + k * 0.18], R: 0.56 * s, r: 0.035, rot: [0, Math.PI / 2, 0], m: MAT.porcelain, k: 0.02 });
+    // shaggy violet mane of matted clumps across the back
+    for (let i = 0; i < 22; i++) {
+      const a = (i / 22) * Math.PI - Math.PI / 2, zz = 0.45 + (i * 0.137) % 1.3;
+      n.push({ t: 'ell', c: [Math.sin(a) * 0.5, 0.42 + Math.cos(a) * 0.22 - (zz - 0.45) * 0.12, zz], r: [0.1, 0.07, 0.13], rot: [0, 0.3 * Math.sin(i), 0], m: V, k: 0.06, n: [0.03, 30] });
     }
-    for (let k = 0; k < 8; k++) n.push({ t: 'ell', c: [0, 0.45 - k * 0.02, 1.05 - k * 0.22], r: [0.08, 0.065, 0.075], m: MAT.porcelain, k: 0.04 });
-    n.push({ t: 'cyl', c: [0, 0.27, -0.45], r: 0.17, h: 0.06, rr: 0.02, rot: [0, Math.PI / 2, 0], m: MAT.steel, k: 0.03 });
+    // spool flanges either side, ribcage hoops around the open chest, spine along the back
+    for (const sx of [-0.53, 0.53]) n.push({ t: 'cyl', c: [sx, 0.1, 0], r: 0.5, h: 0.035, rr: 0.02, rot: [0, 0, Math.PI / 2], m: MAT.copper, k: 0.01 });
+    n.push({ t: 'cyl', c: [0, 0.1, 0], r: 0.16, h: 0.52, rr: 0.02, rot: [0, 0, Math.PI / 2], m: MAT.steel, k: 0.02 });
+    for (let k = 0; k < 6; k++) {
+      const s = 1 - Math.abs(k - 2.5) * 0.07;
+      n.push({ t: 'tor', c: [0, 0.07, -0.4 + k * 0.16], R: 0.56 * s, r: 0.032, rot: [0, Math.PI / 2, 0], m: MAT.porcelain, k: 0.02, n: [0.004, 40] });
+    }
+    n.push({ t: 'cap', a: [0, -0.45, -0.42], b: [0, -0.45, 0.42], r: 0.04, m: MAT.porcelain, k: 0.03 });
+    for (let k = 0; k < 8; k++) n.push({ t: 'ell', c: [0, 0.6 - k * 0.02, 0.4 + k * 0.2], r: [0.08, 0.065, 0.075], m: MAT.porcelain, k: 0.04 });
+    n.push({ t: 'cyl', c: [0, 0.27, -0.5], r: 0.17, h: 0.06, rr: 0.02, rot: [0, Math.PI / 2, 0], m: MAT.steel, k: 0.03 });
     return SDF.mesh(n, [-0.9, -0.75, -0.75], [0.9, 0.95, 2.25], 80);
   },
   // Marigold seated body: dusty wine dress with a torn hem, grimy pinafore, cracked porcelain limbs

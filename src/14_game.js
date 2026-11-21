@@ -143,8 +143,6 @@ const Game = {
       case 'mainmenu': setState(STATE.MAIN_MENU); break;
       case 'mute': this.toggleMute(); break;
       case 'skipTape': VHS.finish(); break;
-      case 'loadAssets': document.getElementById('assetFile').click(); break;
-      case 'clearAssets': Assets.clear(true).then(() => toast('Custom models cleared - procedural models restored')); break;
       case 'rewind': if (state === STATE.FAILURE_STATE) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
       case 'winDone': if (state === STATE.VICTORY) setState(STATE.MAIN_MENU); break;
     }

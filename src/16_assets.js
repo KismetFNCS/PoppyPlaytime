@@ -2,8 +2,7 @@
 // CUSTOM ASSETS: glTF 2.0 binary (.glb) loader + slot system.
 //   Sources, all optional (the procedural art stays as the fallback):
 //     1. assets/assets.json manifest      (when the game is served over http/https)
-//     2. drag-and-drop .glb onto the window, or SETTINGS > CUSTOM MODELS > LOAD
-//        (dropped files are kept in IndexedDB so they survive reloads)
+//     (the old settings-screen loader / drag-and-drop was removed; its saved models are wiped at boot)
 //   Slots: monster, monsterHead, handLeft, handRight, tape, prop.
 //   Supported: meshes (triangles), node hierarchy (TRS / matrix), POSITION / NORMAL / TEXCOORD_0,
 //   8/16/32-bit indices, normalized integer attributes, baseColorFactor + baseColorTexture (PNG/JPEG),
@@ -405,12 +404,8 @@ const Assets = {
 
   // Boot-time sources: IndexedDB (any protocol) and the manifest (http/https only).
   async loadStartup() {
-    try {
-      const recs = await AssetStore.getAll();
-      for (const r of recs || []) {
-        try { await this.loadBuffer(r.data, r.name, Object.assign({ slot: r.slot }, r.opts || {})); } catch (err) { /* reported by loadBuffer */ }
-      }
-    } catch (err) { /* IndexedDB unavailable */ }
+    // models saved by the old in-game loader are wiped so they can no longer replace the built-in models
+    try { await AssetStore.clear(); } catch (err) { /* IndexedDB unavailable */ }
     if (!/^https?:$/.test(location.protocol)) return;
     let manifest = null;
     try {
@@ -468,15 +463,5 @@ function toast(text) {
 
 function initAssetInput() {
   AssetQueue.init();
-  const input = document.getElementById('assetFile');
-  input.addEventListener('change', () => { Assets.loadFiles(input.files); input.value = ''; });
-  window.addEventListener('dragover', e => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') >= 0) { e.preventDefault(); document.getElementById('dropHint').classList.add('on'); } });
-  window.addEventListener('dragleave', e => { if (!e.relatedTarget) document.getElementById('dropHint').classList.remove('on'); });
-  window.addEventListener('drop', e => {
-    document.getElementById('dropHint').classList.remove('on');
-    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
-    e.preventDefault();
-    Audio.init();
-    Assets.loadFiles(e.dataTransfer.files);
-  });
+  // (the settings-screen loader and drag-and-drop were removed; models come only from the assets/ folder)
 }

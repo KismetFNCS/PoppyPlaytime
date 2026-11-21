@@ -334,27 +334,38 @@ const SCULPTS = {
     for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.008, op: 's', sm: D, n: [0.004, 60] });
     return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 80);
   },
-  // Spoolwright femur (y 0 -> 1 along the bone): armour plates, bolts, a hydraulic ram
+  // Spoolwright femur (y 0 -> 1 along the bone): plated I-beam with lightening holes, hip drum, knee
+  // knuckle, a copper hydraulic ram and rivets
   sp_femur: () => {
-    const S = MAT.steel, n = [
-      { t: 'box', c: [0, 0.5, 0], h: [0.075, 0.42, 0.05], rr: 0.02, m: S },
-      { t: 'box', c: [0, 0.45, 0.055], h: [0.06, 0.3, 0.012], rr: 0.006, m: S, k: 0.01 },
-      { t: 'cap', a: [0.07, 0.15, 0], b: [0.07, 0.8, 0], r: 0.022, m: MAT.copper, k: 0.01 },
-      { t: 'cyl', c: [0, 0.03, 0], r: 0.09, h: 0.06, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 },
-      { t: 'cyl', c: [0, 0.97, 0], r: 0.075, h: 0.06, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 }
+    const S = MAT.steel, C = MAT.copper, n = [
+      { t: 'box', c: [0, 0.5, 0], h: [0.085, 0.4, 0.06], rr: 0.025, m: S, n: [0.002, 40] },
+      { t: 'box', c: [0, 0.5, 0.068], h: [0.07, 0.32, 0.01], rr: 0.006, m: S, k: 0.01 },
+      { t: 'box', c: [0, 0.5, -0.068], h: [0.07, 0.32, 0.01], rr: 0.006, m: S, k: 0.01 },
+      { t: 'cyl', c: [0, 0.02, 0], r: 0.12, h: 0.08, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 },
+      { t: 'cyl', c: [0, 0.02, 0], r: 0.05, h: 0.1, rr: 0.01, rot: [0, 0, Math.PI / 2], m: C, k: 0.01 },
+      { t: 'cyl', c: [0, 0.98, 0], r: 0.09, h: 0.075, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 },
+      { t: 'cap', a: [0.11, 0.12, 0], b: [0.11, 0.55, 0], r: 0.034, m: C, k: 0.01 },
+      { t: 'cap', a: [0.11, 0.55, 0], b: [0.11, 0.88, 0], r: 0.016, m: S, k: 0.005 },
+      { t: 'sph', c: [0.1, 0.1, 0], r: 0.03, m: S, k: 0.02 },
+      { t: 'sph', c: [0.1, 0.9, 0], r: 0.026, m: S, k: 0.02 }
     ];
-    for (let i = 0; i < 4; i++) n.push({ t: 'sph', c: [0.05 * (i % 2 ? 1 : -1), 0.25 + i * 0.15, 0.07], r: 0.012, m: MAT.copper, k: 0.004 });
-    return SDF.mesh(n, [-0.15, -0.08, -0.12], [0.15, 1.08, 0.12], 64);
+    for (let i = 0; i < 3; i++) n.push({ t: 'cyl', c: [-0.01, 0.3 + i * 0.2, 0], r: 0.03, h: 0.1, rot: [0, Math.PI / 2, 0], op: 's', k: 0.01, sm: MAT.rubber });
+    for (let i = 0; i < 6; i++) for (const z of [-0.08, 0.08]) n.push({ t: 'sph', c: [0.055 * (i % 2 ? 1 : -1), 0.22 + i * 0.11, z], r: 0.011, m: C, k: 0.004 });
+    return SDF.mesh(n, [-0.2, -0.12, -0.14], [0.2, 1.1, 0.14], 68);
   },
-  // Spoolwright tibia (knee at y 0, tip at y 1): ribbed shaft flaring into a hooked blade
+  // Spoolwright tibia (knee at y 0, tip at y 1): knuckle, two plated shaft sections with a copper collar,
+  // ribbed sleeve, and a flat hooked blade
   sp_tibia: () => {
-    const S = MAT.steel, n = [
-      { t: 'cap', a: [0, 0.02, 0], b: [0, 0.62, 0], r: 0.055, r2: 0.04, m: S },
-      { t: 'box', c: [0.02, 0.8, 0], h: [0.05, 0.2, 0.012], rr: 0.006, rot: [0, 0, 0.12], m: S, k: 0.03 },
-      { t: 'cap', a: [0.03, 0.7, 0], b: [-0.03, 1.0, 0], r: 0.02, r2: 0.002, m: S, k: 0.03 }
+    const S = MAT.steel, C = MAT.copper, n = [
+      { t: 'cyl', c: [0, 0.02, 0], r: 0.08, h: 0.07, rr: 0.02, rot: [0, 0, Math.PI / 2], m: S, k: 0.03 },
+      { t: 'box', c: [0, 0.26, 0], h: [0.06, 0.2, 0.045], rr: 0.02, m: S, k: 0.03, n: [0.002, 40] },
+      { t: 'tor', c: [0, 0.48, 0], R: 0.055, r: 0.016, m: C, k: 0.01 },
+      { t: 'box', c: [0, 0.62, 0], h: [0.048, 0.14, 0.038], rr: 0.015, m: S, k: 0.03 },
+      { t: 'box', c: [0.012, 0.84, 0], h: [0.05, 0.11, 0.011], rr: 0.004, rot: [0, 0, 0.1], m: S, k: 0.03 },
+      { t: 'cap', a: [0.012, 0.92, 0], b: [-0.045, 1.01, 0], r: 0.02, r2: 0.002, m: S, k: 0.02 }
     ];
-    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, 0.1 + i * 0.11, 0], R: 0.055 - i * 0.003, r: 0.009, m: MAT.copper, k: 0.005 });
-    return SDF.mesh(n, [-0.1, -0.05, -0.08], [0.1, 1.05, 0.08], 64);
+    for (let i = 0; i < 3; i++) n.push({ t: 'tor', c: [0, 0.14 + i * 0.1, 0], R: 0.06, r: 0.008, rot: [0, 0, 0], m: C, k: 0.004 });
+    return SDF.mesh(n, [-0.12, -0.1, -0.1], [0.12, 1.05, 0.1], 64);
   },
   // Torn canvas hood that frames the mask
   sp_pincushion: () => {
@@ -364,29 +375,112 @@ const SCULPTS = {
     n.push({ t: 'cyl', c: [0, -0.2, 0], r: 0.16, h: 0.04, rr: 0.02, m: MAT.steel, k: 0.04 });
     return SDF.mesh(n, [-0.42, -0.3, -0.38], [0.42, 0.3, 0.38], 56);
   },
-  sp_hood: () => {
-    const C = MAT.canvas, n = [
-      { t: 'ell', c: [0, 0.06, 0.07], r: [0.43, 0.52, 0.42], m: C, n: [0.02, 14] },
-      { t: 'cap', a: [0, 0.3, 0.25], b: [0, 0.62, 0.55], r: 0.13, r2: 0.03, m: C, k: 0.12 },
-      { t: 'ell', c: [0, 0.04, 0.05], r: [0.37, 0.46, 0.37], op: 's', k: 0.02, sm: C },
-      { t: 'box', c: [0, -0.05, -0.38], h: [0.42, 0.55, 0.28], op: 's', k: 0.05, sm: C, n: [0.04, 9] }
+  // Battered tailor's top hat (base at y 0): dented black felt crown, curled brim, a measuring-tape band,
+  // a spool of red thread tucked in the band, a torn hole and two pins stuck through the crown
+  sp_hat: () => {
+    const F = MAT.canvas, n = [
+      { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: F, n: [0.006, 25] },
+      { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: F, k: 0.05 },
+      { t: 'sph', c: [0.13, 0.36, -0.12], r: 0.07, op: 's', k: 0.04, sm: F },
+      { t: 'cyl', c: [0, 0.015, 0], r: 0.29, h: 0.012, rr: 0.01, m: F, k: 0.02, n: [0.008, 18] },
+      { t: 'tor', c: [0, 0.03, 0], R: 0.28, r: 0.016, m: F, k: 0.02, n: [0.006, 30] },
+      { t: 'cyl', c: [0, 0.07, 0], r: 0.177, h: 0.034, rr: 0.004, m: MAT.paint, k: 0.004 },
+      { t: 'sph', c: [-0.16, 0.26, 0.06], r: 0.04, op: 's', k: 0.01, sm: MAT.rubber, n: [0.01, 60] },
+      { t: 'cyl', c: [0.2, 0.1, 0.05], r: 0.045, h: 0.05, rr: 0.006, m: MAT.lining, k: 0.004, n: [0.003, 120] },
+      { t: 'cyl', c: [0.2, 0.152, 0.05], r: 0.062, h: 0.008, rr: 0.004, m: MAT.wood, k: 0.004 },
+      { t: 'cyl', c: [0.2, 0.048, 0.05], r: 0.062, h: 0.008, rr: 0.004, m: MAT.wood, k: 0.004 }
     ];
-    return SDF.mesh(n, [-0.5, -0.55, -0.42], [0.5, 0.75, 0.75], 52);
+    for (let i = 0; i < 28; i++) {
+      const a = i / 28 * Math.PI * 2;
+      n.push({ t: 'box', c: [Math.cos(a) * 0.181, 0.07 + (i % 4 === 0 ? 0.012 : 0.02), Math.sin(a) * 0.181], h: [0.003, i % 4 === 0 ? 0.022 : 0.014, 0.003], m: MAT.rubber, k: 0.001 });
+    }
+    for (const [x, z, h] of [[-0.08, -0.15, 0.3], [0.12, 0.1, 0.25]]) {
+      n.push({ t: 'cap', a: [x * 0.6, h - 0.05, z * 0.6], b: [x * 1.6, h + 0.08, z * 1.6], r: 0.006, m: MAT.steel, k: 0.002 });
+      n.push({ t: 'sph', c: [x * 1.6, h + 0.08, z * 1.6], r: 0.022, m: MAT.lining, k: 0.004 });
+    }
+    return SDF.mesh(n, [-0.34, -0.03, -0.34], [0.34, 0.48, 0.34], 64);
+  },
+  // Tattered tailor's coat on a skeletal upper torso (origin at the chest, facing -z): wine cloth with black
+  // lapels and collar, frayed tails, brass buttons, a measuring tape around the neck, ribs showing through
+  sp_coat: () => {
+    const W = MAT.clothWine, K = MAT.canvas, P = MAT.porcelain, Y = MAT.paint, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.22, 0.28, 0.15], m: W, n: [0.01, 20] },
+      { t: 'cap', a: [-0.25, 0.15, 0.01], b: [0.25, 0.15, 0.01], r: 0.085, m: W, k: 0.08 },
+      { t: 'box', c: [0, -0.34, 0.03], h: [0.21, 0.14, 0.14], rr: 0.03, m: W, k: 0.08, n: [0.03, 9] },
+      { t: 'box', c: [-0.1, -0.52, 0.1], h: [0.08, 0.13, 0.025], rr: 0.01, rot: [0, -0.25, 0.05], m: W, k: 0.04, n: [0.03, 14] },
+      { t: 'box', c: [0.1, -0.54, 0.1], h: [0.08, 0.15, 0.025], rr: 0.01, rot: [0, -0.3, -0.06], m: W, k: 0.04, n: [0.03, 14] },
+      { t: 'box', c: [0, -0.3, -0.15], h: [0.05, 0.22, 0.09], op: 's', k: 0.02, sm: K },
+      { t: 'box', c: [0, -0.06, -0.15], h: [0.055, 0.17, 0.06], op: 's', k: 0.02, sm: MAT.rubber },
+      { t: 'box', c: [0, 0.27, 0.05], h: [0.17, 0.07, 0.09], rr: 0.03, m: K, k: 0.03, n: [0.01, 30] },
+      { t: 'ell', c: [0, 0.31, 0], r: [0.11, 0.12, 0.09], op: 's', k: 0.02, sm: K },
+      { t: 'box', c: [-0.085, 0.06, -0.14], h: [0.05, 0.15, 0.012], rot: [0, 0, 0.32], m: K, k: 0.01 },
+      { t: 'box', c: [0.085, 0.06, -0.14], h: [0.05, 0.15, 0.012], rot: [0, 0, -0.32], m: K, k: 0.01 },
+      { t: 'sph', c: [0.16, -0.15, -0.1], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.012, 50] },
+      { t: 'box', c: [-0.15, -0.2, -0.12], h: [0.05, 0.045, 0.012], rr: 0.008, rot: [0.3, 0.6, 0.2], m: K, k: 0.006 }
+    ];
+    // ribs and breastbone showing through the open front
+    n.push({ t: 'cap', a: [0, 0.08, -0.11], b: [0, -0.2, -0.11], r: 0.014, m: P, k: 0.01 });
+    for (let i = 0; i < 4; i++) {
+      const y = 0.04 - i * 0.07;
+      n.push({ t: 'cap', a: [-0.07, y - 0.02, -0.1], b: [0.07, y - 0.02, -0.1], r: 0.011, m: P, k: 0.006 });
+    }
+    for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.105, -0.12 + i * 0.09, -0.152], r: 0.016, h: 0.006, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.003 });
+    // measuring tape slung around the neck, hanging down both sides with tick marks
+    n.push({ t: 'cap', a: [-0.1, 0.26, 0.07], b: [0.1, 0.26, 0.07], r: 0.012, m: Y, k: 0.01 });
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'box', c: [sx * 0.08, 0.0, -0.165], h: [0.022, 0.25, 0.004], rot: [0, 0, sx * 0.06], m: Y, k: 0.006 });
+      for (let i = 0; i < 9; i++) n.push({ t: 'box', c: [sx * (0.08 + 0.012) - sx * i * 0.0028, 0.2 - i * 0.055, -0.17], h: [0.009, 0.0025, 0.002], m: MAT.rubber, k: 0.001 });
+    }
+    // cross-stitched repair along a seam
+    for (let i = 0; i < 4; i++) {
+      const y = 0.12 - i * 0.06, x = -0.2, z = -0.05;
+      n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: Y, k: 0.002 });
+      n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: Y, k: 0.002 });
+    }
+    return SDF.mesh(n, [-0.4, -0.72, -0.3], [0.4, 0.42, 0.3], 72);
+  },
+  // Stolen plush arm (shoulder at y 0, fingertips at y 1), coloured per draw: shaggy fur sleeve, a frayed
+  // torn shoulder, and a soft four-fingered hand
+  sp_trophyArm: () => {
+    const M = -1, n = [
+      { t: 'cap', a: [0, 0.03, 0], b: [0, 0.72, 0], r: 0.075, r2: 0.062, m: M, n: [0.012, 14] },
+      { t: 'sph', c: [0, 0.03, 0], r: 0.088, m: M, k: 0.04, n: [0.022, 18] },
+      { t: 'cap', a: [0, 0.72, 0], b: [0, 0.79, -0.005], r: 0.05, m: M, k: 0.03 },
+      { t: 'ell', c: [0, 0.85, -0.012], r: [0.062, 0.065, 0.026], m: M, k: 0.03 },
+      { t: 'cap', a: [0.05, 0.82, -0.02], b: [0.088, 0.9, -0.045], r: 0.017, m: M, k: 0.02 }
+    ];
+    for (let i = 0; i < 26; i++) {
+      const a = i * 2.4, y = 0.08 + (i * 0.027) % 0.64;
+      n.push({ t: 'sph', c: [Math.cos(a) * 0.058, y, Math.sin(a) * 0.058], r: 0.026 + (i % 3) * 0.006, m: M, k: 0.05, n: [0.012, 55] });
+    }
+    for (let f = 0; f < 4; f++) {
+      const x = -0.045 + f * 0.03, len = f === 1 || f === 2 ? 0.075 : 0.06;
+      n.push({ t: 'cap', a: [x, 0.89, -0.012], b: [x * 1.15, 0.89 + len * 0.6, -0.022], r: 0.015, m: M, k: 0.012 });
+      n.push({ t: 'cap', a: [x * 1.15, 0.89 + len * 0.6, -0.022], b: [x * 1.2, 0.89 + len, -0.05], r: 0.014, m: M, k: 0.01 });
+    }
+    return SDF.mesh(n, [-0.14, -0.08, -0.12], [0.14, 1.06, 0.12], 56);
   },
   // Spoolwright torso (pivot at y 1.35): lumpy fur sac, spool drum with flanges, ribcage, spine
   sp_body: () => {
-    const n = [];
+    const V = MAT.furViolet, n = [];
     for (let i = 0; i < FUR_SAC.length; i += 5) {
-      n.push({ t: 'ell', c: [FUR_SAC[i], FUR_SAC[i + 1] - 1.35, FUR_SAC[i + 2]], r: [FUR_SAC[i + 3], FUR_SAC[i + 3] * 0.85, FUR_SAC[i + 3] * 1.1], m: FUR_SAC[i + 4] ? MAT.furBlue : MAT.furViolet, k: 0.16, n: [0.03, 11] });
+      n.push({ t: 'ell', c: [FUR_SAC[i], FUR_SAC[i + 1] - 1.35, FUR_SAC[i + 2]], r: [FUR_SAC[i + 3], FUR_SAC[i + 3] * 0.85, FUR_SAC[i + 3] * 1.1], m: V, k: 0.16, n: [0.035, 11] });
     }
-    n.push({ t: 'cyl', c: [0, 0.1, 0], r: 0.5, h: 0.5, rr: 0.06, rot: [0, 0, Math.PI / 2], m: MAT.furBlue, k: 0.05, n: [0.015, 18] });
-    for (const sx of [-0.53, 0.53]) n.push({ t: 'cyl', c: [sx, 0.1, 0], r: 0.7, h: 0.035, rr: 0.02, rot: [0, 0, Math.PI / 2], m: MAT.copper, k: 0.01 });
-    for (let k = 0; k < 5; k++) {
-      const s = 1 - Math.abs(k - 2) * 0.08;
-      n.push({ t: 'tor', c: [0, 0.07, -0.36 + k * 0.18], R: 0.56 * s, r: 0.035, rot: [0, Math.PI / 2, 0], m: MAT.porcelain, k: 0.02 });
+    // shaggy violet mane of matted clumps across the back
+    for (let i = 0; i < 22; i++) {
+      const a = (i / 22) * Math.PI - Math.PI / 2, zz = 0.45 + (i * 0.137) % 1.3;
+      n.push({ t: 'ell', c: [Math.sin(a) * 0.5, 0.42 + Math.cos(a) * 0.22 - (zz - 0.45) * 0.12, zz], r: [0.1, 0.07, 0.13], rot: [0, 0.3 * Math.sin(i), 0], m: V, k: 0.06, n: [0.03, 30] });
     }
-    for (let k = 0; k < 8; k++) n.push({ t: 'ell', c: [0, 0.45 - k * 0.02, 1.05 - k * 0.22], r: [0.08, 0.065, 0.075], m: MAT.porcelain, k: 0.04 });
-    n.push({ t: 'cyl', c: [0, 0.27, -0.45], r: 0.17, h: 0.06, rr: 0.02, rot: [0, Math.PI / 2, 0], m: MAT.steel, k: 0.03 });
+    // spool flanges either side, ribcage hoops around the open chest, spine along the back
+    for (const sx of [-0.53, 0.53]) n.push({ t: 'cyl', c: [sx, 0.1, 0], r: 0.5, h: 0.035, rr: 0.02, rot: [0, 0, Math.PI / 2], m: MAT.copper, k: 0.01 });
+    n.push({ t: 'cyl', c: [0, 0.1, 0], r: 0.16, h: 0.52, rr: 0.02, rot: [0, 0, Math.PI / 2], m: MAT.steel, k: 0.02 });
+    for (let k = 0; k < 6; k++) {
+      const s = 1 - Math.abs(k - 2.5) * 0.07;
+      n.push({ t: 'tor', c: [0, 0.07, -0.4 + k * 0.16], R: 0.56 * s, r: 0.032, rot: [0, Math.PI / 2, 0], m: MAT.porcelain, k: 0.02, n: [0.004, 40] });
+    }
+    n.push({ t: 'cap', a: [0, -0.45, -0.42], b: [0, -0.45, 0.42], r: 0.04, m: MAT.porcelain, k: 0.03 });
+    for (let k = 0; k < 8; k++) n.push({ t: 'ell', c: [0, 0.6 - k * 0.02, 0.4 + k * 0.2], r: [0.08, 0.065, 0.075], m: MAT.porcelain, k: 0.04 });
+    n.push({ t: 'cyl', c: [0, 0.27, -0.5], r: 0.17, h: 0.06, rr: 0.02, rot: [0, Math.PI / 2, 0], m: MAT.steel, k: 0.03 });
     return SDF.mesh(n, [-0.9, -0.75, -0.75], [0.9, 0.95, 2.25], 80);
   },
   // Marigold seated body: dusty wine dress with a torn hem, grimy pinafore, cracked porcelain limbs

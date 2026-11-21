@@ -144,15 +144,6 @@
     <div class="panel">
       <h2>SETTINGS</h2>
       <div id="settingsRows"></div>
-      <div class="assets">
-        <div>CUSTOM MODELS (.GLB)</div>
-        <div class="btns">
-          <button class="mbtn" id="btnLoadAssets" data-act="loadAssets">LOAD .GLB FILES</button>
-          <button class="mbtn" id="btnClearAssets" data-act="clearAssets">CLEAR MODELS</button>
-        </div>
-        <div class="hint">Name files monster, monster_head, hand_left, hand_right or tape to replace those models; any other name is placed as a prop in front of you. You can also drag files onto the window. See assets/README.md.</div>
-        <ul id="assetList"></ul>
-      </div>
       <button class="mbtn" id="btnSettingsBack" data-act="settingsBack">BACK</button>
     </div>
   </div>
@@ -213,8 +204,6 @@
 </div>
 <div id="debug"></div>
 <div id="fid"><div class="grid"></div><div class="anch" id="fidAnchors"></div><div class="ctrl"><label>Load reference <input type="file" id="fidFile" accept="image/*"></label><br><label>Opacity <input type="range" id="fidOpacity" min="0" max="100" value="50"></label><label><input type="checkbox" id="fidSplit"> split</label></div></div>
-<input type="file" id="assetFile" accept=".glb,model/gltf-binary" multiple hidden>
-<div id="dropHint">DROP .GLB MODELS TO LOAD THEM</div>
 <div id="toast" role="status" aria-live="polite"></div>
 <pre id="fatal"></pre>
 <pre id="report"></pre>

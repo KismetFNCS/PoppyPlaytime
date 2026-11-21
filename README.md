@@ -38,7 +38,7 @@ high shutter lever) → Freight Lift (ending tape).
 
 All original designs, built to read like the genre without copying any existing character:
 
-- **The Spoolwright** (Experiment 6-06): the stalker. A spool-bodied machine in grimy plum and navy fur, with glowing red pressure tanks, an exposed yellowed ribcage and spine, and six armoured legs (sculpted plated femurs with hydraulic rams, ribbed shins ending in hooked blades, red tendon cables), under an aged, shattered porcelain mask with an ear-to-ear grin of needle teeth. A plump plush pincushion bristling with oversized novelty pins is strapped to its back, and a yellow measuring tape trails behind it like a tail.
+- **The Spoolwright** (Experiment 6-06): the stalker. A spool-bodied machine under a shaggy violet fur mantle, with an open bone ribcage full of swirling red gas that throws red light around it, red pressure canisters on its back and flanks, and six better-built legs (plated I-beam femurs with hip drums, lightening holes and copper hydraulic rams; segmented shins with copper collars ending in flat hooked blades; red tendon cables). Its upper body is a skeletal frame in a tattered wine tailor's coat with black lapels, frayed tails and a measuring tape around the neck; its long needle-fingered arms wear ragged sleeves. Three stolen plush arms dangle from under its chest (teal, rose with a teal ring on one finger, and pink). Its shattered porcelain mask has an ear-to-ear grin of needle teeth and one solid glowing amber eye, under a battered black top hat with a measuring-tape band and a spool of red thread. A plush pincushion bristling with novelty pins is strapped to its back, and a yellow measuring tape trails behind it like a tail.
 - **The Usher**: a hooded, robed watcher on spindly black machine limbs whose face is a CRT lens showing one roving teal eye. It speaks to you over the factory PA when it appears at a vantage point in each area, then glitches out of existence if you stare at it or walk up to it.
 - **Marigold**: a shattered porcelain display doll (matted raven hair, dusty wine dress with a torn hem, half her cheek broken away into a hollow head, one milky glass eye) who acts as your guide. She introduces herself near the first tape, talks you through each area, moves ahead of you through the factory while you aren't looking, and waits in the freight lift at the end. Look away and her head is already turned toward you; catch her and she ticks.
 - **Mister Thimble**: a big, soft, well-loved plush bear and your ally in the Spool Foundry. Round and chubby, in auburn and chestnut fur with a pale belly, a faded slate-grey vest with brass buttons, sewn-on patches and yellow and red cross-stitched seams, chubby legs with bean-toed feet, one ear standing and one drooping, a copper thimble cap and one softly glowing purple glass eye. He wears a gentle stitched smile; his mouth only opens (friendly, with small rounded teeth) while he is talking, and he waves hello. He leans on a giant ivory sewing-needle staff with a brass eye: once the Spoolwright is loose, he jams the needle into the broken power socket beside the shutter, his eye pulses, and the shutter rises for you (the high lever still works too).
@@ -55,9 +55,10 @@ Drop `.glb` files into `assets/` to replace the creature, its mask, either gaunt
 place your own props in the level. The file name picks the slot (`monster.glb`, `monster_head.glb`,
 `hand_left.glb`, `hand_right.glb`, `tape.glb`, anything else = prop), and models are auto-scaled to fit.
 
-- Opened straight from disk: drag the files onto the game window or use **Settings → Custom models**.
-  They are remembered between sessions.
-- Served with `python3 -m http.server`: list them in `assets/assets.json`, which also positions the props.
+- Serve the folder with `python3 -m http.server` and list the files in `assets/assets.json`, which also
+  positions the props. (Browsers block a page opened straight from disk from reading other files, so
+  custom models need the local server. The old in-game loader in Settings was removed; any models it
+  had saved in the browser are cleared on start.)
 
 Full instructions, manifest fields and Blender export settings are in [`assets/README.md`](assets/README.md).
 
@@ -85,7 +86,7 @@ src/15_harness.js   __TEST__ / __TEST_FIDELITY__ hooks and the embedded self-tes
 src/19_sculpt.js    signed-distance-field sculpting + Surface Nets meshing for the characters
 src/20_boss.js      the Spoolwright boss fight in the Loom (phases, shocks, pounce, defeat)
 src/18_characters.js  the Usher, Marigold, Mister Thimble and the PIP HUD companion
-src/16_assets.js    .glb loader, model slots, manifest + drag-and-drop + IndexedDB persistence
+src/16_assets.js    .glb loader, model slots, assets/ folder manifest
 src/17_boot.js      main loop, error resilience, resize/DPI, input wiring
 assets/             your .glb models + assets.json manifest (see assets/README.md)
 tools/build.mjs     concatenates src/ into index.html
