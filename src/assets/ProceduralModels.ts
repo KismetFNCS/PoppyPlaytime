@@ -247,87 +247,217 @@ function buildJesterLegGear(): MeshData {
 // ---------------------------------------------------------------------------------------------------------------------
 
 export const CHERUB_HEAD_HEIGHT: number = 0.62;
-export const SERAPH_HEAD_HEIGHT: number = 2.5;
+export const SERAPH_HEAD_HEIGHT: number = 3.2;
+/** Seraph height used for hit tests (it is a tall machine). */
+export const SERAPH_TOTAL_HEIGHT: number = 3.45;
+
+// ---- Cherub Cheeks: a 1970s cry-baby vinyl doll, about 0.9 m tall, with an outsized head. --------------------------
 
 function buildCherubBody(): MeshData {
   const builder = new MeshBuilder();
-  place(builder, createSphereMesh(0.17, 16, 12), [0, 0.34, 0], [0, 0, 0], [1, 1.1, 0.9]);
+  place(builder, createSphereMesh(0.14, 16, 12), [0, 0.3, 0], [0, 0, 0], [1, 1.05, 0.92]);
+  // Ball-and-socket stubs: rigid limbs that never bend.
   for (const side of [-1, 1]) {
-    place(builder, createCylinderMesh(0.055, 0.045, 0.2, 8), [side * 0.08, 0.1, 0.02], [0.2, 0, 0], [1, 1, 1]);
-    place(builder, createSphereMesh(0.055, 8, 6), [side * 0.08, 0.02, 0.05], [0, 0, 0], [1, 0.7, 1.3]);
-    place(builder, createCylinderMesh(0.04, 0.032, 0.18, 8), [side * 0.19, 0.4, 0.06], [-0.6, 0, side * 0.5], [1, 1, 1]);
+    place(builder, createSphereMesh(0.05, 10, 8), [side * 0.09, 0.18, 0], [0, 0, 0], [1, 1, 1]);
+    place(builder, createCylinderMesh(0.05, 0.045, 0.18, 10), [side * 0.09, 0.08, 0.01], [0, 0, 0], [1, 1, 1]);
+    place(builder, createSphereMesh(0.05, 10, 8), [side * 0.09, 0.0, 0.03], [0, 0, 0], [1, 0.6, 1.3]);
+    place(builder, createSphereMesh(0.045, 10, 8), [side * 0.15, 0.38, 0], [0, 0, 0], [1, 1, 1]);
+    place(builder, createCylinderMesh(0.04, 0.036, 0.16, 10), [side * 0.2, 0.3, 0.04], [0.4, 0, side * 0.5], [1, 1, 1]);
   }
-  // Wind-up key in the back.
-  place(builder, createCylinderMesh(0.015, 0.015, 0.1, 6), [0, 0.38, -0.2], [Math.PI / 2, 0, 0], [1, 1, 1]);
-  for (const side of [-1, 1]) {
-    place(builder, createCylinderMesh(0.05, 0.05, 0.015, 10), [side * 0.05, 0.38, -0.25], [0, 0, Math.PI / 2], [1, 1, 0.6]);
-  }
+  place(builder, createCylinderMesh(0.07, 0.08, 0.06, 12), [0, 0.43, 0], [0, 0, 0], [1, 1, 1]);
   return builder.build();
 }
 
-function buildCherubFace(): MeshData {
+/** The huge, seamless vinyl head (separate piece so it can snap round). */
+function buildCherubHead(): MeshData {
   const builder = new MeshBuilder();
-  place(builder, createSphereMesh(0.13, 16, 12), [0, CHERUB_HEAD_HEIGHT, 0.02], [0, 0, 0], [1, 1.02, 0.98]);
+  place(builder, createSphereMesh(0.25, 20, 16), [0, CHERUB_HEAD_HEIGHT, 0], [0, 0, 0], [1, 0.98, 0.96]);
   for (const side of [-1, 1]) {
-    place(builder, createSphereMesh(0.04, 8, 6), [side * 0.07, CHERUB_HEAD_HEIGHT - 0.04, 0.1], [0, 0, 0], [1, 0.8, 0.6]);
-  }
-  // Painted curls.
-  for (let curl = 0; curl < 6; curl += 1) {
-    const angle: number = (curl / 6) * Math.PI * 2;
-    place(builder, createSphereMesh(0.035, 8, 6), [Math.sin(angle) * 0.09, CHERUB_HEAD_HEIGHT + 0.1, Math.cos(angle) * 0.07 - 0.01], [0, 0, 0], [1, 1, 1]);
+    place(builder, createSphereMesh(0.07, 10, 8), [side * 0.13, CHERUB_HEAD_HEIGHT - 0.08, 0.17], [0, 0, 0], [1, 0.85, 0.6]);
   }
   return builder.build();
 }
 
-function buildCherubEyes(): MeshData {
+/** Eye sockets and the round "O" mouth (black voids). */
+function buildCherubVoids(): MeshData {
   const builder = new MeshBuilder();
   for (const side of [-1, 1]) {
-    place(builder, createBoxMesh(0.045, 0.01, 0.01), [side * 0.045, CHERUB_HEAD_HEIGHT + 0.015, 0.125], [0, 0, side * 0.25], [1, 1, 1]);
+    place(builder, createSphereMesh(0.075, 14, 10), [side * 0.095, CHERUB_HEAD_HEIGHT + 0.04, 0.19], [0, 0, 0], [1, 1.1, 0.55]);
   }
-  place(builder, createBoxMesh(0.04, 0.008, 0.01), [0, CHERUB_HEAD_HEIGHT - 0.06, 0.125], [0, 0, 0], [1, 1, 1]);
+  place(builder, createCylinderMesh(0.035, 0.035, 0.03, 16), [0, CHERUB_HEAD_HEIGHT - 0.11, 0.235], [Math.PI / 2, 0, 0], [1, 1, 1]);
   return builder.build();
 }
 
-/** One scalloped tin wing, hinge at the origin, spreading toward +X and up. */
-function buildCherubWing(): MeshData {
+/** Glassy painted irises. */
+function buildCherubIris(): MeshData {
   const builder = new MeshBuilder();
-  for (let feather = 0; feather < 4; feather += 1) {
-    const t: number = feather / 3;
-    place(builder, createBoxMesh(0.2 - t * 0.05, 0.045, 0.012), [0.1 + t * 0.02, 0.06 - t * 0.05, 0], [0, 0, 0.5 - t * 0.35], [1, 1, 1]);
-  }
-  return builder.build();
-}
-
-function buildSeraphRobe(): MeshData {
-  const builder = new MeshBuilder();
-  place(builder, createCylinderMesh(0.52, 0.2, 1.9, 18), [0, 0.95, 0], [0, 0, 0], [1, 1, 0.8]);
-  place(builder, createCylinderMesh(0.22, 0.3, 0.3, 16), [0, 2.05, 0], [0, 0, 0], [1, 1, 0.8]);
-  // Long sleeves hanging forward, hands hidden.
   for (const side of [-1, 1]) {
-    place(builder, createCylinderMesh(0.07, 0.12, 0.9, 10), [side * 0.3, 1.6, 0.12], [0.35, 0, side * 0.12], [1, 1, 1]);
+    place(builder, createSphereMesh(0.045, 14, 10), [side * 0.095, CHERUB_HEAD_HEIGHT + 0.035, 0.225], [0, 0, 0], [1, 1.05, 0.4]);
   }
   return builder.build();
 }
 
-function buildSeraphHead(): MeshData {
+/** Copper grinding teeth spiralling inside the "O" mouth. */
+function buildCherubGears(): MeshData {
   const builder = new MeshBuilder();
-  place(builder, createSphereMesh(0.15, 16, 12), [0, SERAPH_HEAD_HEIGHT, 0], [0, 0, 0], [0.9, 1.15, 0.95]);
-  place(builder, createCylinderMesh(0.06, 0.07, 0.16, 10), [0, SERAPH_HEAD_HEIGHT - 0.2, 0], [0, 0, 0], [1, 1, 1]);
+  for (let tooth = 0; tooth < 10; tooth += 1) {
+    const angle: number = (tooth / 10) * Math.PI * 2;
+    const depth: number = (tooth % 3) * 0.01;
+    place(builder, createCylinderMesh(0.008, 0.0, 0.03, 4), [Math.cos(angle) * 0.026, CHERUB_HEAD_HEIGHT - 0.11 + Math.sin(angle) * 0.026, 0.236 - depth], [Math.PI / 2, 0, angle], [1, 1, 1]);
+  }
   return builder.build();
 }
 
-function buildSeraphEye(): MeshData {
+/** Two thick acid tear streaks from the inner eye corners to the jaw. */
+function buildCherubTears(): MeshData {
   const builder = new MeshBuilder();
-  place(builder, createBoxMesh(0.12, 0.016, 0.02), [0, SERAPH_HEAD_HEIGHT + 0.02, 0.26], [0, 0, 0], [1, 1, 1]);
+  for (const side of [-1, 1]) {
+    builder.appendMesh(
+      createTubeMesh(
+        [
+          [side * 0.05, CHERUB_HEAD_HEIGHT, 0.225],
+          [side * 0.055, CHERUB_HEAD_HEIGHT - 0.08, 0.225],
+          [side * 0.065, CHERUB_HEAD_HEIGHT - 0.17, 0.2],
+          [side * 0.07, CHERUB_HEAD_HEIGHT - 0.23, 0.15],
+        ],
+        [0.012, 0.014, 0.013, 0.01],
+        8,
+      ),
+      mat4Identity(),
+    );
+  }
   return builder.build();
 }
 
-/** One long brass wing made of stacked blades, hinge at the origin, spreading toward +X. */
-function buildSeraphWing(): MeshData {
+/** A rose growing out of the soft spot on the skull: the bloom. */
+function buildCherubRose(): MeshData {
   const builder = new MeshBuilder();
-  for (let blade = 0; blade < 6; blade += 1) {
-    const t: number = blade / 5;
-    place(builder, createBoxMesh(0.62 - t * 0.28, 0.06, 0.014), [0.3 - t * 0.05, 0.12 - t * 0.09, -t * 0.01], [0, 0, 0.35 - t * 0.5], [1, 1, 1]);
+  const top: Vec3Tuple = [0.04, CHERUB_HEAD_HEIGHT + 0.42, -0.02];
+  place(builder, createSphereMesh(0.05, 12, 10), top, [0, 0, 0], [1, 0.8, 1]);
+  for (let petal = 0; petal < 6; petal += 1) {
+    const angle: number = (petal / 6) * Math.PI * 2;
+    place(builder, createSphereMesh(0.055, 10, 8), [top[0] + Math.cos(angle) * 0.055, top[1] - 0.01, top[2] + Math.sin(angle) * 0.055], [0, -angle, 0.5], [1, 0.45, 0.8]);
+  }
+  return builder.build();
+}
+
+/** The rose's fleshy stem, rooted in the top of the head. */
+function buildCherubStem(): MeshData {
+  const builder = new MeshBuilder();
+  builder.appendMesh(
+    createTubeMesh(
+      [
+        [0, CHERUB_HEAD_HEIGHT + 0.22, 0],
+        [0.03, CHERUB_HEAD_HEIGHT + 0.3, 0.01],
+        [0.01, CHERUB_HEAD_HEIGHT + 0.36, -0.02],
+        [0.04, CHERUB_HEAD_HEIGHT + 0.4, -0.02],
+      ],
+      [0.03, 0.022, 0.018, 0.016],
+      8,
+    ),
+    mat4Identity(),
+  );
+  return builder.build();
+}
+
+/** Acid puddle left beneath where a Cherub waits. */
+function buildCherubPuddle(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.32, 0.32, 0.01, 18), [0.05, 0.006, -0.08], [0, 0, 0], [1, 1, 0.7]);
+  place(builder, createCylinderMesh(0.14, 0.14, 0.01, 12), [-0.3, 0.006, 0.12], [0, 0, 0], [1, 1, 0.8]);
+  return builder.build();
+}
+
+// ---- Seraphim Sam: a towering parade marionette on a single wheel, six tool arms, a half-smashed theatre mask. -----
+
+function buildSeraphFrame(): MeshData {
+  const builder = new MeshBuilder();
+  // Wheel assembly.
+  place(builder, createCylinderMesh(0.42, 0.42, 0.18, 20), [0, 0.42, 0], [0, 0, Math.PI / 2], [1, 1, 1]);
+  place(builder, createCylinderMesh(0.12, 0.12, 0.3, 10), [0, 0.42, 0], [0, 0, Math.PI / 2], [1, 1, 1]);
+  for (const side of [-1, 1]) {
+    place(builder, createBoxMesh(0.05, 0.7, 0.08), [side * 0.16, 0.75, 0], [0, 0, side * 0.12], [1, 1, 1]);
+  }
+  // Spine rising into a broad shoulder yoke; no waist to speak of.
+  builder.appendMesh(createTubeMesh([[0, 0.9, 0], [0.02, 1.6, 0.04], [-0.02, 2.3, 0.02], [0, 2.75, 0]], [0.07, 0.06, 0.06, 0.08], 10), mat4Identity());
+  place(builder, createBoxMesh(1.4, 0.18, 0.32), [0, 2.82, 0], [0, 0, 0], [1, 1, 1]);
+  for (const side of [-1, 1]) {
+    place(builder, createSphereMesh(0.16, 12, 10), [side * 0.66, 2.86, 0], [0, 0, 0], [1, 0.9, 1]);
+  }
+  // Ribs off the spine.
+  for (let rib = 0; rib < 4; rib += 1) {
+    const y: number = 2.0 + rib * 0.18;
+    for (const side of [-1, 1]) {
+      builder.appendMesh(createTubeMesh([[0, y, 0.03], [side * 0.18, y - 0.04, 0.12], [side * 0.26, y - 0.1, 0.05]], 0.018, 6), mat4Identity());
+    }
+  }
+  place(builder, createCylinderMesh(0.06, 0.07, 0.2, 10), [0, 2.98, 0], [0, 0, 0], [1, 1, 1]);
+  // Iron skull behind the broken half of the mask.
+  place(builder, createSphereMesh(0.22, 14, 10), [-0.04, SERAPH_HEAD_HEIGHT, -0.02], [0, 0, 0], [0.95, 1.1, 0.9]);
+  return builder.build();
+}
+
+/** Tattered purple satin over the shoulders. */
+function buildSeraphSatinPurple(): MeshData {
+  const builder = new MeshBuilder();
+  const lengths: readonly number[] = [0.9, 1.3, 0.7, 1.1, 0.8];
+  lengths.forEach((length: number, index: number) => {
+    const x: number = -0.6 + index * 0.15;
+    place(builder, createBoxMesh(0.14, length, 0.02), [x, 2.75 - length / 2, 0.17], [0.05, 0, (index - 2) * 0.05], [1, 1, 1]);
+  });
+  return builder.build();
+}
+
+/** Gold satin on the other side (the costume is split purple and gold), plus cape scraps down the back. */
+function buildSeraphSatinGold(): MeshData {
+  const builder = new MeshBuilder();
+  const lengths: readonly number[] = [1.2, 0.7, 1.0, 0.6, 1.3];
+  lengths.forEach((length: number, index: number) => {
+    const x: number = index * 0.15;
+    place(builder, createBoxMesh(0.14, length, 0.02), [x, 2.75 - length / 2, 0.17], [0.05, 0, (index - 2) * -0.05], [1, 1, 1]);
+  });
+  place(builder, createBoxMesh(0.9, 1.4, 0.02), [0, 2.1, -0.18], [-0.08, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** The painted half of the theatre mask (the other half is smashed away). */
+function buildSeraphMask(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createSphereMesh(0.26, 18, 14), [0.07, SERAPH_HEAD_HEIGHT, 0.06], [0, 0, 0], [0.62, 1.15, 0.85]);
+  place(builder, createBoxMesh(0.12, 0.025, 0.03), [0.1, SERAPH_HEAD_HEIGHT + 0.1, 0.27], [0, 0, -0.2], [1, 1, 1]);
+  builder.appendMesh(createTubeMesh([[-0.02, SERAPH_HEAD_HEIGHT - 0.12, 0.27], [0.08, SERAPH_HEAD_HEIGHT - 0.16, 0.26], [0.17, SERAPH_HEAD_HEIGHT - 0.1, 0.22]], 0.012, 6), mat4Identity());
+  return builder.build();
+}
+
+/** The red camera sensor glaring out of the broken half. */
+function buildSeraphEyeRed(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createSphereMesh(0.05, 12, 10), [-0.1, SERAPH_HEAD_HEIGHT + 0.03, 0.17], [0, 0, 0], [1, 1, 0.6]);
+  place(builder, createCylinderMesh(0.065, 0.065, 0.04, 14), [-0.1, SERAPH_HEAD_HEIGHT + 0.03, 0.13], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** One tool arm, shoulder hinge at the origin, reaching along +X. */
+function buildSeraphArm(tool: 'shears' | 'saw' | 'needle'): MeshData {
+  const builder = new MeshBuilder();
+  builder.appendMesh(createTubeMesh([[0, 0, 0], [0.7, 0.12, 0], [1.4, 0.05, 0.05], [2.0, -0.12, 0.08]], [0.05, 0.04, 0.035, 0.03], 8), mat4Identity());
+  builder.appendMesh(createTubeMesh([[0.1, 0.06, 0.04], [0.9, 0.18, 0.05], [1.7, 0.02, 0.09]], 0.016, 6), mat4Identity());
+  place(builder, createSphereMesh(0.06, 10, 8), [0.7, 0.12, 0], [0, 0, 0], [1, 1, 1]);
+  place(builder, createSphereMesh(0.06, 10, 8), [1.4, 0.05, 0.05], [0, 0, 0], [1, 1, 1]);
+  const tip: Vec3Tuple = [2.0, -0.12, 0.08];
+  if (tool === 'shears') {
+    for (const side of [-1, 1]) {
+      place(builder, createBoxMesh(0.55, 0.05, 0.015), [tip[0] + 0.25, tip[1] + side * 0.05, tip[2]], [0, 0, side * 0.18], [1, 1, 1]);
+    }
+  } else if (tool === 'saw') {
+    place(builder, createCylinderMesh(0.22, 0.22, 0.02, 24), [tip[0] + 0.18, tip[1], tip[2]], [Math.PI / 2, 0, 0], [1, 1, 1]);
+    for (let tooth = 0; tooth < 12; tooth += 1) {
+      const angle: number = (tooth / 12) * Math.PI * 2;
+      place(builder, createCylinderMesh(0.025, 0, 0.05, 3), [tip[0] + 0.18 + Math.cos(angle) * 0.23, tip[1] + Math.sin(angle) * 0.23, tip[2]], [0, 0, angle - Math.PI / 2], [1, 1, 1]);
+    }
+  } else {
+    place(builder, createCylinderMesh(0.02, 0.0, 0.8, 6), [tip[0] + 0.4, tip[1], tip[2]], [0, 0, -Math.PI / 2], [1, 1, 1]);
+    place(builder, createCylinderMesh(0.015, 0.0, 0.6, 6), [tip[0] + 0.3, tip[1] + 0.06, tip[2]], [0, 0, -Math.PI / 2 + 0.1], [1, 1, 1]);
   }
   return builder.build();
 }
@@ -701,13 +831,22 @@ export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, 
   ...(CAMPAIGN_MESH_BUILDERS as Record<ProceduralMeshBuilderId, () => MeshData>),
   jester_body: buildJesterBody,
   cherub_body: buildCherubBody,
-  cherub_face: buildCherubFace,
-  cherub_eyes: buildCherubEyes,
-  cherub_wing: buildCherubWing,
-  seraph_robe: buildSeraphRobe,
-  seraph_head: buildSeraphHead,
-  seraph_eye: buildSeraphEye,
-  seraph_wing: buildSeraphWing,
+  cherub_head: buildCherubHead,
+  cherub_voids: buildCherubVoids,
+  cherub_iris: buildCherubIris,
+  cherub_gears: buildCherubGears,
+  cherub_tears: buildCherubTears,
+  cherub_rose: buildCherubRose,
+  cherub_stem: buildCherubStem,
+  cherub_puddle: buildCherubPuddle,
+  seraph_frame: buildSeraphFrame,
+  seraph_satin_purple: buildSeraphSatinPurple,
+  seraph_satin_gold: buildSeraphSatinGold,
+  seraph_mask: buildSeraphMask,
+  seraph_eye_red: buildSeraphEyeRed,
+  seraph_arm_shears: () => buildSeraphArm('shears'),
+  seraph_arm_saw: () => buildSeraphArm('saw'),
+  seraph_arm_needle: () => buildSeraphArm('needle'),
   jester_stuffing: buildJesterStuffing,
   jester_lantern_shard: buildJesterLanternShard,
   jester_wind_key: buildJesterWindKey,

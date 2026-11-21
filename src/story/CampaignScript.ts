@@ -113,13 +113,15 @@ export function actForChunk(chunkIndex: number): ActDefinition {
 // Dialogue
 // ---------------------------------------------------------------------------------------------------------------------
 
-export type SpeakerId = 'mabel' | 'foreman' | 'pip' | 'pa';
+export type SpeakerId = 'mabel' | 'foreman' | 'pip' | 'pa' | 'cherub' | 'seraph';
 
 export const SPEAKERS: Readonly<Record<SpeakerId, { readonly name: string; readonly color: string }>> = {
   mabel: { name: 'MABEL THORNE', color: '#e9c46a' },
   foreman: { name: 'THE FOREMAN', color: '#ff5a4a' },
   pip: { name: 'PIP', color: '#ffd08a' },
   pa: { name: 'PLANT ADDRESS', color: '#9fb4d8' },
+  cherub: { name: 'CHERUB CHEEKS', color: '#ffb3c1' },
+  seraph: { name: 'SERAPHIM SAM', color: '#ff3b3b' },
 };
 
 export interface DialogueLine {
@@ -178,7 +180,11 @@ export type DialogueId =
   | 'cherub.entrance'
   | 'cherub.shattered'
   | 'seraph.entrance'
-  | 'seraph.defeated';
+  | 'seraph.defeated'
+  | 'cherub.whisper'
+  | 'cherub.alarm'
+  | 'seraph.spotted'
+  | 'seraph.chase';
 
 export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   'intro.wake': [{ speaker: 'pa', text: 'Night shift, report to your stations. Night shift, report to your stations.', seconds: 3.5 }],
@@ -267,15 +273,19 @@ export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   'hand.volt': [{ speaker: 'mabel', text: 'I sent a Volt hand down the dumbwaiter. Press X to swap it onto your right launcher. One shock keeps them down twice as long, but it needs a few seconds to recharge.', seconds: 5 }],
   'hand.chime': [{ speaker: 'mabel', text: 'One more: the Chime hand. When it hits, it rings out and staggers everything around the impact. Good against a crowd.', seconds: 4.6 }],
   'cherub.entrance': [
-    { speaker: 'pa', text: 'Welcome, little helpers. Please greet our new employee.', seconds: 3 },
-    { speaker: 'mabel', text: 'Clockwork cherubs. Shop-floor toys. They’re slow and they’re tin. One good smack with the rig will break them.', seconds: 4.4 },
+    { speaker: 'pa', text: 'Cherub Cheeks, the doll that cries real tears when it misses you! Now in every nursery.', seconds: 3.6 },
+    { speaker: 'mabel', text: 'See the puddles? There’s a Cherub nearby. They won’t touch you, but if one sees you up close it screams for everything else. Smash it first, or keep your distance.', seconds: 5.2 },
   ],
-  'cherub.shattered': [{ speaker: 'mabel', text: 'That’s it. They come apart easy. Save your nerve for the big ones; those you can only stagger.', seconds: 4 }],
+  'cherub.shattered': [{ speaker: 'mabel', text: 'Good. Vinyl cracks easy. Better broken than screaming.', seconds: 3.2 }],
+  'cherub.whisper': [{ speaker: 'cherub', text: 'P-p-play... with... m-me... forever...', seconds: 3 }],
+  'cherub.alarm': [{ speaker: 'mabel', text: 'It’s screaming! Everything on this level heard that. Move!', seconds: 3 }],
   'seraph.entrance': [
     { speaker: 'pa', text: 'Floor supervision is now active in Hall Eleven.', seconds: 3 },
-    { speaker: 'mabel', text: 'That’s the Seraph. It hides its face behind those wings. It isn’t fast, but it doesn’t give up. Three hard hits and it’ll fold.', seconds: 4.8 },
+    { speaker: 'mabel', text: 'Look up. Slowly. That red light on the ceiling is Seraphim Sam, the old parade puppet. Don’t stare at its eye, and don’t let a Cherub scream.', seconds: 5.2 },
   ],
-  'seraph.defeated': [{ speaker: 'mabel', text: 'It folded. Hall Eleven’s clear. Keep moving before the line notices.', seconds: 3.6 }],
+  'seraph.spotted': [{ speaker: 'seraph', text: 'SYSTEM ALERT. FORBIDDEN MATERIAL DETECTED IN THE SANCTUM. BEGINNING HARVEST.', seconds: 4 }],
+  'seraph.chase': [{ speaker: 'seraph', text: 'THE FOREMAN REQUIRES YOUR COMPONENTS. YIELD. YIELD. YIELD.', seconds: 3.6 }],
+  'seraph.defeated': [{ speaker: 'mabel', text: 'It’s down. All six arms. Hall Eleven’s clear. Keep moving before the line notices.', seconds: 3.8 }],
   'choirMother.defeated': [{ speaker: 'mabel', text: 'She’s down. The little ones are going quiet. That nursery won’t sing again.', seconds: 3.8 }],
 };
 

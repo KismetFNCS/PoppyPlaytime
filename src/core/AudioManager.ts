@@ -20,7 +20,11 @@ export type SpatialCueId =
   | 'pipChirp'
   | 'splash'
   | 'beamHum'
-  | 'foremanBoom';
+  | 'foremanBoom'
+  | 'cherubSiren'
+  | 'plasticScrape'
+  | 'seraphDrop'
+  | 'seraphStatic';
 
 export interface ListenerPose {
   readonly position: Vec3;
@@ -571,6 +575,31 @@ export class AudioManager {
         for (let tap = 0; tap < 5; tap += 1) {
           this.playTone(2600 + tap * 210, 0.03, 'square', 0.025 * level, null, panner, tap * 0.045);
         }
+        break;
+      case 'cherubSiren': {
+        // Air-raid wail: rising and falling sweeps, a slightly detuned second voice and a buzzing edge.
+        for (let sweep = 0; sweep < 6; sweep += 1) {
+          const rising: boolean = sweep % 2 === 0;
+          this.playTone(rising ? 520 : 1180, 0.55, 'sawtooth', 0.05 * level, rising ? 1180 : 520, panner, sweep * 0.55);
+          this.playTone(rising ? 534 : 1196, 0.55, 'square', 0.025 * level, rising ? 1196 : 534, panner, sweep * 0.55);
+        }
+        this.playNoiseBurst(0.15, 3000, 'highpass', 0.2 * level, panner);
+        break;
+      }
+      case 'plasticScrape':
+        for (let drag = 0; drag < 5; drag += 1) {
+          this.playTone(1700 + drag * 140, 0.09, 'triangle', 0.02 * level, 900, panner, drag * 0.11);
+        }
+        this.playNoiseBurst(0.6, 1800, 'bandpass', 0.16 * level, panner);
+        break;
+      case 'seraphDrop':
+        this.playTone(48, 0.9, 'sine', 0.3 * level, 30, panner);
+        this.playNoiseBurst(0.5, 220, 'lowpass', 0.55 * level, panner);
+        this.playTone(320, 0.6, 'square', 0.05 * level, 140, panner, 0.05);
+        break;
+      case 'seraphStatic':
+        this.playNoiseBurst(0.9, 1400, 'bandpass', 0.22 * level, panner);
+        this.playTone(60, 1.0, 'sawtooth', 0.06 * level, 55, panner);
         break;
       case 'musicBoxChime': {
         const notes: readonly number[] = [1046.5, 1318.5, 1568, 1318.5];

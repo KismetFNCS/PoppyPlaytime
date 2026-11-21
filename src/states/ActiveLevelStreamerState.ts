@@ -30,6 +30,7 @@ import type { SceneEnvironment } from '../graphics/SceneRenderer';
 import type { PointLight } from '../graphics/LightingSystem';
 import type { RightHandType } from '../gameplay/TetherRig';
 import { SERAPH_CHUNK } from '../world/LevelStreamer';
+import { CherubEntity, SeraphEntity } from '../world/AngelEntities';
 import type { Vec3 } from '../math/Vec3';
 import { clamp, smoothstep, vec3Add, vec3Scale } from '../math/Vec3';
 import type { CrosshairKind, HotbarSlotSnapshot, HudSnapshot } from '../ui/hud/HudController';
@@ -124,6 +125,17 @@ const CHIME_RADIUS_METERS: number = 5.5;
 
 const AIM_ASSIST_RANGE_METERS: number = 16;
 const AIM_ASSIST_COSINE: number = Math.cos((15 * Math.PI) / 180);
+const CHERUB_WHISPER_METERS: number = 9;
+const CHERUB_ALARM_METERS: number = 5;
+const CHERUB_SCREAM_SECONDS: number = 1.6;
+const CHERUB_FLEE_SECONDS: number = 2.4;
+const CHERUB_FLEE_SPEED: number = 4.5;
+const SERAPH_GAZE_RANGE_METERS: number = 16;
+const SERAPH_GAZE_COSINE: number = Math.cos((8 * Math.PI) / 180);
+const SERAPH_GAZE_SECONDS: number = 2;
+const SERAPH_SIREN_RANGE_METERS: number = 30;
+const SERAPH_CHASE_LINE_SECONDS: number = 7;
+const SERAPH_LANDING_SECONDS: number = 0.9;
 const SAVE_INDICATOR_SECONDS: number = 2.4;
 const SECOND_WIND_STUN_SECONDS: number = 3.5;
 
@@ -194,6 +206,13 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private leavingLevel: boolean = false;
   private campaign: CampaignDirector | null = null;
   private pip: PipCompanion | null = null;
+  /** Cherubs that have already whispered at the player this session. */
+  private readonly whisperedCherubs: Set<string> = new Set();
+  /** Seconds the player has held their gaze on the Seraph's eye. */
+  private seraphGaze: number = 0;
+  private seraphChaseLine: number = 0;
+  /** Set when a Cherub's siren goes off; the Seraph drops if it is close enough. */
+  private sirenAt: Vec3 | null = null;
   /** Cassette indicator: label and seconds left on screen. */
   private saveIndicator: { label: string; seconds: number } | null = null;
   /** Seconds before the Volt hand can fire again after a shock. */
@@ -515,7 +534,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       for (const managed of threats.activeThreats) {
         const radius: number = STRIKE_RADIUS[managed.kind];
         const feet: Readonly<Vec3> = managed.view.position;
-        const height: number = managed.profile.vision.eyeHeight * 1.1;
+        const height: number = managed.kind === 'seraph' ? 4.6 : managed.profile.vision.eyeHeight * 1.1;
         let hit = false;
         for (let sample = 0; sample <= 8 && !hit; sample += 1) {
           const t: number = sample / 8;
@@ -570,6 +589,9 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
           threats.strike(other.id, this.motor.position, stunScale);
         }
       }
+    }
+    if (kind === 'seraph') {
+      this.dropSeraph(threats, worldEvents, 'struck');
     }
     const result = threats.strike(id, this.motor.position, stunScale);
     const toPlayer: Vec3 = [this.motor.position[0] - impact[0], 0.4, this.motor.position[2] - impact[2]];
@@ -668,6 +690,120 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
   private entranceSpawnBehind(): Vec3 {
     return [0, 0, Math.min(chunkStartZ(0) - 1, this.motor.position[2] + ENTITY_SPAWN_BEHIND_METERS)];
+  }
+
+  /**
+   * Cherub Cheeks: sits dormant with its back turned. Within 5 m its head snaps round and it wails a siren that every
+   * monster hears (and that brings the Seraph down); then it drops flat and scurries off into the walls.
+   */
+  private updateCherubs(threats: ThreatDirector, worldEvents: WorldEventSystem, deltaSeconds: number): void {
+    for (const managed of threats.activeThreats) {
+      if (managed.kind !== 'cherub' || !(managed.view instanceof CherubEntity)) {
+        continue;
+      }
+      const view: CherubEntity = managed.view;
+      const toPlayer: Vec3 = [this.motor.position[0] - view.position[0], 0, this.motor.position[2] - view.position[2]];
+      const distance: number = Math.hypot(toPlayer[0], toPlayer[2]);
+      if (view.alarmState === 'passive') {
+        if (distance < CHERUB_WHISPER_METERS && !this.whisperedCherubs.has(managed.id) && this.campaign !== null && this.campaign.subtitle === null) {
+          // Each doll whispers once as you creep up on it.
+          this.whisperedCherubs.add(managed.id);
+          this.campaign.say('cherub.whisper', { allowRepeat: true });
+        }
+        if (distance < CHERUB_ALARM_METERS) {
+          view.alarmState = 'alarm';
+          view.alarmSeconds = 0;
+          this.services.audio.playSpatialCue('cherubSiren', view.headPosition(), 1.6);
+          threats.emitNoise('alarm', view.position, 1);
+          this.sirenAt = [view.position[0], view.position[1], view.position[2]];
+          this.showToast('A CHERUB IS SCREAMING', 2.2, 'danger');
+          if (worldEvents.flag('combatResistedHint') < 2) {
+            worldEvents.setFlag('combatResistedHint', 2);
+            this.campaign?.say('cherub.alarm');
+          }
+        }
+        continue;
+      }
+      if (view.alarmState === 'alarm' && view.alarmSeconds >= CHERUB_SCREAM_SECONDS) {
+        view.alarmState = 'fleeing';
+        this.services.audio.playSpatialCue('plasticScrape', view.position, 1.2);
+      }
+      if (view.alarmState === 'fleeing') {
+        // Scuttle away from the player toward the nearest wall, then squeeze into it.
+        const away: Vec3 = distance > 0.01 ? [-toPlayer[0] / distance, 0, -toPlayer[2] / distance] : [0, 0, -1];
+        const wallward: number = view.position[0] >= 0 ? 1 : -1;
+        const step: number = CHERUB_FLEE_SPEED * deltaSeconds;
+        view.position = [
+          clamp(view.position[0] + (away[0] * 0.6 + wallward * 0.8) * step, -CORRIDOR_DIMENSIONS.halfWidth + 0.35, CORRIDOR_DIMENSIONS.halfWidth - 0.35),
+          view.position[1],
+          view.position[2] + away[2] * 0.6 * step,
+        ];
+        view.yawRadians = Math.atan2(away[0] * 0.6 + wallward * 0.8, away[2] * 0.6);
+        if (view.alarmSeconds >= CHERUB_SCREAM_SECONDS + CHERUB_FLEE_SECONDS) {
+          threats.retire(managed.id);
+        }
+      }
+    }
+  }
+
+  /**
+   * Seraphim Sam: clings to the ceiling (it can't hunt or catch while up there) until a Cherub screams nearby, the player
+   * stares at its red eye for 2 seconds, or a hand strikes it. Then it drops and hunts, booming over its PA.
+   */
+  private updateSeraph(threats: ThreatDirector, deltaSeconds: number): void {
+    const managed: ManagedThreat | undefined = threats.activeThreats.find((candidate) => candidate.kind === 'seraph');
+    const siren: Vec3 | null = this.sirenAt;
+    this.sirenAt = null;
+    if (managed === undefined || !(managed.view instanceof SeraphEntity)) {
+      this.seraphGaze = 0;
+      return;
+    }
+    const view: SeraphEntity = managed.view;
+    if (view.onCeiling) {
+      managed.brain.graceSeconds = Math.max(managed.brain.graceSeconds, 0.5);
+      const eye: Vec3 = view.eyePosition();
+      const camera: Vec3 = this.services.camera.position;
+      const toEye: Vec3 = [eye[0] - camera[0], eye[1] - camera[1], eye[2] - camera[2]];
+      const distance: number = Math.hypot(toEye[0], toEye[1], toEye[2]);
+      const look: Vec3 = [-Math.sin(this.yawRadians) * Math.cos(this.pitchRadians), Math.sin(this.pitchRadians), -Math.cos(this.yawRadians) * Math.cos(this.pitchRadians)];
+      const cosine: number = distance > 0 ? (toEye[0] * look[0] + toEye[1] * look[1] + toEye[2] * look[2]) / distance : 0;
+      this.seraphGaze = distance < SERAPH_GAZE_RANGE_METERS && cosine > SERAPH_GAZE_COSINE ? this.seraphGaze + deltaSeconds : Math.max(0, this.seraphGaze - deltaSeconds * 2);
+      const sirenClose: boolean = siren !== null && Math.hypot(siren[0] - view.position[0], siren[2] - view.position[2]) < SERAPH_SIREN_RANGE_METERS;
+      if (sirenClose || this.seraphGaze >= SERAPH_GAZE_SECONDS) {
+        this.dropSeraph(threats, this.worldEvents, sirenClose ? 'siren' : 'gaze');
+      }
+      return;
+    }
+    // On the floor: repeat its demand over the PA while it hunts.
+    if (managed.brain.state === 'hunting' || managed.brain.state === 'catchKill') {
+      this.seraphChaseLine -= deltaSeconds;
+      if (this.seraphChaseLine <= 0) {
+        this.seraphChaseLine = SERAPH_CHASE_LINE_SECONDS;
+        this.services.audio.playSpatialCue('seraphStatic', view.eyePosition(), 1);
+        this.campaign?.say('seraph.chase', { allowRepeat: true });
+      }
+    }
+  }
+
+  private dropSeraph(threats: ThreatDirector, worldEvents: WorldEventSystem | null, reason: 'siren' | 'gaze' | 'struck'): void {
+    const managed: ManagedThreat | undefined = threats.activeThreats.find((candidate) => candidate.kind === 'seraph');
+    if (managed === undefined || !(managed.view instanceof SeraphEntity) || !managed.view.onCeiling) {
+      return;
+    }
+    managed.view.startDrop();
+    managed.brain.graceSeconds = 0;
+    managed.brain.activate('hunting', 1, this.playerPosition());
+    if (reason !== 'struck') {
+      // A beat to land and right itself before it charges (a hand strike staggers it instead, and still counts).
+      managed.brain.forceStun(SERAPH_LANDING_SECONDS, this.motor.position);
+      managed.brain.stunImmuneSeconds = 0;
+    }
+    this.seraphGaze = 0;
+    this.seraphChaseLine = SERAPH_CHASE_LINE_SECONDS;
+    this.services.audio.playSpatialCue('seraphDrop', managed.view.position, 1.5);
+    this.services.audio.playSpatialCue('seraphStatic', managed.view.position, 1.2);
+    this.campaign?.say('seraph.spotted', { allowRepeat: true });
+    void worldEvents;
   }
 
   /** Decides which monsters can be beaten for good right now; everything else can only be staggered. */
@@ -1577,6 +1713,8 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.updateEntrances(threats, worldEvents, deltaSeconds);
     this.updateCombatScenes(threats, worldEvents);
     this.announceNewHands(worldEvents);
+    this.updateCherubs(threats, worldEvents, deltaSeconds);
+    this.updateSeraph(threats, deltaSeconds);
     if (this.saveIndicator !== null) {
       this.saveIndicator.seconds -= deltaSeconds;
       if (this.saveIndicator.seconds <= 0) this.saveIndicator = null;

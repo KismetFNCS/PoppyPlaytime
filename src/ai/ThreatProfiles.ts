@@ -277,7 +277,7 @@ export const THREAT_PROFILES: Readonly<Record<ThreatKind, ThreatProfile>> = {
       proximityRadius: 2,
       lightDependence: 0.5,
       crouchVisibilityFactor: 0.6,
-      eyeHeight: 2.55,
+      eyeHeight: 3.2,
     },
     hearing: { radiusMultiplier: 1.6, occlusionFactor: 0.7, awarenessGain: 0.5 },
     awareness: { sightGainPerSecond: 1.0, decayPerSecond: 0.08, alertThreshold: 0.18, huntThreshold: 0.6, forgetThreshold: 0.08 },

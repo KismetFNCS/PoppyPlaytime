@@ -588,6 +588,30 @@ var AudioManager = class {
           this.playTone(2600 + tap * 210, 0.03, "square", 0.025 * level, null, panner, tap * 0.045);
         }
         break;
+      case "cherubSiren": {
+        for (let sweep = 0; sweep < 6; sweep += 1) {
+          const rising = sweep % 2 === 0;
+          this.playTone(rising ? 520 : 1180, 0.55, "sawtooth", 0.05 * level, rising ? 1180 : 520, panner, sweep * 0.55);
+          this.playTone(rising ? 534 : 1196, 0.55, "square", 0.025 * level, rising ? 1196 : 534, panner, sweep * 0.55);
+        }
+        this.playNoiseBurst(0.15, 3e3, "highpass", 0.2 * level, panner);
+        break;
+      }
+      case "plasticScrape":
+        for (let drag = 0; drag < 5; drag += 1) {
+          this.playTone(1700 + drag * 140, 0.09, "triangle", 0.02 * level, 900, panner, drag * 0.11);
+        }
+        this.playNoiseBurst(0.6, 1800, "bandpass", 0.16 * level, panner);
+        break;
+      case "seraphDrop":
+        this.playTone(48, 0.9, "sine", 0.3 * level, 30, panner);
+        this.playNoiseBurst(0.5, 220, "lowpass", 0.55 * level, panner);
+        this.playTone(320, 0.6, "square", 0.05 * level, 140, panner, 0.05);
+        break;
+      case "seraphStatic":
+        this.playNoiseBurst(0.9, 1400, "bandpass", 0.22 * level, panner);
+        this.playTone(60, 1, "sawtooth", 0.06 * level, 55, panner);
+        break;
       case "musicBoxChime": {
         const notes = [1046.5, 1318.5, 1568, 1318.5];
         notes.forEach((frequency, index) => this.playTone(frequency, 0.5, "sine", 0.03 * level, null, panner, index * 0.22));
@@ -2914,6 +2938,123 @@ var MATERIAL_PROFILES = {
     emissiveStrength: 12,
     uvScale: 1
   },
+  cherub_vinyl: {
+    id: "cherub_vinyl",
+    displayName: "Cherub Cheeks \xB7 Aged Vinyl",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 9201, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.95, 0.74, 0.62],
+    normalStrength: 0.7,
+    roughnessScale: 0.8,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  cherub_iris: {
+    id: "cherub_iris",
+    displayName: "Cherub Cheeks \xB7 Painted Iris",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 9202, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.18, 0.36, 0.85],
+    normalStrength: 0.7,
+    roughnessScale: 0.25,
+    metallic: 0.4,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  void_black: {
+    id: "void_black",
+    displayName: "Void Black",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 9203, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.03, 0.03, 0.035],
+    normalStrength: 0.7,
+    roughnessScale: 0.4,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  cherub_tears: {
+    id: "cherub_tears",
+    displayName: "Cherub Cheeks \xB7 Acid Tears",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "emissiveSolid", seed: 9204, resolution: 64, bumpStrength: 0 },
+    baseTint: [0.48, 0.55, 0.23],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0.42, 0.6, 0.1],
+    emissiveStrength: 2.2,
+    uvScale: 1
+  },
+  rose_petal: {
+    id: "rose_petal",
+    displayName: "Rose Petals",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 9205, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.75, 0.06, 0.1],
+    normalStrength: 0.7,
+    roughnessScale: 0.6,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  stem_flesh: {
+    id: "stem_flesh",
+    displayName: "Wet Fleshy Stem",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 9206, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.12, 0.25, 0.1],
+    normalStrength: 0.7,
+    roughnessScale: 0.3,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  seraph_satin_purple: {
+    id: "seraph_satin_purple",
+    displayName: "Seraphim Sam \xB7 Purple Satin",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 9207, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.32, 0.12, 0.42],
+    normalStrength: 0.7,
+    roughnessScale: 0.9,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  seraph_satin_gold: {
+    id: "seraph_satin_gold",
+    displayName: "Seraphim Sam \xB7 Gold Satin",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 9208, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.7, 0.52, 0.16],
+    normalStrength: 0.7,
+    roughnessScale: 0.8,
+    metallic: 0.3,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  seraph_eye_red: {
+    id: "seraph_eye_red",
+    displayName: "Seraphim Sam \xB7 Camera Eye",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "emissiveSolid", seed: 9209, resolution: 64, bumpStrength: 0 },
+    baseTint: [1, 0.1, 0.08],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [1, 0.08, 0.05],
+    emissiveStrength: 9,
+    uvScale: 1
+  },
   arc_glow: {
     id: "arc_glow",
     displayName: "VFX \xB7 Cable Arc",
@@ -3174,24 +3315,33 @@ var IMPORTED_MESH_PROFILES = {
   },
   cherub_entity: {
     id: "cherub_entity",
-    displayName: "Cherub",
+    displayName: "Cherub Cheeks",
     importScale: 1,
     parts: [
-      { partId: "body", materialId: "tin_plate", importUri: null, fallbackBuilder: "cherub_body" },
-      { partId: "face", materialId: "porcelain_glaze", importUri: null, fallbackBuilder: "cherub_face" },
-      { partId: "eyes", materialId: "choir_glow", importUri: null, fallbackBuilder: "cherub_eyes" },
-      { partId: "wing", materialId: "tin_plate", importUri: null, fallbackBuilder: "cherub_wing" }
+      { partId: "body", materialId: "cherub_vinyl", importUri: null, fallbackBuilder: "cherub_body" },
+      { partId: "head", materialId: "cherub_vinyl", importUri: null, fallbackBuilder: "cherub_head" },
+      { partId: "voids", materialId: "void_black", importUri: null, fallbackBuilder: "cherub_voids" },
+      { partId: "iris", materialId: "cherub_iris", importUri: null, fallbackBuilder: "cherub_iris" },
+      { partId: "gears", materialId: "tether_brass", importUri: null, fallbackBuilder: "cherub_gears" },
+      { partId: "tears", materialId: "cherub_tears", importUri: null, fallbackBuilder: "cherub_tears" },
+      { partId: "rose", materialId: "rose_petal", importUri: null, fallbackBuilder: "cherub_rose" },
+      { partId: "stem", materialId: "stem_flesh", importUri: null, fallbackBuilder: "cherub_stem" },
+      { partId: "puddle", materialId: "cherub_tears", importUri: null, fallbackBuilder: "cherub_puddle" }
     ]
   },
   seraph_entity: {
     id: "seraph_entity",
-    displayName: "The Seraph",
+    displayName: "Seraphim Sam",
     importScale: 1,
     parts: [
-      { partId: "robe", materialId: "hymn_paper", importUri: null, fallbackBuilder: "seraph_robe" },
-      { partId: "head", materialId: "porcelain_glaze", importUri: null, fallbackBuilder: "seraph_head" },
-      { partId: "eyes", materialId: "choir_glow", importUri: null, fallbackBuilder: "seraph_eye" },
-      { partId: "wing", materialId: "tether_brass", importUri: null, fallbackBuilder: "seraph_wing" }
+      { partId: "frame", materialId: "rusted_steel", importUri: null, fallbackBuilder: "seraph_frame" },
+      { partId: "satinPurple", materialId: "seraph_satin_purple", importUri: null, fallbackBuilder: "seraph_satin_purple" },
+      { partId: "satinGold", materialId: "seraph_satin_gold", importUri: null, fallbackBuilder: "seraph_satin_gold" },
+      { partId: "mask", materialId: "porcelain_glaze", importUri: null, fallbackBuilder: "seraph_mask" },
+      { partId: "eyes", materialId: "seraph_eye_red", importUri: null, fallbackBuilder: "seraph_eye_red" },
+      { partId: "armShears", materialId: "rusted_steel", importUri: null, fallbackBuilder: "seraph_arm_shears" },
+      { partId: "armSaw", materialId: "rusted_steel", importUri: null, fallbackBuilder: "seraph_arm_saw" },
+      { partId: "armNeedle", materialId: "rusted_steel", importUri: null, fallbackBuilder: "seraph_arm_needle" }
     ]
   },
   gas_mask_prop: {
@@ -4617,74 +4767,178 @@ function buildJesterLegGear() {
   return builder.build();
 }
 var CHERUB_HEAD_HEIGHT = 0.62;
-var SERAPH_HEAD_HEIGHT = 2.5;
+var SERAPH_HEAD_HEIGHT = 3.2;
 function buildCherubBody() {
   const builder = new MeshBuilder();
-  place2(builder, createSphereMesh(0.17, 16, 12), [0, 0.34, 0], [0, 0, 0], [1, 1.1, 0.9]);
+  place2(builder, createSphereMesh(0.14, 16, 12), [0, 0.3, 0], [0, 0, 0], [1, 1.05, 0.92]);
   for (const side of [-1, 1]) {
-    place2(builder, createCylinderMesh(0.055, 0.045, 0.2, 8), [side * 0.08, 0.1, 0.02], [0.2, 0, 0], [1, 1, 1]);
-    place2(builder, createSphereMesh(0.055, 8, 6), [side * 0.08, 0.02, 0.05], [0, 0, 0], [1, 0.7, 1.3]);
-    place2(builder, createCylinderMesh(0.04, 0.032, 0.18, 8), [side * 0.19, 0.4, 0.06], [-0.6, 0, side * 0.5], [1, 1, 1]);
+    place2(builder, createSphereMesh(0.05, 10, 8), [side * 0.09, 0.18, 0], [0, 0, 0], [1, 1, 1]);
+    place2(builder, createCylinderMesh(0.05, 0.045, 0.18, 10), [side * 0.09, 0.08, 0.01], [0, 0, 0], [1, 1, 1]);
+    place2(builder, createSphereMesh(0.05, 10, 8), [side * 0.09, 0, 0.03], [0, 0, 0], [1, 0.6, 1.3]);
+    place2(builder, createSphereMesh(0.045, 10, 8), [side * 0.15, 0.38, 0], [0, 0, 0], [1, 1, 1]);
+    place2(builder, createCylinderMesh(0.04, 0.036, 0.16, 10), [side * 0.2, 0.3, 0.04], [0.4, 0, side * 0.5], [1, 1, 1]);
   }
-  place2(builder, createCylinderMesh(0.015, 0.015, 0.1, 6), [0, 0.38, -0.2], [Math.PI / 2, 0, 0], [1, 1, 1]);
-  for (const side of [-1, 1]) {
-    place2(builder, createCylinderMesh(0.05, 0.05, 0.015, 10), [side * 0.05, 0.38, -0.25], [0, 0, Math.PI / 2], [1, 1, 0.6]);
-  }
+  place2(builder, createCylinderMesh(0.07, 0.08, 0.06, 12), [0, 0.43, 0], [0, 0, 0], [1, 1, 1]);
   return builder.build();
 }
-function buildCherubFace() {
+function buildCherubHead() {
   const builder = new MeshBuilder();
-  place2(builder, createSphereMesh(0.13, 16, 12), [0, CHERUB_HEAD_HEIGHT, 0.02], [0, 0, 0], [1, 1.02, 0.98]);
+  place2(builder, createSphereMesh(0.25, 20, 16), [0, CHERUB_HEAD_HEIGHT, 0], [0, 0, 0], [1, 0.98, 0.96]);
   for (const side of [-1, 1]) {
-    place2(builder, createSphereMesh(0.04, 8, 6), [side * 0.07, CHERUB_HEAD_HEIGHT - 0.04, 0.1], [0, 0, 0], [1, 0.8, 0.6]);
-  }
-  for (let curl = 0; curl < 6; curl += 1) {
-    const angle = curl / 6 * Math.PI * 2;
-    place2(builder, createSphereMesh(0.035, 8, 6), [Math.sin(angle) * 0.09, CHERUB_HEAD_HEIGHT + 0.1, Math.cos(angle) * 0.07 - 0.01], [0, 0, 0], [1, 1, 1]);
+    place2(builder, createSphereMesh(0.07, 10, 8), [side * 0.13, CHERUB_HEAD_HEIGHT - 0.08, 0.17], [0, 0, 0], [1, 0.85, 0.6]);
   }
   return builder.build();
 }
-function buildCherubEyes() {
+function buildCherubVoids() {
   const builder = new MeshBuilder();
   for (const side of [-1, 1]) {
-    place2(builder, createBoxMesh(0.045, 0.01, 0.01), [side * 0.045, CHERUB_HEAD_HEIGHT + 0.015, 0.125], [0, 0, side * 0.25], [1, 1, 1]);
+    place2(builder, createSphereMesh(0.075, 14, 10), [side * 0.095, CHERUB_HEAD_HEIGHT + 0.04, 0.19], [0, 0, 0], [1, 1.1, 0.55]);
   }
-  place2(builder, createBoxMesh(0.04, 8e-3, 0.01), [0, CHERUB_HEAD_HEIGHT - 0.06, 0.125], [0, 0, 0], [1, 1, 1]);
+  place2(builder, createCylinderMesh(0.035, 0.035, 0.03, 16), [0, CHERUB_HEAD_HEIGHT - 0.11, 0.235], [Math.PI / 2, 0, 0], [1, 1, 1]);
   return builder.build();
 }
-function buildCherubWing() {
+function buildCherubIris() {
   const builder = new MeshBuilder();
-  for (let feather = 0; feather < 4; feather += 1) {
-    const t = feather / 3;
-    place2(builder, createBoxMesh(0.2 - t * 0.05, 0.045, 0.012), [0.1 + t * 0.02, 0.06 - t * 0.05, 0], [0, 0, 0.5 - t * 0.35], [1, 1, 1]);
-  }
-  return builder.build();
-}
-function buildSeraphRobe() {
-  const builder = new MeshBuilder();
-  place2(builder, createCylinderMesh(0.52, 0.2, 1.9, 18), [0, 0.95, 0], [0, 0, 0], [1, 1, 0.8]);
-  place2(builder, createCylinderMesh(0.22, 0.3, 0.3, 16), [0, 2.05, 0], [0, 0, 0], [1, 1, 0.8]);
   for (const side of [-1, 1]) {
-    place2(builder, createCylinderMesh(0.07, 0.12, 0.9, 10), [side * 0.3, 1.6, 0.12], [0.35, 0, side * 0.12], [1, 1, 1]);
+    place2(builder, createSphereMesh(0.045, 14, 10), [side * 0.095, CHERUB_HEAD_HEIGHT + 0.035, 0.225], [0, 0, 0], [1, 1.05, 0.4]);
   }
   return builder.build();
 }
-function buildSeraphHead() {
+function buildCherubGears() {
   const builder = new MeshBuilder();
-  place2(builder, createSphereMesh(0.15, 16, 12), [0, SERAPH_HEAD_HEIGHT, 0], [0, 0, 0], [0.9, 1.15, 0.95]);
-  place2(builder, createCylinderMesh(0.06, 0.07, 0.16, 10), [0, SERAPH_HEAD_HEIGHT - 0.2, 0], [0, 0, 0], [1, 1, 1]);
+  for (let tooth = 0; tooth < 10; tooth += 1) {
+    const angle = tooth / 10 * Math.PI * 2;
+    const depth = tooth % 3 * 0.01;
+    place2(builder, createCylinderMesh(8e-3, 0, 0.03, 4), [Math.cos(angle) * 0.026, CHERUB_HEAD_HEIGHT - 0.11 + Math.sin(angle) * 0.026, 0.236 - depth], [Math.PI / 2, 0, angle], [1, 1, 1]);
+  }
   return builder.build();
 }
-function buildSeraphEye() {
+function buildCherubTears() {
   const builder = new MeshBuilder();
-  place2(builder, createBoxMesh(0.12, 0.016, 0.02), [0, SERAPH_HEAD_HEIGHT + 0.02, 0.26], [0, 0, 0], [1, 1, 1]);
+  for (const side of [-1, 1]) {
+    builder.appendMesh(
+      createTubeMesh(
+        [
+          [side * 0.05, CHERUB_HEAD_HEIGHT, 0.225],
+          [side * 0.055, CHERUB_HEAD_HEIGHT - 0.08, 0.225],
+          [side * 0.065, CHERUB_HEAD_HEIGHT - 0.17, 0.2],
+          [side * 0.07, CHERUB_HEAD_HEIGHT - 0.23, 0.15]
+        ],
+        [0.012, 0.014, 0.013, 0.01],
+        8
+      ),
+      mat4Identity()
+    );
+  }
   return builder.build();
 }
-function buildSeraphWing() {
+function buildCherubRose() {
   const builder = new MeshBuilder();
-  for (let blade = 0; blade < 6; blade += 1) {
-    const t = blade / 5;
-    place2(builder, createBoxMesh(0.62 - t * 0.28, 0.06, 0.014), [0.3 - t * 0.05, 0.12 - t * 0.09, -t * 0.01], [0, 0, 0.35 - t * 0.5], [1, 1, 1]);
+  const top = [0.04, CHERUB_HEAD_HEIGHT + 0.42, -0.02];
+  place2(builder, createSphereMesh(0.05, 12, 10), top, [0, 0, 0], [1, 0.8, 1]);
+  for (let petal = 0; petal < 6; petal += 1) {
+    const angle = petal / 6 * Math.PI * 2;
+    place2(builder, createSphereMesh(0.055, 10, 8), [top[0] + Math.cos(angle) * 0.055, top[1] - 0.01, top[2] + Math.sin(angle) * 0.055], [0, -angle, 0.5], [1, 0.45, 0.8]);
+  }
+  return builder.build();
+}
+function buildCherubStem() {
+  const builder = new MeshBuilder();
+  builder.appendMesh(
+    createTubeMesh(
+      [
+        [0, CHERUB_HEAD_HEIGHT + 0.22, 0],
+        [0.03, CHERUB_HEAD_HEIGHT + 0.3, 0.01],
+        [0.01, CHERUB_HEAD_HEIGHT + 0.36, -0.02],
+        [0.04, CHERUB_HEAD_HEIGHT + 0.4, -0.02]
+      ],
+      [0.03, 0.022, 0.018, 0.016],
+      8
+    ),
+    mat4Identity()
+  );
+  return builder.build();
+}
+function buildCherubPuddle() {
+  const builder = new MeshBuilder();
+  place2(builder, createCylinderMesh(0.32, 0.32, 0.01, 18), [0.05, 6e-3, -0.08], [0, 0, 0], [1, 1, 0.7]);
+  place2(builder, createCylinderMesh(0.14, 0.14, 0.01, 12), [-0.3, 6e-3, 0.12], [0, 0, 0], [1, 1, 0.8]);
+  return builder.build();
+}
+function buildSeraphFrame() {
+  const builder = new MeshBuilder();
+  place2(builder, createCylinderMesh(0.42, 0.42, 0.18, 20), [0, 0.42, 0], [0, 0, Math.PI / 2], [1, 1, 1]);
+  place2(builder, createCylinderMesh(0.12, 0.12, 0.3, 10), [0, 0.42, 0], [0, 0, Math.PI / 2], [1, 1, 1]);
+  for (const side of [-1, 1]) {
+    place2(builder, createBoxMesh(0.05, 0.7, 0.08), [side * 0.16, 0.75, 0], [0, 0, side * 0.12], [1, 1, 1]);
+  }
+  builder.appendMesh(createTubeMesh([[0, 0.9, 0], [0.02, 1.6, 0.04], [-0.02, 2.3, 0.02], [0, 2.75, 0]], [0.07, 0.06, 0.06, 0.08], 10), mat4Identity());
+  place2(builder, createBoxMesh(1.4, 0.18, 0.32), [0, 2.82, 0], [0, 0, 0], [1, 1, 1]);
+  for (const side of [-1, 1]) {
+    place2(builder, createSphereMesh(0.16, 12, 10), [side * 0.66, 2.86, 0], [0, 0, 0], [1, 0.9, 1]);
+  }
+  for (let rib = 0; rib < 4; rib += 1) {
+    const y = 2 + rib * 0.18;
+    for (const side of [-1, 1]) {
+      builder.appendMesh(createTubeMesh([[0, y, 0.03], [side * 0.18, y - 0.04, 0.12], [side * 0.26, y - 0.1, 0.05]], 0.018, 6), mat4Identity());
+    }
+  }
+  place2(builder, createCylinderMesh(0.06, 0.07, 0.2, 10), [0, 2.98, 0], [0, 0, 0], [1, 1, 1]);
+  place2(builder, createSphereMesh(0.22, 14, 10), [-0.04, SERAPH_HEAD_HEIGHT, -0.02], [0, 0, 0], [0.95, 1.1, 0.9]);
+  return builder.build();
+}
+function buildSeraphSatinPurple() {
+  const builder = new MeshBuilder();
+  const lengths = [0.9, 1.3, 0.7, 1.1, 0.8];
+  lengths.forEach((length, index) => {
+    const x = -0.6 + index * 0.15;
+    place2(builder, createBoxMesh(0.14, length, 0.02), [x, 2.75 - length / 2, 0.17], [0.05, 0, (index - 2) * 0.05], [1, 1, 1]);
+  });
+  return builder.build();
+}
+function buildSeraphSatinGold() {
+  const builder = new MeshBuilder();
+  const lengths = [1.2, 0.7, 1, 0.6, 1.3];
+  lengths.forEach((length, index) => {
+    const x = index * 0.15;
+    place2(builder, createBoxMesh(0.14, length, 0.02), [x, 2.75 - length / 2, 0.17], [0.05, 0, (index - 2) * -0.05], [1, 1, 1]);
+  });
+  place2(builder, createBoxMesh(0.9, 1.4, 0.02), [0, 2.1, -0.18], [-0.08, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+function buildSeraphMask() {
+  const builder = new MeshBuilder();
+  place2(builder, createSphereMesh(0.26, 18, 14), [0.07, SERAPH_HEAD_HEIGHT, 0.06], [0, 0, 0], [0.62, 1.15, 0.85]);
+  place2(builder, createBoxMesh(0.12, 0.025, 0.03), [0.1, SERAPH_HEAD_HEIGHT + 0.1, 0.27], [0, 0, -0.2], [1, 1, 1]);
+  builder.appendMesh(createTubeMesh([[-0.02, SERAPH_HEAD_HEIGHT - 0.12, 0.27], [0.08, SERAPH_HEAD_HEIGHT - 0.16, 0.26], [0.17, SERAPH_HEAD_HEIGHT - 0.1, 0.22]], 0.012, 6), mat4Identity());
+  return builder.build();
+}
+function buildSeraphEyeRed() {
+  const builder = new MeshBuilder();
+  place2(builder, createSphereMesh(0.05, 12, 10), [-0.1, SERAPH_HEAD_HEIGHT + 0.03, 0.17], [0, 0, 0], [1, 1, 0.6]);
+  place2(builder, createCylinderMesh(0.065, 0.065, 0.04, 14), [-0.1, SERAPH_HEAD_HEIGHT + 0.03, 0.13], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+function buildSeraphArm(tool) {
+  const builder = new MeshBuilder();
+  builder.appendMesh(createTubeMesh([[0, 0, 0], [0.7, 0.12, 0], [1.4, 0.05, 0.05], [2, -0.12, 0.08]], [0.05, 0.04, 0.035, 0.03], 8), mat4Identity());
+  builder.appendMesh(createTubeMesh([[0.1, 0.06, 0.04], [0.9, 0.18, 0.05], [1.7, 0.02, 0.09]], 0.016, 6), mat4Identity());
+  place2(builder, createSphereMesh(0.06, 10, 8), [0.7, 0.12, 0], [0, 0, 0], [1, 1, 1]);
+  place2(builder, createSphereMesh(0.06, 10, 8), [1.4, 0.05, 0.05], [0, 0, 0], [1, 1, 1]);
+  const tip = [2, -0.12, 0.08];
+  if (tool === "shears") {
+    for (const side of [-1, 1]) {
+      place2(builder, createBoxMesh(0.55, 0.05, 0.015), [tip[0] + 0.25, tip[1] + side * 0.05, tip[2]], [0, 0, side * 0.18], [1, 1, 1]);
+    }
+  } else if (tool === "saw") {
+    place2(builder, createCylinderMesh(0.22, 0.22, 0.02, 24), [tip[0] + 0.18, tip[1], tip[2]], [Math.PI / 2, 0, 0], [1, 1, 1]);
+    for (let tooth = 0; tooth < 12; tooth += 1) {
+      const angle = tooth / 12 * Math.PI * 2;
+      place2(builder, createCylinderMesh(0.025, 0, 0.05, 3), [tip[0] + 0.18 + Math.cos(angle) * 0.23, tip[1] + Math.sin(angle) * 0.23, tip[2]], [0, 0, angle - Math.PI / 2], [1, 1, 1]);
+    }
+  } else {
+    place2(builder, createCylinderMesh(0.02, 0, 0.8, 6), [tip[0] + 0.4, tip[1], tip[2]], [0, 0, -Math.PI / 2], [1, 1, 1]);
+    place2(builder, createCylinderMesh(0.015, 0, 0.6, 6), [tip[0] + 0.3, tip[1] + 0.06, tip[2]], [0, 0, -Math.PI / 2 + 0.1], [1, 1, 1]);
   }
   return builder.build();
 }
@@ -4977,13 +5231,22 @@ var PROCEDURAL_MESH_BUILDERS = {
   ...CAMPAIGN_MESH_BUILDERS,
   jester_body: buildJesterBody,
   cherub_body: buildCherubBody,
-  cherub_face: buildCherubFace,
-  cherub_eyes: buildCherubEyes,
-  cherub_wing: buildCherubWing,
-  seraph_robe: buildSeraphRobe,
-  seraph_head: buildSeraphHead,
-  seraph_eye: buildSeraphEye,
-  seraph_wing: buildSeraphWing,
+  cherub_head: buildCherubHead,
+  cherub_voids: buildCherubVoids,
+  cherub_iris: buildCherubIris,
+  cherub_gears: buildCherubGears,
+  cherub_tears: buildCherubTears,
+  cherub_rose: buildCherubRose,
+  cherub_stem: buildCherubStem,
+  cherub_puddle: buildCherubPuddle,
+  seraph_frame: buildSeraphFrame,
+  seraph_satin_purple: buildSeraphSatinPurple,
+  seraph_satin_gold: buildSeraphSatinGold,
+  seraph_mask: buildSeraphMask,
+  seraph_eye_red: buildSeraphEyeRed,
+  seraph_arm_shears: () => buildSeraphArm("shears"),
+  seraph_arm_saw: () => buildSeraphArm("saw"),
+  seraph_arm_needle: () => buildSeraphArm("needle"),
   jester_stuffing: buildJesterStuffing,
   jester_lantern_shard: buildJesterLanternShard,
   jester_wind_key: buildJesterWindKey,
@@ -6604,7 +6867,9 @@ var SPEAKERS = {
   mabel: { name: "MABEL THORNE", color: "#e9c46a" },
   foreman: { name: "THE FOREMAN", color: "#ff5a4a" },
   pip: { name: "PIP", color: "#ffd08a" },
-  pa: { name: "PLANT ADDRESS", color: "#9fb4d8" }
+  pa: { name: "PLANT ADDRESS", color: "#9fb4d8" },
+  cherub: { name: "CHERUB CHEEKS", color: "#ffb3c1" },
+  seraph: { name: "SERAPHIM SAM", color: "#ff3b3b" }
 };
 var DIALOGUE = {
   "intro.wake": [{ speaker: "pa", text: "Night shift, report to your stations. Night shift, report to your stations.", seconds: 3.5 }],
@@ -6693,15 +6958,19 @@ var DIALOGUE = {
   "hand.volt": [{ speaker: "mabel", text: "I sent a Volt hand down the dumbwaiter. Press X to swap it onto your right launcher. One shock keeps them down twice as long, but it needs a few seconds to recharge.", seconds: 5 }],
   "hand.chime": [{ speaker: "mabel", text: "One more: the Chime hand. When it hits, it rings out and staggers everything around the impact. Good against a crowd.", seconds: 4.6 }],
   "cherub.entrance": [
-    { speaker: "pa", text: "Welcome, little helpers. Please greet our new employee.", seconds: 3 },
-    { speaker: "mabel", text: "Clockwork cherubs. Shop-floor toys. They\u2019re slow and they\u2019re tin. One good smack with the rig will break them.", seconds: 4.4 }
+    { speaker: "pa", text: "Cherub Cheeks, the doll that cries real tears when it misses you! Now in every nursery.", seconds: 3.6 },
+    { speaker: "mabel", text: "See the puddles? There\u2019s a Cherub nearby. They won\u2019t touch you, but if one sees you up close it screams for everything else. Smash it first, or keep your distance.", seconds: 5.2 }
   ],
-  "cherub.shattered": [{ speaker: "mabel", text: "That\u2019s it. They come apart easy. Save your nerve for the big ones; those you can only stagger.", seconds: 4 }],
+  "cherub.shattered": [{ speaker: "mabel", text: "Good. Vinyl cracks easy. Better broken than screaming.", seconds: 3.2 }],
+  "cherub.whisper": [{ speaker: "cherub", text: "P-p-play... with... m-me... forever...", seconds: 3 }],
+  "cherub.alarm": [{ speaker: "mabel", text: "It\u2019s screaming! Everything on this level heard that. Move!", seconds: 3 }],
   "seraph.entrance": [
     { speaker: "pa", text: "Floor supervision is now active in Hall Eleven.", seconds: 3 },
-    { speaker: "mabel", text: "That\u2019s the Seraph. It hides its face behind those wings. It isn\u2019t fast, but it doesn\u2019t give up. Three hard hits and it\u2019ll fold.", seconds: 4.8 }
+    { speaker: "mabel", text: "Look up. Slowly. That red light on the ceiling is Seraphim Sam, the old parade puppet. Don\u2019t stare at its eye, and don\u2019t let a Cherub scream.", seconds: 5.2 }
   ],
-  "seraph.defeated": [{ speaker: "mabel", text: "It folded. Hall Eleven\u2019s clear. Keep moving before the line notices.", seconds: 3.6 }],
+  "seraph.spotted": [{ speaker: "seraph", text: "SYSTEM ALERT. FORBIDDEN MATERIAL DETECTED IN THE SANCTUM. BEGINNING HARVEST.", seconds: 4 }],
+  "seraph.chase": [{ speaker: "seraph", text: "THE FOREMAN REQUIRES YOUR COMPONENTS. YIELD. YIELD. YIELD.", seconds: 3.6 }],
+  "seraph.defeated": [{ speaker: "mabel", text: "It\u2019s down. All six arms. Hall Eleven\u2019s clear. Keep moving before the line notices.", seconds: 3.8 }],
   "choirMother.defeated": [{ speaker: "mabel", text: "She\u2019s down. The little ones are going quiet. That nursery won\u2019t sing again.", seconds: 3.8 }]
 };
 var LORE_TAPES = [
@@ -8384,7 +8653,7 @@ var THREAT_PROFILES = {
       proximityRadius: 2,
       lightDependence: 0.5,
       crouchVisibilityFactor: 0.6,
-      eyeHeight: 2.55
+      eyeHeight: 3.2
     },
     hearing: { radiusMultiplier: 1.6, occlusionFactor: 0.7, awarenessGain: 0.5 },
     awareness: { sightGainPerSecond: 1, decayPerSecond: 0.08, alertThreshold: 0.18, huntThreshold: 0.6, forgetThreshold: 0.08 },
@@ -8596,12 +8865,16 @@ var TallymanEntity = class {
 var CherubEntity = class {
   kind = "cherub";
   position = [0, 0, 0];
-  yawRadians = 0;
+  yawRadians = Math.PI;
   gait = 0;
   eyeGlow = 1;
   scanAmount = 0;
   lunging = false;
   disturbance = { position: [0, 0.5, 0], radius: 1, strength: 0 };
+  alarmState = "passive";
+  alarmSeconds = 0;
+  /** Where it sat: the acid puddle stays here even after it flees. */
+  puddlePosition = null;
   animationTime = Math.random() * 10;
   model;
   constructor(meshes) {
@@ -8612,28 +8885,60 @@ var CherubEntity = class {
   }
   advanceAnimation(deltaSeconds) {
     this.animationTime += deltaSeconds;
+    if (this.alarmState !== "passive") {
+      this.alarmSeconds += deltaSeconds;
+    }
+    if (this.puddlePosition === null) {
+      this.puddlePosition = [this.position[0], 0, this.position[2]];
+    }
     this.disturbance.position = [this.position[0], this.position[1] + 0.5, this.position[2]];
   }
   collectDrawItems(output) {
     const time = this.animationTime;
-    const gait = clamp(this.gait, 0, 1);
-    const waddle = Math.sin(time * 9) * 0.16 * gait;
-    const hop = Math.abs(Math.sin(time * 9)) * 0.025 * gait;
-    const lean = this.lunging ? 0.5 : 0.08 * gait;
-    const root = mat4Compose([this.position[0], this.position[1] + hop, this.position[2]], [lean, this.yawRadians, waddle], [1, 1, 1]);
-    const flap = 0.35 + Math.sin(time * (gait > 0.05 || this.lunging ? 38 : 6)) * (gait > 0.05 || this.lunging ? 0.45 : 0.12);
+    const fleeing = this.alarmState === "fleeing";
+    const rock = this.alarmState === "passive" ? Math.sin(time * 0.8) * 0.02 : 0;
+    const judder = fleeing ? Math.sin(time * 40) * 0.12 : this.alarmState === "alarm" ? Math.sin(time * 70) * 0.02 : 0;
+    const pitch = fleeing ? Math.PI / 2 - 0.15 : 0;
+    const lift = fleeing ? 0.16 : 0;
+    const root = mat4Compose([this.position[0], this.position[1] + lift, this.position[2]], [pitch, this.yawRadians, rock + judder], [1, 1, 1]);
+    const headTurn = this.alarmState === "passive" ? 0 : Math.PI;
+    const neck = mat4Translation(0, CHERUB_HEAD_HEIGHT - 0.2, 0);
+    const unneck = mat4Translation(0, -(CHERUB_HEAD_HEIGHT - 0.2), 0);
+    const head = mat4Multiply(root, mat4Multiply(mat4Multiply(neck, mat4Compose([0, 0, 0], [0, headTurn, judder * 2], [1, 1, 1])), unneck));
+    const split = this.alarmState === "passive" ? 1 : 1.6 + Math.sin(time * 30) * 0.1;
+    const mouthCentre = [0, CHERUB_HEAD_HEIGHT - 0.11, 0.235];
+    const mouth = mat4Multiply(
+      head,
+      mat4Multiply(mat4Translation(mouthCentre[0], mouthCentre[1], mouthCentre[2]), mat4Multiply(mat4Compose([0, 0, 0], [0, 0, 0], [split, split, 1]), mat4Translation(-mouthCentre[0], -mouthCentre[1], -mouthCentre[2])))
+    );
+    const pulse = 1 + Math.sin(time * 3.4) * 0.06;
     for (const part of this.model.parts) {
-      if (part.partId === "wing") {
-        for (const side of [-1, 1]) {
-          const hinge = mat4Compose([side * 0.06, 0.44, -0.12], [0, side === 1 ? -0.5 : Math.PI + 0.5, side * flap], [1, 1, 1]);
-          output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: mat4Multiply(root, hinge), emissiveBoost: 1 });
-        }
-        continue;
+      switch (part.partId) {
+        case "puddle":
+          if (this.puddlePosition !== null) {
+            output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: mat4Translation(this.puddlePosition[0], 0, this.puddlePosition[2]), emissiveBoost: 0.7 });
+          }
+          break;
+        case "body":
+          output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: root, emissiveBoost: 1 });
+          break;
+        case "gears":
+        case "voids":
+          output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: part.partId === "gears" || this.alarmState !== "passive" ? mouth : head, emissiveBoost: 1 });
+          break;
+        case "stem":
+          output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: mat4Multiply(head, mat4Compose([0, 0, 0], [0, 0, 0], [pulse, 1, pulse])), emissiveBoost: 1 });
+          break;
+        case "tears":
+          output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: head, emissiveBoost: this.alarmState === "passive" ? 0.8 : 1.6 });
+          break;
+        default:
+          output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: head, emissiveBoost: 1 });
       }
-      output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: root, emissiveBoost: part.partId === "eyes" ? this.eyeGlow : 1 });
     }
   }
 };
+var SERAPH_CEILING_Y = 4.25;
 var SeraphEntity = class {
   kind = "seraph";
   position = [0, 0, 0];
@@ -8643,48 +8948,84 @@ var SeraphEntity = class {
   scanAmount = 0;
   lunging = false;
   disturbance = { position: [0, 2, 0], radius: 7, strength: 0 };
+  /** 0 = clinging to the ceiling, 1 = upright on the floor. */
+  dropProgress = 0;
+  dropping = false;
   animationTime = 0;
+  wheelAngle = 0;
   model;
   constructor(meshes) {
     this.model = meshes.get("seraph_entity");
   }
+  get onCeiling() {
+    return this.dropProgress <= 0 && !this.dropping;
+  }
+  /** World position of the red camera eye (the tell, and the gaze target). */
+  eyePosition() {
+    const t = this.dropProgress;
+    const ceilingEye = [this.position[0] - Math.sin(this.yawRadians) * 0.6, SERAPH_CEILING_Y - 0.35, this.position[2] - Math.cos(this.yawRadians) * 0.6];
+    const floorEye = [this.position[0], this.position[1] + SERAPH_HEAD_HEIGHT, this.position[2]];
+    return [ceilingEye[0] + (floorEye[0] - ceilingEye[0]) * t, ceilingEye[1] + (floorEye[1] - ceilingEye[1]) * t, ceilingEye[2] + (floorEye[2] - ceilingEye[2]) * t];
+  }
   headPosition() {
-    return [this.position[0], this.position[1] + SERAPH_HEAD_HEIGHT, this.position[2]];
+    return this.eyePosition();
+  }
+  startDrop() {
+    this.dropping = true;
   }
   advanceAnimation(deltaSeconds) {
     this.animationTime += deltaSeconds;
+    if (this.dropping) {
+      this.dropProgress = Math.min(1, this.dropProgress + deltaSeconds / 0.55);
+      if (this.dropProgress >= 1) this.dropping = false;
+    }
+    this.wheelAngle += this.gait * deltaSeconds * 8;
     this.disturbance.position = [this.position[0], this.position[1] + 2, this.position[2]];
   }
   collectDrawItems(output) {
     const time = this.animationTime;
+    const t = this.dropProgress;
+    const eased = t * t * (3 - 2 * t);
     const gait = clamp(this.gait, 0, 1);
-    const sway = Math.sin(time * 1.1) * 0.03 + Math.sin(time * 3.2) * 0.015 * gait;
-    const lean = this.lunging ? 0.3 : 0.04 * gait;
-    const root = mat4Compose([this.position[0], this.position[1], this.position[2]], [lean, this.yawRadians, sway], [1, 1, 1]);
-    const breathe = Math.sin(time * 1.6) * 0.08;
-    const flare = this.lunging ? 1 : 0;
-    const wings = [];
-    const wing = (hinge, direction) => {
-      const along = vec3Normalize(direction);
-      const upHint = Math.abs(along[1]) > 0.9 ? [0, 0, 1] : [0, 1, 0];
-      const dot = upHint[0] * along[0] + upHint[1] * along[1] + upHint[2] * along[2];
-      const width = vec3Normalize([upHint[0] - along[0] * dot, upHint[1] - along[1] * dot, upHint[2] - along[2] * dot]);
-      const thickness = [along[1] * width[2] - along[2] * width[1], along[2] * width[0] - along[0] * width[2], along[0] * width[1] - along[1] * width[0]];
-      wings.push(mat4Multiply(root, mat4FromBasis(hinge, along, width, thickness)));
+    const pitch = Math.PI / 2 * (1 - eased);
+    const height = SERAPH_CEILING_Y * (1 - eased);
+    const back = -1.6 * (1 - eased);
+    const sway = Math.sin(time * 1.3) * 0.03 * eased;
+    const lean = (this.lunging ? 0.3 : 0.05 * gait) * eased;
+    const root = mat4Multiply(
+      mat4Compose([this.position[0], this.position[1] + height, this.position[2]], [0, this.yawRadians, 0], [1, 1, 1]),
+      mat4Multiply(mat4Translation(0, 0, back), mat4Compose([0, 0, 0], [pitch + lean, 0, sway], [1, 1, 1]))
+    );
+    const arms = [];
+    const arm = (part, hinge, ceilingDirection, floorDirection) => {
+      const direction = vec3Normalize([
+        ceilingDirection[0] + (floorDirection[0] - ceilingDirection[0]) * eased,
+        ceilingDirection[1] + (floorDirection[1] - ceilingDirection[1]) * eased,
+        ceilingDirection[2] + (floorDirection[2] - ceilingDirection[2]) * eased
+      ]);
+      const upHint = Math.abs(direction[1]) > 0.9 ? [0, 0, 1] : [0, 1, 0];
+      const dot = upHint[0] * direction[0] + upHint[1] * direction[1] + upHint[2] * direction[2];
+      const width = vec3Normalize([upHint[0] - direction[0] * dot, upHint[1] - direction[1] * dot, upHint[2] - direction[2] * dot]);
+      const depth = [direction[1] * width[2] - direction[2] * width[1], direction[2] * width[0] - direction[0] * width[2], direction[0] * width[1] - direction[1] * width[0]];
+      arms.push({ part, matrix: mat4Multiply(root, mat4FromBasis(hinge, direction, width, depth)) });
     };
+    const reach = Math.sin(time * 2.1) * 0.12 + (this.lunging ? 0.4 : 0);
     for (const side of [-1, 1]) {
-      wing([side * 0.16, SERAPH_HEAD_HEIGHT + side * 0.04, 0.2], [-side * (1 - flare * 0.8), -side * 0.25 + flare * 0.5, 0.25 + flare * 0.6]);
-      wing([side * 0.32, 1.55, 0.02], [-side * (0.55 - flare * 0.4), -0.2, 0.85]);
-      wing([side * 0.22, 2.15, -0.15], [side * 0.9, 0.45 + breathe + flare * 0.5, -0.3]);
+      arm("armShears", [side * 0.62, 2.86, 0.1], [side * 0.5, 0.6, -0.8], [side * (0.45 - reach * 0.3), -0.25, 0.85 + reach]);
+      arm("armSaw", [side * 0.7, 2.8, 0], [side * 0.8, -0.4, -0.6], [side * 0.95, 0.05 + Math.sin(time * 1.4 + side) * 0.1, 0.2]);
+      arm("armNeedle", [side * 0.55, 2.9, -0.1], [side * 0.3, 0.9, -0.5], [side * 0.45, 0.75, 0.4]);
     }
+    const wheel = mat4Multiply(root, mat4Multiply(mat4Translation(0, 0.42, 0), mat4Multiply(mat4Compose([0, 0, 0], [this.wheelAngle, 0, 0], [1, 1, 1]), mat4Translation(0, -0.42, 0))));
+    void wheel;
     for (const part of this.model.parts) {
-      if (part.partId === "wing") {
-        for (const matrix of wings) {
-          output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: matrix, emissiveBoost: 1 });
+      if (part.partId === "armShears" || part.partId === "armSaw" || part.partId === "armNeedle") {
+        for (const entry of arms) {
+          if (entry.part === part.partId) output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: entry.matrix, emissiveBoost: 1 });
         }
         continue;
       }
-      output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: root, emissiveBoost: part.partId === "eyes" ? this.eyeGlow * 1.4 : 1 });
+      const glow = part.partId === "eyes" ? this.eyeGlow * (this.onCeiling ? 1.8 : 1.3) * (0.8 + 0.2 * Math.sin(time * 6)) : 1;
+      output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: root, emissiveBoost: glow });
     }
   }
 };
@@ -8871,7 +9212,11 @@ var ThreatDirector = class {
     for (const [spawnId, spawn] of residentSpawns) {
       if (!this.threats.has(spawnId) && !this.retiredSpawnIds.has(spawnId) && !this.lockedKinds.has(spawn.kind)) {
         const managed = this.register(spawnId, spawn.kind, spawn.position, spawn.patrolRoute, spawn.chunkIndex, false);
-        managed.brain.activate("patrolling", 0, null);
+        if (spawn.kind === "cherub") {
+          managed.view.yawRadians = Math.PI;
+        } else {
+          managed.brain.activate("patrolling", 0, null);
+        }
       }
     }
     for (const managed of [...this.threats.values()]) {
@@ -8925,7 +9270,8 @@ var ThreatDirector = class {
       return { outcome: "resisted", strikesLeft: 0 };
     }
     const stunSeconds = STRIKE_STUN_SECONDS[managed.kind] * stunScale;
-    if (!managed.brain.stun(stunSeconds, playerFeet)) {
+    const dormantButBreakable = managed.brain.state === "dormant" && this.defeatable.has(managed.kind);
+    if (!dormantButBreakable && !managed.brain.stun(stunSeconds, playerFeet)) {
       return { outcome: "resisted", strikesLeft: this.defeatable.has(managed.kind) ? this.defeatable.get(managed.kind) - (this.strikeCounts.get(id) ?? 0) : 0 };
     }
     const required = this.defeatable.get(managed.kind);
@@ -13205,6 +13551,17 @@ var VOLT_RECHARGE_SECONDS = 5;
 var CHIME_RADIUS_METERS = 5.5;
 var AIM_ASSIST_RANGE_METERS = 16;
 var AIM_ASSIST_COSINE = Math.cos(15 * Math.PI / 180);
+var CHERUB_WHISPER_METERS = 9;
+var CHERUB_ALARM_METERS = 5;
+var CHERUB_SCREAM_SECONDS = 1.6;
+var CHERUB_FLEE_SECONDS = 2.4;
+var CHERUB_FLEE_SPEED = 4.5;
+var SERAPH_GAZE_RANGE_METERS = 16;
+var SERAPH_GAZE_COSINE = Math.cos(8 * Math.PI / 180);
+var SERAPH_GAZE_SECONDS = 2;
+var SERAPH_SIREN_RANGE_METERS = 30;
+var SERAPH_CHASE_LINE_SECONDS = 7;
+var SERAPH_LANDING_SECONDS = 0.9;
 var SAVE_INDICATOR_SECONDS = 2.4;
 var SECOND_WIND_STUN_SECONDS = 3.5;
 var JESTER_ENTRANCE_CHUNK = 22;
@@ -13282,6 +13639,13 @@ var ActiveLevelStreamerState = class {
   leavingLevel = false;
   campaign = null;
   pip = null;
+  /** Cherubs that have already whispered at the player this session. */
+  whisperedCherubs = /* @__PURE__ */ new Set();
+  /** Seconds the player has held their gaze on the Seraph's eye. */
+  seraphGaze = 0;
+  seraphChaseLine = 0;
+  /** Set when a Cherub's siren goes off; the Seraph drops if it is close enough. */
+  sirenAt = null;
   /** Cassette indicator: label and seconds left on screen. */
   saveIndicator = null;
   /** Seconds before the Volt hand can fire again after a shock. */
@@ -13564,7 +13928,7 @@ var ActiveLevelStreamerState = class {
       for (const managed of threats.activeThreats) {
         const radius = STRIKE_RADIUS[managed.kind];
         const feet = managed.view.position;
-        const height = managed.profile.vision.eyeHeight * 1.1;
+        const height = managed.kind === "seraph" ? 4.6 : managed.profile.vision.eyeHeight * 1.1;
         let hit = false;
         for (let sample = 0; sample <= 8 && !hit; sample += 1) {
           const t = sample / 8;
@@ -13616,6 +13980,9 @@ var ActiveLevelStreamerState = class {
           threats.strike(other.id, this.motor.position, stunScale);
         }
       }
+    }
+    if (kind === "seraph") {
+      this.dropSeraph(threats, worldEvents, "struck");
     }
     const result = threats.strike(id, this.motor.position, stunScale);
     const toPlayer = [this.motor.position[0] - impact[0], 0.4, this.motor.position[2] - impact[2]];
@@ -13711,6 +14078,113 @@ var ActiveLevelStreamerState = class {
   }
   entranceSpawnBehind() {
     return [0, 0, Math.min(chunkStartZ(0) - 1, this.motor.position[2] + ENTITY_SPAWN_BEHIND_METERS)];
+  }
+  /**
+   * Cherub Cheeks: sits dormant with its back turned. Within 5 m its head snaps round and it wails a siren that every
+   * monster hears (and that brings the Seraph down); then it drops flat and scurries off into the walls.
+   */
+  updateCherubs(threats, worldEvents, deltaSeconds) {
+    for (const managed of threats.activeThreats) {
+      if (managed.kind !== "cherub" || !(managed.view instanceof CherubEntity)) {
+        continue;
+      }
+      const view = managed.view;
+      const toPlayer = [this.motor.position[0] - view.position[0], 0, this.motor.position[2] - view.position[2]];
+      const distance = Math.hypot(toPlayer[0], toPlayer[2]);
+      if (view.alarmState === "passive") {
+        if (distance < CHERUB_WHISPER_METERS && !this.whisperedCherubs.has(managed.id) && this.campaign !== null && this.campaign.subtitle === null) {
+          this.whisperedCherubs.add(managed.id);
+          this.campaign.say("cherub.whisper", { allowRepeat: true });
+        }
+        if (distance < CHERUB_ALARM_METERS) {
+          view.alarmState = "alarm";
+          view.alarmSeconds = 0;
+          this.services.audio.playSpatialCue("cherubSiren", view.headPosition(), 1.6);
+          threats.emitNoise("alarm", view.position, 1);
+          this.sirenAt = [view.position[0], view.position[1], view.position[2]];
+          this.showToast("A CHERUB IS SCREAMING", 2.2, "danger");
+          if (worldEvents.flag("combatResistedHint") < 2) {
+            worldEvents.setFlag("combatResistedHint", 2);
+            this.campaign?.say("cherub.alarm");
+          }
+        }
+        continue;
+      }
+      if (view.alarmState === "alarm" && view.alarmSeconds >= CHERUB_SCREAM_SECONDS) {
+        view.alarmState = "fleeing";
+        this.services.audio.playSpatialCue("plasticScrape", view.position, 1.2);
+      }
+      if (view.alarmState === "fleeing") {
+        const away = distance > 0.01 ? [-toPlayer[0] / distance, 0, -toPlayer[2] / distance] : [0, 0, -1];
+        const wallward = view.position[0] >= 0 ? 1 : -1;
+        const step = CHERUB_FLEE_SPEED * deltaSeconds;
+        view.position = [
+          clamp(view.position[0] + (away[0] * 0.6 + wallward * 0.8) * step, -CORRIDOR_DIMENSIONS.halfWidth + 0.35, CORRIDOR_DIMENSIONS.halfWidth - 0.35),
+          view.position[1],
+          view.position[2] + away[2] * 0.6 * step
+        ];
+        view.yawRadians = Math.atan2(away[0] * 0.6 + wallward * 0.8, away[2] * 0.6);
+        if (view.alarmSeconds >= CHERUB_SCREAM_SECONDS + CHERUB_FLEE_SECONDS) {
+          threats.retire(managed.id);
+        }
+      }
+    }
+  }
+  /**
+   * Seraphim Sam: clings to the ceiling (it can't hunt or catch while up there) until a Cherub screams nearby, the player
+   * stares at its red eye for 2 seconds, or a hand strikes it. Then it drops and hunts, booming over its PA.
+   */
+  updateSeraph(threats, deltaSeconds) {
+    const managed = threats.activeThreats.find((candidate) => candidate.kind === "seraph");
+    const siren = this.sirenAt;
+    this.sirenAt = null;
+    if (managed === void 0 || !(managed.view instanceof SeraphEntity)) {
+      this.seraphGaze = 0;
+      return;
+    }
+    const view = managed.view;
+    if (view.onCeiling) {
+      managed.brain.graceSeconds = Math.max(managed.brain.graceSeconds, 0.5);
+      const eye = view.eyePosition();
+      const camera = this.services.camera.position;
+      const toEye = [eye[0] - camera[0], eye[1] - camera[1], eye[2] - camera[2]];
+      const distance = Math.hypot(toEye[0], toEye[1], toEye[2]);
+      const look = [-Math.sin(this.yawRadians) * Math.cos(this.pitchRadians), Math.sin(this.pitchRadians), -Math.cos(this.yawRadians) * Math.cos(this.pitchRadians)];
+      const cosine = distance > 0 ? (toEye[0] * look[0] + toEye[1] * look[1] + toEye[2] * look[2]) / distance : 0;
+      this.seraphGaze = distance < SERAPH_GAZE_RANGE_METERS && cosine > SERAPH_GAZE_COSINE ? this.seraphGaze + deltaSeconds : Math.max(0, this.seraphGaze - deltaSeconds * 2);
+      const sirenClose = siren !== null && Math.hypot(siren[0] - view.position[0], siren[2] - view.position[2]) < SERAPH_SIREN_RANGE_METERS;
+      if (sirenClose || this.seraphGaze >= SERAPH_GAZE_SECONDS) {
+        this.dropSeraph(threats, this.worldEvents, sirenClose ? "siren" : "gaze");
+      }
+      return;
+    }
+    if (managed.brain.state === "hunting" || managed.brain.state === "catchKill") {
+      this.seraphChaseLine -= deltaSeconds;
+      if (this.seraphChaseLine <= 0) {
+        this.seraphChaseLine = SERAPH_CHASE_LINE_SECONDS;
+        this.services.audio.playSpatialCue("seraphStatic", view.eyePosition(), 1);
+        this.campaign?.say("seraph.chase", { allowRepeat: true });
+      }
+    }
+  }
+  dropSeraph(threats, worldEvents, reason) {
+    const managed = threats.activeThreats.find((candidate) => candidate.kind === "seraph");
+    if (managed === void 0 || !(managed.view instanceof SeraphEntity) || !managed.view.onCeiling) {
+      return;
+    }
+    managed.view.startDrop();
+    managed.brain.graceSeconds = 0;
+    managed.brain.activate("hunting", 1, this.playerPosition());
+    if (reason !== "struck") {
+      managed.brain.forceStun(SERAPH_LANDING_SECONDS, this.motor.position);
+      managed.brain.stunImmuneSeconds = 0;
+    }
+    this.seraphGaze = 0;
+    this.seraphChaseLine = SERAPH_CHASE_LINE_SECONDS;
+    this.services.audio.playSpatialCue("seraphDrop", managed.view.position, 1.5);
+    this.services.audio.playSpatialCue("seraphStatic", managed.view.position, 1.2);
+    this.campaign?.say("seraph.spotted", { allowRepeat: true });
+    void worldEvents;
   }
   /** Decides which monsters can be beaten for good right now; everything else can only be staggered. */
   updateCombatScenes(threats, worldEvents) {
@@ -14514,6 +14988,8 @@ var ActiveLevelStreamerState = class {
     this.updateEntrances(threats, worldEvents, deltaSeconds);
     this.updateCombatScenes(threats, worldEvents);
     this.announceNewHands(worldEvents);
+    this.updateCherubs(threats, worldEvents, deltaSeconds);
+    this.updateSeraph(threats, deltaSeconds);
     if (this.saveIndicator !== null) {
       this.saveIndicator.seconds -= deltaSeconds;
       if (this.saveIndicator.seconds <= 0) this.saveIndicator = null;

@@ -29,6 +29,15 @@ export type MaterialId =
   | 'tether_claw_chime'
   | 'tether_core_teal'
   | 'spark_glow'
+  | 'cherub_vinyl'
+  | 'cherub_iris'
+  | 'void_black'
+  | 'cherub_tears'
+  | 'rose_petal'
+  | 'stem_flesh'
+  | 'seraph_satin_purple'
+  | 'seraph_satin_gold'
+  | 'seraph_eye_red'
   | 'arc_glow'
   | 'tether_core_rose'
   | 'tallyman_dial'
@@ -356,6 +365,123 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     emissiveStrength: 12,
     uvScale: 1,
   },
+  cherub_vinyl: {
+    id: 'cherub_vinyl',
+    displayName: 'Cherub Cheeks · Aged Vinyl',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 9201, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.95, 0.74, 0.62],
+    normalStrength: 0.7,
+    roughnessScale: 0.8,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  cherub_iris: {
+    id: 'cherub_iris',
+    displayName: 'Cherub Cheeks · Painted Iris',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 9202, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.18, 0.36, 0.85],
+    normalStrength: 0.7,
+    roughnessScale: 0.25,
+    metallic: 0.4,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  void_black: {
+    id: 'void_black',
+    displayName: 'Void Black',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 9203, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.03, 0.03, 0.035],
+    normalStrength: 0.7,
+    roughnessScale: 0.4,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  cherub_tears: {
+    id: 'cherub_tears',
+    displayName: 'Cherub Cheeks · Acid Tears',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'emissiveSolid', seed: 9204, resolution: 64, bumpStrength: 0 },
+    baseTint: [0.48, 0.55, 0.23],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0.42, 0.6, 0.1],
+    emissiveStrength: 2.2,
+    uvScale: 1,
+  },
+  rose_petal: {
+    id: 'rose_petal',
+    displayName: 'Rose Petals',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 9205, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.75, 0.06, 0.1],
+    normalStrength: 0.7,
+    roughnessScale: 0.6,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  stem_flesh: {
+    id: 'stem_flesh',
+    displayName: 'Wet Fleshy Stem',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 9206, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.12, 0.25, 0.1],
+    normalStrength: 0.7,
+    roughnessScale: 0.3,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  seraph_satin_purple: {
+    id: 'seraph_satin_purple',
+    displayName: 'Seraphim Sam · Purple Satin',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 9207, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.32, 0.12, 0.42],
+    normalStrength: 0.7,
+    roughnessScale: 0.9,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  seraph_satin_gold: {
+    id: 'seraph_satin_gold',
+    displayName: 'Seraphim Sam · Gold Satin',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 9208, resolution: 128, bumpStrength: 1.4 },
+    baseTint: [0.7, 0.52, 0.16],
+    normalStrength: 0.7,
+    roughnessScale: 0.8,
+    metallic: 0.3,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  seraph_eye_red: {
+    id: 'seraph_eye_red',
+    displayName: 'Seraphim Sam · Camera Eye',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'emissiveSolid', seed: 9209, resolution: 64, bumpStrength: 0 },
+    baseTint: [1, 0.1, 0.08],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [1, 0.08, 0.05],
+    emissiveStrength: 9,
+    uvScale: 1,
+  },
   arc_glow: {
     id: 'arc_glow',
     displayName: 'VFX · Cable Arc',
@@ -635,13 +761,22 @@ export type ImportedMeshId =
 export type ProceduralMeshBuilderId =
   | 'jester_body'
   | 'cherub_body'
-  | 'cherub_face'
-  | 'cherub_eyes'
-  | 'cherub_wing'
-  | 'seraph_robe'
-  | 'seraph_head'
-  | 'seraph_eye'
-  | 'seraph_wing'
+  | 'cherub_head'
+  | 'cherub_voids'
+  | 'cherub_iris'
+  | 'cherub_gears'
+  | 'cherub_tears'
+  | 'cherub_rose'
+  | 'cherub_stem'
+  | 'cherub_puddle'
+  | 'seraph_frame'
+  | 'seraph_satin_purple'
+  | 'seraph_satin_gold'
+  | 'seraph_mask'
+  | 'seraph_eye_red'
+  | 'seraph_arm_shears'
+  | 'seraph_arm_saw'
+  | 'seraph_arm_needle'
   | 'jester_stuffing'
   | 'jester_lantern_shard'
   | 'jester_wind_key'
@@ -749,24 +884,33 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
   },
   cherub_entity: {
     id: 'cherub_entity',
-    displayName: 'Cherub',
+    displayName: 'Cherub Cheeks',
     importScale: 1,
     parts: [
-      { partId: 'body', materialId: 'tin_plate', importUri: null, fallbackBuilder: 'cherub_body' },
-      { partId: 'face', materialId: 'porcelain_glaze', importUri: null, fallbackBuilder: 'cherub_face' },
-      { partId: 'eyes', materialId: 'choir_glow', importUri: null, fallbackBuilder: 'cherub_eyes' },
-      { partId: 'wing', materialId: 'tin_plate', importUri: null, fallbackBuilder: 'cherub_wing' },
+      { partId: 'body', materialId: 'cherub_vinyl', importUri: null, fallbackBuilder: 'cherub_body' },
+      { partId: 'head', materialId: 'cherub_vinyl', importUri: null, fallbackBuilder: 'cherub_head' },
+      { partId: 'voids', materialId: 'void_black', importUri: null, fallbackBuilder: 'cherub_voids' },
+      { partId: 'iris', materialId: 'cherub_iris', importUri: null, fallbackBuilder: 'cherub_iris' },
+      { partId: 'gears', materialId: 'tether_brass', importUri: null, fallbackBuilder: 'cherub_gears' },
+      { partId: 'tears', materialId: 'cherub_tears', importUri: null, fallbackBuilder: 'cherub_tears' },
+      { partId: 'rose', materialId: 'rose_petal', importUri: null, fallbackBuilder: 'cherub_rose' },
+      { partId: 'stem', materialId: 'stem_flesh', importUri: null, fallbackBuilder: 'cherub_stem' },
+      { partId: 'puddle', materialId: 'cherub_tears', importUri: null, fallbackBuilder: 'cherub_puddle' },
     ],
   },
   seraph_entity: {
     id: 'seraph_entity',
-    displayName: 'The Seraph',
+    displayName: 'Seraphim Sam',
     importScale: 1,
     parts: [
-      { partId: 'robe', materialId: 'hymn_paper', importUri: null, fallbackBuilder: 'seraph_robe' },
-      { partId: 'head', materialId: 'porcelain_glaze', importUri: null, fallbackBuilder: 'seraph_head' },
-      { partId: 'eyes', materialId: 'choir_glow', importUri: null, fallbackBuilder: 'seraph_eye' },
-      { partId: 'wing', materialId: 'tether_brass', importUri: null, fallbackBuilder: 'seraph_wing' },
+      { partId: 'frame', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'seraph_frame' },
+      { partId: 'satinPurple', materialId: 'seraph_satin_purple', importUri: null, fallbackBuilder: 'seraph_satin_purple' },
+      { partId: 'satinGold', materialId: 'seraph_satin_gold', importUri: null, fallbackBuilder: 'seraph_satin_gold' },
+      { partId: 'mask', materialId: 'porcelain_glaze', importUri: null, fallbackBuilder: 'seraph_mask' },
+      { partId: 'eyes', materialId: 'seraph_eye_red', importUri: null, fallbackBuilder: 'seraph_eye_red' },
+      { partId: 'armShears', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'seraph_arm_shears' },
+      { partId: 'armSaw', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'seraph_arm_saw' },
+      { partId: 'armNeedle', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'seraph_arm_needle' },
     ],
   },
   gas_mask_prop: {

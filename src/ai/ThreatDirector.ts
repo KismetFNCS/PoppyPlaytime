@@ -153,7 +153,12 @@ export class ThreatDirector {
     for (const [spawnId, spawn] of residentSpawns) {
       if (!this.threats.has(spawnId) && !this.retiredSpawnIds.has(spawnId) && !this.lockedKinds.has(spawn.kind)) {
         const managed: ManagedThreat = this.register(spawnId, spawn.kind, spawn.position, spawn.patrolRoute, spawn.chunkIndex, false);
-        managed.brain.activate('patrolling', 0, null);
+        if (spawn.kind === 'cherub') {
+          // Cherubs sit dormant with their backs turned; the level drives their alarm and flight.
+          managed.view.yawRadians = Math.PI;
+        } else {
+          managed.brain.activate('patrolling', 0, null);
+        }
       }
     }
     for (const managed of [...this.threats.values()]) {
@@ -213,7 +218,9 @@ export class ThreatDirector {
       return { outcome: 'resisted', strikesLeft: 0 };
     }
     const stunSeconds: number = STRIKE_STUN_SECONDS[managed.kind] * stunScale;
-    if (!managed.brain.stun(stunSeconds, playerFeet)) {
+    // A dormant monster (a sitting Cherub) can't be staggered, but a strike still counts where it can be beaten.
+    const dormantButBreakable: boolean = managed.brain.state === 'dormant' && this.defeatable.has(managed.kind);
+    if (!dormantButBreakable && !managed.brain.stun(stunSeconds, playerFeet)) {
       return { outcome: 'resisted', strikesLeft: this.defeatable.has(managed.kind) ? (this.defeatable.get(managed.kind) as number) - (this.strikeCounts.get(id) ?? 0) : 0 };
     }
     const required: number | undefined = this.defeatable.get(managed.kind);
