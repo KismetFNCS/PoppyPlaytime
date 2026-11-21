@@ -9176,6 +9176,19 @@ const SCULPTS = {
       n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.71], r: [0.1, 0.1, 0.03], m: W, k: 0.02 });
       n.push({ t: 'ell', c: [sx * 0.36, 0.2, -0.35], r: [0.07, 0.05, 0.09], m: R, k: 0.006 });
     }
+    // mismatched patchwork panels on the lower belly and hips
+    n.push({ t: 'box', c: [-0.25, 0.3, -0.2], h: [0.1, 0.08, 0.015], rr: 0.012, rot: [0.5, -0.5, 0.2], m: MAT.clothWine, k: 0.008 });
+    n.push({ t: 'box', c: [0.28, 0.32, -0.16], h: [0.09, 0.09, 0.015], rr: 0.012, rot: [0.4, 0.6, -0.3], m: MAT.furLight, k: 0.008 });
+    // yellow and red cross-stitches sealing the side seams
+    for (let i = 0; i < 8; i++) {
+      const yy = 0.22 + i * 0.09, side = i % 2 ? 1 : -1;
+      const rr = Math.sqrt(Math.max(0.05, 1 - ((yy - 0.55) / 0.52) ** 2));
+      const cx = side * 0.4 * rr, cz = 0.12 - 0.12 * rr, m = i % 3 ? MAT.paint : MAT.lining;
+      n.push({ t: 'cap', a: [cx, yy - 0.018, cz - 0.018], b: [cx, yy + 0.018, cz + 0.018], r: 0.005, m, k: 0.002 });
+      n.push({ t: 'cap', a: [cx, yy + 0.018, cz - 0.018], b: [cx, yy - 0.018, cz + 0.018], r: 0.005, m, k: 0.002 });
+    }
+    // frayed edges around the foot pads
+    for (const sx of [-1, 1]) n.push({ t: 'tor', c: [sx * 0.41, 0.13, -0.7], R: 0.12, r: 0.014, rot: [0, Math.PI / 2, 0], m: F, k: 0.01, n: [0.012, 70] });
     return SDF.mesh(n, [-0.62, -0.05, -0.82], [0.62, 1.15, 0.55], 76);
   },
   // Mister Thimble's head: matted auburn fur, pale muzzle, stains, torn maw, sewn button eye,
@@ -9205,13 +9218,24 @@ const SCULPTS = {
       const a = i / 8 * Math.PI * 2;
       n.push({ t: 'sph', c: [0.06 + Math.cos(a) * 0.112, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
     }
-    for (const sx of [-1, 1]) {
-      n.push({ t: 'sph', c: [sx * 0.25, 0.24, 0.02], r: 0.11, m: F, k: 0.05 });
-      n.push({ t: 'sph', c: [sx * 0.26, 0.25, -0.06], r: 0.07, op: 's', k: 0.02, sm: W });
-    }
-    n.push({ t: 'box', c: [-0.3, 0.33, 0.02], h: [0.08, 0.06, 0.12], rot: [0.3, 0, 0.6], op: 's', k: 0.005, sm: W, n: [0.015, 50] });
+    // right ear stands up, left ear droops sideways; both frayed at the rim
+    n.push({ t: 'ell', c: [0.24, 0.3, 0.02], r: [0.1, 0.14, 0.06], rot: [0, 0, -0.25], m: F, k: 0.05, n: [0.012, 45] });
+    n.push({ t: 'ell', c: [0.245, 0.31, -0.035], r: [0.065, 0.095, 0.03], rot: [0, 0, -0.25], op: 's', k: 0.02, sm: W });
+    n.push({ t: 'ell', c: [-0.34, 0.16, 0.02], r: [0.14, 0.085, 0.06], rot: [0, 0, 0.55], m: F, k: 0.05, n: [0.014, 45] });
+    n.push({ t: 'ell', c: [-0.345, 0.155, -0.035], r: [0.095, 0.055, 0.03], rot: [0, 0, 0.55], op: 's', k: 0.02, sm: W });
+    n.push({ t: 'box', c: [-0.42, 0.21, 0.02], h: [0.05, 0.04, 0.1], rot: [0.3, 0, 0.6], op: 's', k: 0.005, sm: W, n: [0.015, 50] });
     for (let i = 0; i < 8; i++) n.push({ t: 'sph', c: [Math.sin(i * 2.2) * 0.22, 0.2 + (i % 3) * 0.04, Math.cos(i * 2.2) * 0.2 + 0.05], r: 0.04, m: F, k: 0.02, n: [0.018, 60] });
-    return SDF.mesh(n, [-0.42, -0.36, -0.4], [0.42, 0.46, 0.36], 78);
+    // mismatched patchwork panels sewn onto the head
+    n.push({ t: 'box', c: [0.2, 0.08, -0.2], h: [0.07, 0.06, 0.012], rr: 0.01, rot: [-0.7, 0.1, 0.2], m: MAT.vest, k: 0.006 });
+    n.push({ t: 'box', c: [-0.16, -0.12, -0.24], h: [0.06, 0.05, 0.012], rr: 0.01, rot: [0.55, 0.3, -0.3], m: MAT.clothWine, k: 0.006 });
+    // yellow and red cross-stitches along the seams
+    const X = (cx, cy, cz, sz, m) => {
+      n.push({ t: 'cap', a: [cx - sz, cy - sz, cz], b: [cx + sz, cy + sz, cz], r: 0.0045, m, k: 0.002 });
+      n.push({ t: 'cap', a: [cx - sz, cy + sz, cz], b: [cx + sz, cy - sz, cz], r: 0.0045, m, k: 0.002 });
+    };
+    for (let i = 0; i < 5; i++) X(-0.2 + i * 0.1, 0.27 - Math.abs(i - 2) * 0.03, -0.17 + Math.abs(i - 2) * 0.04, 0.012, i % 2 ? MAT.paint : MAT.lining);
+    for (let i = 0; i < 3; i++) X(0.16 + i * 0.03, 0.02 + i * 0.05, -0.27 + i * 0.03, 0.01, MAT.paint);
+    return SDF.mesh(n, [-0.52, -0.36, -0.4], [0.42, 0.5, 0.36], 80);
   },
   // Mister Thimble's arm: matted fur sleeve with a stain, pale paw pad
   th_arm: () => {
