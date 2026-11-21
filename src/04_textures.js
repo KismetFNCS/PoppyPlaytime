@@ -305,6 +305,20 @@ const TexSynth = {
       out[4] = 1;
       out[5] = 1.0 + mould * 0.2;
     },
+    // inside-out lining: satin weave sheen, glue stains, pulled threads and torn seam allowances
+    lining(s, t, out) {
+      const sheen = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * 140 + TexSynth.fbmA(s, t, 6, 30, 2, 201) * 6);
+      const glue = smoothstep(0.6, 0.75, TexSynth.fbm(s, t, 7, 4, 202));
+      const pulled = TexSynth.fbmA(s, t, 200, 4, 2, 203) > 0.82 ? 1 : 0;
+      const seam = Math.abs(((s * 3) % 1) - 0.5) < 0.012 ? 1 : 0;
+      const stitch = seam && ((t * 60) % 1) < 0.5;
+      let g = (0.7 + sheen * 0.3) * (1 - glue * 0.55) * (pulled ? 0.6 : 1);
+      if (stitch) g = 1.1;
+      out[0] = g; out[1] = stitch ? g : g * (1 - glue * 0.2); out[2] = stitch ? g * 0.9 : g * (1 - glue * 0.25);
+      out[3] = sheen * 0.3 + (seam ? 0.6 : 0) - pulled * 0.2;
+      out[4] = 1;
+      out[5] = 0.8 + glue * 0.6;
+    },
     rubber(s, t, out) {
       const n = TexSynth.fbm(s, t, 32, 3, 121);
       const g = 0.8 + n * 0.2;
@@ -320,7 +334,7 @@ const TexSynth = {
     ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelainAged', 3.0], ['furMatted', 5.0],
     ['furMatted', 5.0], ['steelGrime', 2.5], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
     ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5],
-    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['burnt', 5.0], ['furMatted', 4.5], ['clothRot', 3.5]
+    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['burnt', 5.0], ['furMatted', 4.5], ['clothRot', 3.5], ['lining', 3.0]
   ],
 
   // Synthesizes one layer into the given Uint8Array slices.

@@ -330,36 +330,49 @@ const SCULPTS = {
     n.push({ t: 'cap', a: [0.08, 0.1, -0.12], b: [0.1, -0.08, -0.15], r: 0.022, r2: 0.01, m: H, k: 0.02, n: [0.004, 80] });
     return SDF.mesh(n, [-0.24, -0.26, -0.22], [0.24, 0.22, 0.24], 78);
   },
-  // Mister Thimble: slumped scorched body, belly seam split open with stuffing spilling out
+  // Mister Thimble, scrapped and turned inside out: crimson lining outward, scorched fur showing only at
+  // the frayed seam allowances, one patch still right-side out, split seams spilling stuffing, a care tag
   th_body: () => {
-    const B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, n = [
-      { t: 'ell', c: [0, 0.55, 0.12], r: [0.42, 0.52, 0.36], m: B, n: [0.03, 8] },
-      { t: 'ell', c: [0, 0.5, -0.16], r: [0.26, 0.32, 0.13], m: W, k: 0.05, n: [0.012, 25] },
-      { t: 'cap', a: [-0.02, 0.78, -0.26], b: [0.05, 0.3, -0.27], r: 0.045, op: 's', k: 0.01, sm: D, n: [0.015, 30] },
-      { t: 'sph', c: [0.25, 0.75, -0.12], r: 0.09, op: 's', k: 0.02, sm: W, n: [0.025, 30] },
-      { t: 'sph', c: [-0.3, 0.4, -0.06], r: 0.07, op: 's', k: 0.02, sm: W, n: [0.025, 30] }
+    const L = MAT.lining, B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0.55, 0.12], r: [0.42, 0.52, 0.36], m: L, n: [0.03, 7] },
+      // mismatched patch of scorched fur still right-side out on the flank
+      { t: 'ell', c: [0.3, 0.62, 0.0], r: [0.16, 0.2, 0.18], m: B, k: 0.03, n: [0.02, 18] },
+      // centre-front seam split open, stuffing bursting through
+      { t: 'cap', a: [-0.02, 0.85, -0.25], b: [0.05, 0.22, -0.26], r: 0.055, op: 's', k: 0.012, sm: D, n: [0.018, 26] },
+      { t: 'sph', c: [-0.28, 0.4, -0.08], r: 0.08, op: 's', k: 0.02, sm: D, n: [0.025, 30] },
+      { t: 'box', c: [0.1, 1.06, 0.33], h: [0.04, 0.055, 0.004], rot: [0.3, 0.4, 0.2], m: W, k: 0.004 }
     ];
-    // stuffing bursting from the split seam
-    for (let i = 0; i < 6; i++) n.push({ t: 'sph', c: [0.01 + Math.sin(i * 2.1) * 0.03, 0.72 - i * 0.075, -0.29 - (i % 2) * 0.02], r: 0.04 + (i % 3) * 0.01, m: W, k: 0.02, n: [0.015, 45] });
-    for (let i = 0; i < 7; i++) n.push({ t: 'box', c: [-0.06 + (i % 2) * 0.12, 0.74 - i * 0.065, -0.265], h: [0.022, 0.005, 0.008], rot: [0, 0, 0.4], m: D, k: 0.003 });
+    // raised seam allowances (scorched outer fur, frayed) around the body
+    for (let i = 0; i < 5; i++) {
+      const ang = i / 5 * Math.PI * 2 + 0.9;
+      n.push({ t: 'cap', a: [Math.cos(ang) * 0.36, 0.18, Math.sin(ang) * 0.3 + 0.12], b: [Math.cos(ang) * 0.3, 0.98, Math.sin(ang) * 0.26 + 0.12], r: 0.024, m: B, k: 0.015, n: [0.014, 32] });
+    }
+    n.push({ t: 'cap', a: [-0.4, 0.62, 0.1], b: [0.4, 0.62, 0.1], r: 0.02, m: B, k: 0.015, n: [0.012, 32] });
+    for (let i = 0; i < 7; i++) n.push({ t: 'sph', c: [0.015 + Math.sin(i * 2.1) * 0.035, 0.8 - i * 0.085, -0.3 - (i % 2) * 0.03], r: 0.045 + (i % 3) * 0.012, m: W, k: 0.02, n: [0.016, 45] });
+    for (let k = 0; k < 3; k++) n.push({ t: 'sph', c: [-0.3, 0.36 + k * 0.05, -0.1], r: 0.035, m: W, k: 0.015, n: [0.012, 50] });
     for (const sx of [-1, 1]) {
-      n.push({ t: 'cap', a: [sx * 0.24, 0.18, -0.1], b: [sx * 0.4, 0.13, -0.58], r: 0.15, r2: 0.13, m: B, k: 0.08, n: [0.025, 8] });
+      n.push({ t: 'cap', a: [sx * 0.24, 0.18, -0.1], b: [sx * 0.4, 0.13, -0.58], r: 0.15, r2: 0.13, m: L, k: 0.08, n: [0.025, 8] });
+      n.push({ t: 'tor', c: [sx * 0.39, 0.14, -0.54], R: 0.135, r: 0.02, rot: [0, Math.PI / 2, sx * 0.3], m: B, k: 0.01, n: [0.01, 40] });
       n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.66], r: [0.15, 0.15, 0.08], m: B, k: 0.05 });
       n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.71], r: [0.1, 0.1, 0.03], m: W, k: 0.02 });
     }
-    return SDF.mesh(n, [-0.62, -0.05, -0.82], [0.62, 1.12, 0.55], 74);
+    // loose threads dangling from the split
+    for (let i = 0; i < 4; i++) n.push({ t: 'cap', a: [-0.03 + i * 0.03, 0.3, -0.29], b: [-0.05 + i * 0.035, 0.12 - (i % 2) * 0.05, -0.31], r: 0.004, m: W, k: 0.002 });
+    return SDF.mesh(n, [-0.62, -0.05, -0.82], [0.62, 1.15, 0.55], 76);
   },
-  // Mister Thimble's head: torn maw full of crooked teeth, sewn button eye, gouged socket, ripped ear, thimble cap
+  // Mister Thimble's head, inside out: lining face, a scorched muzzle patch, seam over the crown,
+  // torn maw of crooked teeth, sewn button eye, gouged socket, ripped ear, thimble cap
   th_head: () => {
-    const B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, T = MAT.porcelain, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: B, n: [0.025, 9] },
-      { t: 'ell', c: [0, -0.1, -0.24], r: [0.17, 0.13, 0.12], m: W, k: 0.06, n: [0.01, 30] },
+    const L = MAT.lining, B = MAT.burnt, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, T = MAT.porcelain, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: L, n: [0.022, 9] },
+      { t: 'cap', a: [0, 0.31, -0.18], b: [0, 0.2, 0.3], r: 0.022, m: B, k: 0.015, n: [0.012, 36] },
+      { t: 'cap', a: [-0.33, 0.0, 0.0], b: [0.33, 0.0, 0.0], r: 0.018, m: B, k: 0.012, n: [0.01, 36] },
+      { t: 'ell', c: [0, -0.1, -0.24], r: [0.17, 0.13, 0.12], m: B, k: 0.06, n: [0.012, 26] },
       { t: 'ell', c: [0, -0.02, -0.35], r: [0.05, 0.036, 0.032], m: D, k: 0.015 },
-      // the maw: muzzle torn open
       { t: 'ell', c: [0, -0.15, -0.3], r: [0.13, 0.05, 0.1], op: 's', k: 0.01, sm: D, n: [0.012, 40] },
       { t: 'cyl', c: [-0.12, 0.06, -0.27], r: 0.055, h: 0.014, rr: 0.006, rot: [0, Math.PI / 2, 0], m: D, k: 0.01 },
-      { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: B },
-      { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: B },
+      { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: L },
+      { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: L },
       { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.055, op: 's', k: 0.015, sm: D, n: [0.008, 50] },
       { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 }
     ];
@@ -373,21 +386,24 @@ const SCULPTS = {
       n.push({ t: 'sph', c: [0.06 + Math.cos(a) * 0.112, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
     }
     for (const sx of [-1, 1]) {
-      n.push({ t: 'sph', c: [sx * 0.25, 0.24, 0.02], r: 0.11, m: B, k: 0.05 });
-      n.push({ t: 'sph', c: [sx * 0.26, 0.25, -0.06], r: 0.07, op: 's', k: 0.02, sm: W });
+      n.push({ t: 'sph', c: [sx * 0.25, 0.24, 0.02], r: 0.11, m: L, k: 0.05 });
+      n.push({ t: 'sph', c: [sx * 0.26, 0.25, -0.06], r: 0.07, op: 's', k: 0.02, sm: B });
+      n.push({ t: 'tor', c: [sx * 0.255, 0.245, -0.02], R: 0.09, r: 0.012, rot: [0, Math.PI / 2, 0], m: B, k: 0.008, n: [0.008, 40] });
     }
     // left ear ripped half away, stuffing showing
     n.push({ t: 'box', c: [-0.3, 0.33, 0.02], h: [0.08, 0.06, 0.12], rot: [0.3, 0, 0.6], op: 's', k: 0.005, sm: W, n: [0.015, 50] });
     return SDF.mesh(n, [-0.42, -0.36, -0.4], [0.42, 0.46, 0.36], 78);
   },
-  // Mister Thimble's arm: shoulder at y 0, paw at y 1 (stretched along the arm when drawn)
+  // Mister Thimble's arm, inside out: lining sleeve, scorched seam strip and cuff, scorched paw
   th_arm: () => {
     const n = [
-      { t: 'cap', a: [0, 0.05, 0], b: [0, 0.8, 0], r: 0.11, r2: 0.09, m: MAT.burnt, n: [0.015, 12] },
+      { t: 'cap', a: [0, 0.05, 0], b: [0, 0.8, 0], r: 0.11, r2: 0.09, m: MAT.lining, n: [0.015, 12] },
+      { t: 'cap', a: [0.1, 0.08, 0], b: [0.085, 0.78, 0], r: 0.018, m: MAT.burnt, k: 0.012, n: [0.008, 40] },
+      { t: 'tor', c: [0, 0.8, 0], R: 0.09, r: 0.022, m: MAT.burnt, k: 0.012, n: [0.008, 40] },
       { t: 'ell', c: [0, 0.9, 0], r: [0.13, 0.12, 0.1], m: MAT.burnt, k: 0.05 },
       { t: 'ell', c: [0, 0.93, -0.06], r: [0.08, 0.07, 0.04], m: MAT.furLight, k: 0.02 }
     ];
-    return SDF.mesh(n, [-0.18, -0.08, -0.16], [0.18, 1.06, 0.16], 44);
+    return SDF.mesh(n, [-0.18, -0.08, -0.16], [0.18, 1.06, 0.16], 50);
   },
   // The Usher's robe (ground origin): tapered, layered, frayed hem
   us_robe: () => {

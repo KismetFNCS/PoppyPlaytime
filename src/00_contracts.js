@@ -103,6 +103,8 @@
 //   Source: [ASSUMED] Marigold's new raven hair (deliberately not the reference doll's red).
 // MATERIAL 21: wine cloth (doll dress)  Base #4a2433, rough 0.92, tile 2.5
 //   Source: [ASSUMED] dusty wine dress replacing mustard.
+// MATERIAL 22: raw crimson lining (the Usher, turned inside out)  Base #7a1a1c, rough 0.7, tile 2.5
+//   Source: [ASSUMED] user asked for a scrapped, inside-out Usher with red showing.
 //     Source: [ESTIMATED] 9.webp burnt fur, mid brown with char-black patches.
 //     Source: [ASSUMED].
 // ============================================================
@@ -224,7 +226,8 @@ const MATERIALS = [
   { name: 'screen', base: '#050608', rough: 0.12, metal: 0.0, tile: 1.0, emis: '#000000', emisStr: 0 },
   { name: 'burnt', base: '#4a2e1f', rough: 0.97, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'hairDark', base: '#1e1916', rough: 0.8, metal: 0.0, tile: 4.0, emis: '#000000', emisStr: 0 },
-  { name: 'clothWine', base: '#4a2433', rough: 0.92, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 }
+  { name: 'clothWine', base: '#4a2433', rough: 0.92, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 },
+  { name: 'lining', base: '#7a1a1c', rough: 0.7, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 }
 ];
 const MAT = Object.create(null);
 for (let i = 0; i < MATERIALS.length; i++) MAT[MATERIALS[i].name] = i;
