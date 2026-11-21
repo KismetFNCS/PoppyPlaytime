@@ -110,10 +110,10 @@ const SOCKET_OFFSETS: Readonly<Record<ClawSide, Vec3>> = {
   right: [0.23, -0.2, 0.44],
 };
 /** Visual scale of the launched hands (collision uses the hand's centre point, not the mesh). */
-const HAND_SCALE: number = 1.6;
+const HAND_SCALE: number = 1.9;
 /** Held (holstered) hands: smaller, raised beside each launcher. Offset is [outward, up, forward] in camera space. */
-const HELD_HAND_SCALE: number = 1.15;
-const HELD_HAND_OFFSET: Vec3 = [0.06, 0.02, 0.06];
+const HELD_HAND_SCALE: number = 1.45;
+const HELD_HAND_OFFSET: Vec3 = [0.09, 0.0, 0.07];
 const SIDE_POLARITY: Readonly<Record<ClawSide, Polarity>> = { left: 'teal', right: 'rose' };
 const CLAW_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal', rose: 'tether_claw_rose' };
 
