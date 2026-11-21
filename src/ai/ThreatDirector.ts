@@ -16,6 +16,7 @@ import type { ThreatActorView } from '../world/JesterEntity';
 import { JesterEntity } from '../world/JesterEntity';
 import type { LevelStreamer, LoadedChunkView, ThreatKind, ThreatSpawnDefinition } from '../world/LevelStreamer';
 import { TallymanEntity } from '../world/TallymanEntity';
+import { ChoirMotherEntity, HushlingEntity } from '../world/ChoirEntities';
 
 export interface ThreatEventMap {
   threatSpawned: { readonly id: string; readonly kind: ThreatKind };
@@ -89,7 +90,16 @@ export class ThreatDirector {
   }
 
   private createView(kind: ThreatKind): ThreatActorView {
-    return kind === 'jester' ? new JesterEntity(this.meshes) : new TallymanEntity(this.meshes);
+    switch (kind) {
+      case 'jester':
+        return new JesterEntity(this.meshes);
+      case 'tallyman':
+        return new TallymanEntity(this.meshes);
+      case 'choirMother':
+        return new ChoirMotherEntity(this.meshes);
+      case 'hushling':
+        return new HushlingEntity(this.meshes);
+    }
   }
 
   private register(id: string, kind: ThreatKind, position: Vec3, patrolRoute: readonly Vec3[], spawnChunkIndex: number, persistent: boolean): ManagedThreat {
@@ -174,7 +184,14 @@ export class ThreatDirector {
     }
     this.syncWithStreamer();
     this.navigation.ensureCurrent();
-    const context: BrainContext = { world: this.world, navigation: this.navigation, noises: this.noises.active, player, nowSeconds: this.clockSeconds };
+    const context: BrainContext = {
+      world: this.world,
+      navigation: this.navigation,
+      noises: this.noises.active,
+      player,
+      nowSeconds: this.clockSeconds,
+      illuminanceAt: (point: Readonly<Vec3>) => this.lighting.illuminanceAt(point),
+    };
     let catcher: ManagedThreat | null = null;
     for (const managed of this.threats.values()) {
       const report: BrainTickReport = managed.brain.tick(deltaSeconds, context);
@@ -194,8 +211,10 @@ export class ThreatDirector {
         this.audio.playSpatialCue(managed.profile.audio.idleCue, view.headPosition(), 0.6);
       }
       // Light disturbance: lights stutter around threats that are actively closing in.
-      view.disturbance.radius = managed.kind === 'jester' ? 10 : 6;
-      view.disturbance.strength = STATE_DREAD_WEIGHT[managed.brain.state] * (managed.kind === 'jester' ? 0.9 : 0.5);
+      const disturbanceProfile: Readonly<Record<ThreatKind, [number, number]>> = { jester: [10, 0.9], tallyman: [6, 0.5], choirMother: [9, 0.7], hushling: [0, 0] };
+      const [disturbanceRadius, disturbanceScale] = disturbanceProfile[managed.kind];
+      view.disturbance.radius = Math.max(0.1, disturbanceRadius);
+      view.disturbance.strength = STATE_DREAD_WEIGHT[managed.brain.state] * disturbanceScale;
       if (report.caughtPlayer && catcher === null) {
         catcher = managed;
         this.events.emit('playerCaught', { id: managed.id, kind: managed.kind, position: [view.position[0], view.position[1], view.position[2]], yawRadians: view.yawRadians });

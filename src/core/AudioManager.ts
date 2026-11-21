@@ -12,7 +12,15 @@ export type SpatialCueId =
   | 'alarmKlaxon'
   | 'elevatorRumble'
   | 'metalStinger'
-  | 'impactCrunch';
+  | 'impactCrunch'
+  | 'choirHymn'
+  | 'hushlingSkitter'
+  | 'musicBoxChime'
+  | 'radioCrackle'
+  | 'pipChirp'
+  | 'splash'
+  | 'beamHum'
+  | 'foremanBoom';
 
 export interface ListenerPose {
   readonly position: Vec3;
@@ -531,6 +539,49 @@ export class AudioManager {
       case 'impactCrunch':
         this.playNoiseBurst(0.35, 900, 'lowpass', 0.8 * level, panner);
         this.playTone(60, 0.3, 'sine', 0.16 * level, 30, panner);
+        break;
+      case 'choirHymn':
+        // A slow, slightly detuned minor chord swelling from many porcelain throats.
+        for (const [frequency, detune] of [
+          [220, 0.9],
+          [261.6, -1.2],
+          [329.6, 1.4],
+          [440, -0.6],
+        ] as const) {
+          this.playTone(frequency + detune, 2.4, 'triangle', 0.05 * level, frequency + detune * 3, panner);
+        }
+        this.playNoiseBurst(2.0, 3500, 'bandpass', 0.05 * level, panner);
+        break;
+      case 'hushlingSkitter':
+        for (let tap = 0; tap < 5; tap += 1) {
+          this.playTone(2600 + tap * 210, 0.03, 'square', 0.025 * level, null, panner, tap * 0.045);
+        }
+        break;
+      case 'musicBoxChime': {
+        const notes: readonly number[] = [1046.5, 1318.5, 1568, 1318.5];
+        notes.forEach((frequency: number, index: number) => this.playTone(frequency, 0.5, 'sine', 0.03 * level, null, panner, index * 0.22));
+        break;
+      }
+      case 'radioCrackle':
+        this.playNoiseBurst(0.25, 2400, 'bandpass', 0.18 * level, panner);
+        this.playTone(1000, 0.05, 'square', 0.02 * level, null, panner);
+        break;
+      case 'pipChirp':
+        this.playTone(1800, 0.08, 'sine', 0.05 * level, 2600, panner);
+        this.playTone(2400, 0.06, 'sine', 0.04 * level, 3200, panner, 0.1);
+        break;
+      case 'splash':
+        this.playNoiseBurst(0.22, 1200, 'bandpass', 0.35 * level, panner);
+        this.playNoiseBurst(0.12, 400, 'lowpass', 0.25 * level, panner, 0.05);
+        break;
+      case 'beamHum':
+        this.playTone(110, 0.6, 'sawtooth', 0.05 * level, 140, panner);
+        this.playTone(220, 0.6, 'square', 0.02 * level, 280, panner);
+        break;
+      case 'foremanBoom':
+        this.playNoiseBurst(1.4, 180, 'lowpass', 0.9 * level, panner);
+        this.playTone(41, 1.6, 'sine', 0.25 * level, 30, panner);
+        this.playTone(82, 1.2, 'sawtooth', 0.06 * level, 55, panner);
         break;
     }
   }

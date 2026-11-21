@@ -2,8 +2,12 @@ import type { ImportedMeshId, MaterialId } from '../assets/AssetManifest';
 import type { MeshLibrary, ModelAsset } from '../assets/MeshLibrary';
 import { FOUNDATION_HEAP_HALF_EXTENTS } from '../assets/ProceduralModels';
 import { LIGHT_PALETTE } from '../config/GameConstants';
+import { FOREMAN_CORE_HEIGHT } from '../assets/CampaignModels';
+import type { ActTheme } from '../story/ActThemes';
+import { ACT_THEMES, LAMP_STYLES } from '../story/ActThemes';
+import { TAPE_PLACEMENTS, actForChunk } from '../story/CampaignScript';
 import type { MeshData } from '../graphics/Geometry';
-import { MeshBuilder, createBoxMesh, createCylinderMesh } from '../graphics/Geometry';
+import { MeshBuilder, createBoxMesh, createCylinderMesh, createPlaneMesh, createSphereMesh } from '../graphics/Geometry';
 import { GpuMesh } from '../graphics/GpuMesh';
 import type { LightBehavior, LightingSystem, PointLight, PointLightDescriptor } from '../graphics/LightingSystem';
 import type { DrawItem } from '../graphics/SceneRenderer';
@@ -26,7 +30,6 @@ export const CORRIDOR_DIMENSIONS = {
 } as const;
 
 /** Chunks between checkpoints. A checkpoint chunk saves progress when the player enters it. */
-export const CHECKPOINT_INTERVAL: number = 6;
 const IDENTITY_MATRIX: Mat4 = mat4Identity();
 
 export type Polarity = 'amber' | 'violet';
@@ -40,7 +43,15 @@ export type ChunkArchetype =
   | 'relayGate'
   | 'foundationChasm'
   | 'collapsedCrawl'
-  | 'breakerHall';
+  | 'breakerHall'
+  | 'nurseryNave'
+  | 'choirApse'
+  | 'floodedArchive'
+  | 'archiveStacks'
+  | 'ventGate'
+  | 'assemblyApproach'
+  | 'assemblyHeart'
+  | 'void';
 
 export type TetherTargetKind = 'anchor' | 'relayPlate';
 
@@ -77,13 +88,15 @@ export interface ToxicZone {
   readonly concentration: number;
 }
 
-export type PickupKind = 'gasMask' | 'filterCartridge';
+export type PickupKind = 'gasMask' | 'filterCartridge' | 'loreTape' | 'pipCompanion';
 
 export interface PickupRecord {
   readonly id: string;
   readonly kind: PickupKind;
   readonly position: Vec3;
   readonly modelMatrix: Mat4;
+  /** Lore tapes only: which tape this is. */
+  readonly tapeId: string | null;
 }
 
 export type TriggerZoneKind =
@@ -95,7 +108,13 @@ export type TriggerZoneKind =
   | 'chasmApproach'
   | 'chasmFarSide'
   | 'breakerHallEntry'
-  | 'checkpoint';
+  | 'checkpoint'
+  | 'nurseryEntry'
+  | 'choirApseEntry'
+  | 'archiveEntry'
+  | 'ventApproach'
+  | 'assemblyEntry'
+  | 'foremanArena';
 
 /** Axis-aligned volume the world event system watches for player entry / exit / stay. */
 export interface TriggerZoneDefinition {
@@ -123,7 +142,7 @@ export interface SwitchSequenceDefinition {
   readonly timeLimitSeconds: number;
 }
 
-export type ThreatKind = 'jester' | 'tallyman';
+export type ThreatKind = 'jester' | 'tallyman' | 'choirMother' | 'hushling';
 
 export interface ThreatSpawnDefinition {
   readonly id: string;
@@ -133,7 +152,36 @@ export interface ThreatSpawnDefinition {
   readonly patrolRoute: readonly Vec3[];
 }
 
-export type GateUnlock = { readonly kind: 'relayPlate'; readonly id: string } | { readonly kind: 'switchSequence'; readonly id: string };
+export type GateUnlock =
+  | { readonly kind: 'relayPlate'; readonly id: string }
+  | { readonly kind: 'switchSequence'; readonly id: string }
+  | { readonly kind: 'musicBoxes'; readonly chunkIndex: number }
+  | { readonly kind: 'pipVent'; readonly id: string };
+
+export interface MusicBoxRecord {
+  readonly id: string;
+  readonly chunkIndex: number;
+  readonly position: Vec3;
+  readonly modelMatrix: Mat4;
+}
+
+export interface VentRecord {
+  readonly id: string;
+  readonly position: Vec3;
+  readonly normal: Vec3;
+  readonly modelMatrix: Mat4;
+}
+
+/** The Foreman's arena: core placement and the three relay plates that feed it. */
+export interface BossArenaRecord {
+  readonly chunkIndex: number;
+  readonly coreMatrix: Mat4;
+  readonly corePosition: Vec3;
+  readonly plateIds: readonly string[];
+  /** Z range swept by the punch-card beam hazard. */
+  readonly sweepStartZ: number;
+  readonly sweepEndZ: number;
+}
 
 interface BlastGateRecord {
   readonly id: string;
@@ -171,6 +219,10 @@ interface ChunkBuildResult {
   readonly switches: readonly BreakerSwitchRecord[];
   readonly sequences: readonly SwitchSequenceDefinition[];
   readonly threatSpawns: readonly ThreatSpawnDefinition[];
+  readonly musicBoxes: readonly MusicBoxRecord[];
+  readonly vents: readonly VentRecord[];
+  readonly waterZones: readonly Aabb[];
+  readonly bossArena: BossArenaRecord | null;
   readonly isCheckpoint: boolean;
 }
 
@@ -190,21 +242,32 @@ export function chunkIndexAtZ(z: number): number {
   return Math.max(0, Math.floor(-z / CORRIDOR_DIMENSIONS.chunkLength));
 }
 
+/** Explicit campaign checkpoints: every act start plus mid-act saves. */
+export const CHECKPOINT_CHUNKS: ReadonlySet<number> = new Set([0, 6, 12, 14, 18, 22, 26, 30, 32]);
+
 export function isCheckpointChunk(chunkIndex: number): boolean {
-  return chunkIndex % CHECKPOINT_INTERVAL === 0;
+  return CHECKPOINT_CHUNKS.has(chunkIndex);
 }
 
-/** After the tutorial beats, chunks cycle through this sequence: each Phase 2 system is introduced in turn. */
-const CHALLENGE_CYCLE: readonly ChunkArchetype[] = ['toxicPassage', 'relayGate', 'collapsedCrawl', 'foundationChasm', 'breakerHall', 'standard'];
+/**
+ * Chapter VI campaign layout, one archetype per corridor chunk (12 m each).
+ *   Act I   The Shaft            0–5
+ *   Act II  The Sorting Halls    6–13
+ *   Act III The Choir Nursery   14–21
+ *   Act IV  The Drowned Archive 22–29
+ *   Act V   The Assembly Heart  30–32
+ */
+export const CAMPAIGN_LAYOUT: readonly ChunkArchetype[] = [
+  'elevatorLanding', 'maskStation', 'standard', 'toxicPassage', 'relayGate', 'collapsedCrawl',
+  'foundationChasm', 'breakerHall', 'standard', 'relayGate', 'toxicPassage', 'breakerHall', 'foundationChasm', 'ventGate',
+  'nurseryNave', 'nurseryNave', 'choirApse', 'nurseryNave', 'collapsedCrawl', 'nurseryNave', 'choirApse', 'ventGate',
+  'floodedArchive', 'archiveStacks', 'floodedArchive', 'relayGate', 'archiveStacks', 'toxicPassage', 'floodedArchive', 'breakerHall',
+  'assemblyApproach', 'assemblyApproach', 'assemblyHeart',
+];
+export const CAMPAIGN_LAST_CHUNK: number = CAMPAIGN_LAYOUT.length - 1;
 
-/** Fixed authoring rhythm: tutorial beats first, then the repeating five-chunk challenge cycle. */
 export function archetypeForChunk(chunkIndex: number): ChunkArchetype {
-  if (chunkIndex === 0) return 'elevatorLanding';
-  if (chunkIndex === 1) return 'maskStation';
-  if (chunkIndex === 2) return 'standard';
-  const archetype: ChunkArchetype = CHALLENGE_CYCLE[(chunkIndex - 3) % CHALLENGE_CYCLE.length] as ChunkArchetype;
-  // Never respawn the player inside gas: checkpoint chunks that would be toxic become standard.
-  return isCheckpointChunk(chunkIndex) && archetype === 'toxicPassage' ? 'standard' : archetype;
+  return CAMPAIGN_LAYOUT[chunkIndex] ?? 'void';
 }
 
 /** Gap in the floor of a foundation chasm, measured from the chunk start along -Z. */
@@ -224,6 +287,7 @@ export class LevelChunkBuilder {
   public build(chunkIndex: number, collectedPickupIds: ReadonlySet<string>): ChunkBuildResult {
     const random = new SeededRandom(this.worldSeed ^ Math.imul(chunkIndex + 1, 0x9e3779b1));
     const archetype: ChunkArchetype = archetypeForChunk(chunkIndex);
+    const theme: ActTheme = ACT_THEMES[actForChunk(chunkIndex).id];
     const builders: Map<MaterialId, MeshBuilder> = new Map();
     const builderFor = (materialId: MaterialId): MeshBuilder => {
       let builder: MeshBuilder | undefined = builders.get(materialId);
@@ -268,6 +332,35 @@ export class LevelChunkBuilder {
     const switches: BreakerSwitchRecord[] = [];
     const sequences: SwitchSequenceDefinition[] = [];
     const threatSpawns: ThreatSpawnDefinition[] = [];
+    const musicBoxes: MusicBoxRecord[] = [];
+    const vents: VentRecord[] = [];
+    const waterZones: Aabb[] = [];
+    let bossArena: BossArenaRecord | null = null;
+    const emptyResult = (): ChunkBuildResult => ({
+      chunkIndex,
+      archetype,
+      meshesByMaterial: new Map(),
+      lights: [],
+      colliders: [],
+      targets: [],
+      toxicZones: [],
+      gates: [],
+      plates: [],
+      anchors: [],
+      pickups: [],
+      triggerZones: [],
+      switches: [],
+      sequences: [],
+      threatSpawns: [],
+      musicBoxes: [],
+      vents: [],
+      waterZones: [],
+      bossArena: null,
+      isCheckpoint: false,
+    });
+    if (archetype === 'void') {
+      return emptyResult();
+    }
     const zone = (kind: TriggerZoneKind, minimumZ: number, maximumZ: number, minimumX: number = -halfWidth, maximumX: number = halfWidth): void => {
       triggerZones.push({ id: `zone.${kind}.${chunkIndex}`, kind, chunkIndex, bounds: { minimum: [minimumX, -1, minimumZ], maximum: [maximumX, height, maximumZ] } });
     };
@@ -288,30 +381,36 @@ export class LevelChunkBuilder {
     if (isChasm) {
       const nearSlabLength: number = CHASM_GAP_START_OFFSET;
       const farSlabLength: number = length - CHASM_GAP_END_OFFSET;
-      solid('factory_floor_concrete', [0, -0.1, startZ - nearSlabLength / 2], [fullWidth, 0.2, nearSlabLength]);
-      solid('factory_floor_concrete', [0, -0.1, endZ + farSlabLength / 2], [fullWidth, 0.2, farSlabLength]);
+      solid(theme.floorMaterial, [0, -0.1, startZ - nearSlabLength / 2], [fullWidth, 0.2, nearSlabLength]);
+      solid(theme.floorMaterial, [0, -0.1, endZ + farSlabLength / 2], [fullWidth, 0.2, farSlabLength]);
       // Fractured slab lips hanging into the chasm.
       solid('shattered_foundation_concrete', [0, -0.6, startZ - nearSlabLength - 0.15], [fullWidth, 1, 0.3]);
       solid('shattered_foundation_concrete', [0, -0.6, endZ + farSlabLength + 0.15], [fullWidth, 1, 0.3]);
       solid('shattered_foundation_concrete', [0, CORRIDOR_DIMENSIONS.chasmFloorHeight - 0.1, centerZ], [fullWidth, 0.2, length]);
       lights.push({ position: [0, CORRIDOR_DIMENSIONS.chasmFloorHeight + 1.2, centerZ], color: LIGHT_PALETTE.emergencyRed, intensity: 5, range: 9, behavior: { kind: 'pulse', frequencyHertz: 0.25, depth: 0.6 } });
     } else {
-      solid('factory_floor_concrete', [0, -0.1, centerZ], [fullWidth, 0.2, length]);
+      solid(theme.floorMaterial, [0, -0.1, centerZ], [fullWidth, 0.2, length]);
     }
-    solid('factory_floor_concrete', [0, height + 0.1, centerZ], [fullWidth, 0.2, length]);
+    solid(theme.ceilingMaterial, [0, height + 0.1, centerZ], [fullWidth, 0.2, length]);
     const breachSide: number = random.chance(0.5) ? -1 : 1;
     for (const side of [-1, 1]) {
-      const wallMaterial: MaterialId = isChasm || (archetype === 'collapsedCrawl' && side === breachSide) ? 'shattered_foundation_concrete' : 'factory_wall_tile';
+      const wallMaterial: MaterialId = isChasm || (archetype === 'collapsedCrawl' && side === breachSide) ? 'shattered_foundation_concrete' : theme.wallMaterial;
       const wallHeight: number = height - wallBottom;
       solid(wallMaterial, [side * (halfWidth + thickness / 2), wallBottom + wallHeight / 2, centerZ], [thickness, wallHeight, length]);
       if (!isChasm) {
-        place('rusted_steel', createBoxMesh(0.06, 0.9, length), [side * (halfWidth - 0.03), 0.45, centerZ]);
+        place(theme.trimMaterial, createBoxMesh(0.06, 0.9, length), [side * (halfWidth - 0.03), 0.45, centerZ]);
       }
     }
     if (chunkIndex === 0) {
       solid('rusted_steel', [0, height / 2, startZ + thickness / 2], [halfWidth * 2, height, thickness]);
       place('lamp_housing_red', createBoxMesh(0.5, 0.18, 0.06), [0, height - 0.8, startZ - 0.02]);
     }
+    if (chunkIndex === CAMPAIGN_LAST_CHUNK) {
+      // The Line ends here: the Foreman's arena is sealed behind him.
+      solid('rusted_steel', [0, height / 2, endZ - thickness / 2], [halfWidth * 2, height, thickness]);
+    }
+    // Wall intercom: Mabel's voice comes through these.
+    placeModel('intercom_speaker', mat4Compose([-halfWidth, 2.2, startZ - 1.4], [0, Math.PI / 2, 0], [1, 1, 1]));
 
     // ---- Structural frame ---------------------------------------------------------------------------------------
     const boundaryZ: number = startZ - 0.25;
@@ -324,6 +423,8 @@ export class LevelChunkBuilder {
 
     // ---- Main ceiling lamp ----------------------------------------------------------------------------------------
     const isRed: boolean = chunkIndex % 2 === 0;
+    const lampStyle = LAMP_STYLES[isRed ? theme.lampPrimary : theme.lampSecondary];
+    const accentStyle = LAMP_STYLES[isRed ? theme.lampSecondary : theme.lampPrimary];
     const lampZ: number = isChasm ? startZ - 1.6 : centerZ + random.range(-2, 2);
     const behaviorRoll: number = random.next();
     const behavior: LightBehavior =
@@ -335,8 +436,10 @@ export class LevelChunkBuilder {
             ? { kind: 'flicker', rateHertz: random.range(6, 14), dropoutChance: random.range(0.08, 0.3) }
             : { kind: 'strobe', frequencyHertz: random.range(1.5, 3), dutyCycle: 0.35 };
     if (archetype !== 'toxicPassage') {
-      place(isRed ? 'lamp_housing_red' : 'lamp_housing_blue', createBoxMesh(0.9, 0.1, 0.3), [0, height - 0.06, lampZ]);
-      lights.push({ position: [0, height - 0.55, lampZ], color: isRed ? LIGHT_PALETTE.emergencyRed : LIGHT_PALETTE.serviceBlue, intensity: isRed ? 7.5 : 8.5, range: 10, behavior });
+      // Nursery and archive naves are kept dark on purpose: Hushlings and the Tallyman own the shadows.
+      const dimFactor: number = archetype === 'nurseryNave' ? 0.45 : archetype === 'archiveStacks' ? 0.6 : 1;
+      place(lampStyle.material, createBoxMesh(0.9, 0.1, 0.3), [0, height - 0.06, lampZ]);
+      lights.push({ position: [0, height - 0.55, lampZ], color: lampStyle.color, intensity: lampStyle.intensity * dimFactor, range: 10, behavior });
     }
 
     // ---- Archetype content ---------------------------------------------------------------------------------------
@@ -361,7 +464,7 @@ export class LevelChunkBuilder {
         const pickupId: string = `pickup.gasMask.${chunkIndex}`;
         const pickupPosition: Vec3 = [1.85, 0.92, centerZ];
         if (!collectedPickupIds.has(pickupId)) {
-          pickups.push({ id: pickupId, kind: 'gasMask', position: pickupPosition, modelMatrix: mat4Compose([pickupPosition[0], pickupPosition[1] + 0.06, pickupPosition[2]], [-Math.PI / 2 + 0.2, -Math.PI / 2, 0], [1.15, 1.15, 1.15]) });
+          pickups.push({ id: pickupId, kind: 'gasMask', position: pickupPosition, modelMatrix: mat4Compose([pickupPosition[0], pickupPosition[1] + 0.06, pickupPosition[2]], [-Math.PI / 2 + 0.2, -Math.PI / 2, 0], [1.15, 1.15, 1.15]), tapeId: null });
         }
         lights.push({ position: [1.6, 2.4, centerZ + 0.4], color: LIGHT_PALETTE.sodiumAmber, intensity: 3.2, range: 5, behavior: { kind: 'steady' } });
         zone('maskStation', centerZ - 2.5, centerZ + 2.5, 0, halfWidth);
@@ -391,6 +494,7 @@ export class LevelChunkBuilder {
             position: cartridgePosition,
             // Re-centre the gas mask's filter part (authored at ~[0, 0.07, 0.15]) onto the pickup point, upright.
             modelMatrix: mat4Compose([cartridgePosition[0], cartridgePosition[1] - 0.05, cartridgePosition[2] + 0.05], [-Math.PI / 2 - 0.35, 0.4, 0], [1.3, 1.3, 1.3]),
+            tapeId: null,
           });
         }
         break;
@@ -500,9 +604,192 @@ export class LevelChunkBuilder {
         patrolLoop(`threat.tallyman.${chunkIndex}`, 'tallyman');
         break;
       }
+      case 'nurseryNave': {
+        // Rows of cribs along both walls, hanging mobiles, and Hushlings waiting in the dark between them.
+        for (const side of [-1, 1]) {
+          for (const cribZ of [startZ - 2.4, centerZ, endZ + 2.4]) {
+            const cribX: number = side * (halfWidth - 0.4);
+            placeModel('nursery_crib', mat4Compose([cribX, 0, cribZ], [0, Math.PI / 2, 0], [1, 1, 1]));
+            colliders.push({ minimum: [cribX - 0.35, 0, cribZ - 0.62], maximum: [cribX + 0.35, 1.0, cribZ + 0.62] });
+          }
+        }
+        for (let mobile = 0; mobile < 3; mobile += 1) {
+          const mobileZ: number = startZ - 2.5 - mobile * 3.6;
+          place('rusted_steel', createCylinderMesh(0.006, 0.006, 1.0, 4), [0.6 * (mobile - 1), height - 0.5, mobileZ]);
+          for (let charm = 0; charm < 4; charm += 1) {
+            const angle: number = (charm / 4) * Math.PI * 2 + mobile;
+            place('porcelain_glaze', createSphereMesh(0.05, 8, 6), [0.6 * (mobile - 1) + Math.cos(angle) * 0.22, height - 1.1 - (charm % 2) * 0.12, mobileZ + Math.sin(angle) * 0.22]);
+          }
+        }
+        // Two dim candle sconces leave deliberate pools of darkness.
+        for (const side of [-1, 1]) {
+          place('lamp_housing_warm', createBoxMesh(0.06, 0.18, 0.12), [side * (halfWidth - 0.03), 1.8, centerZ + side * 3]);
+          lights.push({ position: [side * (halfWidth - 0.4), 1.8, centerZ + side * 3], color: LIGHT_PALETTE.sodiumAmber, intensity: 1.6, range: 4, behavior: { kind: 'flicker', rateHertz: 7, dropoutChance: 0.08 } });
+        }
+        for (let hushling = 0; hushling < 3; hushling += 1) {
+          const lane: number = (hushling % 2 === 0 ? -1 : 1) * random.range(0.6, 1.6);
+          const homeZ: number = centerZ + random.range(-4.5, 4.5);
+          const route: Vec3[] = [
+            [lane, 0, homeZ + 1.5],
+            [lane * 0.4, 0, homeZ - 1.5],
+          ];
+          threatSpawns.push({ id: `threat.hushling.${chunkIndex}.${hushling}`, kind: 'hushling', chunkIndex, position: route[0] as Vec3, patrolRoute: route });
+        }
+        zone('nurseryEntry', endZ + 0.6, startZ - 0.6);
+        break;
+      }
+      case 'choirApse': {
+        // The chapel: three music boxes keep the Choir Mother singing; silencing them releases the far door.
+        const gateId: string = `gate.${chunkIndex}`;
+        const gateZ: number = endZ + 1.4;
+        gates.push({ id: gateId, baseZ: gateZ, openProgress: 0, unlock: { kind: 'musicBoxes', chunkIndex } });
+        place('rusted_steel', createBoxMesh(halfWidth * 2, 0.5, 0.7), [0, height - 0.25, gateZ]);
+        const boxPlacements: ReadonlyArray<Vec3> = [
+          [-halfWidth + 0.5, 0.82, startZ - 2.6],
+          [halfWidth - 0.5, 0.82, centerZ],
+          [-halfWidth + 0.5, 0.82, endZ + 3.6],
+        ];
+        boxPlacements.forEach((position: Vec3, index: number) => {
+          const facing: number = position[0] < 0 ? Math.PI / 2 : -Math.PI / 2;
+          musicBoxes.push({ id: `musicbox.${chunkIndex}.${index}`, chunkIndex, position: [position[0], position[1] + 0.2, position[2]], modelMatrix: mat4Compose(position, [0, facing, 0], [1, 1, 1]) });
+          colliders.push({ minimum: [position[0] - 0.3, 0, position[2] - 0.3], maximum: [position[0] + 0.3, 1.1, position[2] + 0.3] });
+          lights.push({ position: [position[0] + (position[0] < 0 ? 0.5 : -0.5), 1.4, position[2]], color: LIGHT_PALETTE.sodiumAmber, intensity: 1.8, range: 4, behavior: { kind: 'pulse', frequencyHertz: 0.5, depth: 0.4 } });
+        });
+        // Hymn sheets drifted across the floor.
+        for (let sheet = 0; sheet < 14; sheet += 1) {
+          place('hymn_paper', createBoxMesh(0.22, 0.004, 0.3), [random.range(-2.6, 2.6), 0.004, centerZ + random.range(-5.5, 5.5)], [0, random.range(0, Math.PI), 0]);
+        }
+        threatSpawns.push({
+          id: `threat.choirMother.${chunkIndex}`,
+          kind: 'choirMother',
+          chunkIndex,
+          position: [0, 0, endZ + 3],
+          patrolRoute: [
+            [0, 0, endZ + 3],
+            [0, 0, startZ - 3],
+          ],
+        });
+        zone('choirApseEntry', gateZ + 0.4, startZ - 0.6);
+        break;
+      }
+      case 'floodedArchive': {
+        // Knee-deep water over the floor; shelving along both walls.
+        place('murky_water', createPlaneMesh(halfWidth * 2, length, 0.25), [0, 0.3, centerZ]);
+        waterZones.push({ minimum: [-halfWidth, -0.2, endZ], maximum: [halfWidth, 0.3, startZ] });
+        for (const side of [-1, 1]) {
+          for (const shelfZ of [startZ - 3, endZ + 3]) {
+            const shelfX: number = side * (halfWidth - 0.3);
+            placeModel('archive_shelf', mat4Compose([shelfX, 0, shelfZ], [0, Math.PI / 2, 0], [1, 1, 1]));
+            colliders.push({ minimum: [shelfX - 0.28, 0, shelfZ - 0.82], maximum: [shelfX + 0.28, 2.3, shelfZ + 0.82] });
+          }
+        }
+        // Floating paper on the water.
+        for (let sheet = 0; sheet < 10; sheet += 1) {
+          place('hymn_paper', createBoxMesh(0.2, 0.004, 0.28), [random.range(-2.4, 2.4), 0.305, centerZ + random.range(-5.5, 5.5)], [0, random.range(0, Math.PI), 0]);
+        }
+        zone('archiveEntry', endZ + 0.6, startZ - 0.6);
+        break;
+      }
+      case 'archiveStacks': {
+        // A slalom of shelving islands; the Tallyman patrols the aisles.
+        const islands: ReadonlyArray<[number, number]> = [
+          [-1.4, startZ - 3],
+          [1.4, centerZ],
+          [-1.4, endZ + 3],
+        ];
+        for (const [islandX, islandZ] of islands) {
+          placeModel('archive_shelf', mat4Compose([islandX, 0, islandZ], [0, Math.PI / 2, 0], [1, 1, 1]));
+          colliders.push({ minimum: [islandX - 0.28, 0, islandZ - 0.82], maximum: [islandX + 0.28, 2.3, islandZ + 0.82] });
+        }
+        for (const side of [-1, 1]) {
+          const shelfX: number = side * (halfWidth - 0.3);
+          placeModel('archive_shelf', mat4Compose([shelfX, 0, centerZ + side * 3.4], [0, Math.PI / 2, 0], [1, 1, 1]));
+          colliders.push({ minimum: [shelfX - 0.28, 0, centerZ + side * 3.4 - 0.82], maximum: [shelfX + 0.28, 2.3, centerZ + side * 3.4 + 0.82] });
+        }
+        patrolLoop(`threat.tallyman.${chunkIndex}`, 'tallyman');
+        zone('archiveEntry', endZ + 0.6, startZ - 0.6);
+        break;
+      }
+      case 'ventGate': {
+        // A sealed shutter whose release is only reachable through a vent too small for anyone but Pip.
+        const gateId: string = `gate.${chunkIndex}`;
+        const gateZ: number = centerZ - 1.5;
+        const ventId: string = `vent.${chunkIndex}`;
+        gates.push({ id: gateId, baseZ: gateZ, openProgress: 0, unlock: { kind: 'pipVent', id: ventId } });
+        place('rusted_steel', createBoxMesh(halfWidth * 2, 0.5, 0.7), [0, height - 0.25, gateZ]);
+        const ventSide: number = random.chance(0.5) ? -1 : 1;
+        const ventPosition: Vec3 = [ventSide * (halfWidth - 0.02), 0.35, centerZ + 2.4];
+        vents.push({ id: ventId, position: [ventPosition[0] - ventSide * 0.15, ventPosition[1], ventPosition[2]], normal: [-ventSide, 0, 0], modelMatrix: mat4Compose(ventPosition, [0, 0, 0], [1, 1, 1]) });
+        place('lamp_housing_warm', createBoxMesh(0.04, 0.06, 0.5), [ventSide * (halfWidth - 0.03), 0.72, centerZ + 2.4]);
+        lights.push({ position: [ventSide * (halfWidth - 0.5), 0.8, centerZ + 2.4], color: LIGHT_PALETTE.sodiumAmber, intensity: 1.4, range: 3, behavior: { kind: 'pulse', frequencyHertz: 0.9, depth: 0.6 } });
+        zone('ventApproach', gateZ + 0.4, startZ - 0.6);
+        break;
+      }
+      case 'assemblyApproach': {
+        for (const side of [-1, 1]) {
+          const conveyorX: number = side * (halfWidth - 0.75);
+          for (const conveyorZ of [startZ - 3.2, endZ + 3.2]) {
+            placeModel('conveyor_section', mat4Compose([conveyorX, 0, conveyorZ], [0, 0, 0], [1, 1, 1]));
+            colliders.push({ minimum: [conveyorX - 0.66, 0, conveyorZ - 2.05], maximum: [conveyorX + 0.66, 0.95, conveyorZ + 2.05] });
+          }
+        }
+        // Press heads hanging over the line, lit from below.
+        for (const pressZ of [startZ - 3.2, endZ + 3.2]) {
+          place('rusted_steel', createBoxMesh(1.0, 0.8, 1.0), [-(halfWidth - 0.75), height - 1.1, pressZ]);
+          place('rusted_steel', createBoxMesh(1.0, 0.8, 1.0), [halfWidth - 0.75, height - 1.4, pressZ]);
+        }
+        zone('assemblyEntry', endZ + 0.6, startZ - 0.6);
+        break;
+      }
+      case 'assemblyHeart': {
+        // The Foreman's arena: his core on the far wall, three relay plates feeding it.
+        const corePosition: Vec3 = [0, 0, endZ + 0.9];
+        const plateIds: string[] = [];
+        const platePlacements: ReadonlyArray<{ side: number; z: number; polarity: Polarity }> = [
+          { side: -1, z: startZ - 3.2, polarity: 'amber' },
+          { side: 1, z: centerZ, polarity: 'violet' },
+          { side: -1, z: endZ + 4, polarity: random.chance(0.5) ? 'amber' : 'violet' },
+        ];
+        platePlacements.forEach((placement, index: number) => {
+          const plateId: string = `bossplate.${index}`;
+          plateIds.push(plateId);
+          const plateX: number = placement.side * halfWidth;
+          const plateY = 1.9;
+          plates.push({ id: plateId, polarity: placement.polarity, linkedGateId: 'boss', modelMatrix: mat4Compose([plateX, plateY, placement.z], [0, placement.side > 0 ? -Math.PI / 2 : Math.PI / 2, 0], [1, 1, 1]) });
+          targets.push({
+            id: plateId,
+            kind: 'relayPlate',
+            chunkIndex,
+            polarity: placement.polarity,
+            bounds: { minimum: [placement.side > 0 ? halfWidth - 0.12 : -halfWidth, plateY - 0.46, placement.z - 0.36], maximum: [placement.side > 0 ? halfWidth : -halfWidth + 0.12, plateY + 0.46, placement.z + 0.36] },
+            attachPoint: [plateX - placement.side * 0.09, plateY + 0.05, placement.z],
+            attachNormal: [-placement.side, 0, 0],
+            preferredRopeLength: null,
+          });
+        });
+        colliders.push({ minimum: [-1.4, 0, endZ], maximum: [1.4, 0.6, endZ + 1.6] });
+        lights.push({ position: [0, FOREMAN_CORE_HEIGHT, endZ + 2.2], color: LIGHT_PALETTE.emergencyRed, intensity: 9, range: 12, behavior: { kind: 'pulse', frequencyHertz: 0.7, depth: 0.35 } });
+        bossArena = { chunkIndex, coreMatrix: mat4Compose(corePosition, [0, 0, 0], [1, 1, 1]), corePosition, plateIds, sweepStartZ: startZ - 1, sweepEndZ: endZ + 2.2 };
+        zone('foremanArena', endZ + 2, startZ - 0.6);
+        break;
+      }
     }
-    if (archetype === 'standard' && chunkIndex >= 14 && chunkIndex % 2 === 0) {
+    if (archetype === 'standard' && chunkIndex >= 8) {
       patrolLoop(`threat.tallyman.${chunkIndex}`, 'tallyman');
+    }
+    // Pip waits by the lift cage in the first chunk.
+    if (chunkIndex === 0 && !collectedPickupIds.has('pickup.pip')) {
+      pickups.push({ id: 'pickup.pip', kind: 'pipCompanion', position: [1.6, 0.05, startZ - 3.4], modelMatrix: mat4Compose([1.6, 0.0, startZ - 3.4], [0, -2.2, 0], [1.3, 1.3, 1.3]), tapeId: null });
+    }
+    // Shift tapes: on archive shelves in Act IV, otherwise on the floor against a wall.
+    const tapeId: string | undefined = TAPE_PLACEMENTS[chunkIndex];
+    const tapePickupId: string = `pickup.tape.${chunkIndex}`;
+    if (tapeId !== undefined && !collectedPickupIds.has(tapePickupId)) {
+      const onShelf: boolean = archetype === 'archiveStacks';
+      const tapeSide: number = chunkIndex % 2 === 0 ? 1 : -1;
+      const tapePosition: Vec3 = onShelf ? [tapeSide * 1.55, 1.17, centerZ + 3.4] : [tapeSide * 2.45, 0.03, startZ - 5 - (chunkIndex % 3)];
+      pickups.push({ id: tapePickupId, kind: 'loreTape', position: tapePosition, modelMatrix: mat4Compose(tapePosition, [0, 0.4 * tapeSide, 0], [1.4, 1.4, 1.4]), tapeId });
+      lights.push({ position: [tapePosition[0] - tapeSide * 0.4, tapePosition[1] + 0.6, tapePosition[2]], color: LIGHT_PALETTE.sodiumAmber, intensity: 0.9, range: 2.5, behavior: { kind: 'pulse', frequencyHertz: 0.6, depth: 0.5 } });
     }
     if (chunkIndex === 0) {
       zone('elevatorLanding', startZ - 4, startZ);
@@ -512,17 +799,17 @@ export class LevelChunkBuilder {
     }
 
     // ---- Shared dressing ---------------------------------------------------------------------------------------
-    if (!isChasm && archetype !== 'relayGate' && random.chance(0.45)) {
+    if (!isChasm && archetype !== 'relayGate' && archetype !== 'nurseryNave' && random.chance(0.45)) {
       const side: number = random.chance(0.5) ? -1 : 1;
       const wallLampZ: number = centerZ + random.range(-4, 4);
-      place(isRed ? 'lamp_housing_blue' : 'lamp_housing_red', createBoxMesh(0.08, 0.3, 0.3), [side * (halfWidth - 0.04), 1.4, wallLampZ]);
-      lights.push({ position: [side * (halfWidth - 0.4), 1.4, wallLampZ], color: isRed ? LIGHT_PALETTE.serviceBlue : LIGHT_PALETTE.emergencyRed, intensity: 2.4, range: 5, behavior: { kind: 'flicker', rateHertz: 9, dropoutChance: 0.15 } });
+      place(accentStyle.material, createBoxMesh(0.08, 0.3, 0.3), [side * (halfWidth - 0.04), 1.4, wallLampZ]);
+      lights.push({ position: [side * (halfWidth - 0.4), 1.4, wallLampZ], color: accentStyle.color, intensity: 2.4, range: 5, behavior: { kind: 'flicker', rateHertz: 9, dropoutChance: 0.15 } });
     }
     if (isCheckpoint && chunkIndex > 0) {
       place('lamp_housing_red', createBoxMesh(halfWidth * 2 - 0.2, 0.02, 0.18), [0, 0.012, startZ - 1.2]);
       lights.push({ position: [halfWidth - 0.6, 2.2, startZ - 1.5], color: LIGHT_PALETTE.sodiumAmber, intensity: 4, range: 7, behavior: { kind: 'steady' } });
     }
-    if (!isChasm && archetype !== 'collapsedCrawl') {
+    if (!isChasm && archetype !== 'collapsedCrawl' && archetype !== 'assemblyHeart' && actForChunk(chunkIndex).id !== 'choirNursery') {
       const maskCount: number = random.integer(0, 2);
       for (let mask = 0; mask < maskCount; mask += 1) {
         placeModel('gas_mask_prop', mat4Compose([random.range(-2.3, 2.3), 0.1, centerZ + random.range(-5, 5)], [-Math.PI / 2 + random.range(-0.25, 0.25), random.range(0, Math.PI * 2), 0], [1, 1, 1]));
@@ -557,6 +844,10 @@ export class LevelChunkBuilder {
       switches,
       sequences,
       threatSpawns,
+      musicBoxes,
+      vents,
+      waterZones,
+      bossArena,
       isCheckpoint,
     };
   }
@@ -576,11 +867,16 @@ export class LevelStreamer {
   /** Switches currently thrown down (visual + puzzle input state, owned by the world event system). */
   private readonly switchesDown: Set<string> = new Set();
   private readonly fullyOpenGateIds: Set<string> = new Set();
+  private readonly silencedMusicBoxIds: Set<string> = new Set();
+  private readonly openedVentIds: Set<string> = new Set();
+  /** 0..1 brightness of the Foreman's core, driven by the boss encounter. */
+  public bossCorePulse: number = 1;
   /**
    * Increments whenever walkable topology changes (chunk load/unload, a gate finishing its rise),
    * so navigation graphs know to rebuild.
    */
   public topologyVersion: number = 0;
+  private readonly ventGrateMesh: GpuMesh;
   public chunksBehind: number = 2;
   public chunksAhead: number = 3;
   public buildBudgetPerFrame: number = 1;
@@ -592,6 +888,13 @@ export class LevelStreamer {
     worldSeed: number,
   ) {
     this.builder = new LevelChunkBuilder(meshes, worldSeed);
+    const grate = new MeshBuilder();
+    for (let bar = 0; bar < 5; bar += 1) {
+      grate.appendMesh(createBoxMesh(0.04, 0.42, 0.03), mat4Compose([0, 0, -0.24 + bar * 0.12], [0, 0, 0], [1, 1, 1]));
+    }
+    grate.appendMesh(createBoxMesh(0.06, 0.06, 0.62), mat4Compose([0, 0.22, 0], [0, 0, 0], [1, 1, 1]));
+    grate.appendMesh(createBoxMesh(0.06, 0.06, 0.62), mat4Compose([0, -0.22, 0], [0, 0, 0], [1, 1, 1]));
+    this.ventGrateMesh = new GpuMesh(gl, 'vent.grate', grate.build());
   }
 
   public get loadedChunkIndices(): number[] {
@@ -644,13 +947,29 @@ export class LevelStreamer {
       switches: result.switches,
       sequences: result.sequences,
       threatSpawns: result.threatSpawns,
+      musicBoxes: result.musicBoxes,
+      vents: result.vents,
+      waterZones: result.waterZones,
+      bossArena: result.bossArena,
       isCheckpoint: result.isCheckpoint,
     });
     this.topologyVersion += 1;
   }
 
   private isGateUnlocked(gate: BlastGateRecord): boolean {
-    return gate.unlock.kind === 'relayPlate' ? this.poweredPlateIds.has(gate.unlock.id) : this.solvedSequenceIds.has(gate.unlock.id);
+    const unlock: GateUnlock = gate.unlock;
+    switch (unlock.kind) {
+      case 'relayPlate':
+        return this.poweredPlateIds.has(unlock.id);
+      case 'switchSequence':
+        return this.solvedSequenceIds.has(unlock.id);
+      case 'pipVent':
+        return this.openedVentIds.has(unlock.id);
+      case 'musicBoxes': {
+        const chunk: LoadedChunk | undefined = this.chunks.get(unlock.chunkIndex);
+        return chunk !== undefined && chunk.musicBoxes.length > 0 && chunk.musicBoxes.every((box: MusicBoxRecord) => this.silencedMusicBoxIds.has(box.id));
+      }
+    }
   }
 
   private unload(chunkIndex: number): void {
@@ -990,6 +1309,113 @@ export class LevelStreamer {
     return [...this.solvedSequenceIds];
   }
 
+  // ---- Music boxes, vents, water, boss arena ---------------------------------------------------------------
+
+  public findMusicBoxInView(viewOrigin: Readonly<Vec3>, viewDirection: Readonly<Vec3>, reach: number): MusicBoxRecord | null {
+    return this.findNearestInView(viewOrigin, viewDirection, reach, (chunk: LoadedChunk) => chunk.musicBoxes.filter((box: MusicBoxRecord) => !this.silencedMusicBoxIds.has(box.id)));
+  }
+
+  public findVentInView(viewOrigin: Readonly<Vec3>, viewDirection: Readonly<Vec3>, reach: number): VentRecord | null {
+    return this.findNearestInView(viewOrigin, viewDirection, reach, (chunk: LoadedChunk) => chunk.vents.filter((vent: VentRecord) => !this.openedVentIds.has(vent.id)));
+  }
+
+  private findNearestInView<TRecord extends { readonly position: Vec3 }>(
+    viewOrigin: Readonly<Vec3>,
+    viewDirection: Readonly<Vec3>,
+    reach: number,
+    candidates: (chunk: LoadedChunk) => readonly TRecord[],
+  ): TRecord | null {
+    let best: TRecord | null = null;
+    let bestAlignment: number = Math.cos((18 * Math.PI) / 180);
+    for (const chunk of this.chunks.values()) {
+      for (const record of candidates(chunk)) {
+        const offset: Vec3 = vec3Subtract(record.position, viewOrigin);
+        if (Math.hypot(offset[0], offset[1], offset[2]) > reach) {
+          continue;
+        }
+        const alignment: number = vec3Dot(vec3Normalize(offset), viewDirection);
+        if (alignment > bestAlignment) {
+          bestAlignment = alignment;
+          best = record;
+        }
+      }
+    }
+    return best;
+  }
+
+  public silenceMusicBox(musicBoxId: string): boolean {
+    if (this.silencedMusicBoxIds.has(musicBoxId)) {
+      return false;
+    }
+    this.silencedMusicBoxIds.add(musicBoxId);
+    return true;
+  }
+
+  public isMusicBoxSilenced(musicBoxId: string): boolean {
+    return this.silencedMusicBoxIds.has(musicBoxId);
+  }
+
+  /** Active (still playing) music boxes in resident chunks, for spatial chimes and the Choir Mother. */
+  public get playingMusicBoxes(): MusicBoxRecord[] {
+    const playing: MusicBoxRecord[] = [];
+    for (const chunk of this.chunks.values()) {
+      for (const box of chunk.musicBoxes) {
+        if (!this.silencedMusicBoxIds.has(box.id)) {
+          playing.push(box);
+        }
+      }
+    }
+    return playing;
+  }
+
+  public openVent(ventId: string): boolean {
+    if (this.openedVentIds.has(ventId)) {
+      return false;
+    }
+    this.openedVentIds.add(ventId);
+    return true;
+  }
+
+  public get silencedMusicBoxes(): readonly string[] {
+    return [...this.silencedMusicBoxIds];
+  }
+
+  public get openedVents(): readonly string[] {
+    return [...this.openedVentIds];
+  }
+
+  public restoreCampaignState(silencedMusicBoxIds: readonly string[], openedVentIds: readonly string[]): void {
+    for (const id of silencedMusicBoxIds) this.silencedMusicBoxIds.add(id);
+    for (const id of openedVentIds) this.openedVentIds.add(id);
+  }
+
+  /** Water depth above the feet at a point (0 when dry). */
+  public waterDepthAt(point: Readonly<Vec3>): number {
+    const chunk: LoadedChunk | undefined = this.chunks.get(chunkIndexAtZ(point[2]));
+    for (const water of chunk?.waterZones ?? []) {
+      if (point[0] >= water.minimum[0] && point[0] <= water.maximum[0] && point[2] >= water.minimum[2] && point[2] <= water.maximum[2]) {
+        return Math.max(0, water.maximum[1] - point[1]);
+      }
+    }
+    return 0;
+  }
+
+  public get bossArena(): BossArenaRecord | null {
+    for (const chunk of this.chunks.values()) {
+      if (chunk.bossArena !== null) {
+        return chunk.bossArena;
+      }
+    }
+    return null;
+  }
+
+  /** Un-powers relay plates (the Foreman re-arms his rings between phases). */
+  public resetRelayPlates(plateIds: readonly string[]): void {
+    for (const plateId of plateIds) {
+      this.poweredPlateIds.delete(plateId);
+    }
+  }
+
   // ---- Navigation queries --------------------------------------------------------------------------------------
 
   /** True when solid floor exists under (x, z) within `maximumDrop` metres below `y`. */
@@ -1051,6 +1477,18 @@ export class LevelStreamer {
           }
         }
       }
+      for (const box of chunk.musicBoxes) {
+        const silenced: boolean = this.silencedMusicBoxIds.has(box.id);
+        pushModel('music_box', box.modelMatrix, silenced ? 0.05 : 0.9 + 0.5 * Math.sin(timeSeconds * 5 + box.position[2]));
+      }
+      for (const vent of chunk.vents) {
+        if (!this.openedVentIds.has(vent.id)) {
+          output.push({ mesh: this.ventGrateMesh, materialId: 'rusted_steel', modelMatrix: vent.modelMatrix });
+        }
+      }
+      if (chunk.bossArena !== null) {
+        pushModel('foreman_core', chunk.bossArena.coreMatrix, this.bossCorePulse * (0.75 + 0.25 * Math.sin(timeSeconds * 3)));
+      }
       for (const anchor of chunk.anchors) {
         pushModel('ceiling_anchor', anchor.modelMatrix, 0.7 + 0.3 * Math.sin(timeSeconds * 2.2));
       }
@@ -1059,6 +1497,10 @@ export class LevelStreamer {
         matrix[13] = (matrix[13] as number) + 0.02 * Math.sin(timeSeconds * 2);
         if (pickup.kind === 'gasMask') {
           pushModel('gas_mask_prop', matrix, 1);
+        } else if (pickup.kind === 'loreTape') {
+          pushModel('lore_tape', matrix, 1);
+        } else if (pickup.kind === 'pipCompanion') {
+          pushModel('pip_companion', pickup.modelMatrix, 0.3 + 0.2 * Math.sin(timeSeconds * 2));
         } else {
           // Filter cartridges render only the canister part of the gas mask model.
           for (const part of this.meshes.get('gas_mask_prop').parts) {
@@ -1075,5 +1517,6 @@ export class LevelStreamer {
     for (const chunkIndex of [...this.chunks.keys()]) {
       this.unload(chunkIndex);
     }
+    this.ventGrateMesh.dispose();
   }
 }

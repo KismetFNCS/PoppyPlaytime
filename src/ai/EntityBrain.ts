@@ -17,6 +17,8 @@ export interface BrainContext {
   readonly noises: readonly NoiseEvent[];
   readonly player: PlayerSignature;
   readonly nowSeconds: number;
+  /** Scalar illuminance query used by light-freezing threats. */
+  readonly illuminanceAt: (point: Readonly<Vec3>) => number;
 }
 
 export interface BrainTickReport {
@@ -134,7 +136,8 @@ export class EntityBrain {
     }
     const hearing: HearingResult = evaluateHearing(context.world, eye, freshNoises, profile.hearing);
     const observedPoint: Vec3 = [view.position[0], view.position[1] + profile.vision.eyeHeight * 0.7, view.position[2]];
-    const observed: boolean = profile.freezesWhenObserved && isPointObservedByPlayer(context.world, observedPoint, context.player, profile.observedHalfAngle);
+    const lightFrozen: boolean = profile.freezeIlluminanceThreshold !== null && context.illuminanceAt(observedPoint) > profile.freezeIlluminanceThreshold;
+    const observed: boolean = lightFrozen || (profile.freezesWhenObserved && isPointObservedByPlayer(context.world, observedPoint, context.player, profile.observedHalfAngle));
 
     // Awareness integration:
     //   seen:  A += s · g_sight · dt     heard: A += h · g_hear (impulse)     neither: A −= decay · dt
@@ -238,7 +241,9 @@ export class EntityBrain {
 
     const { sight, hearing, observed } = this.perceive(deltaSeconds, context);
     const perceivedRecently: boolean = sight.visible || this.secondsSincePerceived < 0.5;
-    const freezeCap = (speed: number): number => (observed ? Math.min(speed, profile.speeds.observed) : speed);
+    // Light-frozen threats stop dead; look-away threats crawl at their observed speed.
+    const lightFrozen: boolean = profile.freezeIlluminanceThreshold !== null && context.illuminanceAt([view.position[0], view.position[1] + profile.vision.eyeHeight * 0.7, view.position[2]]) > profile.freezeIlluminanceThreshold;
+    const freezeCap = (speed: number): number => (lightFrozen ? 0 : observed ? Math.min(speed, profile.speeds.observed) : speed);
     let moved = 0;
     let speedUsed = 0;
     let caughtPlayer = false;
@@ -339,6 +344,9 @@ export class EntityBrain {
         speedUsed = profile.speeds.hunt * 1.2;
         if (distanceToPlayer > 0.6) {
           moved = this.moveToward(playerFeet, speedUsed, deltaSeconds, context);
+        }
+        if (lightFrozen) {
+          this.catchSeconds = 0;
         }
         if (!this.catchResolved && this.catchSeconds >= profile.catch.windupSeconds) {
           this.catchResolved = true;

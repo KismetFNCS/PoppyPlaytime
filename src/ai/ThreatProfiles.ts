@@ -104,6 +104,11 @@ export interface ThreatProfile {
   readonly audio: ThreatAudioSpec;
   /** Dread contribution (0..1) per metre-closeness, used for heartbeat / post effects. */
   readonly dreadRadius: number;
+  /**
+   * Light-freeze behaviour: when the illuminance at the threat's head exceeds this, it cannot move
+   * (Hushlings). null disables the behaviour.
+   */
+  readonly freezeIlluminanceThreshold: number | null;
 }
 
 const DEGREES: number = Math.PI / 180;
@@ -137,6 +142,7 @@ export const THREAT_PROFILES: Readonly<Record<ThreatKind, ThreatProfile>> = {
     navigation: { bodyRadius: 0.45, canSqueezeLowCeilings: true, canCrossChasms: true, repathIntervalSeconds: 0.4 },
     audio: { footstepCue: 'jesterBells', strideMeters: 2.4, spottedCue: 'jesterShriek', idleCue: 'jesterBells', idleIntervalSeconds: 7 },
     dreadRadius: 17,
+    freezeIlluminanceThreshold: null,
   },
   /** Sound hunter: nearly blind (short, light-dependent slit), hears footsteps and alarms from far away. */
   tallyman: {
@@ -166,5 +172,66 @@ export const THREAT_PROFILES: Readonly<Record<ThreatKind, ThreatProfile>> = {
     navigation: { bodyRadius: 0.4, canSqueezeLowCeilings: false, canCrossChasms: false, repathIntervalSeconds: 0.5 },
     audio: { footstepCue: 'tallymanStep', strideMeters: 1.1, spottedCue: 'tallymanBell', idleCue: 'tallymanPunch', idleIntervalSeconds: 4.5 },
     dreadRadius: 12,
+    freezeIlluminanceThreshold: null,
+  },
+  /** Song-bound chapel horror: nearly blind, extraordinary hearing, slow but relentless once hunting. */
+  choirMother: {
+    kind: 'choirMother',
+    displayName: 'The Choir Mother',
+    vision: {
+      range: 7,
+      centralHalfAngle: 30 * DEGREES,
+      peripheralHalfAngle: 70 * DEGREES,
+      peripheralWeight: 0.35,
+      peripheralRangeFactor: 0.6,
+      proximityRadius: 2.2,
+      lightDependence: 0.6,
+      crouchVisibilityFactor: 0.6,
+      eyeHeight: 3.35,
+    },
+    hearing: { radiusMultiplier: 2.2, occlusionFactor: 0.7, awarenessGain: 0.6 },
+    awareness: { sightGainPerSecond: 1.0, decayPerSecond: 0.07, alertThreshold: 0.16, huntThreshold: 0.62, forgetThreshold: 0.08 },
+    speeds: { patrol: 0.85, alert: 1.9, stalk: 1.9, hunt: 3.7, observed: 3.7 },
+    turnRateRadiansPerSecond: 1.6,
+    stalking: { enabled: false, preferredDistanceMinimum: 0, preferredDistanceMaximum: 0, patienceSeconds: 0, escalateDistance: 0 },
+    freezesWhenObserved: false,
+    observedHalfAngle: 0,
+    catch: { radius: 1.7, windupSeconds: 0.45, escapeRadiusFactor: 1.5 },
+    alertSearchSeconds: 10,
+    loseTrackSeconds: 7,
+    navigation: { bodyRadius: 0.6, canSqueezeLowCeilings: false, canCrossChasms: false, repathIntervalSeconds: 0.6 },
+    audio: { footstepCue: 'tallymanStep', strideMeters: 1.8, spottedCue: 'choirHymn', idleCue: 'choirHymn', idleIntervalSeconds: 6 },
+    dreadRadius: 15,
+    freezeIlluminanceThreshold: null,
+  },
+  /** Porcelain figurine swarm: quick in the dark, frozen solid in light. */
+  hushling: {
+    kind: 'hushling',
+    displayName: 'Hushling',
+    vision: {
+      range: 11,
+      centralHalfAngle: 70 * DEGREES,
+      peripheralHalfAngle: 120 * DEGREES,
+      peripheralWeight: 0.5,
+      peripheralRangeFactor: 0.6,
+      proximityRadius: 1.6,
+      lightDependence: 0,
+      crouchVisibilityFactor: 0.85,
+      eyeHeight: 0.48,
+    },
+    hearing: { radiusMultiplier: 0.9, occlusionFactor: 0.5, awarenessGain: 0.3 },
+    awareness: { sightGainPerSecond: 1.8, decayPerSecond: 0.15, alertThreshold: 0.2, huntThreshold: 0.55, forgetThreshold: 0.1 },
+    speeds: { patrol: 0.7, alert: 2.4, stalk: 2.4, hunt: 4.8, observed: 4.8 },
+    turnRateRadiansPerSecond: 7,
+    stalking: { enabled: false, preferredDistanceMinimum: 0, preferredDistanceMaximum: 0, patienceSeconds: 0, escalateDistance: 0 },
+    freezesWhenObserved: false,
+    observedHalfAngle: 0,
+    catch: { radius: 0.9, windupSeconds: 0.25, escapeRadiusFactor: 1.8 },
+    alertSearchSeconds: 5,
+    loseTrackSeconds: 4,
+    navigation: { bodyRadius: 0.2, canSqueezeLowCeilings: true, canCrossChasms: false, repathIntervalSeconds: 0.35 },
+    audio: { footstepCue: 'hushlingSkitter', strideMeters: 0.7, spottedCue: 'hushlingSkitter', idleCue: 'hushlingSkitter', idleIntervalSeconds: 5 },
+    dreadRadius: 8,
+    freezeIlluminanceThreshold: 0.12,
   },
 };
