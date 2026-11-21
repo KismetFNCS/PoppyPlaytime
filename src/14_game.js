@@ -706,6 +706,13 @@ const Game = {
       if (it) { it.tint[3] = lift; if (glow) { it.emis[0] = 0.15 * glow; it.emis[1] = 0.6 * glow; it.emis[2] = 0.9 * glow; } }
       return;
     }
+    // sculpted glove meshes (open / gripping), coloured per hand by the draw material
+    const gm = (side === 0 ? 'glove_L_' : 'glove_R_') + (curl > 0.5 ? 'grip' : 'open');
+    if (Sculpt.ready(gm)) {
+      const it = R.push(gm, mat, shadow);
+      if (it) { basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[3] = lift; it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow; }
+      return;
+    }
     const mirror = side === 0 ? -1 : 1;   // thumb on the inside of each hand
     // wrist cuff with clamp rings
     V3.addScaled(_g.p0, pos, f, -0.115 * s); V3.addScaled(_g.p1, pos, f, -0.03 * s);

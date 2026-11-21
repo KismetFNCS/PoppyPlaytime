@@ -6626,6 +6626,13 @@ const Game = {
       if (it) { it.tint[3] = lift; if (glow) { it.emis[0] = 0.15 * glow; it.emis[1] = 0.6 * glow; it.emis[2] = 0.9 * glow; } }
       return;
     }
+    // sculpted glove meshes (open / gripping), coloured per hand by the draw material
+    const gm = (side === 0 ? 'glove_L_' : 'glove_R_') + (curl > 0.5 ? 'grip' : 'open');
+    if (Sculpt.ready(gm)) {
+      const it = R.push(gm, mat, shadow);
+      if (it) { basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[3] = lift; it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow; }
+      return;
+    }
     const mirror = side === 0 ? -1 : 1;   // thumb on the inside of each hand
     // wrist cuff with clamp rings
     V3.addScaled(_g.p0, pos, f, -0.115 * s); V3.addScaled(_g.p1, pos, f, -0.03 * s);
@@ -8732,8 +8739,51 @@ const SDF = {
 };
 const SN_EDGES = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 1, 3, 4, 6, 5, 7, 0, 4, 1, 5, 2, 6, 3, 7]);
 
+// LIFELINE glove (right hand; thumb on -x, fingers along +z, back of the hand +y). Surface material -1
+// means "use the per-draw material", so one mesh serves the teal and rose hands. grip 0 = open, 1 = fist.
+function sculptGlove(mirror, grip) {
+  const G = -1, n = [
+    { t: 'box', c: [0, 0, 0], h: [0.05, 0.021, 0.055], rr: 0.02, m: G },
+    { t: 'ell', c: [0, 0.012, -0.01], r: [0.048, 0.016, 0.045], m: G, k: 0.02 },
+    { t: 'cap', a: [-0.04, 0.008, 0.052], b: [0.042, 0.008, 0.05], r: 0.019, m: G, k: 0.015 },
+    { t: 'cap', a: [0, 0.02, -0.07], b: [0, 0.02, 0.0], r: 0.004, op: 's', sm: MAT.rubber },
+    { t: 'cyl', c: [0, 0, -0.085], r: 0.044, h: 0.035, rr: 0.012, rot: [0, Math.PI / 2, 0], m: G, k: 0.02 },
+    { t: 'tor', c: [0, 0, -0.1], R: 0.044, r: 0.009, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.004 },
+    { t: 'tor', c: [0, 0, -0.065], R: 0.045, r: 0.007, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.004 }
+  ];
+  for (let i = 0; i < 4; i++) {
+    const L = HAND_FINGERS[i];
+    let x = (-0.035 + i * 0.024) * mirror, y = 0.004, z = 0.06, ang = 0;
+    const splay = (i - 1.5) * 0.08 * (1 - grip) * mirror;
+    for (let j = 0; j < 3; j++) {
+      ang += grip * (j === 0 ? 1.1 : 1.25);
+      const len = L[j] * 1.05, r = 0.0158 - j * 0.0014;
+      const nx = x + Math.sin(splay) * len * Math.cos(ang), ny = y - Math.sin(ang) * len, nz = z + Math.cos(splay) * Math.cos(ang) * len;
+      n.push({ t: 'cap', a: [x, y, z], b: [nx, ny, nz], r: r + 0.0008, r2: r, m: G, k: 0.006 });
+      x = nx; y = ny; z = nz;
+    }
+    n.push({ t: 'sph', c: [x, y - 0.004, z], r: 0.0125, m: G, k: 0.006 });
+  }
+  // thumb: swings from the side toward the palm as the grip closes
+  const tx0 = -0.05 * mirror, tdx = (-0.72 + grip * 0.55) * mirror, tdz = 0.62 + grip * 0.1, tdy = -0.1 - grip * 0.45;
+  const tl = Math.hypot(tdx, tdy, tdz);
+  let ax = tx0, ay = -0.004, az = 0.0;
+  for (let j = 0; j < 2; j++) {
+    const len = j === 0 ? 0.04 : 0.034;
+    const bx = ax + tdx / tl * len + (j ? grip * 0.02 * mirror : 0), by = ay + tdy / tl * len, bz = az + tdz / tl * len;
+    n.push({ t: 'cap', a: [ax, ay, az], b: [bx, by, bz], r: 0.018 - j * 0.002, m: G, k: 0.012 });
+    ax = bx; ay = by; az = bz;
+  }
+  n.push({ t: 'sph', c: [ax, ay, az], r: 0.0145, m: G, k: 0.006 });
+  return SDF.mesh(n, [-0.15, -0.12, -0.13], [0.15, 0.06, 0.2], 72);
+}
+
 // ---------- character models ----------
 const SCULPTS = {
+  glove_R_open: () => sculptGlove(1, 0.04),
+  glove_R_grip: () => sculptGlove(1, 0.95),
+  glove_L_open: () => sculptGlove(-1, 0.04),
+  glove_L_grip: () => sculptGlove(-1, 0.95),
   // Spoolwright porcelain mask: heavy brow, gaunt cheeks, deep sockets, ear-to-ear grin of needle teeth,
   // a smashed skull plate and a web of carved cracks.
   sp_mask: () => {
@@ -8899,6 +8949,16 @@ const SCULPTS = {
       n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.66], r: [0.15, 0.15, 0.08], m: B, k: 0.05 });
       n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.71], r: [0.1, 0.1, 0.03], m: W, k: 0.02 });
     }
+    // tufts of scorched fur poking out of the seams, and dark scorch spots across the lining
+    for (let i = 0; i < 12; i++) {
+      const a = i * 2.39, yy = 0.25 + (i * 0.061) % 0.7;
+      n.push({ t: 'sph', c: [Math.cos(a) * 0.38, yy, Math.sin(a) * 0.32 + 0.12], r: 0.035, m: B, k: 0.02, n: [0.02, 60] });
+    }
+    for (let i = 0; i < 14; i++) {
+      const a = i * 1.7 + 0.3, yy = 0.2 + (i * 0.083) % 0.75;
+      const rr = Math.sqrt(Math.max(0.01, 1 - ((yy - 0.55) / 0.52) ** 2));
+      n.push({ t: 'ell', c: [Math.cos(a) * 0.41 * rr, yy, Math.sin(a) * 0.35 * rr + 0.12], r: [0.04, 0.035, 0.04], m: D, k: 0.008 });
+    }
     // loose threads dangling from the split
     for (let i = 0; i < 4; i++) n.push({ t: 'cap', a: [-0.03 + i * 0.03, 0.3, -0.29], b: [-0.05 + i * 0.035, 0.12 - (i % 2) * 0.05, -0.31], r: 0.004, m: W, k: 0.002 });
     return SDF.mesh(n, [-0.62, -0.05, -0.82], [0.62, 1.15, 0.55], 76);
@@ -8935,6 +8995,9 @@ const SCULPTS = {
     }
     // left ear ripped half away, stuffing showing
     n.push({ t: 'box', c: [-0.3, 0.33, 0.02], h: [0.08, 0.06, 0.12], rot: [0.3, 0, 0.6], op: 's', k: 0.005, sm: W, n: [0.015, 50] });
+    // fuzzy scorched tufts on the crown and cheeks, dark spots on the lining
+    for (let i = 0; i < 8; i++) n.push({ t: 'sph', c: [Math.sin(i * 2.2) * 0.22, 0.2 + (i % 3) * 0.04, Math.cos(i * 2.2) * 0.2 + 0.05], r: 0.04, m: B, k: 0.02, n: [0.018, 60] });
+    for (let i = 0; i < 6; i++) n.push({ t: 'ell', c: [Math.sin(i * 1.9 + 1) * 0.3, -0.05 + (i % 3) * 0.08, Math.cos(i * 1.9 + 1) * 0.24 + 0.04], r: [0.035, 0.03, 0.035], m: D, k: 0.006 });
     return SDF.mesh(n, [-0.42, -0.36, -0.4], [0.42, 0.46, 0.36], 78);
   },
   // Mister Thimble's arm, inside out: lining sleeve, scorched seam strip and cuff, scorched paw
