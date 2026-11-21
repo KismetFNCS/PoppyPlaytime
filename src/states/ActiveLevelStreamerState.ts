@@ -107,6 +107,10 @@ interface PendingDeath {
  * Tether Rig, gas mask + inventory, AI threats, world event matrix, cinematics, master HUD, pause menu
  * and save serialization.
  */
+/** Horizontal hit radius of each monster for hand strikes. */
+const STRIKE_RADIUS: Readonly<Record<ThreatKind, number>> = { jester: 0.75, tallyman: 0.7, choirMother: 0.95, hushling: 0.5 };
+const THREAT_DISPLAY_NAMES: Readonly<Record<ThreatKind, string>> = { jester: 'THE JESTER', tallyman: 'THE TALLYMAN', choirMother: 'THE CHOIR MOTHER', hushling: 'HUSHLING' };
+
 export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.ActiveLevelStreamer>, TriggerActionHost {
   public readonly id = GameStateId.ActiveLevelStreamer;
   private streamer: LevelStreamer | null = null;
@@ -149,6 +153,11 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private leavingLevel: boolean = false;
   private campaign: CampaignDirector | null = null;
   private pip: PipCompanion | null = null;
+  /** Where each launched hand was last frame, for swept hit tests against monsters. */
+  private readonly handTrail: Record<'left' | 'right', { position: Vec3; phase: string }> = {
+    left: { position: [0, 0, 0], phase: 'holstered' },
+    right: { position: [0, 0, 0], phase: 'holstered' },
+  };
   /** Dim cosmetic light just below the camera so the painted hands read in dark rooms. */
   private handFill: PointLight | null = null;
   private foreman: ForemanEncounter | null = null;
@@ -403,6 +412,105 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
   public playerPosition(): Vec3 {
     return [this.motor.position[0], this.motor.position[1], this.motor.position[2]];
+  }
+
+  /**
+   * Swept hit test of each launched hand against every monster (vertical capsule). A hit snaps the hand back and
+   * staggers the monster; in a scene where that monster can be beaten, strikes count toward finishing it.
+   */
+  private resolveHandStrikes(rig: TetherRig, threats: ThreatDirector, worldEvents: WorldEventSystem): void {
+    for (const side of ['left', 'right'] as const) {
+      const claw = rig.claws[side];
+      const trail = this.handTrail[side];
+      // Test the stretch the hand covered this frame: from last frame's position while flying, or from the launcher on
+      // the frame it fired (a fast hand can pass a monster and hit the wall behind it within one frame).
+      const justFired: boolean = trail.phase === 'holstered' && claw.phase !== 'holstered';
+      const wasFlying: boolean = trail.phase === 'extending';
+      const from: Vec3 = justFired ? rig.socketPosition(side) : [trail.position[0], trail.position[1], trail.position[2]];
+      trail.phase = claw.phase;
+      trail.position = [claw.position[0], claw.position[1], claw.position[2]];
+      if (!justFired && !wasFlying) {
+        continue;
+      }
+      const to: Vec3 = trail.position;
+      for (const managed of threats.activeThreats) {
+        const radius: number = STRIKE_RADIUS[managed.kind];
+        const feet: Readonly<Vec3> = managed.view.position;
+        const height: number = managed.profile.vision.eyeHeight * 1.1;
+        let hit = false;
+        for (let sample = 0; sample <= 8 && !hit; sample += 1) {
+          const t: number = sample / 8;
+          const x: number = from[0] + (to[0] - from[0]) * t;
+          const y: number = from[1] + (to[1] - from[1]) * t;
+          const z: number = from[2] + (to[2] - from[2]) * t;
+          hit = Math.hypot(x - feet[0], z - feet[2]) <= radius && y >= feet[1] - 0.2 && y <= feet[1] + height;
+        }
+        if (!hit) {
+          continue;
+        }
+        rig.recall(side);
+        trail.phase = 'retracting';
+        this.applyHandStrike(managed.id, managed.kind, [feet[0], feet[1] + height * 0.7, feet[2]], threats, worldEvents);
+        break;
+      }
+    }
+  }
+
+  private applyHandStrike(id: string, kind: ThreatKind, impact: Vec3, threats: ThreatDirector, worldEvents: WorldEventSystem): void {
+    const result = threats.strike(id, this.motor.position);
+    const name: string = THREAT_DISPLAY_NAMES[kind];
+    this.services.audio.playSpatialCue('breakerClunk', impact, result.outcome === 'resisted' ? 0.6 : 1.3);
+    threats.emitNoise('gateMoving', impact, 0.5);
+    switch (result.outcome) {
+      case 'resisted':
+        this.showToast(`${name} SHRUGS IT OFF`, 1.6, 'danger');
+        if (worldEvents.flag('combatResistedHint') < 1) {
+          worldEvents.setFlag('combatResistedHint', 1);
+          this.campaign?.say('combat.resisted');
+        }
+        break;
+      case 'stunned':
+        worldEvents.incrementFlag('monstersStunned');
+        this.showToast(result.strikesLeft > 0 ? `${name} STAGGERED · ${result.strikesLeft} MORE` : `${name} STAGGERED`, 1.8, result.strikesLeft > 0 ? 'success' : 'warning');
+        if (worldEvents.flag('combatFirstHint') < 1) {
+          worldEvents.setFlag('combatFirstHint', 1);
+          if (!threats.isDefeatable(kind)) {
+            this.campaign?.say('combat.first');
+          }
+        }
+        break;
+      case 'defeated':
+        worldEvents.setFlag(`${kind}Defeated`, 1);
+        this.showToast(`${name} DEFEATED`, 3, 'success');
+        this.services.audio.playSpatialCue('foremanBoom', impact, 0.8);
+        if (kind === 'choirMother') {
+          threats.setDefeatable('choirMother', null);
+          this.campaign?.say('choirMother.defeated');
+        }
+        break;
+    }
+  }
+
+  /** Decides which monsters can be beaten for good right now; everything else can only be staggered. */
+  private updateCombatScenes(threats: ThreatDirector, worldEvents: WorldEventSystem): void {
+    const choirMotherBeaten: boolean = worldEvents.flag('choirMotherDefeated') >= 1;
+    if (choirMotherBeaten) {
+      // Stay beaten across reloads: never let her spawn again.
+      for (const managed of threats.activeThreats) {
+        if (managed.kind === 'choirMother') {
+          threats.retire(managed.id);
+        }
+      }
+      return;
+    }
+    const songSilenced: boolean = worldEvents.flag('musicBoxesSilenced') >= 3;
+    if (songSilenced && !threats.isDefeatable('choirMother')) {
+      threats.setDefeatable('choirMother', 3);
+      if (worldEvents.flag('choirMotherVulnerableHint') < 1) {
+        worldEvents.setFlag('choirMotherVulnerableHint', 1);
+        this.campaign?.say('choirMother.vulnerable');
+      }
+    }
   }
 
   public showToast(text: string, seconds: number, tone: ToastTone, colorOverride: string | null = null): void {
@@ -962,7 +1070,14 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     }
     if (this.loreReader.isOpen) {
       input.consumeMouseDelta();
-      this.loreReader.update(buildUiFrameInput(services, frame.inputEnabled), deltaSeconds);
+      // E (the same key that picked the tape up) and Esc close straight away; the browser may swallow Esc to
+      // release pointer lock, so losing the lock closes it too. Enter / Space / click finish the text, then close.
+      const quickClose: boolean = this.loreReader.secondsOpen > 0.35 && (input.wasAnyKeyPressed(['KeyE', 'Escape', 'Backspace']) || lostLock);
+      if (quickClose) {
+        this.loreReader.close();
+      } else {
+        this.loreReader.update(buildUiFrameInput(services, frame.inputEnabled), deltaSeconds);
+      }
       return;
     }
     if (this.ending.isActive) {
@@ -1016,6 +1131,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
     // 4–7. Tether claws, cable forces, motor integration, rope constraints.
     rig.update(deltaSeconds, this.buildTetherInput(input, controlsEnabled, intent), streamer, services.camera);
+    this.resolveHandStrikes(rig, threats, worldEvents);
     if (this.handFill !== null) {
       const fill: Vec3 = rig.handFillPosition();
       this.handFill.position[0] = fill[0];
@@ -1176,6 +1292,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         worldEvents.notify('threatAwakened', { kind: 'jester', position: jester.view.position });
       }
     }
+this.updateCombatScenes(threats, worldEvents);
     threats.update(deltaSeconds, this.buildPlayerSignature());
     this.dread = threats.dreadAt(this.playerPosition());
     services.audio.setDreadLevel(this.dread);

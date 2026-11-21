@@ -54,6 +54,9 @@ export const JESTER_THREAT_ID: string = 'threat.jester.primary';
  * Owns every active threat: streaming spawn/despawn, the shared noise channel, per-frame brain ticks,
  * spatial audio cues, dread computation and threat events.
  */
+/** How long a hand strike staggers each kind. Big threats recover faster; Hushlings are bowled over. */
+const STRIKE_STUN_SECONDS: Readonly<Record<ThreatKind, number>> = { jester: 2.2, tallyman: 2.8, choirMother: 2.5, hushling: 4 };
+
 export class ThreatDirector {
   public readonly events: TypedEventBus<ThreatEventMap> = new TypedEventBus();
   public readonly noises: NoiseChannel = new NoiseChannel();
@@ -175,6 +178,49 @@ export class ThreatDirector {
     const managed: ManagedThreat = this.register(id, kind, [position[0], 0, position[2]], [], -1, true);
     managed.brain.activate('hunting', 1, [playerFeet[0], 0, playerFeet[2]]);
     return managed;
+  }
+
+  /** Kinds that can be beaten for good in the current scene, with the strikes needed. Everything else only staggers. */
+  private readonly defeatable: Map<ThreatKind, number> = new Map();
+  private readonly strikeCounts: Map<string, number> = new Map();
+
+  public setDefeatable(kind: ThreatKind, strikesRequired: number | null): void {
+    if (strikesRequired === null) {
+      this.defeatable.delete(kind);
+    } else {
+      this.defeatable.set(kind, strikesRequired);
+    }
+  }
+
+  public isDefeatable(kind: ThreatKind): boolean {
+    return this.defeatable.has(kind);
+  }
+
+  /**
+   * A tether hand struck this threat. Stuns it (unless it is still shrugging off the last stun); in a scene where its
+   * kind is defeatable, each landed strike counts and the last one retires it for good.
+   */
+  public strike(id: string, playerFeet: Readonly<Vec3>): { readonly outcome: 'stunned' | 'resisted' | 'defeated'; readonly strikesLeft: number } {
+    const managed: ManagedThreat | undefined = this.threats.get(id);
+    if (managed === undefined) {
+      return { outcome: 'resisted', strikesLeft: 0 };
+    }
+    const stunSeconds: number = STRIKE_STUN_SECONDS[managed.kind];
+    if (!managed.brain.stun(stunSeconds, playerFeet)) {
+      return { outcome: 'resisted', strikesLeft: this.defeatable.has(managed.kind) ? (this.defeatable.get(managed.kind) as number) - (this.strikeCounts.get(id) ?? 0) : 0 };
+    }
+    const required: number | undefined = this.defeatable.get(managed.kind);
+    if (required === undefined) {
+      return { outcome: 'stunned', strikesLeft: 0 };
+    }
+    const landed: number = (this.strikeCounts.get(id) ?? 0) + 1;
+    this.strikeCounts.set(id, landed);
+    if (landed >= required) {
+      this.strikeCounts.delete(id);
+      this.retire(id);
+      return { outcome: 'defeated', strikesLeft: 0 };
+    }
+    return { outcome: 'stunned', strikesLeft: required - landed };
   }
 
   public get isJesterAwake(): boolean {

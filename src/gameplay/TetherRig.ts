@@ -185,6 +185,15 @@ export class TetherRig {
     return vec3Add(basis.origin, vec3Add(vec3Scale(basis.up, -0.05), vec3Scale(basis.forward, 0.12)));
   }
 
+  /** Snaps a launched hand back (e.g. after it strikes a monster). */
+  public recall(side: ClawSide): void {
+    const claw: ClawState = this.claws[side];
+    if (claw.phase === 'extending' || claw.phase === 'latched') {
+      claw.target = null;
+      this.setPhase(claw, 'retracting');
+    }
+  }
+
   public get isAnchored(): boolean {
     return (Object.values(this.claws) as ClawState[]).some((claw: ClawState) => claw.phase === 'latched' && claw.target?.kind === 'anchor');
   }

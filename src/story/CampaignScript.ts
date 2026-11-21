@@ -161,7 +161,11 @@ export type DialogueId =
   | 'ending.prompt'
   | 'pip.vent'
   | 'pip.dark'
-  | 'checkpoint.pa';
+  | 'checkpoint.pa'
+  | 'combat.first'
+  | 'combat.resisted'
+  | 'choirMother.vulnerable'
+  | 'choirMother.defeated';
 
 export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   'intro.wake': [{ speaker: 'pa', text: 'Night shift, report to your stations. Night shift, report to your stations.', seconds: 3.5 }],
@@ -222,6 +226,13 @@ export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   'pip.vent': [{ speaker: 'pip', text: '*scurry-scurry* *triumphant clunk*', seconds: 2 }],
   'pip.dark': [{ speaker: 'pip', text: '*nervous whirr* (Pip’s lantern flickers)', seconds: 2 }],
   'checkpoint.pa': [{ speaker: 'pa', text: 'Shift progress recorded.', seconds: 2 }],
+  'combat.first': [{ speaker: 'mabel', text: 'Ha! A rig hand to the face buys you a few seconds. It won’t put them down for good. Use the time to run.', seconds: 4.2 }],
+  'combat.resisted': [{ speaker: 'mabel', text: 'It’s shaking that off. Don’t stand there trading blows. Move!', seconds: 3 }],
+  'choirMother.vulnerable': [
+    { speaker: 'mabel', text: 'The song’s stopped. Without it she can’t hold herself together.', seconds: 3.4 },
+    { speaker: 'mabel', text: 'Hit her with the rig. Three good strikes and she comes apart.', seconds: 3.4 },
+  ],
+  'choirMother.defeated': [{ speaker: 'mabel', text: 'She’s down. The little ones are going quiet. That nursery won’t sing again.', seconds: 3.8 }],
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

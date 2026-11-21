@@ -123,6 +123,16 @@ export class LoreTapeReader {
     this.elapsed = 0;
   }
 
+  /** Closes immediately (E / Esc / lost pointer lock), skipping any remaining typewriter text. */
+  public close(): void {
+    this.tape = null;
+  }
+
+  /** Seconds since the tape opened; input is ignored briefly so the pickup press can't close it. */
+  public get secondsOpen(): number {
+    return this.tape === null ? 0 : this.elapsed;
+  }
+
   /** Returns true on the frame the reader closes. */
   public update(input: UIFrameInput, deltaSeconds: number): boolean {
     this.opacity = clamp(this.opacity + (this.tape !== null ? deltaSeconds * 6 : -deltaSeconds * 6), 0, 1);
@@ -185,7 +195,7 @@ export class LoreTapeReader {
     }
     context.font = UI_FONTS.small;
     context.fillStyle = 'rgba(58, 36, 24, 0.7)';
-    context.fillText('PRESS E / ENTER TO CLOSE', panelX + 60, panelY + panelHeight - 40);
+    context.fillText('PRESS E OR ESC TO CLOSE', panelX + 60, panelY + panelHeight - 40);
     context.restore();
   }
 }

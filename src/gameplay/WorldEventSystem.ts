@@ -43,7 +43,15 @@ export type QuestFlagId =
   | 'foremanEncountered'
   | 'foremanPhasesCleared'
   | 'campaignComplete'
-  | 'endingChosen';
+  | 'endingChosen'
+  | 'combatFirstHint'
+  | 'combatResistedHint'
+  | 'monstersStunned'
+  | 'choirMotherVulnerableHint'
+  | 'jesterDefeated'
+  | 'tallymanDefeated'
+  | 'choirMotherDefeated'
+  | 'hushlingDefeated';
 
 export const QUEST_FLAG_IDS: readonly QuestFlagId[] = [
   'elevatorIntroSeen',
@@ -69,6 +77,14 @@ export const QUEST_FLAG_IDS: readonly QuestFlagId[] = [
   'foremanPhasesCleared',
   'campaignComplete',
   'endingChosen',
+  'combatFirstHint',
+  'combatResistedHint',
+  'monstersStunned',
+  'choirMotherVulnerableHint',
+  'jesterDefeated',
+  'tallymanDefeated',
+  'choirMotherDefeated',
+  'hushlingDefeated',
 ];
 
 export type QuestFlagSnapshot = Readonly<Record<QuestFlagId, number>>;

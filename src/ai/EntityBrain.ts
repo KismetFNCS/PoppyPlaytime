@@ -61,6 +61,9 @@ function horizontalDistance(first: Readonly<Vec3>, second: Readonly<Vec3>): numb
  *        └──────── (lost track) ◀── Alert ◀──── lost track ──│ Hunting │ ───────────▶│ CatchKill │ → kill after wind-up
  *                                                           └─────────┘ ◀── escape ─└───────────┘
  */
+/** Seconds a threat ignores further hand strikes after a stun ends. */
+const STUN_RESIST_SECONDS: number = 4;
+
 export class EntityBrain {
   public state: ThreatState = 'dormant';
   public awareness: number = 0;
@@ -73,6 +76,10 @@ export class EntityBrain {
   private stalkSeconds: number = 0;
   private catchSeconds: number = 0;
   private catchResolved: boolean = false;
+  /** Seconds left in a hand-strike stun (no movement, no catching). */
+  public stunSeconds: number = 0;
+  /** After a stun wears off the threat shrugs off further strikes for a while, so it can't be stun-locked. */
+  public stunImmuneSeconds: number = 0;
   private path: Vec3[] | null = null;
   private pathIndex: number = 0;
   private pathTarget: Vec3 | null = null;
@@ -100,6 +107,30 @@ export class EntityBrain {
     this.secondsSincePerceived = knownPlayerPosition !== null ? 0 : Infinity;
     this.investigatePoint = knownPlayerPosition;
     this.transition(state);
+  }
+
+  /**
+   * Hand strike: stagger for `seconds` (breaking any catch in progress). Returns false while the threat is still
+   * shrugging off a previous stun. A struck threat knows exactly where the player is.
+   */
+  public stun(seconds: number, playerFeet: Readonly<Vec3>): boolean {
+    if (this.stunSeconds > 0 || this.stunImmuneSeconds > 0 || this.state === 'dormant') {
+      return false;
+    }
+    this.stunSeconds = seconds;
+    this.stunImmuneSeconds = seconds + STUN_RESIST_SECONDS;
+    this.awareness = 1;
+    this.lastKnownPlayerPosition = [playerFeet[0], 0, playerFeet[2]];
+    this.secondsSincePerceived = 0;
+    if (this.state === 'catchKill') {
+      this.catchSeconds = 0;
+      this.catchResolved = false;
+    }
+    return true;
+  }
+
+  public get isStunned(): boolean {
+    return this.stunSeconds > 0;
   }
 
   private transition(next: ThreatState): void {
@@ -228,6 +259,31 @@ export class EntityBrain {
       view.advanceAnimation(deltaSeconds);
       return {
         stateChange: null,
+        caughtPlayer: false,
+        spottedPlayer: false,
+        footstep: false,
+        idleCue: false,
+        observedByPlayer: false,
+        sight: { visible: false, score: 0, distance: distanceToPlayer, withinProximity: false },
+        hearing: { strength: 0, position: null, source: null },
+        distanceToPlayer,
+      };
+    }
+
+    this.stunImmuneSeconds = Math.max(0, this.stunImmuneSeconds - deltaSeconds);
+    if (this.stunSeconds > 0) {
+      // Staggered: rooted in place, head shaking, cannot catch. A broken lunge falls back to hunting.
+      this.stunSeconds = Math.max(0, this.stunSeconds - deltaSeconds);
+      if (this.state === 'catchKill') {
+        this.transition('hunting');
+      }
+      view.gait = 0;
+      view.lunging = false;
+      view.scanAmount = 1;
+      view.eyeGlow = 0.25;
+      view.advanceAnimation(deltaSeconds * 0.4);
+      return {
+        stateChange: previousState !== this.state ? { from: previousState, to: this.state } : null,
         caughtPlayer: false,
         spottedPlayer: false,
         footstep: false,
