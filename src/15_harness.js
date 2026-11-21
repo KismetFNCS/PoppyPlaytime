@@ -198,6 +198,7 @@ async function runAll() {
   const results = [];
   // the cherubs and the seraph are tested in their own section; keep them out of the walkthrough
   Enemies.disabled = true; Gear.gasDisabled = true;
+  const voicesWas = Settings.values.voices; Settings.values.voices = false;
   const check = (name, pass, detail) => {
     results.push({ name, pass: !!pass, detail: detail === undefined || detail === null ? '' : String(detail) });
     if (window.__HARNESS_VERBOSE__) console.log((pass ? 'PASS ' : 'FAIL ') + name + ' ' + (detail === undefined ? '' : String(detail)).slice(0, 300));
@@ -903,7 +904,7 @@ async function runAll() {
     check('harness ran to completion', false, err && err.stack ? err.stack : err);
   } finally {
     T.setStepRender(true);
-    Object.assign(Settings.values, savedSettings); Settings.apply(); Settings.save();
+    Object.assign(Settings.values, savedSettings); Settings.values.voices = voicesWas; Settings.apply(); Settings.save();
     Input.releaseAll();
     T.gotoMenu();
     T.setAutoRun(true);

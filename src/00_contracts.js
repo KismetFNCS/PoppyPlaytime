@@ -292,7 +292,7 @@ const QUALITY_ORDER = ['LOW', 'MEDIUM', 'HIGH', 'CINEMATIC AAA'];
 
 const SETTINGS_DEFAULT = {
   fov: 95, sensX: 1.0, sensY: 1.0, invertY: false, master: 0.8, music: 0.7, sfx: 0.9,
-  quality: 'HIGH', vhs: 1.0, reduceMotion: false, subtitles: true, flashlightShadows: true
+  quality: 'HIGH', vhs: 1.0, reduceMotion: false, subtitles: true, flashlightShadows: true, voices: true
 };
 
 // ANCHORS: measure functions resolve lazily against engine objects defined later in the file.

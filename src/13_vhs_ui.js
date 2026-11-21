@@ -222,7 +222,8 @@ const Settings = {
     { key: 'vhs', label: 'VHS FILTER', type: 'range', min: 0, max: 1.5, step: 0.05, fmt: v => Math.round(v * 100) + '%' },
     { key: 'flashlightShadows', label: 'FLASHLIGHT SHADOWS', type: 'check' },
     { key: 'reduceMotion', label: 'REDUCE MOTION', type: 'check' },
-    { key: 'subtitles', label: 'HINTS & SUBTITLES', type: 'check' }
+    { key: 'subtitles', label: 'HINTS & SUBTITLES', type: 'check' },
+    { key: 'voices', label: 'CHARACTER VOICES', type: 'check' }
   ],
   load() {
     const saved = loadJSON('settings');

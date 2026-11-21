@@ -88,7 +88,7 @@ All original designs, built to read like the genre without copying any existing 
 
 The supporting characters and the Spoolwright's mask, hood and torso are sculpted: each is described as smoothly blended shapes with carved details (eye sockets, grins, teeth, cracks, ringlets, stitches), and turned into a single smooth, multi-material mesh while the game loads (`src/19_sculpt.js`).
 
-Characters speak through on-screen dialogue with a name label and their own synthesized voice.
+Characters speak through on-screen dialogue with a name label, and their lines are read aloud by the browser's built-in speech voices, shaped per character (Thimble warm and quick, Marigold high and slow, the Usher low, PIP chirpy, the Spoolwright a deep, slow drawl; whispered lines are softer). **Settings → Character voices** turns speech off and falls back to typewriter blips.
 
 **Music** is an adaptive score on one shared tempo grid whose layers crossfade with the situation: a warped,
 detuned piano over a cello pad while exploring ("Faded Threads"); a loom-press thud and arpeggio while a live

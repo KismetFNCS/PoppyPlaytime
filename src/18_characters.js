@@ -572,14 +572,53 @@ const SPEAKERS = {
   SPOOLWRIGHT: { name: 'THE SPOOLWRIGHT', color: '#ff3b2e', pitch: 72, wobble: 0.35 }
 };
 // Source: [ASSUMED] speaker label colours reuse documented cast/VHS palette entries (#e8c35a, #3fd4a8, #b98cff, #7dff6a, #ff3b2e).
+// Spoken voices (the browser's speech synthesis), shaped per character. Stage directions in brackets are
+// not read out; a "(whispering)" line is spoken softer and slower.
+const VOICE_PROFILES = {
+  THIMBLE: { pitch: 1.35, rate: 0.98, volume: 0.9, pick: 1 },
+  MARIGOLD: { pitch: 1.85, rate: 0.86, volume: 0.85, pick: 2 },
+  USHER: { pitch: 0.45, rate: 0.84, volume: 0.85, pick: 0 },
+  PIP: { pitch: 2.0, rate: 1.25, volume: 0.8, pick: 3 },
+  SPOOLWRIGHT: { pitch: 0.15, rate: 0.8, volume: 1.0, pick: 0 }
+};
+const Voices = {
+  ok: typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined',
+  list: [], startedAt: -1,
+  init() {
+    if (!this.ok) return;
+    const load = () => { this.list = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)); };
+    load();
+    speechSynthesis.onvoiceschanged = load;
+  },
+  enabled() { return this.ok && Settings.values.voices && !Game.muted && Settings.values.master > 0.01; },
+  speak(speaker, text) {
+    if (!this.enabled()) return;
+    const P = VOICE_PROFILES[speaker] || VOICE_PROFILES.THIMBLE;
+    const whisper = /^\(whisper/i.test(text);
+    const clean = text.replace(/\([^)]*\)/g, '').replace(/-/g, ', ').trim();
+    if (!clean) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(clean);
+      u.pitch = P.pitch; u.rate = P.rate * (whisper ? 0.85 : 1); u.volume = P.volume * Settings.values.master * (whisper ? 0.5 : 1);
+      if (this.list.length) u.voice = this.list[P.pick % this.list.length];
+      speechSynthesis.speak(u);
+      this.startedAt = performance.now();
+    } catch (e) { /* speech unavailable */ }
+  },
+  active() { return this.ok && this.startedAt > 0 && speechSynthesis.speaking && performance.now() - this.startedAt < 15000; },
+  stop() { if (this.ok) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } } this.startedAt = -1; }
+};
+Voices.init();
+
 const Dialogue = {
   queue: [], current: null, chars: 0, acc: 0, hold: 0, el: null, nameEl: null, textEl: null, shown: '',
   init() { this.el = document.getElementById('hudDialog'); this.nameEl = document.getElementById('hudDialogName'); this.textEl = document.getElementById('hudDialogText'); },
   say(speaker, text) { if (this.queue.length < 12) this.queue.push({ speaker, text }); },
-  clear() { this.queue.length = 0; this.current = null; this.render(); },
+  clear() { this.queue.length = 0; this.current = null; Voices.stop(); this.render(); },
   busy() { return !!this.current || this.queue.length > 0; },
   update(dt) {
-    if (!this.current && this.queue.length) { this.current = this.queue.shift(); this.chars = 0; this.acc = 0; this.hold = 0; }
+    if (!this.current && this.queue.length) { this.current = this.queue.shift(); this.chars = 0; this.acc = 0; this.hold = 0; Voices.speak(this.current.speaker, this.current.text); }
     const c = this.current;
     if (c) {
       const sp = SPEAKERS[c.speaker];
@@ -588,11 +627,13 @@ const Dialogue = {
         while (this.acc >= 1 && this.chars < c.text.length) {
           const ch = c.text[this.chars++];
           this.acc -= ch === '.' || ch === ',' || ch === '?' || ch === '!' ? 5 : 1;
-          if (/[a-z]/i.test(ch) && this.chars % 2 === 0) sfx('voiceBlip', null, sp.pitch * (1 + sp.wobble * Math.sin(this.chars * 2.3)) * ('aeiou'.indexOf(ch.toLowerCase()) >= 0 ? 1.15 : 1));
+          if (/[a-z]/i.test(ch) && this.chars % 2 === 0 && !Voices.active()) sfx('voiceBlip', null, sp.pitch * (1 + sp.wobble * Math.sin(this.chars * 2.3)) * ('aeiou'.indexOf(ch.toLowerCase()) >= 0 ? 1.15 : 1));
         }
       } else {
         this.hold += dt;
-        if (this.hold > 1.6 + c.text.length * 0.035) this.current = null;
+        // a spoken line may run a little longer than the text; never more than a few extra seconds
+        const base = 1.6 + c.text.length * 0.035;
+        if (this.hold > base && !(Voices.active() && this.hold < base + 4)) this.current = null;
       }
     }
     this.render();
