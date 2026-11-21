@@ -31,7 +31,7 @@ const TAPE_SEGS = 16;
 // fur sac tufts: local x, y, z, radius, blue (1) or violet (0)
 // stolen plush arms: shoulder attachment points (local) and per-arm fur tint (teal, rose, pink)
 const TROPHY_ARMS = new Float32Array([-0.28, 1.0, -0.45, 0.27, 0.97, -0.42, 0.04, 0.9, -0.36]);
-const TROPHY_TINT = [[0.32, 1.25, 1.15], [1.7, 0.55, 0.68], [1.75, 1.0, 1.1]];
+const TROPHY_TINT = [[0.32, 1.25, 1.15], [1.7, 0.55, 0.68], [1, 1, 1]];
 const FUR_SAC = new Float32Array([
   0, 1.5, 0.95, 0.62, 0, -0.32, 1.42, 0.8, 0.42, 1, 0.32, 1.44, 0.82, 0.42, 0, 0, 1.72, 0.85, 0.45, 0,
   0, 1.38, 1.4, 0.45, 1, -0.22, 1.25, 1.55, 0.3, 0, 0.24, 1.3, 1.5, 0.3, 1, 0, 1.15, 1.75, 0.28, 0
@@ -48,6 +48,8 @@ const Monster = {
   // kill animation: grab (both hands close round you), join (needle fingers pinch into one spike), stab (-1 wind-up .. 1 thrust)
   kill: { on: false, grab: 0, join: 0, stab: 0, wind: 0 },
   legs: [], bodyBob: 0, lean: 0, armReach: 0, jaw: 0, headTilt: 0, flinchAmt: 0, breathe: 0,
+  // the head tracks you in sudden, jerky snaps (and cocks sideways now and then)
+  lookYaw: 0, lookPitch: 0, lookRoll: 0, snapTimer: 0,
   catchCooldown: 0, sector: -1, sightRange: 20,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
 
@@ -446,7 +448,26 @@ const Monster = {
     this.breathe += dt;
     this.bodyBob = Math.sin(this.breathe * (1.4 + this.speed * 1.6)) * (0.04 + this.speed * 0.02);
     this.headTilt = Math.sin(this.breathe * 0.7) * 0.25 + noise1(this.breathe * 2.3) * 0.15;
+    this.updateLook(dt);
     this.jaw = damp(this.jaw, this.state === MSTATE.LINE_OF_SIGHT_CHASE ? 0.7 + 0.3 * noise1(this.breathe * 8) : 0.12 + 0.1 * noise1(this.breathe), 6, dt);
+  },
+
+  // the head does not turn smoothly: it holds still, then SNAPS to look straight at you, sometimes cocked
+  // sideways; while it is talking it snaps far more often
+  updateLook(dt) {
+    const eye = state === STATE.MAIN_MENU ? Game.menuEye : Player.cam.eye;
+    const dx = eye[0] - this.head[0], dy = eye[1] - this.head[1], dz = eye[2] - this.head[2];
+    const ty = clamp(wrapAngle(Math.atan2(-dx, -dz) - this.yaw), -1.5, 1.5);
+    const tp = clamp(Math.atan2(dy, Math.hypot(dx, dz)), -0.7, 0.7);
+    const talking = Dialogue.current && Dialogue.current.speaker === 'SPOOLWRIGHT';
+    this.snapTimer -= dt;
+    if (this.snapTimer <= 0) {
+      const big = Math.abs(ty - this.lookYaw) + Math.abs(tp - this.lookPitch) > 0.25 || gameRng() < 0.3;
+      this.lookYaw = ty + (gameRng() - 0.5) * 0.08; this.lookPitch = tp;
+      this.lookRoll = gameRng() < (talking ? 0.5 : 0.3) ? (gameRng() < 0.5 ? -1 : 1) * (0.7 + gameRng() * 0.7) : (gameRng() - 0.5) * 0.3;
+      this.snapTimer = talking ? 0.22 + gameRng() * 0.35 : 0.7 + gameRng() * 1.6;
+      if (big && this.visible && V3.dist(this.head, eye) < 14 && state !== STATE.MAIN_MENU) sfx('headSnap', this.head);
+    }
   },
 
   // world-space rest position for a leg's foot
@@ -591,7 +612,7 @@ const Monster = {
     if (Sculpt.ready('sp_coat')) {
       it = R.push('sp_coat', MAT.clothWine);
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
-      if (it) { it.tint[0] = 1.25; it.tint[1] = 1.15; it.tint[2] = 1.05; }
+      if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.8; }
     }
     // three stolen plush arms dangle from under the chest: teal, rose (wearing a teal ring) and pink
     for (let k = 0; k < 3; k++) {
@@ -599,16 +620,23 @@ const Monster = {
       const sw = Math.sin(this.breathe * 2.2 + k * 1.9) * 0.12, drag = Math.min(1, this.speed / 5) * 0.45;
       this.bodyPoint(B, ax, ay, az);
       this.bodyPoint(H, ax * 1.9 + sw, ay - 0.72 + drag * 0.25, az - 0.42 + drag + Math.cos(this.breathe * 1.7 + k) * 0.08);
-      it = Sculpt.ready('sp_trophyArm') ? R.push('sp_trophyArm', MAT.furLight) : null;
+      // the middle arm is smooth, solid pink with a darker pink hand and a blue glove-ring at the wrist;
+      // the teal and rose arms are shaggy fur with yellowish plush hands
+      const smooth = k === 2;
+      it = Sculpt.ready(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm') ? R.push(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm', smooth ? MAT.handRose : MAT.furLight) : null;
       if (it) {
         M4.segment(it.model, B, H, 1);
-        const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2];
-        if (k === 1) {
-          // teal ring on the rose hand's ring finger
-          V3.set(_mh.local, 0.015, 0.93, -0.018); M4.transformPoint(X, it.model, _mh.local);
+        if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2]; }
+        const hd = Sculpt.ready('sp_trophyHand') ? R.push('sp_trophyHand', smooth ? MAT.handRose : MAT.furLight) : null;
+        if (hd) {
+          hd.model.set(it.model);
+          if (smooth) { hd.tint[0] = 0.62; hd.tint[1] = 0.36; hd.tint[2] = 0.42; } else { hd.tint[0] = 1.75; hd.tint[1] = 1.5; hd.tint[2] = 0.55; }
+        }
+        if (smooth) {
+          V3.set(_mh.local, 0, 0.76, 0); M4.transformPoint(X, it.model, _mh.local);
           V3.sub(_mh.dir, H, B); V3.normalize(_mh.dir, _mh.dir);
           const rg = R.push('torus', MAT.handTeal);
-          if (rg) ringMatrix(rg.model, X, _mh.dir, 0.019);
+          if (rg) { ringMatrix(rg.model, X, _mh.dir, 0.06); rg.tint[0] = 0.45; rg.tint[1] = 0.75; rg.tint[2] = 1.8; }
         }
       }
     }
@@ -623,7 +651,7 @@ const Monster = {
       it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
       if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
     }
-    this.submitHead(this.head, yaw + this.headTilt * 0.4, -0.15 + lean * 0.5, this.headTilt * 0.6, 1.15);
+    this.submitHead(this.head, yaw + this.lookYaw + this.headTilt * 0.1, -0.15 + lean * 0.5 - this.lookPitch, this.lookRoll + this.headTilt * 0.15, 1.15);
     // ---- arms: long thin machine arms ending in needle fingers ----
     if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
     for (const side of [-1, 1]) {
@@ -785,7 +813,7 @@ const Monster = {
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
       // the grin never moves: it is carved into the porcelain. Grimy, yellowed and stained.
-      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.8; it.tint[1] = 0.73; it.tint[2] = 0.6; }
+      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.72; it.tint[1] = 0.64; it.tint[2] = 0.5; }
     } else {
       R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }

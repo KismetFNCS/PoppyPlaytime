@@ -98,6 +98,7 @@ const Cast = {
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
     this.resetPlush();
+    if (Enemies.cherubs.length) Enemies.reset();
     Dialogue.clear();
     Pip.reset();
   },
@@ -107,6 +108,7 @@ const Cast = {
     this.updateDoll(dt);
     this.updatePlush(dt);
     Companion.update(dt);
+    Enemies.update(dt);
     // CRT face animation at ~15 fps
     this.screenTimer -= dt;
     if (this.screenTimer <= 0 && this.usher.state !== 'HIDDEN') {
@@ -379,6 +381,7 @@ const Cast = {
     if (vis[this.doll.sector]) this.submitDoll();
     if (vis[3]) this.submitSocket();
     if (!this.plush.hidden && vis[this.plush.sector]) this.submitPlush();
+    Enemies.submit(vis);
   },
 
   // local (x right, y up, z back) -> world for a root at p with yaw

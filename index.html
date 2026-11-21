@@ -3558,6 +3558,8 @@ const GrabPack = {
         h.state = HAND.RETRACTING;
         return;
       }
+      // cherubs and the seraph
+      if (Enemies.handHit(h, h.prev, this.tmp, len + 0.1)) { h.state = HAND.RETRACTING; return; }
       if (Physics.raycast(h.prev, this.tmp, len + 0.05, LAYER.HAND, this.hit)) {
         V3.copy(h.pos, this.hit.point);
         V3.copy(h.latchNormal, this.hit.normal);
@@ -4064,6 +4066,8 @@ const Lights = {
     L.radius = radius; L.base = intensity; L.dur = dur; L.t = 0; L.flicker = flicker || 0; L.alive = true;
     L.sector = Level.sectorAt(pos[0], pos[2]);
   },
+  // the seraph's halo-face blazing when its wings part (linear RGB, warm white)
+  seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.85, 0.55]), current: 0, base: 4.0, radius: 9, scatter: 0.35, fixture: 'none', sector: 2 },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
@@ -4105,6 +4109,13 @@ const Lights = {
       if (!sectorVisible[L.sector]) continue;
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = L;
+    }
+    const SG = this.seraphGlow, SE = Enemies.seraph;
+    if (SE.active && SE.unveil > 0.05 && sectorVisible[2] && Game.isGameplay()) {
+      V3.set(SG.pos, SE.pos[0], SE.pos[1] + 2.05, SE.pos[2]);
+      SG.current = SG.base * SE.unveil;
+      if (list.count >= list.items.length) list.items.push(null);
+      list.items[list.count++] = SG;
     }
     const TG = this.thimbleGlow, TP = Cast.plush;
     if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
@@ -4303,7 +4314,7 @@ const TAPE_SEGS = 16;
 // fur sac tufts: local x, y, z, radius, blue (1) or violet (0)
 // stolen plush arms: shoulder attachment points (local) and per-arm fur tint (teal, rose, pink)
 const TROPHY_ARMS = new Float32Array([-0.28, 1.0, -0.45, 0.27, 0.97, -0.42, 0.04, 0.9, -0.36]);
-const TROPHY_TINT = [[0.32, 1.25, 1.15], [1.7, 0.55, 0.68], [1.75, 1.0, 1.1]];
+const TROPHY_TINT = [[0.32, 1.25, 1.15], [1.7, 0.55, 0.68], [1, 1, 1]];
 const FUR_SAC = new Float32Array([
   0, 1.5, 0.95, 0.62, 0, -0.32, 1.42, 0.8, 0.42, 1, 0.32, 1.44, 0.82, 0.42, 0, 0, 1.72, 0.85, 0.45, 0,
   0, 1.38, 1.4, 0.45, 1, -0.22, 1.25, 1.55, 0.3, 0, 0.24, 1.3, 1.5, 0.3, 1, 0, 1.15, 1.75, 0.28, 0
@@ -4320,6 +4331,8 @@ const Monster = {
   // kill animation: grab (both hands close round you), join (needle fingers pinch into one spike), stab (-1 wind-up .. 1 thrust)
   kill: { on: false, grab: 0, join: 0, stab: 0, wind: 0 },
   legs: [], bodyBob: 0, lean: 0, armReach: 0, jaw: 0, headTilt: 0, flinchAmt: 0, breathe: 0,
+  // the head tracks you in sudden, jerky snaps (and cocks sideways now and then)
+  lookYaw: 0, lookPitch: 0, lookRoll: 0, snapTimer: 0,
   catchCooldown: 0, sector: -1, sightRange: 20,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
 
@@ -4718,7 +4731,26 @@ const Monster = {
     this.breathe += dt;
     this.bodyBob = Math.sin(this.breathe * (1.4 + this.speed * 1.6)) * (0.04 + this.speed * 0.02);
     this.headTilt = Math.sin(this.breathe * 0.7) * 0.25 + noise1(this.breathe * 2.3) * 0.15;
+    this.updateLook(dt);
     this.jaw = damp(this.jaw, this.state === MSTATE.LINE_OF_SIGHT_CHASE ? 0.7 + 0.3 * noise1(this.breathe * 8) : 0.12 + 0.1 * noise1(this.breathe), 6, dt);
+  },
+
+  // the head does not turn smoothly: it holds still, then SNAPS to look straight at you, sometimes cocked
+  // sideways; while it is talking it snaps far more often
+  updateLook(dt) {
+    const eye = state === STATE.MAIN_MENU ? Game.menuEye : Player.cam.eye;
+    const dx = eye[0] - this.head[0], dy = eye[1] - this.head[1], dz = eye[2] - this.head[2];
+    const ty = clamp(wrapAngle(Math.atan2(-dx, -dz) - this.yaw), -1.5, 1.5);
+    const tp = clamp(Math.atan2(dy, Math.hypot(dx, dz)), -0.7, 0.7);
+    const talking = Dialogue.current && Dialogue.current.speaker === 'SPOOLWRIGHT';
+    this.snapTimer -= dt;
+    if (this.snapTimer <= 0) {
+      const big = Math.abs(ty - this.lookYaw) + Math.abs(tp - this.lookPitch) > 0.25 || gameRng() < 0.3;
+      this.lookYaw = ty + (gameRng() - 0.5) * 0.08; this.lookPitch = tp;
+      this.lookRoll = gameRng() < (talking ? 0.5 : 0.3) ? (gameRng() < 0.5 ? -1 : 1) * (0.7 + gameRng() * 0.7) : (gameRng() - 0.5) * 0.3;
+      this.snapTimer = talking ? 0.22 + gameRng() * 0.35 : 0.7 + gameRng() * 1.6;
+      if (big && this.visible && V3.dist(this.head, eye) < 14 && state !== STATE.MAIN_MENU) sfx('headSnap', this.head);
+    }
   },
 
   // world-space rest position for a leg's foot
@@ -4863,7 +4895,7 @@ const Monster = {
     if (Sculpt.ready('sp_coat')) {
       it = R.push('sp_coat', MAT.clothWine);
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
-      if (it) { it.tint[0] = 1.25; it.tint[1] = 1.15; it.tint[2] = 1.05; }
+      if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.8; }
     }
     // three stolen plush arms dangle from under the chest: teal, rose (wearing a teal ring) and pink
     for (let k = 0; k < 3; k++) {
@@ -4871,16 +4903,23 @@ const Monster = {
       const sw = Math.sin(this.breathe * 2.2 + k * 1.9) * 0.12, drag = Math.min(1, this.speed / 5) * 0.45;
       this.bodyPoint(B, ax, ay, az);
       this.bodyPoint(H, ax * 1.9 + sw, ay - 0.72 + drag * 0.25, az - 0.42 + drag + Math.cos(this.breathe * 1.7 + k) * 0.08);
-      it = Sculpt.ready('sp_trophyArm') ? R.push('sp_trophyArm', MAT.furLight) : null;
+      // the middle arm is smooth, solid pink with a darker pink hand and a blue glove-ring at the wrist;
+      // the teal and rose arms are shaggy fur with yellowish plush hands
+      const smooth = k === 2;
+      it = Sculpt.ready(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm') ? R.push(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm', smooth ? MAT.handRose : MAT.furLight) : null;
       if (it) {
         M4.segment(it.model, B, H, 1);
-        const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2];
-        if (k === 1) {
-          // teal ring on the rose hand's ring finger
-          V3.set(_mh.local, 0.015, 0.93, -0.018); M4.transformPoint(X, it.model, _mh.local);
+        if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2]; }
+        const hd = Sculpt.ready('sp_trophyHand') ? R.push('sp_trophyHand', smooth ? MAT.handRose : MAT.furLight) : null;
+        if (hd) {
+          hd.model.set(it.model);
+          if (smooth) { hd.tint[0] = 0.62; hd.tint[1] = 0.36; hd.tint[2] = 0.42; } else { hd.tint[0] = 1.75; hd.tint[1] = 1.5; hd.tint[2] = 0.55; }
+        }
+        if (smooth) {
+          V3.set(_mh.local, 0, 0.76, 0); M4.transformPoint(X, it.model, _mh.local);
           V3.sub(_mh.dir, H, B); V3.normalize(_mh.dir, _mh.dir);
           const rg = R.push('torus', MAT.handTeal);
-          if (rg) ringMatrix(rg.model, X, _mh.dir, 0.019);
+          if (rg) { ringMatrix(rg.model, X, _mh.dir, 0.06); rg.tint[0] = 0.45; rg.tint[1] = 0.75; rg.tint[2] = 1.8; }
         }
       }
     }
@@ -4895,7 +4934,7 @@ const Monster = {
       it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
       if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
     }
-    this.submitHead(this.head, yaw + this.headTilt * 0.4, -0.15 + lean * 0.5, this.headTilt * 0.6, 1.15);
+    this.submitHead(this.head, yaw + this.lookYaw + this.headTilt * 0.1, -0.15 + lean * 0.5 - this.lookPitch, this.lookRoll + this.headTilt * 0.15, 1.15);
     // ---- arms: long thin machine arms ending in needle fingers ----
     if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
     for (const side of [-1, 1]) {
@@ -5057,7 +5096,7 @@ const Monster = {
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
       // the grin never moves: it is carved into the porcelain. Grimy, yellowed and stained.
-      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.8; it.tint[1] = 0.73; it.tint[2] = 0.6; }
+      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.72; it.tint[1] = 0.64; it.tint[2] = 0.5; }
     } else {
       R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }
@@ -5653,6 +5692,44 @@ const SFX = {
     Audio.ring(t, [2100, 4700], 0.25, 0.2, out);
     Audio.noise(t + 0.02, 0.35, 0.6, 500, 'lowpass', out);
     Audio.tone(t + 0.02, 'sine', 110, 38, 0.5, 0.7, out);
+  },
+  // cherubs: a breathy, warbling baby giggle; a glassy shriek when the light hits them; a porcelain snap-bite
+  cherubGiggle(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 3, 0.8);
+    for (let k = 0; k < 4; k++) {
+      const s = t + k * 0.11, f = 620 + k * 40 + Math.random() * 60;
+      const o = Audio.tone(s, 'triangle', f * 1.1, f * 0.85, 0.09, 0.07, out);
+      const v = Audio.ctx.createOscillator(), vg = Audio.ctx.createGain(); v.frequency.value = 18; vg.gain.value = f * 0.05; v.connect(vg); vg.connect(o.frequency); v.start(s); v.stop(s + 0.1);
+    }
+    Audio.noise(t, 0.4, 0.04, 3000, 'bandpass', out, 2);
+  },
+  cherubShriek(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.8); Audio.tone(t, 'sawtooth', 1400, 2600, 0.3, 0.08, out); Audio.ring(t, [2300, 4100], 0.3, 0.06, out); },
+  cherubBite(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.ring(t, [2800, 5200], 0.08, 0.2, out); Audio.noise(t, 0.06, 0.3, 1500, 'bandpass', out, 2); },
+  // porcelain shattering
+  shatter(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 3, 0.8);
+    for (let k = 0; k < 6; k++) Audio.ring(t + k * 0.025 + Math.random() * 0.02, [Audio.vary(2400 + k * 500), Audio.vary(5100 + k * 300)], 0.25, 0.08, out);
+    Audio.noise(t, 0.25, 0.3, 4000, 'highpass', out);
+  },
+  // the seraph: a rising, choir-like hum before it unveils, and a piercing shriek when it swoops
+  seraphHum(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 8, 0.4);
+    for (const f of [220, 277.2, 329.6, 440]) {
+      const o = Audio.tone(t, 'sine', f * 0.94, f * 1.02, 1.6, 0.06, out, 0.9);
+      const v = Audio.ctx.createOscillator(), vg = Audio.ctx.createGain(); v.frequency.value = 5 + f * 0.01; vg.gain.value = f * 0.012; v.connect(vg); vg.connect(o.frequency); v.start(t); v.stop(t + 1.7);
+    }
+  },
+  seraphShriek(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 8, 0.4);
+    for (const f of [880, 1318, 1760]) Audio.tone(t, 'sawtooth', f, f * 1.3, 0.8, 0.07, out, 0.03);
+    Audio.noise(t, 0.6, 0.2, 5000, 'bandpass', out, 1.5);
+  },
+  // a porcelain neck snapping round: a dry crack with a grinding click
+  headSnap(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 4, 0.6);
+    Audio.noise(t, 0.04, 0.45, 3800, 'highpass', out);
+    Audio.ring(t, [1300, 2900], 0.07, 0.12, out);
+    Audio.noise(t + 0.03, 0.09, 0.2, 700, 'bandpass', out, 3);
   },
   monsterHurt(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.6); Audio.tone(t, 'sawtooth', 500, 180, 0.4, 0.2, out); Audio.noise(t, 0.3, 0.3, 1200, 'bandpass', out); },
   scream(t) {
@@ -6831,7 +6908,8 @@ const Game = {
         sfx('ventClick', Level.vents[0].pos);
         sfx('ventEnter', Level.vents[2].pos);
         GrabPack.showHint('Something just crawled through the ducts overhead...');
-        Dialogue.say('MARIGOLD', 'Did you hear that? Something big lives in those ducts. It hasn\'t come down. Not yet.');
+        Dialogue.say('MARIGOLD', 'Something with wings keeps this gallery. When its face opens... do not let it see you.');
+        Dialogue.say('PIP', 'When its wings part, hide! Lockers, or behind something big!');
         break;
       case 'L1':
         Steam.setAll(false);
@@ -7172,6 +7250,11 @@ const Game = {
     Monster.headTilt = laughing ? Math.sin(t * 6.5) * 0.3 : noise1(t * 40) * 0.12;
     Monster.jaw = laughing ? 0.35 + 0.65 * ha : t < 1.2 ? 0.3 : 0.95;
     Monster.flinchAmt = laughing ? -0.15 * ha : 0;   // head jerks back with each "ha"
+    // the head stares straight at you, snapping between sharp sideways cocks while it laughs
+    Monster.lookYaw = 0; Monster.lookPitch = 0;
+    const cock = laughing ? [0, 1.1, -0.5, 1.3, 0.2, -1.0][Math.floor((t - 1.2) * 3.2) % 6] : 0;
+    if (cock !== Monster.lookRoll && laughing) sfx('headSnap', Monster.head);
+    Monster.lookRoll = cock;
     Monster.animateLegs(dt, false);
     Player.lockAmt = Math.min(1, Player.lockAmt + dt * 9);
     Player.trauma = laughing ? 0.3 + 0.2 * ha : t < 0.85 ? 0.25 : t < 1.2 ? 0.9 : t > 2.9 ? 1 : 0.4;
@@ -7509,6 +7592,7 @@ const Loader = {
         Assets.uploadPending();
         Monster.init();
         Cast.init();
+        Enemies.init();
         if (Audio.ctx && !Audio.emittersBuilt) Audio.buildEmitters();
         this.phase = 3;
         return;
@@ -7725,6 +7809,8 @@ function showReport(text) {
 async function runAll() {
   const T = window.__TEST__, F = window.__TEST_FIDELITY__;
   const results = [];
+  // the cherubs and the seraph are tested in their own section; keep them out of the walkthrough
+  Enemies.disabled = true;
   const check = (name, pass, detail) => {
     results.push({ name, pass: !!pass, detail: detail === undefined || detail === null ? '' : String(detail) });
     if (window.__HARNESS_VERBOSE__) console.log((pass ? 'PASS ' : 'FAIL ') + name + ' ' + (detail === undefined ? '' : String(detail)).slice(0, 300));
@@ -8234,6 +8320,56 @@ async function runAll() {
       T.aimAt(-3.6, 1.2, -70.9); T.step(DT, 2);
       check('cast: plush + gauntlets render without errors', T.getLastError() === null && RenderQueue.count > 100, RenderQueue.count + ' items');
       T.setStepRender(false);
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+    }
+
+    // ---------------- cherubs and the seraph ----------------
+    {
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE); Enemies.disabled = false; Enemies.reset();
+      for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
+      Game.stage = 1; Monster.reset(); Player.health = 100; Cast.plush.hidden = true; Cast.plush.mode = 'WAIT';
+      const c = Enemies.cherubs[0];
+      // flashlight pointed away: it wakes and creeps closer
+      T.setPlayerPose(c.home[0] + 5, 0, c.home[2], 0, 0); T.aimAt(c.home[0] + 12, 1.5, c.home[2]); Player.flashOn = true; T.step(DT, 4);
+      const d0 = Math.hypot(c.pos[0] - Player.body.pos[0], c.pos[2] - Player.body.pos[2]);
+      T.step(DT, 40);
+      check('cherub: wakes and creeps toward you in the dark', c.state === 'CREEP' && Math.hypot(c.pos[0] - Player.body.pos[0], c.pos[2] - Player.body.pos[2]) < d0 - 1, c.state);
+      // turn the light on it: it shrieks and scatters
+      T.aimAt(c.pos[0], c.pos[1] + 0.3, c.pos[2]); for (let i = 0; i < 20 && c.state !== 'SCARED'; i++) { T.aimAt(c.pos[0], c.pos[1] + 0.3, c.pos[2]); T.step(DT, 1); }
+      check('cherub: scatters from the flashlight beam', c.state === 'SCARED' && T.getSfxLog().includes('cherubShriek'), c.state);
+      // let it reach you in the dark: it bites
+      Player.flashOn = false;
+      for (let i = 0; i < 300 && Player.health >= 100; i++) T.step(DT, 1);
+      check('cherub: bites when it reaches you', Player.health < 100 && T.getSfxLog().includes('cherubBite'), Player.health.toFixed(1));
+      Player.flashOn = true; Player.health = 100;
+      T.setPlayerPose(c.pos[0] + 3, 0, c.pos[2], 0, 0); T.aimAt(c.pos[0], c.pos[1] + 0.28, c.pos[2]); click(0);
+      for (let i = 0; i < 12 && !c.dead; i++) T.step(DT, 1);
+      check('cherub: a hand hit shatters it', c.dead && T.getSfxLog().includes('shatter'), c.state);
+      // the seraph: blind while veiled, swoops when it sees you unveiled, lockers hide you
+      Game.stage = 2; GrabPack.reset(); Enemies.reset();
+      for (const cc of Enemies.cherubs) cc.dead = true;
+      T.setPlayerPose(0, 0, -35, 0, 0); T.step(DT, 3);
+      const S = Enemies.seraph;
+      check('seraph: wakes in the gallery and patrols veiled', S.active && S.state === 'PATROL' && S.unveil < 0.2, S.state);
+      V3.set(S.pos, 0, 0.35, -40); S.nextUnveil = 0; T.step(DT, 2);
+      check('seraph: wings tremble and a hum warns before it unveils', S.state === 'WARN' && T.getSfxLog().includes('seraphHum'), S.state);
+      T.step(DT, 120);
+      check('seraph: sees you with its face open and swoops', S.state === 'SWOOP' || S.state === 'RECOVER', S.state);
+      for (let i = 0; i < 200 && S.state === 'SWOOP'; i++) T.step(DT, 1);
+      check('seraph: its strike hurts', Player.health < 80, Player.health.toFixed(1));
+      Player.health = 100;
+      // hidden in a locker it cannot see you
+      const L = Level.lockers.find(l => l.sector === 2);
+      T.setPlayerPose(L.front[0], 0, L.front[2], L.yaw + Math.PI, 0); T.step(DT, 2); Game.enterLocker(L); T.step(DT, 30);
+      S.state = 'PATROL'; S.nextUnveil = 0; V3.set(S.pos, L.pos[0] + 2, 0.35, L.pos[2]); T.step(DT, 140);
+      check('seraph: cannot see you inside a locker', S.state !== 'SWOOP' && Player.health === 100, S.state);
+      Game.leaveLocker(); T.step(DT, 30);
+      // a charged hand drives it back behind its wings
+      { const h0 = GrabPack.hands[0]; GrabPack.reset(); h0.state = HAND.LATCHED; h0.tethered = true; h0.latchKind = 'source'; }
+      S.state = 'UNVEIL'; S.timer = 0; V3.set(S.pos, Player.body.pos[0], 0.35, Player.body.pos[2] - 5); Game.invulnerable = true;
+      T.aimAt(S.pos[0], S.pos[1] + 1.7, S.pos[2]); click(1); T.step(DT, 12);
+      check('seraph: a charged hand shocks it back behind its wings', S.state === 'RECOIL' && S.unveil < 0.5, S.state);
+      Game.invulnerable = false; GrabPack.reset(); Enemies.disabled = true; Cast.plush.hidden = false;
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
 
@@ -9010,6 +9146,7 @@ const Cast = {
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
     this.resetPlush();
+    if (Enemies.cherubs.length) Enemies.reset();
     Dialogue.clear();
     Pip.reset();
   },
@@ -9019,6 +9156,7 @@ const Cast = {
     this.updateDoll(dt);
     this.updatePlush(dt);
     Companion.update(dt);
+    Enemies.update(dt);
     // CRT face animation at ~15 fps
     this.screenTimer -= dt;
     if (this.screenTimer <= 0 && this.usher.state !== 'HIDDEN') {
@@ -9291,6 +9429,7 @@ const Cast = {
     if (vis[this.doll.sector]) this.submitDoll();
     if (vis[3]) this.submitSocket();
     if (!this.plush.hidden && vis[this.plush.sector]) this.submitPlush();
+    Enemies.submit(vis);
   },
 
   // local (x right, y up, z back) -> world for a root at p with yaw
@@ -9926,37 +10065,42 @@ const SCULPTS = {
   // Spoolwright porcelain mask: heavy brow, gaunt cheeks, deep sockets, ear-to-ear grin of needle teeth,
   // a smashed skull plate and a web of carved cracks.
   sp_mask: () => {
+    // withered, chipped porcelain face frozen in a huge ear-to-ear grin of big, uneven, blocky teeth
     const P = MAT.porcelain, D = MAT.rubber, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.43, 0.31], m: P },
-      { t: 'ell', c: [0.16, -0.06, -0.2], r: [0.1, 0.08, 0.09], m: P, k: 0.08 },
-      { t: 'ell', c: [-0.16, -0.06, -0.2], r: [0.1, 0.08, 0.09], m: P, k: 0.08 },
-      { t: 'cap', a: [-0.2, 0.12, -0.23], b: [0.2, 0.12, -0.23], r: 0.055, m: P, k: 0.07 },
-      { t: 'ell', c: [0, -0.31, -0.12], r: [0.14, 0.1, 0.12], m: P, k: 0.08 },
-      // gaunt hollows under the cheekbones
-      { t: 'sph', c: [0.22, -0.16, -0.24], r: 0.06, op: 's', k: 0.05, sm: P },
-      { t: 'sph', c: [-0.22, -0.16, -0.24], r: 0.06, op: 's', k: 0.05, sm: P },
-      // deep sockets
-      { t: 'sph', c: [0.125, 0.055, -0.3], r: 0.09, op: 's', k: 0.03, sm: D },
-      { t: 'sph', c: [-0.125, 0.06, -0.3], r: 0.078, op: 's', k: 0.03, sm: D },
-      // wide grin curling up into the cheeks
-      { t: 'ell', c: [0, -0.15, -0.29], r: [0.25, 0.068, 0.14], op: 's', k: 0.015, sm: D },
-      { t: 'ell', c: [0.25, -0.09, -0.21], r: [0.06, 0.05, 0.1], rot: [0, 0, 0.6], op: 's', k: 0.015, sm: D },
-      { t: 'ell', c: [-0.25, -0.09, -0.21], r: [0.06, 0.05, 0.1], rot: [0, 0, -0.6], op: 's', k: 0.015, sm: D },
-      // smashed skull plate on the upper right
+      { t: 'ell', c: [0, 0, 0], r: [0.34, 0.43, 0.31], m: P, n: [0.004, 30] },
+      { t: 'cap', a: [-0.2, 0.13, -0.23], b: [0.2, 0.13, -0.23], r: 0.05, m: P, k: 0.07 },
+      { t: 'ell', c: [0, -0.3, -0.1], r: [0.16, 0.11, 0.13], m: P, k: 0.08 },
+      // sunken, withered hollows
+      { t: 'sph', c: [0.25, -0.05, -0.22], r: 0.07, op: 's', k: 0.06, sm: P },
+      { t: 'sph', c: [-0.25, -0.05, -0.22], r: 0.07, op: 's', k: 0.06, sm: P },
+      { t: 'sph', c: [0.125, 0.06, -0.3], r: 0.085, op: 's', k: 0.03, sm: D },
+      { t: 'sph', c: [-0.125, 0.06, -0.3], r: 0.08, op: 's', k: 0.03, sm: D },
       { t: 'box', c: [0.17, 0.33, -0.1], h: [0.09, 0.07, 0.1], rot: [0.5, 0.4, 0.8], op: 's', k: 0.003, sm: D, n: [0.02, 40] },
-      { t: 'sph', c: [0.02, -0.02, -0.33], r: 0.017, op: 's', k: 0.005, sm: D },
-      { t: 'sph', c: [-0.02, -0.02, -0.33], r: 0.017, op: 's', k: 0.005, sm: D }
+      { t: 'box', c: [-0.24, 0.24, -0.12], h: [0.05, 0.04, 0.08], rot: [0.2, -0.6, 0.3], op: 's', k: 0.002, sm: D, n: [0.015, 50] },
+      { t: 'sph', c: [0.02, -0.03, -0.33], r: 0.016, op: 's', k: 0.005, sm: D },
+      { t: 'sph', c: [-0.02, -0.03, -0.33], r: 0.016, op: 's', k: 0.005, sm: D }
     ];
-    // needle teeth along the grin, upper and lower rows
-    for (let i = 0; i < 17; i++) {
-      const a = -0.95 + i * (1.9 / 16), x = Math.sin(a) * 0.28, z = -Math.cos(a) * 0.275, y = -0.15 + a * a * 0.07;
-      n.push({ t: 'cap', a: [x, y + 0.045, z], b: [x * 0.98, y - 0.005, z * 0.98], r: 0.013, r2: 0.002, m: P, k: 0.003 });
-      n.push({ t: 'cap', a: [x, y - 0.06, z], b: [x * 0.98, y - 0.01, z * 0.98], r: 0.012, r2: 0.002, m: P, k: 0.003 });
+    // the grin: a wide crescent carved across the face, corners curling up into the cheeks
+    const arc = a => [Math.sin(a) * 0.285, -0.15 + a * a * 0.09, -Math.cos(a) * 0.27 + 0.005];
+    for (let i = 0; i <= 14; i++) {
+      const a = -1.05 + i * 0.15, [x, y, z] = arc(a), edge = Math.abs(a) > 0.9;
+      n.push({ t: 'ell', c: [x, y, z], r: [0.06, edge ? 0.04 : 0.078, 0.09], rot: [a, 0, 0], op: 's', k: 0.012, sm: D });
     }
+    // two rows of big blocky teeth, stained and chipped, a few missing
+    for (let i = 0; i < 13; i++) {
+      const a = -0.9 + i * 0.15;
+      if (i === 3 || i === 10) continue;
+      const [x, y, z] = arc(a);
+      const hu = 0.034 - Math.abs(a) * 0.01 + (i % 3) * 0.003, hl = 0.03 - Math.abs(a) * 0.01 + ((i + 1) % 3) * 0.003;
+      n.push({ t: 'box', c: [x * 0.995, y + 0.004 + hu, z + 0.012], h: [0.02, hu, 0.016], rr: 0.006, rot: [a, 0, Math.sin(i * 2.3) * 0.05], m: P, k: 0.002 });
+      if (i !== 7) n.push({ t: 'box', c: [x * 0.995, y - 0.004 - hl, z + 0.014], h: [0.019, hl, 0.015], rr: 0.006, rot: [a, 0, -Math.sin(i * 1.7) * 0.05], m: P, k: 0.002 });
+    }
+    // crazing cracks across the whole face
     const cracks = [[0.05, 0.3, -0.25, 0.12, 0.13, -0.29], [0.12, 0.13, -0.29, 0.07, 0.02, -0.31], [-0.2, 0.22, -0.22, -0.28, 0.0, -0.18],
-      [0.24, -0.02, -0.2, 0.3, -0.18, -0.12], [-0.05, 0.38, -0.12, -0.12, 0.2, -0.27], [-0.12, 0.2, -0.27, -0.2, 0.15, -0.24], [0.0, -0.22, -0.28, 0.06, -0.38, -0.18]];
+      [0.24, -0.02, -0.2, 0.3, -0.18, -0.12], [-0.05, 0.38, -0.12, -0.12, 0.2, -0.27], [-0.12, 0.2, -0.27, -0.2, 0.15, -0.24],
+      [0.0, -0.26, -0.27, 0.06, -0.38, -0.18], [-0.3, -0.1, -0.15, -0.22, -0.28, -0.17], [0.2, 0.25, -0.2, 0.28, 0.1, -0.18], [-0.08, 0.1, -0.3, -0.02, 0.2, -0.29]];
     for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.008, op: 's', sm: D, n: [0.004, 60] });
-    return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 80);
+    return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 84);
   },
   // Spoolwright femur (y 0 -> 1 along the bone): plated I-beam with lightening holes, hip drum, knee
   // knuckle, a copper hydraulic ram and rivets
@@ -10087,23 +10231,40 @@ const SCULPTS = {
   // Stolen plush arm (shoulder at y 0, fingertips at y 1), coloured per draw: shaggy fur sleeve, a frayed
   // torn shoulder, and a soft four-fingered hand
   sp_trophyArm: () => {
+    // shaggy fur sleeve ending at the wrist (the hand is drawn separately, see sp_trophyHand)
     const M = -1, n = [
       { t: 'cap', a: [0, 0.03, 0], b: [0, 0.72, 0], r: 0.075, r2: 0.062, m: M, n: [0.012, 14] },
       { t: 'sph', c: [0, 0.03, 0], r: 0.088, m: M, k: 0.04, n: [0.022, 18] },
-      { t: 'cap', a: [0, 0.72, 0], b: [0, 0.79, -0.005], r: 0.05, m: M, k: 0.03 },
-      { t: 'ell', c: [0, 0.85, -0.012], r: [0.062, 0.065, 0.026], m: M, k: 0.03 },
-      { t: 'cap', a: [0.05, 0.82, -0.02], b: [0.088, 0.9, -0.045], r: 0.017, m: M, k: 0.02 }
+      { t: 'cap', a: [0, 0.72, 0], b: [0, 0.78, -0.005], r: 0.055, m: M, k: 0.03 }
     ];
     for (let i = 0; i < 26; i++) {
       const a = i * 2.4, y = 0.08 + (i * 0.027) % 0.64;
       n.push({ t: 'sph', c: [Math.cos(a) * 0.058, y, Math.sin(a) * 0.058], r: 0.026 + (i % 3) * 0.006, m: M, k: 0.05, n: [0.012, 55] });
     }
+    return SDF.mesh(n, [-0.14, -0.08, -0.12], [0.14, 0.82, 0.12], 52);
+  },
+  // smooth, solid (not furry) stolen arm ending at the wrist
+  sp_trophyArmSmooth: () => {
+    const M = -1, n = [
+      { t: 'cap', a: [0, 0.03, 0], b: [0, 0.76, 0], r: 0.055, r2: 0.04, m: M },
+      { t: 'sph', c: [0, 0.38, 0.0], r: 0.05, m: M, k: 0.08 },
+      { t: 'sph', c: [0, 0.03, 0], r: 0.07, m: M, k: 0.04, n: [0.015, 18] }
+    ];
+    return SDF.mesh(n, [-0.1, -0.06, -0.1], [0.1, 0.8, 0.1], 44);
+  },
+  // a plush mitten-like hand (wrist at y 0.76, fingertips at y 1)
+  sp_trophyHand: () => {
+    const M = -1, n = [
+      { t: 'cap', a: [0, 0.75, 0], b: [0, 0.8, -0.005], r: 0.05, m: M },
+      { t: 'ell', c: [0, 0.86, -0.012], r: [0.068, 0.07, 0.032], m: M, k: 0.03, n: [0.006, 30] },
+      { t: 'cap', a: [0.055, 0.82, -0.02], b: [0.095, 0.9, -0.05], r: 0.02, m: M, k: 0.02 }
+    ];
     for (let f = 0; f < 4; f++) {
-      const x = -0.045 + f * 0.03, len = f === 1 || f === 2 ? 0.075 : 0.06;
-      n.push({ t: 'cap', a: [x, 0.89, -0.012], b: [x * 1.15, 0.89 + len * 0.6, -0.022], r: 0.015, m: M, k: 0.012 });
-      n.push({ t: 'cap', a: [x * 1.15, 0.89 + len * 0.6, -0.022], b: [x * 1.2, 0.89 + len, -0.05], r: 0.014, m: M, k: 0.01 });
+      const x = -0.048 + f * 0.032, len = f === 1 || f === 2 ? 0.08 : 0.065;
+      n.push({ t: 'cap', a: [x, 0.9, -0.012], b: [x * 1.15, 0.9 + len * 0.6, -0.022], r: 0.018, m: M, k: 0.014 });
+      n.push({ t: 'cap', a: [x * 1.15, 0.9 + len * 0.6, -0.022], b: [x * 1.2, 0.9 + len, -0.05], r: 0.016, m: M, k: 0.012 });
     }
-    return SDF.mesh(n, [-0.14, -0.08, -0.12], [0.14, 1.06, 0.12], 56);
+    return SDF.mesh(n, [-0.13, 0.7, -0.11], [0.13, 1.06, 0.07], 48);
   },
   // Spoolwright torso (pivot at y 1.35): lumpy fur sac, spool drum with flanges, ribcage, spine
   sp_body: () => {
@@ -10250,6 +10411,66 @@ const SCULPTS = {
       { t: 'box', c: [0, -0.03, -0.3], h: [0.2, 0.25, 0.18], rr: 0.06, op: 's', k: 0.04, sm: MAT.rubber }
     ];
     return SDF.mesh(n, [-0.35, -0.4, -0.35], [0.35, 0.55, 0.6], 52);
+  },
+  // Cherub (feet at y 0, facing -z): a chubby, cracked porcelain baby doll with gilded curls, hollow eyes and
+  // a little round mouth of needle teeth
+  cherub_body: () => {
+    const P = MAT.porcelain, D = MAT.rubber, G = MAT.paint, n = [
+      { t: 'ell', c: [0, 0.22, 0], r: [0.13, 0.14, 0.12], m: P, n: [0.004, 30] },
+      { t: 'sph', c: [0, 0.42, 0], r: 0.12, m: P, k: 0.05 },
+      { t: 'sph', c: [-0.06, 0.39, -0.07], r: 0.045, m: P, k: 0.03 },
+      { t: 'sph', c: [0.06, 0.39, -0.07], r: 0.045, m: P, k: 0.03 },
+      { t: 'sph', c: [-0.045, 0.445, -0.105], r: 0.028, op: 's', k: 0.01, sm: D },
+      { t: 'sph', c: [0.045, 0.445, -0.105], r: 0.028, op: 's', k: 0.01, sm: D },
+      { t: 'ell', c: [0, 0.375, -0.115], r: [0.026, 0.02, 0.025], op: 's', k: 0.006, sm: D },
+      { t: 'sph', c: [0.07, 0.48, -0.06], r: 0.035, op: 's', k: 0.005, sm: D, n: [0.01, 60] }
+    ];
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cap', a: [sx * 0.06, 0.12, 0], b: [sx * 0.075, 0.03, -0.03], r: 0.05, r2: 0.04, m: P, k: 0.04 });
+      n.push({ t: 'cap', a: [sx * 0.11, 0.28, 0], b: [sx * 0.15, 0.19, -0.08], r: 0.038, r2: 0.03, m: P, k: 0.04 });
+    }
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; n.push({ t: 'sph', c: [Math.sin(a) * 0.09, 0.5 + (i % 2) * 0.02, Math.cos(a) * 0.08 + 0.01], r: 0.035, m: G, k: 0.015, n: [0.006, 60] }); }
+    for (let i = 0; i < 6; i++) { const x = -0.06 + i * 0.024; n.push({ t: 'cap', a: [x, 0.39, -0.12], b: [x * 0.8, 0.37, -0.115], r: 0.004, r2: 0.0005, m: P, k: 0.001 }); }
+    const cracks = [[-0.08, 0.5, -0.06, -0.02, 0.4, -0.115], [0.1, 0.25, -0.08, 0.04, 0.15, -0.1], [-0.11, 0.2, -0.05, -0.05, 0.3, -0.1]];
+    for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.005, op: 's', sm: D, n: [0.003, 80] });
+    return SDF.mesh(n, [-0.22, -0.02, -0.2], [0.22, 0.6, 0.18], 56);
+  },
+  // Cherub wing (root at origin, spreading along +x): a small downy wing with three feather lobes
+  cherub_wing: () => {
+    const W = -1, n = [{ t: 'ell', c: [0.11, 0.02, 0], r: [0.12, 0.07, 0.012], m: W, n: [0.004, 40] }];
+    for (let i = 0; i < 3; i++) n.push({ t: 'ell', c: [0.08 + i * 0.05, -0.04 - i * 0.01, 0], r: [0.04, 0.05, 0.01], m: W, k: 0.02 });
+    return SDF.mesh(n, [-0.04, -0.12, -0.04], [0.26, 0.11, 0.04], 40);
+  },
+  // Seraph (hover origin at y 0, facing -z): a tall, gaunt figure wrapped in stained bandages, with a frayed
+  // hem, dark bindings and a hooded head (its face is the halo drawn separately)
+  seraph_body: () => {
+    const C = MAT.canvas, D = MAT.rubber, n = [
+      { t: 'cap', a: [0, 0.15, 0], b: [0, 1.75, 0], r: 0.3, r2: 0.15, m: C, n: [0.02, 9] },
+      { t: 'ell', c: [0, 1.72, 0.02], r: [0.24, 0.14, 0.17], m: C, k: 0.12 },
+      { t: 'ell', c: [0, 2.05, 0.03], r: [0.15, 0.2, 0.16], m: C, k: 0.08, n: [0.01, 20] },
+      { t: 'ell', c: [0, 2.04, -0.08], r: [0.11, 0.15, 0.1], op: 's', k: 0.03, sm: D },
+      { t: 'box', c: [0, 0.02, 0], h: [0.5, 0.12, 0.5], op: 's', k: 0.02, sm: C, n: [0.08, 8] }
+    ];
+    for (let i = 0; i < 7; i++) {
+      const y = 0.3 + i * 0.21, r = 0.3 - (y - 0.15) / 1.6 * 0.15 + 0.005;
+      n.push({ t: 'tor', c: [0, y, 0], R: r, r: 0.012, rot: [0, 0, 0.12 * Math.sin(i * 1.7)], m: D, k: 0.006, n: [0.004, 50] });
+    }
+    for (let i = 0; i < 6; i++) { const a = i * 1.1; n.push({ t: 'cap', a: [Math.sin(a) * 0.27, 0.25, Math.cos(a) * 0.27], b: [Math.sin(a) * 0.3, -0.15 - (i % 3) * 0.08, Math.cos(a) * 0.3], r: 0.03, r2: 0.004, m: C, k: 0.03 }); }
+    return SDF.mesh(n, [-0.45, -0.45, -0.45], [0.45, 2.35, 0.45], 64);
+  },
+  // Seraph wing (root at origin, spreading along +x): a long moth wing with a scalloped edge and two dark
+  // eye-spots on each face
+  seraph_wing: () => {
+    const C = MAT.canvas, D = MAT.rubber, n = [
+      { t: 'ell', c: [0.5, 0.05, 0], r: [0.52, 0.24, 0.014], m: C, n: [0.008, 18] },
+      { t: 'ell', c: [0.42, -0.2, 0], r: [0.3, 0.14, 0.012], m: C, k: 0.06 }
+    ];
+    for (let i = 0; i < 7; i++) n.push({ t: 'sph', c: [0.15 + i * 0.13, 0.3 - Math.abs(i - 3) * 0.02, 0], r: 0.06, op: 's', k: 0.02, sm: C });
+    for (const [x, y, r] of [[0.62, 0.06, 0.07], [0.35, -0.16, 0.05]]) for (const z of [-0.016, 0.016]) {
+      n.push({ t: 'cyl', c: [x, y, z], r, h: 0.004, rot: [0, Math.PI / 2, 0], m: D, k: 0.004 });
+      n.push({ t: 'cyl', c: [x, y, z * 1.2], r: r * 0.45, h: 0.004, rot: [0, Math.PI / 2, 0], m: MAT.paint, k: 0.003 });
+    }
+    return SDF.mesh(n, [-0.06, -0.4, -0.06], [1.06, 0.34, 0.06], 64);
   }
 };
 const SCULPT_ORDER = Object.keys(SCULPTS);
@@ -10484,6 +10705,8 @@ const COMPANION_LINES = {
   dark: ['Wait! Stop... it\'s too dark like this. Stick close behind me - my eye can throw enough purple light to show the floor.'],
   idle: ['Find anything interesting back there? Let me guess... rusted screws and old lint? Yeah. This place is a goldmine for junk.'],
   bump: ['Whoa - easy! You okay? That one sounded like it hurt.', 'Careful! The floors in here bite back.'],
+  seraph: ['Its wings are opening - get out of sight! Don\'t let it see you!'],
+  cherubs: ['Cherubs! Shine your light right at them - they hate it! Or give them a whack!'],
   threat: ['Shh! Do you hear that scraping up in the rafters? It\'s tracking the sound of your cables!',
     'Hide in a locker - quickly! I\'ll slip into the vents!'],
   safe: ['...Is it gone? Phew. My stuffing nearly jumped out of my seams.'],
@@ -10512,7 +10735,7 @@ const COMPANION_LINES = {
 
 const Companion = {
   trail: new Float32Array(TRAIL_N * 3), head: 0, count: 0,
-  cool: 0, lineCool: { sprint: 0, dark: 0, idle: 0, bump: 0, threat: 0, hint: 0 },
+  cool: 0, lineCool: { sprint: 0, dark: 0, idle: 0, bump: 0, threat: 0, hint: 0, seraph: 0, cherubs: 0 },
   ambientIdx: 0, calm: 0, tauntIdx: 0, tauntTimer: 60, stageTime: 0, lastStage: -1,
   idleTime: 0, lookAmt: 0, lastYaw: 0, darkTime: 0, hideTimer: 0, banterDone: false, loomGreeted: false,
   tmp: V3.create(),
@@ -10591,7 +10814,15 @@ const Companion = {
       Particles.burst(P.pos, 8, 'debris');
       return;
     }
-    this.calm = threat ? 0 : this.calm + dt;
+    // the seraph opening its wings, or cherubs creeping close
+    const S = Enemies.seraph;
+    if (S.active && S.state === 'WARN' && this.lineCool.seraph <= 0 && Math.hypot(S.pos[0] - b[0], S.pos[2] - b[2]) < 16) {
+      this.lineCool.seraph = 25; Dialogue.clear(); this.sayLines('THIMBLE', COMPANION_LINES.seraph);
+    }
+    if (this.lineCool.cherubs <= 0 && Enemies.cherubs.some(c => !c.dead && c.state === 'CREEP' && Math.hypot(c.pos[0] - b[0], c.pos[2] - b[2]) < 6)) {
+      this.lineCool.cherubs = 60; if (!Dialogue.busy()) this.sayLines('THIMBLE', COMPANION_LINES.cherubs);
+    }
+    this.calm = threat || Enemies.danger() ? 0 : this.calm + dt;
     this.tauntTimer -= dt;
     // reactions to how you move
     const spd = Math.hypot(Player.body.vel[0], Player.body.vel[2]);
@@ -10726,6 +10957,305 @@ const Ambush = {
     Dialogue.say('THIMBLE', 'Run, friend! I\'ll meet you at the shutter!');
     GrabPack.showHint('RUN! Get to the shutter - Thimble will meet you there (or wrench the high lever)');
     Pip.react('scared', 2);
+  }
+};
+
+// ===== module: 22_enemies.js =====
+// =====================================================================================
+// EARLY ENEMIES (before the Spoolwright shows itself), named after heavenly beings:
+//   CHERUBS - little cracked porcelain cherub dolls with downy wings and rusted halos. They roost in
+//             dark corners of the Reclamation Hall and the Pressure Gallery, creep up on you when your
+//             light is elsewhere and bite. Your flashlight beam makes them shriek and scatter; a hand hit
+//             shatters them.
+//   SERAPH  - a tall, bandaged figure hovering on six moth wings: two cover its face, two its feet, two
+//             carry it. Veiled, it is blind and drifts along its patrol. Every few seconds its wings
+//             tremble (a rising hum), part, and its blazing halo-face looks around: if it can see you then
+//             (no cover, not in a locker) it swoops. A charged hand (other hand tethered to a live node)
+//             drives it back behind its wings for a long while; a plain hit makes it flinch.
+// =====================================================================================
+const CHERUB_SPAWNS = [[1, -9.2, -4.5], [1, -8.5, -18.5], [1, 9.4, -20.5], [2, -7.5, -26.2], [2, 8.2, -45.2], [2, -8.4, -46.4], [2, 2.6, -36.2]];
+const SERAPH_PATH = [[0, -28.5], [5.4, -31], [6.2, -40], [0.5, -42.5], [-5.2, -40.5], [-6, -33.5]];
+
+const Enemies = {
+  disabled: false,
+  cherubs: [],
+  seraph: { pos: V3.create(), yaw: 0, state: 'DORMANT', timer: 0, unveil: 0, wp: 0, nextUnveil: 7, sector: 2, hum: 0, swoopFrom: V3.create(), flap: 0, sees: false, active: false },
+  tmp: V3.create(), tmp2: V3.create(), hit: null,
+
+  init() {
+    this.cherubs.length = 0;
+    for (const [sector, x, z] of CHERUB_SPAWNS) {
+      this.cherubs.push({ sector, home: V3.create(x, 0.3, z), pos: V3.create(x, 0.3, z), vel: V3.create(), yaw: 0, state: 'ROOST', timer: 0, biteCool: 0, flap: gameRng() * 6, dead: false, giggle: 0 });
+    }
+    this.hit = makeHit();
+    this.reset();
+  },
+
+  reset() {
+    for (const c of this.cherubs) {
+      V3.copy(c.pos, c.home); V3.set(c.vel, 0, 0, 0); c.state = 'ROOST'; c.timer = 0; c.biteCool = 0; c.dead = false; c.giggle = 2 + gameRng() * 4;
+    }
+    const S = this.seraph;
+    S.state = 'DORMANT'; S.timer = 0; S.unveil = 0; S.wp = 0; S.nextUnveil = 6; S.hum = 0; S.sees = false; S.active = false;
+    V3.set(S.pos, SERAPH_PATH[0][0], 0.35, SERAPH_PATH[0][1]); S.yaw = 0;
+  },
+
+  // ---------- player damage (cherub bites, seraph strikes) ----------
+  hurt(amount, src, reason) {
+    if (Game.invulnerable || !Game.isGameplay()) return;
+    Player.health -= amount; Player.hurtTimer = 2.5;
+    sfx('hurt');
+    const P = Renderer.post; P.flash = 0.35; P.flashTint[0] = 1; P.flashTint[1] = 0.15; P.flashTint[2] = 0.1;
+    Player.addTrauma(Math.min(0.8, amount / 50));
+    const dx = Player.body.pos[0] - src[0], dz = Player.body.pos[2] - src[2], d = Math.hypot(dx, dz) || 1;
+    Player.body.vel[0] += dx / d * amount * 0.18; Player.body.vel[2] += dz / d * amount * 0.18;
+    Pip.react('scared', 1.5);
+    if (Player.health <= 0) Game.onPlayerDied(reason);
+  },
+
+  // is the point lit by the flashlight beam?
+  inBeam(p) {
+    if (!Player.flashOn) return false;
+    const f = Player.flashPos, d = Player.flashDir;
+    const dx = p[0] - f[0], dy = p[1] - f[1], dz = p[2] - f[2], l = Math.hypot(dx, dy, dz);
+    if (l > 10 || l < 1e-3) return false;
+    return (dx * d[0] + dy * d[1] + dz * d[2]) / l > Math.cos((LIGHTING.flashOuterDeg + 4) * DEG);
+  },
+  // clear line between two points through the level geometry?
+  clearLine(a, b) {
+    V3.sub(this.tmp, b, a); const l = V3.len(this.tmp); if (l < 1e-3) return true;
+    V3.scale(this.tmp, this.tmp, 1 / l);
+    return !Physics.raycast(a, this.tmp, l - 0.3, LAYER.HAND, this.hit);
+  },
+
+  update(dt) {
+    if (this.disabled || !this.cherubs.length) return;
+    const b = Player.body.pos, eye = Player.eyePos;
+    // ---- cherubs ----
+    for (const c of this.cherubs) {
+      if (c.dead) continue;
+      c.flap += dt * (c.state === 'ROOST' ? 2 : 22);
+      c.biteCool -= dt;
+      const awake = Game.stage >= 1 && Streaming.visible[c.sector];
+      const dx = b[0] - c.pos[0], dz = b[2] - c.pos[2], d = Math.hypot(dx, dz);
+      const lit = this.inBeam(c.pos);
+      if (c.state === 'ROOST') {
+        if (awake && d < 11 && !Player.hidden && !lit) { c.state = 'CREEP'; c.timer = 0; }
+      } else if (c.state === 'CREEP') {
+        if (lit) { c.state = 'SCARED'; c.timer = 2.2; sfx('cherubShriek', c.pos); continue; }
+        if (Player.hidden || d > 16 || !awake) { c.state = 'RETURN'; continue; }
+        const sp = 2.7;
+        c.pos[0] += dx / (d || 1) * sp * dt; c.pos[2] += dz / (d || 1) * sp * dt;
+        c.pos[1] = damp(c.pos[1], 1.0 + Math.sin(c.flap * 0.4) * 0.15, 3, dt);
+        c.yaw = Math.atan2(-dx, -dz);
+        c.giggle -= dt;
+        if (c.giggle <= 0) { c.giggle = 3 + gameRng() * 4; sfx('cherubGiggle', c.pos); }
+        if (d < 0.75 && c.biteCool <= 0) {
+          c.biteCool = 1.7;
+          sfx('cherubBite', c.pos);
+          this.hurt(4, c.pos, 'SWARMED BY CHERUBS');
+        }
+      } else if (c.state === 'SCARED') {
+        c.timer -= dt;
+        c.pos[0] -= dx / (d || 1) * 3.4 * dt; c.pos[2] -= dz / (d || 1) * 3.4 * dt;
+        c.pos[1] = damp(c.pos[1], 1.8, 3, dt);
+        if (c.timer <= 0) c.state = lit ? 'SCARED' : 'CREEP';
+        if (c.timer <= 0 && lit) c.timer = 0.6;
+      } else if (c.state === 'RETURN') {
+        const hx = c.home[0] - c.pos[0], hz = c.home[2] - c.pos[2], hd = Math.hypot(hx, hz);
+        if (hd < 0.2) { c.state = 'ROOST'; c.pos[1] = c.home[1]; }
+        else { c.pos[0] += hx / hd * 2 * dt; c.pos[2] += hz / hd * 2 * dt; c.yaw = Math.atan2(-hx, -hz); }
+        if (awake && d < 7 && !lit && !Player.hidden) c.state = 'CREEP';
+      }
+      // keep them inside their room and apart from each other
+      const s = Level.sectors[c.sector];
+      if (s) { c.pos[0] = clamp(c.pos[0], s.min[0] + 0.4, s.max[0] - 0.4); c.pos[2] = clamp(c.pos[2], s.min[2] + 0.4, s.max[2] - 0.4); }
+      for (const o of this.cherubs) {
+        if (o === c || o.dead) continue;
+        const ox = c.pos[0] - o.pos[0], oz = c.pos[2] - o.pos[2], od = Math.hypot(ox, oz);
+        if (od < 0.5 && od > 1e-4) { c.pos[0] += ox / od * (0.5 - od) * 0.5; c.pos[2] += oz / od * (0.5 - od) * 0.5; }
+      }
+    }
+    this.updateSeraph(dt, b, eye);
+  },
+
+  updateSeraph(dt, b, eye) {
+    const S = this.seraph;
+    S.flap += dt * (S.state === 'SWOOP' ? 9 : 2.4);
+    if (S.state === 'DORMANT') {
+      if (Game.stage >= 2 && Streaming.visible[2] && Game.stage < 3) { S.state = 'PATROL'; S.active = true; S.nextUnveil = 6; }
+      return;
+    }
+    if (Game.stage >= 3 || !Streaming.visible[2]) { S.unveil = damp(S.unveil, 0, 4, dt); S.hum = 0; if (Game.stage >= 3) S.active = false; return; }
+    S.timer += dt;
+    const dx = b[0] - S.pos[0], dz = b[2] - S.pos[2], d = Math.hypot(dx, dz);
+    const glide = (tx, tz, sp) => {
+      const gx = tx - S.pos[0], gz = tz - S.pos[2], gd = Math.hypot(gx, gz);
+      if (gd > 0.05) { const st = Math.min(gd, sp * dt); S.pos[0] += gx / gd * st; S.pos[2] += gz / gd * st; S.yaw = S.yaw + wrapAngle(Math.atan2(-gx, -gz) - S.yaw) * Math.min(1, dt * 3); }
+      return gd;
+    };
+    S.pos[1] = 0.35 + Math.sin(S.timer * 1.3) * 0.08;
+    switch (S.state) {
+      case 'PATROL': case 'RECOVER': {
+        S.unveil = damp(S.unveil, 0, 5, dt);
+        const w = SERAPH_PATH[S.wp];
+        if (glide(w[0], w[1], S.state === 'RECOVER' ? 2.2 : 1.2) < 0.4) S.wp = (S.wp + 1) % SERAPH_PATH.length;
+        S.nextUnveil -= dt;
+        if (S.state === 'RECOVER' && S.timer > 3) S.state = 'PATROL';
+        if (S.state === 'PATROL' && S.nextUnveil <= 0) { S.state = 'WARN'; S.timer = 0; sfx('seraphHum', S.pos); }
+        break;
+      }
+      case 'WARN':
+        // the face wings tremble and start to part: get out of sight!
+        S.unveil = 0.15 + Math.abs(Math.sin(S.timer * 18)) * 0.12;
+        S.hum = S.timer / 1.4;
+        if (S.timer > 1.4) { S.state = 'UNVEIL'; S.timer = 0; }
+        break;
+      case 'UNVEIL': {
+        S.unveil = damp(S.unveil, 1, 8, dt);
+        S.yaw += dt * 0.9;   // its gaze sweeps the room
+        V3.set(this.tmp2, S.pos[0], S.pos[1] + 2.0, S.pos[2]);
+        S.sees = !Player.hidden && d < 18 && this.clearLine(this.tmp2, eye);
+        if (S.sees && S.timer > 0.35) {
+          S.state = 'SWOOP'; S.timer = 0; V3.copy(S.swoopFrom, S.pos);
+          sfx('seraphShriek', S.pos); Player.addTrauma(0.4);
+          GrabPack.showHint('IT SEES YOU - break line of sight or get into a locker!');
+        } else if (S.timer > 3) { S.state = 'PATROL'; S.nextUnveil = 5.5 + gameRng() * 3; S.sees = false; }
+        break;
+      }
+      case 'SWOOP': {
+        S.unveil = 1;
+        const lost = Player.hidden || S.timer > 3.2;
+        if (lost) { S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 7; break; }
+        glide(b[0], b[2], 6.8);
+        if (d < 1.15) {
+          this.hurt(30, S.pos, 'TAKEN BY THE SERAPH');
+          sfx('seraphShriek', S.pos);
+          S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 8;
+        }
+        break;
+      }
+      case 'RECOIL':
+        S.unveil = damp(S.unveil, 0, 10, dt);
+        S.pos[0] -= dx / (d || 1) * 1.5 * dt; S.pos[2] -= dz / (d || 1) * 1.5 * dt;
+        if (S.timer > 4.5) { S.state = 'PATROL'; S.nextUnveil = 6; }
+        break;
+    }
+    const s = Level.sectors[2];
+    if (s) { S.pos[0] = clamp(S.pos[0], s.min[0] + 0.8, s.max[0] - 0.8); S.pos[2] = clamp(S.pos[2], s.min[2] + 0.8, s.max[2] - 0.8); }
+  },
+
+  // ---------- hand hits ----------
+  // returns true if the flying hand struck an enemy (o = segment start, d = unit dir, len = length)
+  handHit(h, o, d, len) {
+    if (this.disabled) return false;
+    const test = (c, r) => {
+      const px = c[0] - o[0], py = c[1] - o[1], pz = c[2] - o[2];
+      const t = clamp(px * d[0] + py * d[1] + pz * d[2], 0, len);
+      const qx = px - d[0] * t, qy = py - d[1] * t, qz = pz - d[2] * t;
+      return qx * qx + qy * qy + qz * qz < r * r;
+    };
+    for (const c of this.cherubs) {
+      if (c.dead || c.state === 'ROOST' && !Streaming.visible[c.sector]) continue;
+      V3.set(this.tmp, c.pos[0], c.pos[1] + 0.28, c.pos[2]);
+      if (test(this.tmp, 0.34)) {
+        c.dead = true;
+        V3.copy(h.pos, this.tmp);
+        Particles.burst(this.tmp, 22, 'debris'); Particles.burst(this.tmp, 8, 'spark');
+        sfx('shatter', this.tmp);
+        Pip.react('happy', 1.5);
+        return true;
+      }
+    }
+    const S = this.seraph;
+    if (S.active && S.state !== 'DORMANT') {
+      for (const hy of [0.9, 1.7, 2.3]) {
+        V3.set(this.tmp, S.pos[0], S.pos[1] + hy, S.pos[2]);
+        if (!test(this.tmp, 0.45)) continue;
+        V3.copy(h.pos, this.tmp);
+        const t = GrabPack.tetheredHand();
+        if (t && t !== h) {
+          GrabPack.release(t, false);
+          S.state = 'RECOIL'; S.timer = 0; S.unveil = 0;
+          sfx('shock', this.tmp); sfx('seraphShriek', this.tmp);
+          Particles.burst(this.tmp, 36, 'spark');
+          Lights.pulse(this.tmp, 0.45, 0.85, 1.0, 6, 3.5, 0.5);
+          GrabPack.showHint('SHOCKED - it hides behind its wings for a while');
+        } else {
+          sfx('handHitFlesh', this.tmp);
+          Particles.burst(this.tmp, 10, 'debris');
+          if (S.state === 'SWOOP' || S.state === 'UNVEIL') { S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 5; }
+          GrabPack.showHint('It flinched - a charged hand would drive it back for longer');
+        }
+        return true;
+      }
+    }
+    return false;
+  },
+
+  // ---------- threat level for Thimble / the director ----------
+  danger() {
+    const S = this.seraph, b = Player.body.pos;
+    if (S.active && (S.state === 'WARN' || S.state === 'UNVEIL' || S.state === 'SWOOP') && Math.hypot(S.pos[0] - b[0], S.pos[2] - b[2]) < 16) return true;
+    for (const c of this.cherubs) if (!c.dead && c.state === 'CREEP' && Math.hypot(c.pos[0] - b[0], c.pos[2] - b[2]) < 6) return true;
+    return false;
+  },
+
+  // ---------- rendering ----------
+  submit(vis) {
+    if (this.disabled) return;
+    const R = RenderQueue, A = this.tmp, B = this.tmp2;
+    for (const c of this.cherubs) {
+      if (c.dead || !vis[c.sector]) continue;
+      if (Sculpt.ready('cherub_body')) {
+        const it = R.push('cherub_body', MAT.porcelain);
+        if (it) { M4.compose(it.model, c.pos[0], c.pos[1], c.pos[2], c.yaw, c.state === 'CREEP' ? 0.3 : 0, Math.sin(c.flap * 0.5) * 0.08, 1, 1, 1); it.tint[0] = 0.85; it.tint[1] = 0.8; it.tint[2] = 0.72; }
+      }
+      // downy wings flutter (each wing is the same sculpt turned to face the other way)
+      if (Sculpt.ready('cherub_wing')) for (const side of [-1, 1]) {
+        Cast.pt(A, c.pos, c.yaw, side * 0.07, 0.3, 0.07);
+        const flap = Math.sin(c.flap) * 0.7;
+        const it = R.push('cherub_wing', MAT.furLight);
+        if (it) M4.compose(it.model, A[0], A[1], A[2], c.yaw + (side < 0 ? Math.PI : 0) + 0.35 * side, 0, side * flap + 0.25, 1, 1, 1);
+      }
+      // a crooked, rusted halo with a faint glow
+      Cast.pt(A, c.pos, c.yaw, 0.02, 0.62, 0.01);
+      const h = R.trs('torus', MAT.copper, A[0], A[1], A[2], c.yaw, 0.25, 0.2, 0.09, 0.09, 0.09, false);
+      if (h) { h.emis[0] = 0.35; h.emis[1] = 0.25; h.emis[2] = 0.08; }
+      // hollow eyes with pinpricks of light when they hunt
+      if (c.state === 'CREEP') for (const side of [-1, 1]) {
+        Cast.pt(A, c.pos, c.yaw, side * 0.045, 0.44, -0.11);
+        const e = R.trs('sphereLow', MAT.screen, A[0], A[1], A[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
+        if (e) { e.emis[0] = 2.0; e.emis[1] = 1.6; e.emis[2] = 0.6; }
+      }
+    }
+    const S = this.seraph;
+    if (!S.active || !vis[2] || !Sculpt.ready('seraph_body')) return;
+    let it = R.push('seraph_body', MAT.canvas);
+    if (it) { M4.compose(it.model, S.pos[0], S.pos[1], S.pos[2], S.yaw, 0, Math.sin(S.timer * 0.9) * 0.03, 1, 1, 1); it.tint[0] = 3.4; it.tint[1] = 3.1; it.tint[2] = 2.7; }
+    // the halo-face: dark while veiled, blazing when the wings part
+    const u = S.unveil;
+    Cast.pt(A, S.pos, S.yaw, 0, 2.05, -0.12);
+    it = R.trs('torus', MAT.screen, A[0], A[1], A[2], S.yaw, Math.PI / 2, 0, 0.2, 0.2, 0.2, false);
+    if (it) { it.tint[0] = 1; it.tint[1] = 0.85; it.tint[2] = 0.5; it.emis[0] = 0.2 + u * 4.5; it.emis[1] = 0.15 + u * 3.8; it.emis[2] = 0.05 + u * 2.0; }
+    it = R.trs('sphere', MAT.screen, A[0], A[1], A[2], 0, 0, 0, 0.07, 0.07, 0.07, false);
+    if (it) { it.emis[0] = u * 6; it.emis[1] = u * 5.2; it.emis[2] = u * 3.0; }
+    if (!Sculpt.ready('seraph_wing')) return;
+    // six wings: the face pair folds across the face and opens when it unveils; the flight pair beats
+    // slowly; the lowest pair hangs folded over its feet
+    const wings = [
+      [0.12, 2.05, -0.05, 0.25 + u * 1.25, 1.35 - u * 0.95, 0.9],   // face pair
+      [0.16, 1.6, 0.12, 0.3, 0.2 + Math.sin(S.flap) * 0.35, 1.15],     // flight pair
+      [0.12, 0.9, 0.05, 0.35, -1.1, 0.8]                                 // feet pair
+    ];
+    for (const [ox, oy, oz, yawOut, roll, sc] of wings) for (const side of [-1, 1]) {
+      Cast.pt(A, S.pos, S.yaw, side * ox, oy, oz);
+      it = R.push('seraph_wing', MAT.canvas);
+      if (it) {
+        M4.compose(it.model, A[0], A[1], A[2], S.yaw + (side < 0 ? Math.PI : 0) - side * yawOut + (side < 0 ? 0 : 0), 0, roll, sc, sc, sc);
+        it.tint[0] = 3.0; it.tint[1] = 2.8; it.tint[2] = 2.5;
+      }
+    }
   }
 };
 </script>

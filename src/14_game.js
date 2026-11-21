@@ -299,7 +299,8 @@ const Game = {
         sfx('ventClick', Level.vents[0].pos);
         sfx('ventEnter', Level.vents[2].pos);
         GrabPack.showHint('Something just crawled through the ducts overhead...');
-        Dialogue.say('MARIGOLD', 'Did you hear that? Something big lives in those ducts. It hasn\'t come down. Not yet.');
+        Dialogue.say('MARIGOLD', 'Something with wings keeps this gallery. When its face opens... do not let it see you.');
+        Dialogue.say('PIP', 'When its wings part, hide! Lockers, or behind something big!');
         break;
       case 'L1':
         Steam.setAll(false);
@@ -640,6 +641,11 @@ const Game = {
     Monster.headTilt = laughing ? Math.sin(t * 6.5) * 0.3 : noise1(t * 40) * 0.12;
     Monster.jaw = laughing ? 0.35 + 0.65 * ha : t < 1.2 ? 0.3 : 0.95;
     Monster.flinchAmt = laughing ? -0.15 * ha : 0;   // head jerks back with each "ha"
+    // the head stares straight at you, snapping between sharp sideways cocks while it laughs
+    Monster.lookYaw = 0; Monster.lookPitch = 0;
+    const cock = laughing ? [0, 1.1, -0.5, 1.3, 0.2, -1.0][Math.floor((t - 1.2) * 3.2) % 6] : 0;
+    if (cock !== Monster.lookRoll && laughing) sfx('headSnap', Monster.head);
+    Monster.lookRoll = cock;
     Monster.animateLegs(dt, false);
     Player.lockAmt = Math.min(1, Player.lockAmt + dt * 9);
     Player.trauma = laughing ? 0.3 + 0.2 * ha : t < 0.85 ? 0.25 : t < 1.2 ? 0.9 : t > 2.9 ? 1 : 0.4;
@@ -977,6 +983,7 @@ const Loader = {
         Assets.uploadPending();
         Monster.init();
         Cast.init();
+        Enemies.init();
         if (Audio.ctx && !Audio.emittersBuilt) Audio.buildEmitters();
         this.phase = 3;
         return;

@@ -544,6 +544,44 @@ const SFX = {
     Audio.noise(t + 0.02, 0.35, 0.6, 500, 'lowpass', out);
     Audio.tone(t + 0.02, 'sine', 110, 38, 0.5, 0.7, out);
   },
+  // cherubs: a breathy, warbling baby giggle; a glassy shriek when the light hits them; a porcelain snap-bite
+  cherubGiggle(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 3, 0.8);
+    for (let k = 0; k < 4; k++) {
+      const s = t + k * 0.11, f = 620 + k * 40 + Math.random() * 60;
+      const o = Audio.tone(s, 'triangle', f * 1.1, f * 0.85, 0.09, 0.07, out);
+      const v = Audio.ctx.createOscillator(), vg = Audio.ctx.createGain(); v.frequency.value = 18; vg.gain.value = f * 0.05; v.connect(vg); vg.connect(o.frequency); v.start(s); v.stop(s + 0.1);
+    }
+    Audio.noise(t, 0.4, 0.04, 3000, 'bandpass', out, 2);
+  },
+  cherubShriek(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.8); Audio.tone(t, 'sawtooth', 1400, 2600, 0.3, 0.08, out); Audio.ring(t, [2300, 4100], 0.3, 0.06, out); },
+  cherubBite(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.ring(t, [2800, 5200], 0.08, 0.2, out); Audio.noise(t, 0.06, 0.3, 1500, 'bandpass', out, 2); },
+  // porcelain shattering
+  shatter(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 3, 0.8);
+    for (let k = 0; k < 6; k++) Audio.ring(t + k * 0.025 + Math.random() * 0.02, [Audio.vary(2400 + k * 500), Audio.vary(5100 + k * 300)], 0.25, 0.08, out);
+    Audio.noise(t, 0.25, 0.3, 4000, 'highpass', out);
+  },
+  // the seraph: a rising, choir-like hum before it unveils, and a piercing shriek when it swoops
+  seraphHum(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 8, 0.4);
+    for (const f of [220, 277.2, 329.6, 440]) {
+      const o = Audio.tone(t, 'sine', f * 0.94, f * 1.02, 1.6, 0.06, out, 0.9);
+      const v = Audio.ctx.createOscillator(), vg = Audio.ctx.createGain(); v.frequency.value = 5 + f * 0.01; vg.gain.value = f * 0.012; v.connect(vg); vg.connect(o.frequency); v.start(t); v.stop(t + 1.7);
+    }
+  },
+  seraphShriek(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 8, 0.4);
+    for (const f of [880, 1318, 1760]) Audio.tone(t, 'sawtooth', f, f * 1.3, 0.8, 0.07, out, 0.03);
+    Audio.noise(t, 0.6, 0.2, 5000, 'bandpass', out, 1.5);
+  },
+  // a porcelain neck snapping round: a dry crack with a grinding click
+  headSnap(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 4, 0.6);
+    Audio.noise(t, 0.04, 0.45, 3800, 'highpass', out);
+    Audio.ring(t, [1300, 2900], 0.07, 0.12, out);
+    Audio.noise(t + 0.03, 0.09, 0.2, 700, 'bandpass', out, 3);
+  },
   monsterHurt(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.6); Audio.tone(t, 'sawtooth', 500, 180, 0.4, 0.2, out); Audio.noise(t, 0.3, 0.3, 1200, 'bandpass', out); },
   scream(t) {
     // un-attenuated jumpscare: stacked detuned saws with fast vibrato, distortion and a noise sweep

@@ -147,6 +147,8 @@ const GrabPack = {
         h.state = HAND.RETRACTING;
         return;
       }
+      // cherubs and the seraph
+      if (Enemies.handHit(h, h.prev, this.tmp, len + 0.1)) { h.state = HAND.RETRACTING; return; }
       if (Physics.raycast(h.prev, this.tmp, len + 0.05, LAYER.HAND, this.hit)) {
         V3.copy(h.pos, this.hit.point);
         V3.copy(h.latchNormal, this.hit.normal);

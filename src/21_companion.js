@@ -24,6 +24,8 @@ const COMPANION_LINES = {
   dark: ['Wait! Stop... it\'s too dark like this. Stick close behind me - my eye can throw enough purple light to show the floor.'],
   idle: ['Find anything interesting back there? Let me guess... rusted screws and old lint? Yeah. This place is a goldmine for junk.'],
   bump: ['Whoa - easy! You okay? That one sounded like it hurt.', 'Careful! The floors in here bite back.'],
+  seraph: ['Its wings are opening - get out of sight! Don\'t let it see you!'],
+  cherubs: ['Cherubs! Shine your light right at them - they hate it! Or give them a whack!'],
   threat: ['Shh! Do you hear that scraping up in the rafters? It\'s tracking the sound of your cables!',
     'Hide in a locker - quickly! I\'ll slip into the vents!'],
   safe: ['...Is it gone? Phew. My stuffing nearly jumped out of my seams.'],
@@ -52,7 +54,7 @@ const COMPANION_LINES = {
 
 const Companion = {
   trail: new Float32Array(TRAIL_N * 3), head: 0, count: 0,
-  cool: 0, lineCool: { sprint: 0, dark: 0, idle: 0, bump: 0, threat: 0, hint: 0 },
+  cool: 0, lineCool: { sprint: 0, dark: 0, idle: 0, bump: 0, threat: 0, hint: 0, seraph: 0, cherubs: 0 },
   ambientIdx: 0, calm: 0, tauntIdx: 0, tauntTimer: 60, stageTime: 0, lastStage: -1,
   idleTime: 0, lookAmt: 0, lastYaw: 0, darkTime: 0, hideTimer: 0, banterDone: false, loomGreeted: false,
   tmp: V3.create(),
@@ -131,7 +133,15 @@ const Companion = {
       Particles.burst(P.pos, 8, 'debris');
       return;
     }
-    this.calm = threat ? 0 : this.calm + dt;
+    // the seraph opening its wings, or cherubs creeping close
+    const S = Enemies.seraph;
+    if (S.active && S.state === 'WARN' && this.lineCool.seraph <= 0 && Math.hypot(S.pos[0] - b[0], S.pos[2] - b[2]) < 16) {
+      this.lineCool.seraph = 25; Dialogue.clear(); this.sayLines('THIMBLE', COMPANION_LINES.seraph);
+    }
+    if (this.lineCool.cherubs <= 0 && Enemies.cherubs.some(c => !c.dead && c.state === 'CREEP' && Math.hypot(c.pos[0] - b[0], c.pos[2] - b[2]) < 6)) {
+      this.lineCool.cherubs = 60; if (!Dialogue.busy()) this.sayLines('THIMBLE', COMPANION_LINES.cherubs);
+    }
+    this.calm = threat || Enemies.danger() ? 0 : this.calm + dt;
     this.tauntTimer -= dt;
     // reactions to how you move
     const spd = Math.hypot(Player.body.vel[0], Player.body.vel[2]);

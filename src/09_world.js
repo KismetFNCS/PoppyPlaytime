@@ -130,6 +130,8 @@ const Lights = {
     L.radius = radius; L.base = intensity; L.dur = dur; L.t = 0; L.flicker = flicker || 0; L.alive = true;
     L.sector = Level.sectorAt(pos[0], pos[2]);
   },
+  // the seraph's halo-face blazing when its wings part (linear RGB, warm white)
+  seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.85, 0.55]), current: 0, base: 4.0, radius: 9, scatter: 0.35, fixture: 'none', sector: 2 },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
@@ -171,6 +173,13 @@ const Lights = {
       if (!sectorVisible[L.sector]) continue;
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = L;
+    }
+    const SG = this.seraphGlow, SE = Enemies.seraph;
+    if (SE.active && SE.unveil > 0.05 && sectorVisible[2] && Game.isGameplay()) {
+      V3.set(SG.pos, SE.pos[0], SE.pos[1] + 2.05, SE.pos[2]);
+      SG.current = SG.base * SE.unveil;
+      if (list.count >= list.items.length) list.items.push(null);
+      list.items[list.count++] = SG;
     }
     const TG = this.thimbleGlow, TP = Cast.plush;
     if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
