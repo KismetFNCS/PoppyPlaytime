@@ -1,4 +1,24 @@
+import type { Vec3 } from '../math/Vec3';
 import { clamp } from '../math/Vec3';
+
+/** Positioned one-shot sounds rendered through an HRTF panner. */
+export type SpatialCueId =
+  | 'jesterShriek'
+  | 'jesterBells'
+  | 'tallymanStep'
+  | 'tallymanBell'
+  | 'tallymanPunch'
+  | 'breakerClunk'
+  | 'alarmKlaxon'
+  | 'elevatorRumble'
+  | 'metalStinger'
+  | 'impactCrunch';
+
+export interface ListenerPose {
+  readonly position: Vec3;
+  readonly forward: Vec3;
+  readonly up: Vec3;
+}
 
 export type UiCue = 'hover' | 'confirm' | 'back' | 'denied' | 'slider';
 
@@ -27,6 +47,10 @@ export class AudioManager {
   /** Separate bus for the mask's breathing track; its gain follows mask coverage. */
   private breathingBus: GainNode | null = null;
   private maskMix: number = 0;
+  /** While set (cinematics), the listener is pinned here and gameplay pose updates are ignored. */
+  private listenerOverride: ListenerPose | null = null;
+  /** 0..1 extra ambient attenuation requested by cinematics. */
+  private cinematicDuck: number = 0;
 
   public get isUnlocked(): boolean {
     return this.context !== null && this.context.state === 'running';
@@ -75,11 +99,19 @@ export class AudioManager {
     return buffer;
   }
 
-  private playTone(frequency: number, durationSeconds: number, waveform: OscillatorType, peakGain: number, glideToFrequency: number | null = null): void {
+  private playTone(
+    frequency: number,
+    durationSeconds: number,
+    waveform: OscillatorType,
+    peakGain: number,
+    glideToFrequency: number | null = null,
+    destination: AudioNode | null = null,
+    startOffsetSeconds: number = 0,
+  ): void {
     if (this.context === null || this.masterGain === null) {
       return;
     }
-    const now: number = this.context.currentTime;
+    const now: number = this.context.currentTime + startOffsetSeconds;
     const oscillator: OscillatorNode = this.context.createOscillator();
     const envelope: GainNode = this.context.createGain();
     oscillator.type = waveform;
@@ -90,16 +122,23 @@ export class AudioManager {
     envelope.gain.setValueAtTime(0.0001, now);
     envelope.gain.exponentialRampToValueAtTime(peakGain, now + 0.008);
     envelope.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
-    oscillator.connect(envelope).connect(this.masterGain);
+    oscillator.connect(envelope).connect(destination ?? this.masterGain);
     oscillator.start(now);
     oscillator.stop(now + durationSeconds + 0.05);
   }
 
-  private playNoiseBurst(durationSeconds: number, filterFrequency: number, filterType: BiquadFilterType, peakGain: number): void {
+  private playNoiseBurst(
+    durationSeconds: number,
+    filterFrequency: number,
+    filterType: BiquadFilterType,
+    peakGain: number,
+    destination: AudioNode | null = null,
+    startOffsetSeconds: number = 0,
+  ): void {
     if (this.context === null || this.masterGain === null || this.noiseBuffer === null) {
       return;
     }
-    const now: number = this.context.currentTime;
+    const now: number = this.context.currentTime + startOffsetSeconds;
     const source: AudioBufferSourceNode = this.context.createBufferSource();
     source.buffer = this.noiseBuffer;
     const filter: BiquadFilterNode = this.context.createBiquadFilter();
@@ -108,7 +147,7 @@ export class AudioManager {
     const envelope: GainNode = this.context.createGain();
     envelope.gain.setValueAtTime(peakGain, now);
     envelope.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
-    source.connect(filter).connect(envelope).connect(this.masterGain);
+    source.connect(filter).connect(envelope).connect(destination ?? this.masterGain);
     source.start(now, Math.random());
     source.stop(now + durationSeconds + 0.05);
   }
@@ -254,7 +293,7 @@ export class AudioManager {
       return;
     }
     const now: number = this.context.currentTime;
-    this.ambientDuck.gain.setTargetAtTime(1 - 0.8 * mix, now, 0.05);
+    this.ambientDuck.gain.setTargetAtTime((1 - 0.8 * mix) * (1 - this.cinematicDuck), now, 0.05);
     this.ambientMuffle.frequency.setTargetAtTime(18000 * Math.pow(500 / 18000, mix), now, 0.05);
     this.breathingBus.gain.setTargetAtTime(mix, now, 0.05);
   }
@@ -365,6 +404,135 @@ export class AudioManager {
   public playImpactThud(intensity: number): void {
     this.playNoiseBurst(0.18, 260, 'lowpass', 0.25 + clamp(intensity, 0, 1) * 0.5);
     this.playTone(55, 0.2, 'sine', 0.1 + clamp(intensity, 0, 1) * 0.15, 35);
+  }
+
+  /** Cinematic ambient override: duck gain = (1 − 0.8·mask) · (1 − d_cinematic). */
+  public setCinematicDuck(amount: number): void {
+    this.cinematicDuck = clamp(amount, 0, 1);
+    this.setMaskAudioMix(this.maskMix);
+  }
+
+  // ---- Spatial audio --------------------------------------------------------------------------------------------
+
+  private applyListenerPose(pose: ListenerPose): void {
+    if (this.context === null) {
+      return;
+    }
+    const listener: AudioListener = this.context.listener;
+    const time: number = this.context.currentTime;
+    if (listener.positionX !== undefined) {
+      listener.positionX.setTargetAtTime(pose.position[0], time, 0.02);
+      listener.positionY.setTargetAtTime(pose.position[1], time, 0.02);
+      listener.positionZ.setTargetAtTime(pose.position[2], time, 0.02);
+      listener.forwardX.setTargetAtTime(pose.forward[0], time, 0.02);
+      listener.forwardY.setTargetAtTime(pose.forward[1], time, 0.02);
+      listener.forwardZ.setTargetAtTime(pose.forward[2], time, 0.02);
+      listener.upX.setTargetAtTime(pose.up[0], time, 0.02);
+      listener.upY.setTargetAtTime(pose.up[1], time, 0.02);
+      listener.upZ.setTargetAtTime(pose.up[2], time, 0.02);
+    } else {
+      listener.setPosition(pose.position[0], pose.position[1], pose.position[2]);
+      listener.setOrientation(pose.forward[0], pose.forward[1], pose.forward[2], pose.up[0], pose.up[1], pose.up[2]);
+    }
+  }
+
+  /** Called every gameplay frame with the camera pose; ignored while a cinematic override is active. */
+  public setListenerPose(pose: ListenerPose): void {
+    if (this.listenerOverride === null) {
+      this.applyListenerPose(pose);
+    }
+  }
+
+  /** Cinematic audio override: pins the listener to `pose` (or releases it with null). */
+  public overrideListener(pose: ListenerPose | null): void {
+    this.listenerOverride = pose;
+    if (pose !== null) {
+      this.applyListenerPose(pose);
+    }
+  }
+
+  private createPanner(position: Readonly<Vec3>): PannerNode | null {
+    if (this.context === null || this.masterGain === null) {
+      return null;
+    }
+    const panner: PannerNode = this.context.createPanner();
+    panner.panningModel = 'HRTF';
+    panner.distanceModel = 'inverse';
+    panner.refDistance = 1.5;
+    panner.maxDistance = 45;
+    panner.rolloffFactor = 1.25;
+    if (panner.positionX !== undefined) {
+      panner.positionX.value = position[0];
+      panner.positionY.value = position[1];
+      panner.positionZ.value = position[2];
+    } else {
+      panner.setPosition(position[0], position[1], position[2]);
+    }
+    panner.connect(this.masterGain);
+    // Release the node graph after the longest cue finishes.
+    window.setTimeout(() => panner.disconnect(), 4000);
+    return panner;
+  }
+
+  /** Synthesises a positioned cue. Every cue is a small graph of tone / filtered-noise voices routed through one panner. */
+  public playSpatialCue(cue: SpatialCueId, position: Readonly<Vec3>, intensity: number = 1): void {
+    const panner: PannerNode | null = this.createPanner(position);
+    if (panner === null) {
+      return;
+    }
+    const level: number = clamp(intensity, 0, 2);
+    switch (cue) {
+      case 'jesterShriek':
+        this.playNoiseBurst(1.1, 3100, 'bandpass', 0.7 * level, panner);
+        for (const [frequency, glide] of [
+          [1240, 400],
+          [1310, 380],
+          [930, 210],
+        ] as const) {
+          this.playTone(frequency, 1.0, 'sawtooth', 0.09 * level, glide, panner);
+        }
+        break;
+      case 'jesterBells':
+        for (let bell = 0; bell < 3; bell += 1) {
+          this.playTone(2093 + bell * 260, 0.35, 'triangle', 0.035 * level, null, panner, bell * 0.07);
+        }
+        break;
+      case 'tallymanStep':
+        this.playNoiseBurst(0.09, 700, 'bandpass', 0.35 * level, panner);
+        this.playTone(92, 0.12, 'square', 0.06 * level, 60, panner);
+        this.playTone(1450, 0.05, 'triangle', 0.025 * level, null, panner, 0.03);
+        break;
+      case 'tallymanBell':
+        this.playTone(880, 1.2, 'sine', 0.08 * level, null, panner);
+        this.playTone(1318.5, 1.0, 'sine', 0.04 * level, null, panner);
+        break;
+      case 'tallymanPunch':
+        this.playNoiseBurst(0.06, 4200, 'highpass', 0.4 * level, panner);
+        this.playTone(320, 0.08, 'square', 0.08 * level, 180, panner);
+        break;
+      case 'breakerClunk':
+        this.playNoiseBurst(0.14, 500, 'lowpass', 0.45 * level, panner);
+        this.playTone(140, 0.16, 'square', 0.07 * level, 90, panner);
+        break;
+      case 'alarmKlaxon':
+        for (let pulse = 0; pulse < 3; pulse += 1) {
+          this.playTone(620, 0.32, 'sawtooth', 0.08 * level, 520, panner, pulse * 0.45);
+        }
+        break;
+      case 'elevatorRumble':
+        this.playNoiseBurst(2.6, 140, 'lowpass', 0.6 * level, panner);
+        this.playTone(46, 2.6, 'sine', 0.12 * level, 38, panner);
+        break;
+      case 'metalStinger':
+        this.playNoiseBurst(0.7, 2200, 'bandpass', 0.5 * level, panner);
+        this.playTone(311, 0.9, 'sawtooth', 0.08 * level, 155, panner);
+        this.playTone(330, 0.9, 'sawtooth', 0.08 * level, 160, panner);
+        break;
+      case 'impactCrunch':
+        this.playNoiseBurst(0.35, 900, 'lowpass', 0.8 * level, panner);
+        this.playTone(60, 0.3, 'sine', 0.16 * level, 30, panner);
+        break;
+    }
   }
 
   public dispose(): void {

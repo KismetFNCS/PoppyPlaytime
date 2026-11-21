@@ -23,7 +23,9 @@ export type MaterialId =
   | 'tether_claw_amber'
   | 'tether_claw_violet'
   | 'tether_core_amber'
-  | 'tether_core_violet';
+  | 'tether_core_violet'
+  | 'tallyman_dial'
+  | 'tallyman_lamp';
 
 export type TextureSlot = 'diffuse' | 'normal' | 'roughness' | 'emissive';
 export const TEXTURE_SLOTS: readonly TextureSlot[] = ['diffuse', 'normal', 'roughness', 'emissive'];
@@ -268,6 +270,32 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     emissiveStrength: 5,
     uvScale: 1,
   },
+  tallyman_dial: {
+    id: 'tallyman_dial',
+    displayName: 'Tallyman · Punch-Clock Dial',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'crackedPorcelain', seed: 9901, resolution: 256, bumpStrength: 2.4 },
+    baseTint: [0.95, 0.88, 0.7],
+    normalStrength: 1,
+    roughnessScale: 0.9,
+    metallic: 0,
+    emissiveColor: [1, 0.55, 0.1],
+    emissiveStrength: 1.6,
+    uvScale: 1,
+  },
+  tallyman_lamp: {
+    id: 'tallyman_lamp',
+    displayName: 'Tallyman · Sight-Slit Lamp',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'emissiveSolid', seed: 9902, resolution: 64, bumpStrength: 0 },
+    baseTint: [1, 0.7, 0.3],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [1, 0.62, 0.15],
+    emissiveStrength: 9,
+    uvScale: 1,
+  },
 };
 
 export const MATERIAL_IDS: readonly MaterialId[] = Object.keys(MATERIAL_PROFILES) as MaterialId[];
@@ -286,7 +314,9 @@ export type ImportedMeshId =
   | 'relay_plate_amber'
   | 'relay_plate_violet'
   | 'ceiling_anchor'
-  | 'blast_gate';
+  | 'blast_gate'
+  | 'tallyman_entity'
+  | 'breaker_switch';
 
 export type ProceduralMeshBuilderId =
   | 'jester_body'
@@ -304,7 +334,13 @@ export type ProceduralMeshBuilderId =
   | 'relay_plate_core'
   | 'ceiling_anchor_ring'
   | 'ceiling_anchor_beacon'
-  | 'blast_gate_panel';
+  | 'blast_gate_panel'
+  | 'tallyman_frame'
+  | 'tallyman_dial_face'
+  | 'tallyman_sight_lamp'
+  | 'breaker_switch_housing'
+  | 'breaker_switch_lever'
+  | 'breaker_switch_indicator';
 
 export interface ImportedMeshPart {
   readonly partId: string;
@@ -408,6 +444,26 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
     displayName: 'Blast Gate',
     importScale: 1,
     parts: [{ partId: 'panel', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'blast_gate_panel' }],
+  },
+  tallyman_entity: {
+    id: 'tallyman_entity',
+    displayName: 'The Tallyman',
+    importScale: 1,
+    parts: [
+      { partId: 'frame', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tallyman_frame' },
+      { partId: 'dial', materialId: 'tallyman_dial', importUri: null, fallbackBuilder: 'tallyman_dial_face' },
+      { partId: 'lamp', materialId: 'tallyman_lamp', importUri: null, fallbackBuilder: 'tallyman_sight_lamp' },
+    ],
+  },
+  breaker_switch: {
+    id: 'breaker_switch',
+    displayName: 'Breaker Switch',
+    importScale: 1,
+    parts: [
+      { partId: 'housing', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'breaker_switch_housing' },
+      { partId: 'lever', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'breaker_switch_lever' },
+      { partId: 'indicator', materialId: 'lamp_housing_toxic', importUri: null, fallbackBuilder: 'breaker_switch_indicator' },
+    ],
   },
 };
 

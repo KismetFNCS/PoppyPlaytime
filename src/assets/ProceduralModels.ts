@@ -252,6 +252,94 @@ function buildBlastGatePanel(): MeshData {
   return builder.build();
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// The Tallyman: a gaunt timekeeping automaton. Stands on y = 0, faces +Z, ~2.45 m tall.
+// ---------------------------------------------------------------------------------------------------------------------
+
+export const TALLYMAN_HEAD_HEIGHT: number = 2.22;
+
+function buildTallymanFrame(): MeshData {
+  const builder = new MeshBuilder();
+  const strut: MeshData = createCylinderMesh(0.035, 0.03, 1, 6);
+  // Spine and pelvis.
+  place(builder, createCylinderMesh(0.05, 0.05, 0.8, 8), [0, 1.25, -0.02], [0.08, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(0.36, 0.1, 0.18), [0, 0.86, 0], [0, 0, 0], [1, 1, 1]);
+  // Punch-clock chest cabinet (the dial is a separate emissive part on its front).
+  place(builder, createBoxMesh(0.46, 0.52, 0.3, 1), [0, 1.62, 0.02], [0.05, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(0.5, 0.05, 0.34), [0, 1.9, 0.02], [0.05, 0, 0], [1, 1, 1]);
+  // Ledger tape spilling from a slot under the dial.
+  place(builder, createBoxMesh(0.14, 0.5, 0.008), [0.05, 1.18, 0.2], [0.25, 0, 0.06], [1, 1, 1]);
+  // Lantern-cage head: four vertical bars around a hollow core, capped top and bottom.
+  place(builder, createBoxMesh(0.26, 0.04, 0.26), [0, TALLYMAN_HEAD_HEIGHT - 0.14, 0], [0, 0, 0], [1, 1, 1]);
+  place(builder, createCylinderMesh(0.17, 0.02, 0.16, 4), [0, TALLYMAN_HEAD_HEIGHT + 0.22, 0], [0, Math.PI / 4, 0], [1, 1, 1]);
+  for (const [barX, barZ] of [
+    [-0.11, -0.11],
+    [0.11, -0.11],
+    [-0.11, 0.11],
+    [0.11, 0.11],
+  ] as const) {
+    place(builder, strut, [barX, TALLYMAN_HEAD_HEIGHT + 0.03, barZ], [0, 0, 0], [0.7, 0.32, 0.7]);
+  }
+  place(builder, createCylinderMesh(0.03, 0.03, 0.12, 6), [0, TALLYMAN_HEAD_HEIGHT - 0.22, 0], [0, 0, 0], [1, 1, 1]);
+  // Long arms ending in stamping blocks with punch spikes.
+  for (const side of [-1, 1]) {
+    place(builder, createSphereMesh(0.06, 8, 6), [side * 0.28, 1.84, 0.02], [0, 0, 0], [1, 1, 1]);
+    place(builder, strut, [side * 0.34, 1.48, 0.05], [0.1, 0, side * 0.18], [1, 0.75, 1]);
+    place(builder, createSphereMesh(0.045, 8, 6), [side * 0.4, 1.12, 0.09], [0, 0, 0], [1, 1, 1]);
+    place(builder, strut, [side * 0.42, 0.72, 0.16], [0.22, 0, side * 0.05], [0.9, 0.8, 0.9]);
+    place(builder, createBoxMesh(0.12, 0.1, 0.16), [side * 0.43, 0.3, 0.25], [0.2, 0, 0], [1, 1, 1]);
+    place(builder, createCylinderMesh(0.012, 0, 0.12, 5), [side * 0.43, 0.2, 0.27], [Math.PI, 0, 0], [1, 1, 1]);
+    // Reverse-jointed legs.
+    place(builder, strut, [side * 0.13, 0.66, -0.06], [-0.35, 0, 0], [1.2, 0.42, 1.2]);
+    place(builder, createSphereMesh(0.05, 8, 6), [side * 0.13, 0.47, -0.14], [0, 0, 0], [1, 1, 1]);
+    place(builder, strut, [side * 0.13, 0.25, -0.05], [0.4, 0, 0], [1.1, 0.48, 1.1]);
+    place(builder, createBoxMesh(0.1, 0.04, 0.26), [side * 0.13, 0.02, 0.04], [0, 0, 0], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
+function buildTallymanDialFace(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.17, 0.17, 0.02, 24), [0, 1.66, 0.18], [Math.PI / 2 + 0.05, 0, 0], [1, 1, 1]);
+  // Two clock hands.
+  place(builder, createBoxMesh(0.016, 0.12, 0.01), [0.03, 1.69, 0.2], [0.05, 0, -0.5], [1, 1, 1]);
+  place(builder, createBoxMesh(0.012, 0.09, 0.01), [-0.03, 1.64, 0.2], [0.05, 0, 2.2], [1, 1, 1]);
+  return builder.build();
+}
+
+/** The Tallyman's only "eye": a horizontal amber slit glowing inside the lantern cage. */
+function buildTallymanSightLamp(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createBoxMesh(0.16, 0.025, 0.04), [0, TALLYMAN_HEAD_HEIGHT + 0.03, 0.06], [0, 0, 0], [1, 1, 1]);
+  place(builder, createSphereMesh(0.05, 10, 8), [0, TALLYMAN_HEAD_HEIGHT + 0.03, 0], [0, 0, 0], [1, 0.6, 1]);
+  return builder.build();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Breaker switch: wall-mounted, local +Z is the wall normal; origin at the housing centre.
+// ---------------------------------------------------------------------------------------------------------------------
+
+function buildBreakerSwitchHousing(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createBoxMesh(0.42, 0.62, 0.12, 1), [0, 0, 0.06], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(0.06, 0.4, 0.06), [0, 0, 0.14], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** Lever pivots about the local X axis at the origin; the game rotates this part for up/down states. */
+function buildBreakerSwitchLever(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.022, 0.022, 0.26, 8), [0, 0.13, 0.17], [0, 0, 0], [1, 1, 1]);
+  place(builder, createBoxMesh(0.12, 0.05, 0.05), [0, 0.27, 0.17], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+function buildBreakerSwitchIndicator(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createSphereMesh(0.045, 10, 8), [0, 0.42, 0.08], [0, 0, 0], [1, 1, 0.6]);
+  return builder.build();
+}
+
 export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, () => MeshData>> = {
   jester_body: buildJesterBody,
   jester_head: buildJesterHead,
@@ -269,6 +357,12 @@ export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, 
   ceiling_anchor_ring: buildCeilingAnchorRing,
   ceiling_anchor_beacon: buildCeilingAnchorBeacon,
   blast_gate_panel: buildBlastGatePanel,
+  tallyman_frame: buildTallymanFrame,
+  tallyman_dial_face: buildTallymanDialFace,
+  tallyman_sight_lamp: buildTallymanSightLamp,
+  breaker_switch_housing: buildBreakerSwitchHousing,
+  breaker_switch_lever: buildBreakerSwitchLever,
+  breaker_switch_indicator: buildBreakerSwitchIndicator,
 };
 
 /** Approximate collision footprint (half-extents on X/Z) of the foundation heap, used by the level streamer. */

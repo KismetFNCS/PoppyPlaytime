@@ -137,8 +137,14 @@ export interface SaveInventory {
   readonly hasGasMask: boolean;
 }
 
+/** Session puzzle state that survives respawns. */
+export interface SaveWorldState {
+  readonly poweredPlateIds: readonly string[];
+  readonly solvedSequenceIds: readonly string[];
+}
+
 export interface SaveCheckpoint {
-  readonly version: 2;
+  readonly version: 3;
   /** Index of the corridor chunk the player respawns at. */
   readonly checkpointChunkIndex: number;
   /** Deepest chunk index ever reached on this save. */
@@ -146,17 +152,22 @@ export interface SaveCheckpoint {
   readonly playTimeSeconds: number;
   readonly deathCount: number;
   readonly inventory: SaveInventory;
+  /** Quest flag values keyed by flag id (unknown ids are ignored on restore). */
+  readonly questFlags: Readonly<Record<string, number>>;
+  readonly world: SaveWorldState;
   readonly savedAtIso: string;
 }
 
 export function createFreshCheckpoint(): SaveCheckpoint {
   return {
-    version: 2,
+    version: 3,
     checkpointChunkIndex: 0,
     deepestChunkIndex: 0,
     playTimeSeconds: 0,
     deathCount: 0,
     inventory: { hasGasMask: false },
+    questFlags: {},
+    world: { poweredPlateIds: [], solvedSequenceIds: [] },
     savedAtIso: new Date().toISOString(),
   };
 }
@@ -173,9 +184,9 @@ export class SaveSystem {
         return null;
       }
       const record = parsed as Record<string, unknown>;
-      // Version 1 saves predate the inventory block; they migrate with an empty inventory.
+      // v1 predates the inventory; v2 predates quest flags and world state. Both migrate with empty blocks.
       if (
-        (record['version'] !== 1 && record['version'] !== 2) ||
+        (record['version'] !== 1 && record['version'] !== 2 && record['version'] !== 3) ||
         typeof record['checkpointChunkIndex'] !== 'number' ||
         typeof record['deepestChunkIndex'] !== 'number' ||
         typeof record['playTimeSeconds'] !== 'number' ||
@@ -187,13 +198,32 @@ export class SaveSystem {
       const rawInventory: unknown = record['inventory'];
       const hasGasMask: boolean =
         typeof rawInventory === 'object' && rawInventory !== null && (rawInventory as Record<string, unknown>)['hasGasMask'] === true;
+      const questFlags: Record<string, number> = {};
+      const rawFlags: unknown = record['questFlags'];
+      if (typeof rawFlags === 'object' && rawFlags !== null) {
+        for (const [flag, value] of Object.entries(rawFlags as Record<string, unknown>)) {
+          if (typeof value === 'number' && Number.isFinite(value)) {
+            questFlags[flag] = value;
+          }
+        }
+      }
+      const rawWorld: unknown = record['world'];
+      const readIds = (key: string): string[] => {
+        if (typeof rawWorld !== 'object' || rawWorld === null) {
+          return [];
+        }
+        const value: unknown = (rawWorld as Record<string, unknown>)[key];
+        return Array.isArray(value) ? value.filter((entry: unknown): entry is string => typeof entry === 'string') : [];
+      };
       return {
-        version: 2,
+        version: 3,
         checkpointChunkIndex: Math.max(0, Math.floor(record['checkpointChunkIndex'])),
         deepestChunkIndex: Math.max(0, Math.floor(record['deepestChunkIndex'])),
         playTimeSeconds: Math.max(0, record['playTimeSeconds']),
         deathCount: Math.max(0, Math.floor(record['deathCount'])),
         inventory: { hasGasMask },
+        questFlags,
+        world: { poweredPlateIds: readIds('poweredPlateIds'), solvedSequenceIds: readIds('solvedSequenceIds') },
         savedAtIso: record['savedAtIso'],
       };
     } catch {

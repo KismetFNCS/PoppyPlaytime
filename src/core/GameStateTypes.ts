@@ -1,5 +1,6 @@
 import type { SaveCheckpoint } from './PersistentStores';
 import type { DrawItem, SceneEnvironment } from '../graphics/SceneRenderer';
+import type { ThreatKind } from '../world/LevelStreamer';
 
 export enum GameStateId {
   CoreBootloader = 'CoreBootloader',
@@ -24,6 +25,8 @@ export interface GameStatePayloadMap {
     readonly survivedSeconds: number;
     readonly depthMeters: number;
     readonly cause: DeathCause;
+    /** Which threat made the kill (entity deaths only). */
+    readonly threat: ThreatKind | null;
   };
 }
 

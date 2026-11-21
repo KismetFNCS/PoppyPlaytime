@@ -10,7 +10,7 @@ import type { DrawItem } from '../graphics/SceneRenderer';
 import type { Aabb, RayHit } from '../math/Collision';
 import { aabbContainsPoint, aabbFromCenter, aabbOverlaps, rayIntersectAabb } from '../math/Collision';
 import type { Mat4 } from '../math/Mat4';
-import { mat4Compose, mat4Identity } from '../math/Mat4';
+import { mat4Compose, mat4Identity, mat4Multiply, mat4RotationX } from '../math/Mat4';
 import { SeededRandom } from '../math/Random';
 import type { Vec3 } from '../math/Vec3';
 import { clamp, smoothstep, vec3Distance, vec3Dot, vec3Normalize, vec3Subtract } from '../math/Vec3';
@@ -39,7 +39,8 @@ export type ChunkArchetype =
   | 'toxicPassage'
   | 'relayGate'
   | 'foundationChasm'
-  | 'collapsedCrawl';
+  | 'collapsedCrawl'
+  | 'breakerHall';
 
 export type TetherTargetKind = 'anchor' | 'relayPlate';
 
@@ -85,9 +86,59 @@ export interface PickupRecord {
   readonly modelMatrix: Mat4;
 }
 
+export type TriggerZoneKind =
+  | 'elevatorLanding'
+  | 'maskStation'
+  | 'toxicEntry'
+  | 'relayApproach'
+  | 'crawlApproach'
+  | 'chasmApproach'
+  | 'chasmFarSide'
+  | 'breakerHallEntry'
+  | 'checkpoint';
+
+/** Axis-aligned volume the world event system watches for player entry / exit / stay. */
+export interface TriggerZoneDefinition {
+  readonly id: string;
+  readonly kind: TriggerZoneKind;
+  readonly chunkIndex: number;
+  readonly bounds: Aabb;
+}
+
+export interface BreakerSwitchRecord {
+  readonly id: string;
+  readonly sequenceId: string;
+  readonly position: Vec3;
+  readonly normal: Vec3;
+  readonly modelMatrix: Mat4;
+}
+
+/** An ordered button puzzle: pressing `expectedOrder` within the time limit solves it. */
+export interface SwitchSequenceDefinition {
+  readonly id: string;
+  readonly chunkIndex: number;
+  readonly switchIds: readonly string[];
+  readonly expectedOrder: readonly string[];
+  readonly gateId: string;
+  readonly timeLimitSeconds: number;
+}
+
+export type ThreatKind = 'jester' | 'tallyman';
+
+export interface ThreatSpawnDefinition {
+  readonly id: string;
+  readonly kind: ThreatKind;
+  readonly chunkIndex: number;
+  readonly position: Vec3;
+  readonly patrolRoute: readonly Vec3[];
+}
+
+export type GateUnlock = { readonly kind: 'relayPlate'; readonly id: string } | { readonly kind: 'switchSequence'; readonly id: string };
+
 interface BlastGateRecord {
   readonly id: string;
   readonly baseZ: number;
+  readonly unlock: GateUnlock;
   /** 0 = closed, 1 = fully raised into the ceiling. */
   openProgress: number;
 }
@@ -116,8 +167,15 @@ interface ChunkBuildResult {
   readonly plates: readonly RelayPlateRecord[];
   readonly anchors: readonly AnchorRecord[];
   readonly pickups: readonly PickupRecord[];
+  readonly triggerZones: readonly TriggerZoneDefinition[];
+  readonly switches: readonly BreakerSwitchRecord[];
+  readonly sequences: readonly SwitchSequenceDefinition[];
+  readonly threatSpawns: readonly ThreatSpawnDefinition[];
   readonly isCheckpoint: boolean;
 }
+
+/** Read-only view of a resident chunk for systems outside the streamer (triggers, AI spawning). */
+export type LoadedChunkView = Omit<ChunkBuildResult, 'meshesByMaterial' | 'lights'>;
 
 interface LoadedChunk extends Omit<ChunkBuildResult, 'meshesByMaterial' | 'lights'> {
   readonly drawItems: readonly DrawItem[];
@@ -137,7 +195,7 @@ export function isCheckpointChunk(chunkIndex: number): boolean {
 }
 
 /** After the tutorial beats, chunks cycle through this sequence: each Phase 2 system is introduced in turn. */
-const CHALLENGE_CYCLE: readonly ChunkArchetype[] = ['toxicPassage', 'relayGate', 'collapsedCrawl', 'foundationChasm', 'standard'];
+const CHALLENGE_CYCLE: readonly ChunkArchetype[] = ['toxicPassage', 'relayGate', 'collapsedCrawl', 'foundationChasm', 'breakerHall', 'standard'];
 
 /** Fixed authoring rhythm: tutorial beats first, then the repeating five-chunk challenge cycle. */
 export function archetypeForChunk(chunkIndex: number): ChunkArchetype {
@@ -206,6 +264,22 @@ export class LevelChunkBuilder {
     const plates: RelayPlateRecord[] = [];
     const anchors: AnchorRecord[] = [];
     const pickups: PickupRecord[] = [];
+    const triggerZones: TriggerZoneDefinition[] = [];
+    const switches: BreakerSwitchRecord[] = [];
+    const sequences: SwitchSequenceDefinition[] = [];
+    const threatSpawns: ThreatSpawnDefinition[] = [];
+    const zone = (kind: TriggerZoneKind, minimumZ: number, maximumZ: number, minimumX: number = -halfWidth, maximumX: number = halfWidth): void => {
+      triggerZones.push({ id: `zone.${kind}.${chunkIndex}`, kind, chunkIndex, bounds: { minimum: [minimumX, -1, minimumZ], maximum: [maximumX, height, maximumZ] } });
+    };
+    const patrolLoop = (spawnId: string, kind: ThreatKind): void => {
+      const route: Vec3[] = [
+        [-1.6, 0, startZ - 2],
+        [1.6, 0, startZ - 2],
+        [1.6, 0, endZ + 2],
+        [-1.6, 0, endZ + 2],
+      ];
+      threatSpawns.push({ id: spawnId, kind, chunkIndex, position: route[2] as Vec3, patrolRoute: route });
+    };
     const fullWidth: number = halfWidth * 2 + thickness * 2;
     const isChasm: boolean = archetype === 'foundationChasm';
     const wallBottom: number = isChasm ? CORRIDOR_DIMENSIONS.chasmFloorHeight : 0;
@@ -290,11 +364,13 @@ export class LevelChunkBuilder {
           pickups.push({ id: pickupId, kind: 'gasMask', position: pickupPosition, modelMatrix: mat4Compose([pickupPosition[0], pickupPosition[1] + 0.06, pickupPosition[2]], [-Math.PI / 2 + 0.2, -Math.PI / 2, 0], [1.15, 1.15, 1.15]) });
         }
         lights.push({ position: [1.6, 2.4, centerZ + 0.4], color: LIGHT_PALETTE.sodiumAmber, intensity: 3.2, range: 5, behavior: { kind: 'steady' } });
+        zone('maskStation', centerZ - 2.5, centerZ + 2.5, 0, halfWidth);
         break;
       }
       case 'toxicPassage': {
         const zoneBounds: Aabb = { minimum: [-halfWidth, 0, endZ + 0.6], maximum: [halfWidth, height, startZ - 0.6] };
         toxicZones.push({ bounds: zoneBounds, concentration: random.range(0.75, 1) });
+        zone('toxicEntry', endZ + 0.6, startZ - 0.6);
         for (const offset of [-3.2, 3.2]) {
           const hazardZ: number = centerZ + offset;
           place('lamp_housing_toxic', createBoxMesh(0.6, 0.1, 0.25), [0, height - 0.06, hazardZ]);
@@ -310,7 +386,7 @@ export class LevelChunkBuilder {
       case 'relayGate': {
         const gateId: string = `gate.${chunkIndex}`;
         const gateZ: number = centerZ - 1;
-        gates.push({ id: gateId, baseZ: gateZ, openProgress: 0 });
+        gates.push({ id: gateId, baseZ: gateZ, openProgress: 0, unlock: { kind: 'relayPlate', id: `plate.${chunkIndex}` } });
         const plateSide: number = random.chance(0.5) ? -1 : 1;
         const plateZ: number = centerZ + 3;
         const plateY = 1.7;
@@ -330,6 +406,7 @@ export class LevelChunkBuilder {
           attachNormal: plateNormal,
           preferredRopeLength: null,
         });
+        zone('relayApproach', gateZ + 0.4, startZ - 0.6);
         // Gate frame and a warning light keyed to the plate colour.
         place('rusted_steel', createBoxMesh(halfWidth * 2, 0.5, 0.7), [0, height - 0.25, gateZ]);
         lights.push({
@@ -357,6 +434,8 @@ export class LevelChunkBuilder {
           preferredRopeLength: anchorCenter[1] - SWING_FLOOR_CLEARANCE - SWING_SHOULDER_HEIGHT,
         });
         lights.push({ position: [anchorCenter[0], anchorCenter[1] - 0.3, anchorCenter[2]], color: LIGHT_PALETTE.serviceBlue, intensity: 3.5, range: 7, behavior: { kind: 'steady' } });
+        zone('chasmApproach', startZ - CHASM_GAP_START_OFFSET, startZ - 0.6);
+        zone('chasmFarSide', endZ + 0.4, startZ - CHASM_GAP_END_OFFSET);
         break;
       }
       case 'collapsedCrawl': {
@@ -368,8 +447,56 @@ export class LevelChunkBuilder {
           place('rusted_steel', createCylinderMesh(0.02, 0.02, 1.4, 6), [side * 1.2, slabBottom - 0.3, centerZ + side], [0.8, 0, side * 0.6]);
         }
         lights.push({ position: [0, 0.6, centerZ], color: LIGHT_PALETTE.emergencyRed, intensity: 2.2, range: 5, behavior: { kind: 'flicker', rateHertz: 11, dropoutChance: 0.2 } });
+        zone('crawlApproach', centerZ + CRAWL_HALF_LENGTH, startZ - 0.6);
         break;
       }
+      case 'breakerHall': {
+        // Three breaker switches; indicator lamps above them blink the correct order in a loop.
+        const sequenceId: string = `sequence.${chunkIndex}`;
+        const gateId: string = `gate.${chunkIndex}`;
+        const gateZ: number = endZ + 2.2;
+        gates.push({ id: gateId, baseZ: gateZ, openProgress: 0, unlock: { kind: 'switchSequence', id: sequenceId } });
+        place('rusted_steel', createBoxMesh(halfWidth * 2, 0.5, 0.7), [0, height - 0.25, gateZ]);
+        const placements: ReadonlyArray<{ side: number; z: number }> = [
+          { side: -1, z: startZ - 3 },
+          { side: 1, z: centerZ },
+          { side: -1, z: centerZ - 2.6 },
+        ];
+        const switchIds: string[] = placements.map((placement, slot: number) => {
+          const switchId: string = `switch.${chunkIndex}.${slot}`;
+          const position: Vec3 = [placement.side * halfWidth, 1.35, placement.z];
+          switches.push({
+            id: switchId,
+            sequenceId,
+            position: [position[0] - placement.side * 0.18, position[1], position[2]],
+            normal: [-placement.side, 0, 0],
+            modelMatrix: mat4Compose(position, [0, placement.side > 0 ? -Math.PI / 2 : Math.PI / 2, 0], [1, 1, 1]),
+          });
+          return switchId;
+        });
+        // Fisher–Yates shuffle with the chunk RNG gives a deterministic per-chunk solution.
+        const expectedOrder: string[] = [...switchIds];
+        for (let index = expectedOrder.length - 1; index > 0; index -= 1) {
+          const swapIndex: number = random.integer(0, index);
+          const held: string = expectedOrder[index] as string;
+          expectedOrder[index] = expectedOrder[swapIndex] as string;
+          expectedOrder[swapIndex] = held;
+        }
+        sequences.push({ id: sequenceId, chunkIndex, switchIds, expectedOrder, gateId, timeLimitSeconds: 20 });
+        lights.push({ position: [0, 2.8, centerZ], color: LIGHT_PALETTE.toxicGreen, intensity: 2.6, range: 8, behavior: { kind: 'pulse', frequencyHertz: 0.5, depth: 0.4 } });
+        zone('breakerHallEntry', gateZ + 0.4, startZ - 0.6);
+        patrolLoop(`threat.tallyman.${chunkIndex}`, 'tallyman');
+        break;
+      }
+    }
+    if (archetype === 'standard' && chunkIndex >= 14 && chunkIndex % 2 === 0) {
+      patrolLoop(`threat.tallyman.${chunkIndex}`, 'tallyman');
+    }
+    if (chunkIndex === 0) {
+      zone('elevatorLanding', startZ - 4, startZ);
+    }
+    if (isCheckpoint && chunkIndex > 0) {
+      zone('checkpoint', startZ - 2, startZ);
     }
 
     // ---- Shared dressing ---------------------------------------------------------------------------------------
@@ -402,7 +529,24 @@ export class LevelChunkBuilder {
         meshesByMaterial.set(materialId, builder.build());
       }
     }
-    return { chunkIndex, archetype, meshesByMaterial, lights, colliders, targets, toxicZones, gates, plates, anchors, pickups, isCheckpoint };
+    return {
+      chunkIndex,
+      archetype,
+      meshesByMaterial,
+      lights,
+      colliders,
+      targets,
+      toxicZones,
+      gates,
+      plates,
+      anchors,
+      pickups,
+      triggerZones,
+      switches,
+      sequences,
+      threatSpawns,
+      isCheckpoint,
+    };
   }
 }
 
@@ -416,6 +560,15 @@ export class LevelStreamer {
   /** Survive chunk unload/reload for the whole session. */
   private readonly poweredPlateIds: Set<string> = new Set();
   private readonly collectedPickupIds: Set<string> = new Set();
+  private readonly solvedSequenceIds: Set<string> = new Set();
+  /** Switches currently thrown down (visual + puzzle input state, owned by the world event system). */
+  private readonly switchesDown: Set<string> = new Set();
+  private readonly fullyOpenGateIds: Set<string> = new Set();
+  /**
+   * Increments whenever walkable topology changes (chunk load/unload, a gate finishing its rise),
+   * so navigation graphs know to rebuild.
+   */
+  public topologyVersion: number = 0;
   public chunksBehind: number = 2;
   public chunksAhead: number = 3;
   public buildBudgetPerFrame: number = 1;
@@ -454,9 +607,9 @@ export class LevelStreamer {
     }
     const lights: PointLight[] = result.lights.map((descriptor: PointLightDescriptor) => this.lighting.add(descriptor));
     for (const gate of result.gates) {
-      const plate: RelayPlateRecord | undefined = result.plates.find((candidate: RelayPlateRecord) => candidate.linkedGateId === gate.id);
-      if (plate !== undefined && this.poweredPlateIds.has(plate.id)) {
+      if (this.isGateUnlocked(gate)) {
         gate.openProgress = 1;
+        this.fullyOpenGateIds.add(gate.id);
       }
     }
     this.chunks.set(chunkIndex, {
@@ -471,8 +624,17 @@ export class LevelStreamer {
       plates: result.plates,
       anchors: result.anchors,
       pickups: [...result.pickups],
+      triggerZones: result.triggerZones,
+      switches: result.switches,
+      sequences: result.sequences,
+      threatSpawns: result.threatSpawns,
       isCheckpoint: result.isCheckpoint,
     });
+    this.topologyVersion += 1;
+  }
+
+  private isGateUnlocked(gate: BlastGateRecord): boolean {
+    return gate.unlock.kind === 'relayPlate' ? this.poweredPlateIds.has(gate.unlock.id) : this.solvedSequenceIds.has(gate.unlock.id);
   }
 
   private unload(chunkIndex: number): void {
@@ -487,6 +649,7 @@ export class LevelStreamer {
       this.lighting.remove(light.handle);
     }
     this.chunks.delete(chunkIndex);
+    this.topologyVersion += 1;
   }
 
   public primeAround(focusChunk: number): void {
@@ -517,10 +680,12 @@ export class LevelStreamer {
     }
     for (const chunk of this.chunks.values()) {
       for (const gate of chunk.gates) {
-        const plate: RelayPlateRecord | undefined = chunk.plates.find((candidate: RelayPlateRecord) => candidate.linkedGateId === gate.id);
-        const shouldOpen: boolean = plate !== undefined && this.poweredPlateIds.has(plate.id);
-        if (shouldOpen && gate.openProgress < 1) {
+        if (this.isGateUnlocked(gate) && gate.openProgress < 1) {
           gate.openProgress = Math.min(1, gate.openProgress + deltaSeconds / GATE_OPEN_SECONDS);
+          if (gate.openProgress >= 1 && !this.fullyOpenGateIds.has(gate.id)) {
+            this.fullyOpenGateIds.add(gate.id);
+            this.topologyVersion += 1;
+          }
         }
       }
     }
@@ -728,6 +893,107 @@ export class LevelStreamer {
     return nearby.some((box: Aabb) => aabbContainsPoint(box, point));
   }
 
+  // ---- Triggers, switches, sequences, threats ------------------------------------------------------------------
+
+  public forEachLoadedChunk(visitor: (chunk: Readonly<LoadedChunkView>) => void): void {
+    for (const chunk of this.chunks.values()) {
+      visitor(chunk);
+    }
+  }
+
+  public findSequence(sequenceId: string): SwitchSequenceDefinition | null {
+    for (const chunk of this.chunks.values()) {
+      const found: SwitchSequenceDefinition | undefined = chunk.sequences.find((sequence: SwitchSequenceDefinition) => sequence.id === sequenceId);
+      if (found !== undefined) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  /** Breaker switch the viewer is aiming at within reach (cone of ~15 degrees). */
+  public findSwitchInView(viewOrigin: Readonly<Vec3>, viewDirection: Readonly<Vec3>, reach: number): BreakerSwitchRecord | null {
+    let best: BreakerSwitchRecord | null = null;
+    let bestAlignment: number = Math.cos((15 * Math.PI) / 180);
+    for (const chunk of this.chunks.values()) {
+      for (const record of chunk.switches) {
+        const toSwitch: Vec3 = vec3Subtract(record.position, viewOrigin);
+        if (Math.hypot(toSwitch[0], toSwitch[1], toSwitch[2]) > reach) {
+          continue;
+        }
+        const alignment: number = vec3Dot(vec3Normalize(toSwitch), viewDirection);
+        if (alignment > bestAlignment) {
+          bestAlignment = alignment;
+          best = record;
+        }
+      }
+    }
+    return best;
+  }
+
+  public setSwitchDown(switchId: string, isDown: boolean): void {
+    if (isDown) {
+      this.switchesDown.add(switchId);
+    } else {
+      this.switchesDown.delete(switchId);
+    }
+  }
+
+  public isSwitchDown(switchId: string): boolean {
+    return this.switchesDown.has(switchId);
+  }
+
+  public isSequenceSolved(sequenceId: string): boolean {
+    return this.solvedSequenceIds.has(sequenceId);
+  }
+
+  /** Marks a switch sequence solved (idempotent); its gate starts rising on the next update. */
+  public solveSequence(sequenceId: string): boolean {
+    if (this.solvedSequenceIds.has(sequenceId)) {
+      return false;
+    }
+    this.solvedSequenceIds.add(sequenceId);
+    return true;
+  }
+
+  /** Restores session puzzle state (e.g. from quest flags on respawn). */
+  public restoreSolvedState(poweredPlateIds: readonly string[], solvedSequenceIds: readonly string[]): void {
+    for (const plateId of poweredPlateIds) {
+      this.poweredPlateIds.add(plateId);
+    }
+    for (const sequenceId of solvedSequenceIds) {
+      this.solvedSequenceIds.add(sequenceId);
+    }
+  }
+
+  public get poweredPlates(): readonly string[] {
+    return [...this.poweredPlateIds];
+  }
+
+  public get solvedSequences(): readonly string[] {
+    return [...this.solvedSequenceIds];
+  }
+
+  // ---- Navigation queries --------------------------------------------------------------------------------------
+
+  /** True when solid floor exists under (x, z) within `maximumDrop` metres below `y`. */
+  public hasFloorAt(x: number, z: number, y: number = 0, maximumDrop: number = 0.6): boolean {
+    const hits: Aabb[] = [];
+    this.queryColliders({ minimum: [x - 0.05, y - maximumDrop, z - 0.05], maximum: [x + 0.05, y + 0.05, z + 0.05] }, hits);
+    return hits.some((box: Aabb) => box.maximum[1] <= y + 0.05 && box.maximum[1] >= y - maximumDrop);
+  }
+
+  /** Free vertical clearance above the floor at (x, z), up to the corridor ceiling. */
+  public clearanceAt(x: number, z: number): number {
+    const hits: Aabb[] = [];
+    this.queryColliders({ minimum: [x - 0.05, 0.1, z - 0.05], maximum: [x + 0.05, CORRIDOR_DIMENSIONS.height, z + 0.05] }, hits);
+    let clearance: number = CORRIDOR_DIMENSIONS.height;
+    for (const box of hits) {
+      clearance = Math.min(clearance, Math.max(0, box.minimum[1]));
+    }
+    return clearance;
+  }
+
   // ---- Rendering --------------------------------------------------------------------------------------------------
 
   public collectDrawItems(output: DrawItem[], timeSeconds: number = 0): void {
@@ -747,6 +1013,27 @@ export class LevelStreamer {
         const powered: boolean = this.poweredPlateIds.has(plate.id);
         const idlePulse: number = 0.18 + 0.12 * Math.sin(timeSeconds * 3);
         pushModel(plate.polarity === 'amber' ? 'relay_plate_amber' : 'relay_plate_violet', plate.modelMatrix, powered ? 1.6 : idlePulse);
+      }
+      for (const sequence of chunk.sequences) {
+        const solved: boolean = this.solvedSequenceIds.has(sequence.id);
+        // Hint display: each expected switch's lamp lights for 0.6 s in order, then a 1.2 s dark gap.
+        const slotSeconds = 0.6;
+        const cycleSeconds: number = sequence.expectedOrder.length * slotSeconds + 1.2;
+        const phase: number = timeSeconds % cycleSeconds;
+        const hintIndex: number = Math.floor(phase / slotSeconds);
+        for (const record of chunk.switches.filter((candidate: BreakerSwitchRecord) => candidate.sequenceId === sequence.id)) {
+          const isDown: boolean = this.switchesDown.has(record.id) || solved;
+          const hintLit: boolean = !solved && sequence.expectedOrder[hintIndex] === record.id;
+          for (const part of this.meshes.get('breaker_switch').parts) {
+            let matrix: Mat4 = record.modelMatrix;
+            if (part.partId === 'lever') {
+              // Lever pivots about local X: up = −0.6 rad, thrown down = +2.3 rad.
+              matrix = mat4Multiply(record.modelMatrix, mat4RotationX(isDown ? 2.3 : -0.6));
+            }
+            const boost: number = part.partId === 'indicator' ? (solved ? 1.4 : hintLit ? 2.2 : isDown ? 0.9 : 0.08) : 1;
+            output.push({ mesh: part.gpuMesh, materialId: part.materialId, modelMatrix: matrix, emissiveBoost: boost });
+          }
+        }
       }
       for (const anchor of chunk.anchors) {
         pushModel('ceiling_anchor', anchor.modelMatrix, 0.7 + 0.3 * Math.sin(timeSeconds * 2.2));

@@ -1,4 +1,13 @@
+import type { ManagedThreat, ThreatEventMap } from '../ai/ThreatDirector';
+import { ThreatDirector } from '../ai/ThreatDirector';
+import type { NoiseSource, PlayerSignature } from '../ai/Perception';
+import { lightExposureFromIlluminance } from '../ai/Perception';
+import type { CameraPose } from '../cinematics/CinematicDirector';
+import { CinematicDirector } from '../cinematics/CinematicDirector';
+import { CINEMATIC_LIBRARY } from '../cinematics/CinematicLibrary';
+import type { CinematicHookId, CinematicId } from '../cinematics/CinematicTimeline';
 import { LIGHT_PALETTE, UI_COLORS, UI_FONTS, VIRTUAL_RESOLUTION } from '../config/GameConstants';
+import type { SpatialCueId } from '../core/AudioManager';
 import type { GameServices } from '../core/GameServices';
 import type { DeathCause, FrameContext, FrameRenderRequest, GameStateHandler, GameStatePayloadMap } from '../core/GameStateTypes';
 import { GameStateId } from '../core/GameStateTypes';
@@ -8,16 +17,18 @@ import type { MotorIntent, MotorStepReport } from '../gameplay/CharacterMotor';
 import { CharacterMotor } from '../gameplay/CharacterMotor';
 import type { GasMaskFrameReport } from '../gameplay/GasMaskSystem';
 import { GasMaskSystem } from '../gameplay/GasMaskSystem';
+import { LEVEL_TRIGGER_RULES } from '../gameplay/LevelRules';
 import { RelayPlateNetwork } from '../gameplay/RelayPlateNetwork';
 import type { ClawSide, ClawState, TetherControlInput, TetherEventMap } from '../gameplay/TetherRig';
 import { TetherRig } from '../gameplay/TetherRig';
 import { TypedEventBus } from '../gameplay/TypedEventBus';
+import type { QuestFlagId, ToastTone, TriggerActionHost } from '../gameplay/WorldEventSystem';
+import { WorldEventSystem } from '../gameplay/WorldEventSystem';
 import type { SceneEnvironment } from '../graphics/SceneRenderer';
 import type { Vec3 } from '../math/Vec3';
 import { clamp, smoothstep, vec3Add } from '../math/Vec3';
 import { GasMaskOverlay } from '../ui/GasMaskOverlay';
-import { JesterEntity } from '../world/JesterEntity';
-import type { PickupRecord, Polarity, ToxicZone, WorldRayHit } from '../world/LevelStreamer';
+import type { BreakerSwitchRecord, PickupRecord, Polarity, ThreatKind, ToxicZone, WorldRayHit } from '../world/LevelStreamer';
 import { CORRIDOR_DIMENSIONS, LevelStreamer, chunkIndexAtZ, chunkStartZ } from '../world/LevelStreamer';
 import type { MenuBackdropScene } from '../world/MenuBackdropScene';
 
@@ -36,6 +47,8 @@ const PITCH_LIMIT_RADIANS: number = 1.35;
 const LANDING_SPRING_STIFFNESS: number = 140;
 const LANDING_SPRING_DAMPING: number = 16;
 const POLARITY_COLORS: Readonly<Record<Polarity, string>> = { amber: '#ffa22e', violet: '#a54dff' };
+const TOAST_COLORS: Readonly<Record<ToastTone, string>> = { info: UI_COLORS.textPrimary, success: '#8fd18a', warning: '#e9c46a', danger: UI_COLORS.accentRed };
+const LETTERBOX_HEIGHT: number = 96;
 
 interface HudToast {
   text: string;
@@ -51,16 +64,24 @@ interface AimInfo {
   distance: number;
 }
 
+interface PendingDeath {
+  readonly cause: DeathCause;
+  readonly threat: ThreatKind | null;
+}
+
 /**
- * Active Level Streamer: physics-driven first-person play in the streamed corridor with the Tether Rig,
- * relay-plate gates, the gas mask / toxicity survival loop and the stalking Jester Entity.
+ * Active Level Streamer: physics-driven first-person play in the streamed corridor, with the Tether Rig,
+ * gas mask survival loop, AI threats (ThreatDirector), the world event / quest-flag matrix and the
+ * cinematic driver for reveals, transitions and in-world jumpscares.
  */
-export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.ActiveLevelStreamer> {
+export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.ActiveLevelStreamer>, TriggerActionHost {
   public readonly id = GameStateId.ActiveLevelStreamer;
   private streamer: LevelStreamer | null = null;
-  private jester: JesterEntity | null = null;
   private rig: TetherRig | null = null;
   private relayNetwork: RelayPlateNetwork | null = null;
+  private threats: ThreatDirector | null = null;
+  private worldEvents: WorldEventSystem | null = null;
+  private readonly cinematics: CinematicDirector = new CinematicDirector();
   private readonly tetherEvents: TypedEventBus<TetherEventMap> = new TypedEventBus();
   private readonly motor: CharacterMotor = new CharacterMotor();
   private readonly gasMask: GasMaskSystem = new GasMaskSystem();
@@ -75,6 +96,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private dread: number = 0;
   private objectiveOpacity: number = 0;
   private toast: HudToast | null = null;
+  private pendingDeath: PendingDeath | null = null;
   private deathRequested: boolean = false;
   private bobPhase: number = 0;
   private lastFootstepPhase: number = 0;
@@ -82,7 +104,9 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private landingDipVelocity: number = 0;
   private aim: AimInfo = { kind: 'none', polarity: null, distance: 0 };
   private pickupInView: PickupRecord | null = null;
+  private switchInView: BreakerSwitchRecord | null = null;
   private meterFlash: number = 0;
+  private letterbox: number = 0;
 
   public constructor(private readonly services: GameServices, private readonly backdrop: MenuBackdropScene) {}
 
@@ -100,6 +124,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (payload.checkpoint.inventory.hasGasMask) {
       streamer.markPickupCollected(MASK_STATION_PICKUP_ID);
     }
+    streamer.restoreSolvedState(payload.checkpoint.world.poweredPlateIds, payload.checkpoint.world.solvedSequenceIds);
     const spawnChunk: number = payload.checkpoint.checkpointChunkIndex;
     streamer.primeAround(spawnChunk);
     this.streamer = streamer;
@@ -113,25 +138,35 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     const rig = new TetherRig(services.gl, services.meshes, this.tetherEvents);
     this.rig = rig;
     this.relayNetwork = new RelayPlateNetwork(this.tetherEvents, streamer, rig);
-    this.subscribeTetherFeedback();
-
-    const jester = new JesterEntity(services.meshes);
-    jester.mode = 'dormant';
-    this.jester = jester;
-    services.lighting.disturbances.push(jester.disturbance);
+    this.threats = new ThreatDirector(services.meshes, services.lighting, streamer, services.audio);
+    const worldEvents = new WorldEventSystem(streamer, this, LEVEL_TRIGGER_RULES);
+    worldEvents.restoreFlags(payload.checkpoint.questFlags as Partial<Record<QuestFlagId, number>>);
+    this.worldEvents = worldEvents;
+    this.subscribeFeedback();
 
     this.sessionSeconds = 0;
     this.dread = 0;
     this.objectiveOpacity = 0;
+    this.pendingDeath = null;
     this.deathRequested = false;
     this.bobPhase = 0;
     this.lastFootstepPhase = 0;
     this.landingDip = 0;
     this.landingDipVelocity = 0;
     this.meterFlash = 0;
-    this.showToast(payload.mode === 'retry' ? 'RESUMING FROM LAST CHECKPOINT' : payload.mode === 'continue' ? 'SHIFT RECORD RESTORED' : 'FOLLOW THE LIGHTS DOWN', 4);
+    this.letterbox = 0;
+    this.cinematics.stop();
     services.audio.startAmbientDrone();
     services.audio.setMaskAudioMix(0);
+    this.placeCamera(0);
+
+    if (payload.mode === 'newGame' && worldEvents.flag('elevatorIntroSeen') < 1) {
+      worldEvents.setFlag('elevatorIntroSeen', 1);
+      this.playCinematic('elevatorArrival');
+      this.showToast('FOLLOW THE LIGHTS DOWN', 4, 'info');
+    } else {
+      this.showToast(payload.mode === 'retry' ? 'RESUMING FROM LAST CHECKPOINT' : 'SHIFT RECORD RESTORED', 3.5, 'info');
+    }
   }
 
   public exit(): void {
@@ -139,6 +174,11 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       unsubscribe();
     }
     this.eventUnsubscribers.length = 0;
+    this.cinematics.stop();
+    this.worldEvents?.dispose();
+    this.worldEvents = null;
+    this.threats?.dispose();
+    this.threats = null;
     this.relayNetwork?.dispose();
     this.relayNetwork = null;
     this.rig?.dispose();
@@ -147,39 +187,167 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.services.input.releasePointerLock();
     this.streamer?.dispose();
     this.streamer = null;
-    this.jester = null;
     this.services.lighting.clear();
     this.services.audio.setDreadLevel(0);
     this.services.audio.setMaskAudioMix(0);
+    this.services.audio.overrideListener(null);
+    this.services.audio.setCinematicDuck(0);
   }
 
-  private subscribeTetherFeedback(): void {
+  /** Wires tether, relay and threat events into audio, noise, toasts and the world event matrix. */
+  private subscribeFeedback(): void {
     const audio = this.services.audio;
     const bus: TypedEventBus<TetherEventMap> = this.tetherEvents;
+    const threats: ThreatDirector = this.threats as ThreatDirector;
+    const worldEvents: WorldEventSystem = this.worldEvents as WorldEventSystem;
     this.eventUnsubscribers.push(
-      bus.on('clawFired', () => audio.playTetherFire()),
+      bus.on('clawFired', (event: TetherEventMap['clawFired']) => {
+        audio.playTetherFire();
+        threats.emitNoise('tetherFire', event.origin);
+      }),
       bus.on('clawLatched', (event: TetherEventMap['clawLatched']) => {
         audio.playTetherLatch();
+        threats.emitNoise('tetherImpact', event.point, 0.7);
         if (event.target.kind === 'anchor') {
-          this.showToast('ANCHORED · HOLD TO SWING · SPACE / WHEEL TO REEL', 2.2);
+          this.showToast('ANCHORED · HOLD TO SWING · SPACE / WHEEL TO REEL', 2.2, 'info');
         }
       }),
-      bus.on('clawDeflected', () => audio.playTetherClank()),
+      bus.on('clawDeflected', (event: TetherEventMap['clawDeflected']) => {
+        audio.playTetherClank();
+        threats.emitNoise('tetherImpact', event.point);
+      }),
       bus.on('clawRangeLimit', () => audio.playTetherRetract()),
       bus.on('clawRetracted', () => audio.playTetherRetract()),
       bus.on('plateActivated', (event: TetherEventMap['plateActivated']) => {
         audio.playRelayAccepted();
-        this.showToast(`${event.polarity.toUpperCase()} RELAY ENGAGED · GATE OPENING`, 3, POLARITY_COLORS[event.polarity]);
+        this.showToast(`${event.polarity.toUpperCase()} RELAY ENGAGED · GATE OPENING`, 3, 'success', POLARITY_COLORS[event.polarity]);
+        worldEvents.notify('relayPowered', { plateId: event.plateId, position: this.playerPosition() });
       }),
       bus.on('plateRejected', (event: TetherEventMap['plateRejected']) => {
         audio.playRelayRejected();
-        this.showToast(`POLARITY MISMATCH · PLATE REQUIRES ${event.platePolarity.toUpperCase()}`, 2.6, UI_COLORS.accentRed);
+        this.showToast(`POLARITY MISMATCH · PLATE REQUIRES ${event.platePolarity.toUpperCase()}`, 2.6, 'danger');
+        worldEvents.notify('polarityRejected', { plateId: event.plateId, position: this.playerPosition() });
+      }),
+      threats.events.on('threatSpotted', (event: ThreatEventMap['threatSpotted']) => {
+        worldEvents.notify('threatSpotted', { kind: event.kind, position: event.position });
+      }),
+      threats.events.on('playerCaught', (event: ThreatEventMap['playerCaught']) => {
+        this.beginLethalCinematic(event.kind === 'tallyman' ? 'tallymanJumpscare' : 'jesterJumpscare', { cause: 'entity', threat: event.kind }, threats.threat(event.id));
       }),
     );
   }
 
-  private showToast(text: string, seconds: number, color: string = UI_COLORS.textPrimary): void {
-    this.toast = { text, remainingSeconds: seconds, color };
+  // ---- TriggerActionHost -------------------------------------------------------------------------------------------
+
+  public playerPosition(): Vec3 {
+    return [this.motor.position[0], this.motor.position[1], this.motor.position[2]];
+  }
+
+  public showToast(text: string, seconds: number, tone: ToastTone, colorOverride: string | null = null): void {
+    this.toast = { text, remainingSeconds: seconds, color: colorOverride ?? TOAST_COLORS[tone] };
+  }
+
+  public playCinematic(cinematicId: CinematicId): void {
+    if (this.cinematics.ownsCamera || this.deathRequested) {
+      return;
+    }
+    const actorThreat: ManagedThreat | null = cinematicId === 'jesterReveal' ? (this.threats?.threat('threat.jester.primary') ?? null) : null;
+    this.startCinematic(cinematicId, actorThreat, () => undefined);
+  }
+
+  public emitNoise(source: NoiseSource, position: Vec3, loudness: number): void {
+    this.threats?.emitNoise(source, position, loudness);
+  }
+
+  public playSpatialCue(cue: SpatialCueId, position: Vec3, intensity: number): void {
+    this.services.audio.playSpatialCue(cue, position, intensity);
+  }
+
+  public saveCheckpoint(): void {
+    this.commitCheckpoint(this.buildCheckpoint({}));
+  }
+
+  // ---- Cinematics --------------------------------------------------------------------------------------------------
+
+  private handleCinematicHook(hook: CinematicHookId): void {
+    const services: GameServices = this.services;
+    switch (hook) {
+      case 'lightsDip':
+        services.lighting.globalIntensityScale = 0.12;
+        break;
+      case 'lightsRestore':
+        services.lighting.globalIntensityScale = 1;
+        break;
+      case 'stopAmbient':
+        services.audio.stopAmbientDrone(0.1);
+        break;
+      case 'resumeAmbient':
+        services.audio.startAmbientDrone();
+        break;
+      case 'choke':
+        services.audio.playChoke();
+        break;
+      case 'doorsOpen':
+        services.audio.playSpatialCue('breakerClunk', [this.motor.position[0], 1.5, this.motor.position[2] + 0.4], 1.2);
+        break;
+      case 'blackout':
+        this.finalizeDeath();
+        break;
+    }
+  }
+
+  private startCinematic(cinematicId: CinematicId, actorThreat: ManagedThreat | null, onComplete: () => void): void {
+    const services: GameServices = this.services;
+    if (actorThreat !== null && this.threats !== null) {
+      // The cinematic owns the actor's pose for its duration.
+      this.threats.suppressed = true;
+    }
+    this.cinematics.play(CINEMATIC_LIBRARY[cinematicId], {
+      camera: services.camera,
+      actor: actorThreat?.view ?? null,
+      audio: services.audio,
+      post: services.postParameters,
+      gameplayPose: () => this.computeGameplayPose(),
+      onHook: (hook: CinematicHookId) => this.handleCinematicHook(hook),
+      onComplete: () => {
+        services.lighting.globalIntensityScale = 1;
+        if (this.threats !== null && this.pendingDeath === null) {
+          this.threats.suppressed = false;
+        }
+        onComplete();
+      },
+    });
+  }
+
+  /** Lethal outcome: take over the camera in-world, then cut to the death state on the blackout hook. */
+  private beginLethalCinematic(cinematicId: CinematicId, death: PendingDeath, actorThreat: ManagedThreat | null): void {
+    if (this.pendingDeath !== null || this.deathRequested) {
+      return;
+    }
+    this.pendingDeath = death;
+    this.services.input.releasePointerLock();
+    this.rig?.reset();
+    if (this.threats !== null) {
+      this.threats.suppressed = true;
+    }
+    this.startCinematic(cinematicId, actorThreat, () => this.finalizeDeath());
+  }
+
+  private finalizeDeath(): void {
+    const death: PendingDeath | null = this.pendingDeath;
+    if (death === null || this.deathRequested || this.checkpoint === null) {
+      return;
+    }
+    this.deathRequested = true;
+    const deathCheckpoint: SaveCheckpoint = this.buildCheckpoint({ deathCount: this.checkpoint.deathCount + 1 });
+    this.services.save.write(deathCheckpoint);
+    this.services.lifecycle.requestTransition(
+      {
+        target: GameStateId.JumpscareDeathSequence,
+        payload: { checkpoint: deathCheckpoint, survivedSeconds: this.sessionSeconds, depthMeters: this.depthMeters, cause: death.cause, threat: death.threat },
+      },
+      'cut',
+    );
   }
 
   // ---- Save helpers -----------------------------------------------------------------------------------------------
@@ -191,12 +359,17 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private buildCheckpoint(overrides: Partial<Pick<SaveCheckpoint, 'checkpointChunkIndex' | 'deathCount'>>): SaveCheckpoint {
     const previous: SaveCheckpoint = this.checkpoint as SaveCheckpoint;
     return {
-      version: 2,
+      version: 3,
       checkpointChunkIndex: overrides.checkpointChunkIndex ?? previous.checkpointChunkIndex,
       deepestChunkIndex: Math.max(previous.deepestChunkIndex, this.currentChunk),
       playTimeSeconds: Math.round((previous.playTimeSeconds + this.sessionSeconds) * 100) / 100,
       deathCount: overrides.deathCount ?? previous.deathCount,
       inventory: { hasGasMask: this.gasMask.isAvailable },
+      questFlags: this.worldEvents?.flagSnapshot ?? previous.questFlags,
+      world: {
+        poweredPlateIds: this.streamer?.poweredPlates ?? previous.world.poweredPlateIds,
+        solvedSequenceIds: this.streamer?.solvedSequences ?? previous.world.solvedSequenceIds,
+      },
       savedAtIso: new Date().toISOString(),
     };
   }
@@ -210,36 +383,8 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private recordCheckpoint(chunkIndex: number): void {
     this.commitCheckpoint(this.buildCheckpoint({ checkpointChunkIndex: chunkIndex }));
     this.services.audio.playCheckpointChime();
-    this.showToast('PROGRESS RECORDED', 2.8);
-  }
-
-  private requestDeath(cause: DeathCause): void {
-    if (this.deathRequested || this.checkpoint === null) {
-      return;
-    }
-    this.deathRequested = true;
-    const deathCheckpoint: SaveCheckpoint = this.buildCheckpoint({ deathCount: this.checkpoint.deathCount + 1 });
-    this.services.save.write(deathCheckpoint);
-    this.services.lifecycle.requestTransition(
-      {
-        target: GameStateId.JumpscareDeathSequence,
-        payload: { checkpoint: deathCheckpoint, survivedSeconds: this.sessionSeconds, depthMeters: this.depthMeters, cause },
-      },
-      'cut',
-    );
-  }
-
-  private awakenJester(): void {
-    const jester: JesterEntity | null = this.jester;
-    if (jester === null) {
-      return;
-    }
-    jester.position = [0, 0, Math.min(chunkStartZ(0) - 1, this.motor.position[2] + ENTITY_SPAWN_BEHIND_METERS)];
-    jester.mode = 'stalking';
-    this.services.lighting.globalIntensityScale = 0.15;
-    window.setTimeout(() => (this.services.lighting.globalIntensityScale = 1), 450);
-    this.services.audio.playUiCue('denied');
-    this.showToast('SOMETHING IS FOLLOWING YOU', 3, UI_COLORS.accentRed);
+    this.showToast('PROGRESS RECORDED', 2.8, 'success');
+    this.playCinematic('checkpointDescent');
   }
 
   // ---- Input mapping -------------------------------------------------------------------------------------------
@@ -294,29 +439,37 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
   // ---- Camera ------------------------------------------------------------------------------------------------------
 
-  private placeCamera(deltaSeconds: number): void {
-    const camera = this.services.camera;
+  /** Gameplay camera pose from the motor, head bob, landing spring and swing roll (does not touch the camera). */
+  private computeGameplayPose(): CameraPose {
     const settings = this.services.settings.values;
-    // Landing dip spring integration (semi-implicit Euler).
-    this.landingDipVelocity += (-LANDING_SPRING_STIFFNESS * this.landingDip - LANDING_SPRING_DAMPING * this.landingDipVelocity) * deltaSeconds;
-    this.landingDip += this.landingDipVelocity * deltaSeconds;
     const speedRatio: number = this.motor.isGrounded ? clamp(this.motor.horizontalSpeed / this.motor.tuning.stances.run.maximumSpeed, 0, 1) : 0;
     const bobVertical: number = Math.abs(Math.sin(this.bobPhase)) * 0.055 * speedRatio;
     const bobLateral: number = Math.sin(this.bobPhase) * 0.03 * speedRatio;
     const eye: Vec3 = this.motor.eyePosition;
-    camera.position = [
-      eye[0] + Math.cos(this.yawRadians) * bobLateral,
-      eye[1] + bobVertical + this.landingDip,
-      eye[2] - Math.sin(this.yawRadians) * bobLateral,
-    ];
-    camera.yawRadians = this.yawRadians;
-    camera.pitchRadians = this.pitchRadians;
     const lateralVelocity: number = this.motor.velocity[0] * Math.cos(this.yawRadians) - this.motor.velocity[2] * Math.sin(this.yawRadians);
     const swingRoll: number = this.rig?.isAnchored && !this.motor.isGrounded ? clamp(-lateralVelocity * 0.012, -0.12, 0.12) : 0;
-    camera.rollRadians = Math.sin(this.bobPhase) * 0.005 * speedRatio + swingRoll;
     const sprintWiden: number = this.motor.stance === 'run' ? 6 * speedRatio : 0;
     const maskNarrow: number = this.gasMask.coverage * 4;
-    camera.fieldOfViewRadians = ((settings.fieldOfViewDegrees + sprintWiden - maskNarrow) * Math.PI) / 180;
+    return {
+      position: [eye[0] + Math.cos(this.yawRadians) * bobLateral, eye[1] + bobVertical + this.landingDip, eye[2] - Math.sin(this.yawRadians) * bobLateral],
+      yawRadians: this.yawRadians,
+      pitchRadians: this.pitchRadians,
+      rollRadians: Math.sin(this.bobPhase) * 0.005 * speedRatio + swingRoll,
+      fieldOfViewRadians: ((settings.fieldOfViewDegrees + sprintWiden - maskNarrow) * Math.PI) / 180,
+    };
+  }
+
+  private placeCamera(deltaSeconds: number): void {
+    // Landing dip spring integration (semi-implicit Euler).
+    this.landingDipVelocity += (-LANDING_SPRING_STIFFNESS * this.landingDip - LANDING_SPRING_DAMPING * this.landingDipVelocity) * deltaSeconds;
+    this.landingDip += this.landingDipVelocity * deltaSeconds;
+    const pose: CameraPose = this.computeGameplayPose();
+    const camera = this.services.camera;
+    camera.position = [pose.position[0], pose.position[1], pose.position[2]];
+    camera.yawRadians = pose.yawRadians;
+    camera.pitchRadians = pose.pitchRadians;
+    camera.rollRadians = pose.rollRadians;
+    camera.fieldOfViewRadians = pose.fieldOfViewRadians;
   }
 
   private updateAim(streamer: LevelStreamer): void {
@@ -331,24 +484,42 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       this.aim = { kind: 'surface', polarity: null, distance: hit.distance };
     }
     this.pickupInView = streamer.findPickupInView(camera.position, camera.forward, INTERACT_REACH_METERS);
+    this.switchInView = this.pickupInView === null ? streamer.findSwitchInView(camera.position, camera.forward, INTERACT_REACH_METERS) : null;
+  }
+
+  private buildPlayerSignature(): PlayerSignature {
+    const camera = this.services.camera;
+    const feet: Vec3 = this.playerPosition();
+    const chest: Vec3 = [feet[0], feet[1] + this.motor.currentHeight * 0.65, feet[2]];
+    return {
+      eyePosition: [camera.position[0], camera.position[1], camera.position[2]],
+      chestPosition: chest,
+      feetPosition: feet,
+      viewDirection: camera.forward,
+      isCrouching: this.motor.isCrouching,
+      lightExposure: lightExposureFromIlluminance(this.services.lighting.illuminanceAt(chest)),
+    };
   }
 
   // ---- Frame update -------------------------------------------------------------------------------------------------
 
   public update(frame: FrameContext): void {
     const streamer: LevelStreamer | null = this.streamer;
-    const jester: JesterEntity | null = this.jester;
     const rig: TetherRig | null = this.rig;
-    if (streamer === null || jester === null || rig === null || this.checkpoint === null) {
+    const threats: ThreatDirector | null = this.threats;
+    const worldEvents: WorldEventSystem | null = this.worldEvents;
+    if (streamer === null || rig === null || threats === null || worldEvents === null || this.checkpoint === null) {
       return;
     }
     const services: GameServices = this.services;
     const input: InputManager = services.input;
     const deltaSeconds: number = frame.deltaSeconds;
-    const controlsEnabled: boolean = frame.inputEnabled && !this.deathRequested;
+    const dying: boolean = this.pendingDeath !== null || this.deathRequested;
+    const controlsEnabled: boolean = frame.inputEnabled && !dying && !this.cinematics.locksControls;
     this.sessionSeconds += deltaSeconds;
     this.objectiveOpacity = clamp(this.objectiveOpacity + deltaSeconds * 0.8, 0, 1);
     this.meterFlash = Math.max(0, this.meterFlash - deltaSeconds * 4);
+    this.letterbox = clamp(this.letterbox + (this.cinematics.hidesHud ? deltaSeconds : -deltaSeconds) * 3, 0, 1);
     if (this.toast !== null) {
       this.toast.remainingSeconds -= deltaSeconds;
       if (this.toast.remainingSeconds <= 0) {
@@ -368,13 +539,22 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       }
     }
 
-    // 1. Look, 2. intent, 3. provisional camera (so launcher sockets track the view this frame).
+    // While dying, only the lethal cinematic advances (the world holds still behind it).
+    if (dying) {
+      input.consumeMouseDelta();
+      this.cinematics.update(deltaSeconds);
+      return;
+    }
+
+    // 1–3. Look, intent, provisional camera so launcher sockets track the view.
     this.applyLook(input, deltaSeconds, controlsEnabled);
     const intent: MotorIntent = this.buildMotorIntent(input, controlsEnabled);
-    this.placeCamera(0);
+    if (!this.cinematics.ownsCamera) {
+      this.placeCamera(0);
+    }
     services.camera.updateMatrices();
 
-    // 4. Tether claws, 5. cable forces, 6. motor integration, 7. hard rope constraints.
+    // 4–7. Tether claws, cable forces, motor integration, rope constraints.
     rig.update(deltaSeconds, this.buildTetherInput(input, controlsEnabled, intent), streamer, services.camera);
     this.relayNetwork?.tick(deltaSeconds);
     const tension: Vec3 = vec3Add(rig.computeTensionAcceleration(this.motor), rig.computePumpAcceleration(this.motor, intent.moveForward));
@@ -382,37 +562,51 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     rig.enforceDistanceConstraints(this.motor, streamer);
     rig.enforceCableLimit();
 
-    // 8. Landing feedback and footsteps.
+    // 8. Landing, footsteps and the noises they make.
     if (report.landedThisStep && report.landingImpactSpeed > 2.5) {
       const impact: number = clamp((report.landingImpactSpeed - 2.5) / 9, 0, 1);
       this.landingDipVelocity -= 0.6 + impact * 2.4;
       services.audio.playImpactThud(impact);
+      threats.emitNoise('landing', this.playerPosition(), 0.5 + impact);
     }
     if (this.motor.isGrounded) {
       this.bobPhase += deltaSeconds * this.motor.horizontalSpeed * (this.motor.stance === 'run' ? 2.25 : 2.6);
       const stepPhase: number = Math.floor(this.bobPhase / Math.PI);
       if (this.motor.horizontalSpeed > 0.6 && stepPhase !== this.lastFootstepPhase) {
         services.audio.playFootstep(this.motor.stance === 'run');
+        const stepNoise: NoiseSource = this.motor.stance === 'run' ? 'footstepRun' : this.motor.stance === 'crouch' ? 'footstepCrouch' : 'footstepWalk';
+        threats.emitNoise(stepNoise, this.playerPosition());
       }
       this.lastFootstepPhase = stepPhase;
     }
-    this.placeCamera(deltaSeconds);
+
+    // Camera: cinematic takeover or gameplay pose.
+    if (this.cinematics.ownsCamera) {
+      this.cinematics.update(deltaSeconds);
+    } else {
+      this.placeCamera(deltaSeconds);
+    }
+    const camera = services.camera;
+    services.audio.setListenerPose({ position: camera.position, forward: camera.forward, up: [0, 1, 0] });
 
     // 9. Fall kill plane.
     if (this.motor.position[1] < CORRIDOR_DIMENSIONS.fallKillHeight) {
-      this.requestDeath('fall');
+      this.beginLethalCinematic('fallDeath', { cause: 'fall', threat: null }, null);
       return;
     }
 
-    // 10. Interaction.
+    // 10. Interaction: pickups first, then breaker switches.
     this.updateAim(streamer);
-    if (controlsEnabled && input.wasKeyPressed('KeyE') && this.pickupInView !== null) {
-      const collected: PickupRecord | null = streamer.collectPickup(this.pickupInView.id);
-      if (collected !== null && collected.kind === 'gasMask') {
-        this.gasMask.grant();
-        services.audio.playMaskSeal(false);
-        this.showToast('GAS MASK ACQUIRED · PRESS G TO EQUIP', 4);
-        this.commitCheckpoint(this.buildCheckpoint({}));
+    if (controlsEnabled && input.wasKeyPressed('KeyE')) {
+      if (this.pickupInView !== null) {
+        const collected: PickupRecord | null = streamer.collectPickup(this.pickupInView.id);
+        if (collected !== null && collected.kind === 'gasMask') {
+          this.gasMask.grant();
+          services.audio.playMaskSeal(false);
+          worldEvents.reportPickup(collected.id, collected.kind, collected.position);
+        }
+      } else if (this.switchInView !== null) {
+        worldEvents.pressSwitch(this.switchInView);
       }
     }
 
@@ -421,12 +615,12 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     const togglePressed: boolean = controlsEnabled && input.wasKeyPressed('KeyG');
     const maskReport: GasMaskFrameReport = this.gasMask.update(deltaSeconds, {
       toggleRequested: togglePressed,
-      concentration: streamer.toxicConcentrationAt(services.camera.position),
+      concentration: streamer.toxicConcentrationAt(camera.position),
       exertion,
     });
     if (togglePressed && !this.gasMask.isAvailable) {
       services.audio.playUiCue('denied');
-      this.showToast('NO GAS MASK', 1.5, UI_COLORS.textDim);
+      this.showToast('NO GAS MASK', 1.5, 'info', UI_COLORS.textDim);
     }
     if (maskReport.toggledTo !== null) {
       services.audio.playMaskSeal(maskReport.toggledTo === 'equipping');
@@ -435,17 +629,21 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (maskReport.breathCycleStarted) {
       const strain: number = (this.gasMask.coverage > 0.5 ? 1 - this.gasMask.filterRemaining : 0) * 0.7 + this.gasMask.exposure * 0.3;
       services.audio.playBreathCycle(1 / this.gasMask.breathsPerSecond, strain);
+      if (strain > 0.5) {
+        // A clogged filter wheezes loudly enough for nearby threats to hear.
+        threats.emitNoise('strainedBreathing', this.playerPosition(), strain);
+      }
     }
     if (maskReport.meterTicked) {
       services.audio.playMeterTick(this.gasMask.exposure);
       this.meterFlash = 1;
     }
     if (maskReport.lethal) {
-      this.requestDeath('toxicity');
+      this.beginLethalCinematic('toxicCollapse', { cause: 'toxicity', threat: null }, null);
       return;
     }
 
-    // 12. Streaming + checkpoints.
+    // 12. Streaming, checkpoints, zones and sequences.
     const newChunk: number = chunkIndexAtZ(this.motor.position[2]);
     if (newChunk !== this.currentChunk) {
       this.currentChunk = newChunk;
@@ -454,22 +652,21 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       }
     }
     streamer.update(this.currentChunk, deltaSeconds);
+    worldEvents.update(deltaSeconds, this.motor.boundsAt(this.motor.position));
 
-    // 13. Entity.
-    if (jester.mode === 'dormant') {
+    // 13. Threats: awaken the Jester, then tick every brain.
+    if (!threats.isJesterAwake) {
       const travelled: number = this.spawnZ - this.motor.position[2];
       if (travelled > ENTITY_AWAKEN_DISTANCE_METERS || (this.sessionSeconds > ENTITY_AWAKEN_SECONDS && travelled > 6)) {
-        this.awakenJester();
+        const spawnPosition: Vec3 = [0, 0, Math.min(chunkStartZ(0) - 1, this.motor.position[2] + ENTITY_SPAWN_BEHIND_METERS)];
+        const jester: ManagedThreat = threats.awakenJester(spawnPosition, this.playerPosition());
+        worldEvents.notify('threatAwakened', { kind: 'jester', position: jester.view.position });
       }
     }
-    const caught: boolean = jester.updateStalking(deltaSeconds, { position: services.camera.position, viewDirection: services.camera.forward }, streamer);
-    const distance: number = jester.mode === 'dormant' ? Infinity : jester.distanceTo(this.motor.position);
-    this.dread = jester.mode === 'dormant' ? 0 : clamp(1 - (distance - 1.5) / 16, 0, 1);
+    threats.update(deltaSeconds, this.buildPlayerSignature());
+    this.dread = threats.dreadAt(this.playerPosition());
     services.audio.setDreadLevel(this.dread);
     services.audio.updateHeartbeat(deltaSeconds, this.dread);
-    if (caught && frame.inputEnabled) {
-      this.requestDeath('entity');
-    }
   }
 
   // ---- HUD -----------------------------------------------------------------------------------------------------------
@@ -505,11 +702,12 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       context.fillStyle = 'rgba(233, 225, 207, 0.55)';
       context.fillRect(centerX - 2, centerY - 2, 4, 4);
     }
-    if (this.pickupInView !== null) {
+    const prompt: string | null = this.pickupInView !== null ? '[E] TAKE GAS MASK' : this.switchInView !== null ? '[E] THROW BREAKER' : null;
+    if (prompt !== null) {
       context.font = UI_FONTS.chapter;
       context.textAlign = 'center';
       context.fillStyle = UI_COLORS.textPrimary;
-      context.fillText('[E] TAKE GAS MASK', centerX, centerY + 90);
+      context.fillText(prompt, centerX, centerY + 90);
     }
     context.restore();
   }
@@ -617,38 +815,43 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       timeSeconds,
     });
     context.save();
-    this.drawCrosshair(context, width / 2, height / 2);
-    context.font = UI_FONTS.small;
-    if (Math.floor(timeSeconds * 1.5) % 2 === 0) {
-      context.fillStyle = UI_COLORS.accentRed;
-      context.beginPath();
-      context.arc(96, 86, 10, 0, Math.PI * 2);
-      context.fill();
-    }
-    context.fillStyle = UI_COLORS.textPrimary;
-    context.fillText('REC', 116, 94);
-    context.fillText(`DEPTH  -${this.depthMeters.toFixed(1)} M`, 80, 136);
-    context.fillText(`STANCE ${this.motor.stance.toUpperCase()}${this.motor.isGrounded ? '' : ' · AIRBORNE'}`, 80, 172);
-    const totalSeconds: number = Math.floor((this.checkpoint?.playTimeSeconds ?? 0) + this.sessionSeconds);
-    const clock: string = `${String(Math.floor(totalSeconds / 3600)).padStart(2, '0')}:${String(Math.floor(totalSeconds / 60) % 60).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
-    context.textAlign = 'right';
-    context.fillText(`SHIFT ${clock}`, width - 80, 94);
-    context.fillText(`CHECKPOINT ${String(this.checkpoint?.checkpointChunkIndex ?? 0).padStart(3, '0')}`, width - 80, 136);
-    context.textAlign = 'left';
-    context.fillStyle = 'rgba(233, 225, 207, 0.12)';
-    context.fillRect(80, height - 90, 360, 10);
-    context.fillStyle = this.motor.stamina < 0.3 ? UI_COLORS.accentRed : 'rgba(233, 225, 207, 0.7)';
-    context.fillRect(80, height - 90, 360 * this.motor.stamina, 10);
-    context.fillStyle = UI_COLORS.textDim;
-    context.fillText('STAMINA', 80, height - 104);
-    this.drawClawIndicators(context, width, height);
-    this.drawToxicityMeter(context, width, height);
-    if (!this.services.input.isPointerLocked) {
-      context.textAlign = 'center';
-      context.fillStyle = UI_COLORS.textDim;
-      context.fillText('CLICK TO LOOK · WASD · SHIFT RUN · C CROUCH · SPACE JUMP · LMB/RMB TETHER · G MASK · E USE · ESC MENU', width / 2, height - 30);
+    const hudAlpha: number = 1 - this.letterbox;
+    context.globalAlpha = hudAlpha;
+    if (hudAlpha > 0.01) {
+      this.drawCrosshair(context, width / 2, height / 2);
+      context.font = UI_FONTS.small;
+      if (Math.floor(timeSeconds * 1.5) % 2 === 0) {
+        context.fillStyle = UI_COLORS.accentRed;
+        context.beginPath();
+        context.arc(96, 86, 10, 0, Math.PI * 2);
+        context.fill();
+      }
+      context.fillStyle = UI_COLORS.textPrimary;
+      context.fillText('REC', 116, 94);
+      context.fillText(`DEPTH  -${this.depthMeters.toFixed(1)} M`, 80, 136);
+      context.fillText(`STANCE ${this.motor.stance.toUpperCase()}${this.motor.isGrounded ? '' : ' · AIRBORNE'}`, 80, 172);
+      const totalSeconds: number = Math.floor((this.checkpoint?.playTimeSeconds ?? 0) + this.sessionSeconds);
+      const clock: string = `${String(Math.floor(totalSeconds / 3600)).padStart(2, '0')}:${String(Math.floor(totalSeconds / 60) % 60).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
+      context.textAlign = 'right';
+      context.fillText(`SHIFT ${clock}`, width - 80, 94);
+      context.fillText(`CHECKPOINT ${String(this.checkpoint?.checkpointChunkIndex ?? 0).padStart(3, '0')}`, width - 80, 136);
       context.textAlign = 'left';
+      context.fillStyle = 'rgba(233, 225, 207, 0.12)';
+      context.fillRect(80, height - 90, 360, 10);
+      context.fillStyle = this.motor.stamina < 0.3 ? UI_COLORS.accentRed : 'rgba(233, 225, 207, 0.7)';
+      context.fillRect(80, height - 90, 360 * this.motor.stamina, 10);
+      context.fillStyle = UI_COLORS.textDim;
+      context.fillText('STAMINA', 80, height - 104);
+      this.drawClawIndicators(context, width, height);
+      this.drawToxicityMeter(context, width, height);
+      if (!this.services.input.isPointerLocked) {
+        context.textAlign = 'center';
+        context.fillStyle = UI_COLORS.textDim;
+        context.fillText('CLICK TO LOOK · WASD · SHIFT RUN · C CROUCH · SPACE JUMP · LMB/RMB TETHER · G MASK · E USE · ESC MENU', width / 2, height - 30);
+        context.textAlign = 'left';
+      }
     }
+    context.globalAlpha = 1;
     if (this.toast !== null) {
       context.globalAlpha = clamp(this.toast.remainingSeconds, 0, 1) * this.objectiveOpacity;
       context.font = UI_FONTS.chapter;
@@ -669,7 +872,6 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       context.fillRect(0, 0, width, height);
     }
     if (this.gasMask.exposure > 0.35) {
-      // Toxic exposure creeps in as a sickly pulsing edge.
       const pulse: number = 0.5 + 0.5 * Math.sin(timeSeconds * (2 + this.gasMask.exposure * 6));
       const strength: number = smoothstep(0.35, 1, this.gasMask.exposure) * (0.35 + pulse * 0.25);
       const sick: CanvasGradient = context.createRadialGradient(width / 2, height / 2, height * 0.2, width / 2, height / 2, height * 0.9);
@@ -677,6 +879,13 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       sick.addColorStop(1, `rgba(60, 90, 10, ${strength.toFixed(3)})`);
       context.fillStyle = sick;
       context.fillRect(0, 0, width, height);
+    }
+    // Cinematic letterbox bars.
+    if (this.letterbox > 0.001) {
+      const barHeight: number = LETTERBOX_HEIGHT * this.letterbox;
+      context.fillStyle = '#000000';
+      context.fillRect(0, 0, width, barHeight);
+      context.fillRect(0, height - barHeight, width, barHeight);
     }
     context.restore();
   }
@@ -687,10 +896,10 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     request.renderScene = true;
     request.environment = LEVEL_ENVIRONMENT;
     this.streamer?.collectDrawItems(request.drawItems, frame.elapsedSeconds);
-    if (this.jester !== null && this.jester.mode !== 'dormant') {
-      this.jester.collectDrawItems(request.drawItems);
+    this.threats?.collectDrawItems(request.drawItems);
+    if (!this.cinematics.hidesHud) {
+      this.rig?.collectDrawItems(request.drawItems, frame.elapsedSeconds);
     }
-    this.rig?.collectDrawItems(request.drawItems, frame.elapsedSeconds);
 
     const post = this.services.postParameters;
     const dreadCurve: number = smoothstep(0.2, 1, this.dread);

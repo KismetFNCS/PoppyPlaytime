@@ -127,6 +127,29 @@ export class LightingSystem {
     }
   }
 
+  /**
+   * Scalar illuminance at a point (used by AI perception for player light exposure):
+   *   E = Σ_i  lum(c_i) · s_i · w(d_i, r_i) / (1 + d_i²),   lum(c) = 0.2126 r + 0.7152 g + 0.0722 b
+   * with the same windowed inverse-square falloff as the shaders.
+   */
+  public illuminanceAt(point: Readonly<Vec3>): number {
+    let illuminance = 0;
+    for (const light of this.lights.values()) {
+      if (light.effectiveScale <= 0.001) {
+        continue;
+      }
+      const distance: number = vec3Distance(point, light.position);
+      if (distance >= light.range) {
+        continue;
+      }
+      const ratio: number = distance / light.range;
+      const window: number = Math.pow(clamp(1 - ratio * ratio * ratio * ratio, 0, 1), 2);
+      const luminance: number = 0.2126 * light.color[0] + 0.7152 * light.color[1] + 0.0722 * light.color[2];
+      illuminance += (luminance * light.effectiveScale * window) / (1 + distance * distance);
+    }
+    return illuminance;
+  }
+
   /** Selects the lights contributing most at `viewerPosition` and packs them for upload. */
   public collectRelevant(viewerPosition: Readonly<Vec3>, output: PackedLightBuffer): void {
     const candidates: Array<{ light: PointLight; score: number }> = [];

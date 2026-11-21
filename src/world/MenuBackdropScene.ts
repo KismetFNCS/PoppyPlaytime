@@ -42,7 +42,6 @@ export class MenuBackdropScene {
     const jester = new JesterEntity(services.meshes);
     jester.position = [-0.4, 0, -27];
     jester.yawRadians = 0.25;
-    jester.mode = 'frozen';
     jester.headTwitchStrength = 0.35;
     this.jester = jester;
     services.lighting.disturbances.push(jester.disturbance);
