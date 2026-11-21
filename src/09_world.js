@@ -132,6 +132,8 @@ const Lights = {
   },
   // the seraph's halo-face blazing when its wings part (linear RGB, warm white)
   seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.85, 0.55]), current: 0, base: 4.0, radius: 9, scatter: 0.35, fixture: 'none', sector: 2 },
+  // sickly glow inside the toxic lint smog (linear RGB, yellow-green)
+  gasGlow: { pos: V3.create(-7.3, 1.6, -43.6), color: new Float32Array([0.55, 0.75, 0.12]), current: 0, base: 2.2, radius: 6.5, scatter: 0.6, fixture: 'none', sector: 2 },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
@@ -181,6 +183,7 @@ const Lights = {
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = SG;
     }
+    if (sectorVisible[2]) { const GG = this.gasGlow; GG.current = GG.base * (0.85 + 0.15 * Math.sin(time * 0.9)); if (list.count >= list.items.length) list.items.push(null); list.items[list.count++] = GG; }
     const TG = this.thimbleGlow, TP = Cast.plush;
     if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
       V3.set(TG.pos, TP.pos[0], 1.05, TP.pos[2]); TG.sector = TP.sector;

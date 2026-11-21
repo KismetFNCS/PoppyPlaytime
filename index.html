@@ -50,7 +50,18 @@
   #hud .hand.l { left: 3vw; color: var(--handL); }
   #hud .hand.r { right: 3vw; color: var(--handR); }
   #hud .hand.away { opacity: 0.45; }
-  #pipCanvas { position: absolute; left: 2.4vw; bottom: calc(3.5vh + 58px); width: clamp(64px, 13vh, 128px); height: clamp(64px, 13vh, 128px); filter: drop-shadow(0 0 6px var(--void)); }
+  /* PIP now rides on the teal glove: the canvas is only its face texture */
+  #pipCanvas { position: absolute; left: -9999px; top: 0; width: 128px; height: 128px; }
+  /* gas mask: the inside of the face piece with two lens windows, breath fog and a scuffed visor */
+  #maskOverlay { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 30; transition: none; }
+  #maskOverlay svg { width: 100%; height: 100%; }
+  #maskOverlay .fog { position: absolute; inset: 0; background: radial-gradient(ellipse 60% 35% at 50% 85%, rgba(220,225,230,0.55), rgba(220,225,230,0) 70%); opacity: 0; }
+  #gasOverlay { position: fixed; inset: 0; pointer-events: none; z-index: 29; opacity: 0; background: radial-gradient(ellipse at center, rgba(150,170,60,0.25), rgba(90,110,30,0.75)); }
+  /* VHS cassette icon shown while the game saves or loads */
+  #hudVhs { position: absolute; left: 2.4vw; top: 9vh; display: none; align-items: center; gap: 10px; color: var(--accent); font: bold clamp(11px, 1.5vh, 15px) ui-monospace, Consolas, monospace; letter-spacing: 0.15em; opacity: 0.9; }
+  #hudVhs.on { display: flex; }
+  #hudVhs .reel { transform-box: fill-box; transform-origin: center; animation: vhsSpin 0.8s linear infinite; }
+  @keyframes vhsSpin { to { transform: rotate(360deg); } }
   #hud .cable { position: absolute; left: 50%; bottom: 3.5vh; transform: translateX(-50%); width: min(40vw, 380px); display: none; font-size: clamp(14px, 1.7vh, 18px); text-align: center; color: var(--live); }
   #hud .cable .bar { height: 6px; margin-top: 0.5vh; background: var(--panelFill); border: 1px solid var(--live); }
   #hud .cable .bar i { display: block; height: 100%; width: 0; background: var(--live); }
@@ -170,6 +181,7 @@
     <div class="objective" id="hudObjective"><b>OBJECTIVE</b><span id="hudObjText"></span></div>
     <div class="cross" id="hudCross"></div>
     <div class="prompt" id="hudPrompt"></div>
+    <div id="hudVhs"><svg width="64" height="40" viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="60" height="34" rx="3"/><rect x="12" y="10" width="40" height="15" rx="2"/><g class="reel"><circle cx="21" cy="17.5" r="5"/><path d="M21 12.5v10M16 17.5h10"/></g><g class="reel"><circle cx="43" cy="17.5" r="5"/><path d="M43 12.5v10M38 17.5h10"/></g><path d="M20 37l4-7h16l4 7"/></svg><span id="hudVhsText">SAVING</span></div>
     <div class="boss" id="hudBoss"><b>THE SPOOLWRIGHT</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
     <div class="dialog" id="hudDialog"><b id="hudDialogName"></b><span id="hudDialogText"></span></div>
@@ -417,7 +429,7 @@ function hexToLinear(h, scale) {
 
 const LIGHTING = {
   flashColor: '#ffe2b8', flashIntensity: 24.0, flashRange: 26.0, flashOuterDeg: 27.0, flashInnerDeg: 18.0,
-  flashOffset: [0.0, -0.3, 0.12],
+  flashOffset: [-0.24, -0.3, 0.3],
   fillColor: '#a9bcd8',
   emergencyColor: '#ff3b2e',
   hazardColor: '#ffb030',
@@ -2669,6 +2681,7 @@ const Renderer = {
     gl.uniform3fv(this.u('ambient', 'uFlashPos'), flash.pos);
     gl.uniform3fv(this.u('ambient', 'uFlashDir'), flash.dir);
     const fc = hexToLinear(LIGHTING.flashColor, flashActive ? flash.intensity : 0);
+    if (flash.tint) { fc[0] *= flash.tint[0]; fc[1] *= flash.tint[1]; fc[2] *= flash.tint[2]; }
     V3.copy(this.flashColorUpload, fc);
     gl.uniform3fv(this.u('ambient', 'uFlashColor'), this.flashColorUpload);
     gl.uniform3f(this.u('ambient', 'uFlashCone'), Math.cos(LIGHTING.flashOuterDeg * DEG), Math.cos(LIGHTING.flashInnerDeg * DEG), LIGHTING.flashRange);
@@ -3474,7 +3487,7 @@ const GrabPack = {
 
   fire(side, cam) {
     const h = this.hands[side];
-    if (h.cooldown > 0) return false;
+    if (h.cooldown > 0 || (side === 1 && Gear.swapT > 0)) return false;
     if (h.state === HAND.LATCHED && h.tethered) { this.release(h, true); return true; }
     if (h.state !== HAND.DOCKED) return false;
     this.updateMuzzles(cam);
@@ -3488,10 +3501,11 @@ const GrabPack = {
     V3.scale(h.vel, h.dir, FEEL.handSpeed);
     // add a share of the player's momentum (inertial launch)
     h.vel[0] += Player.body.vel[0] * 0.5; h.vel[2] += Player.body.vel[2] * 0.5;
-    h.state = HAND.FLYING; h.travelled = 0; h.cooldown = FEEL.handCooldown; h.recoil = 1;
+    h.state = HAND.FLYING; h.travelled = 0; h.cooldown = side === 1 ? Math.max(FEEL.handCooldown, HAND_TYPES[Gear.cur].cool) : FEEL.handCooldown; h.recoil = 1; h.spin = 0;
     this.seedCable(h);
     h.cableActive = true;
     sfx('handFire', h.pos);
+    Particles.burst(h.pos, 4, 'steam');   // the pneumatic puff at launch
     EventBus.emit(EV.HAND_FIRE, h.pos[0], h.pos[1], h.pos[2], 9, side);
     EventBus.emit(EV.NOISE, h.pos[0], h.pos[1], h.pos[2], 9, 0);
     Player.addRecoil(side);
@@ -3504,7 +3518,7 @@ const GrabPack = {
     }
     if (h.latchKind === 'lever' && h.latchRef) h.latchRef.grab = null;
     h.tethered = false; h.wrapCount = 0; h.energized = 0;
-    h.state = HAND.RETRACTING; h.latchRef = null; h.latchKind = '';
+    h.state = HAND.RETRACTING; h.latchRef = null; h.latchKind = ''; h.retractT = 0;
     if (playSound) sfx('retract', h.pos);
   },
 
@@ -3552,14 +3566,15 @@ const GrabPack = {
       if (Monster.visible && Monster.hitTest(h.prev, this.tmp, len + 0.1)) {
         V3.copy(h.pos, Monster.hitPoint);
         if (Boss.active && Boss.tryShock(h)) { h.state = HAND.RETRACTING; return; }
-        if (!Boss.active) Monster.fightBack(h); else Monster.flinch(h.side);
+        if (!Boss.active) Monster.fightBack(h); else { Monster.flinch(h.side); if (h.side === 1 && Gear.cur > 0) Monster.stunTimer = Math.max(Monster.stunTimer, HAND_TYPES[Gear.cur].stun * 0.35); }
+        if (h.side === 1 && Gear.cur === 3) Gear.lanternBurst(h.pos);
         sfx('handHitFlesh', h.pos);
         Particles.burst(h.pos, 10, 'spark');
-        h.state = HAND.RETRACTING;
+        h.state = HAND.RETRACTING; h.retractT = 0;
         return;
       }
       // cherubs and the seraph
-      if (Enemies.handHit(h, h.prev, this.tmp, len + 0.1)) { h.state = HAND.RETRACTING; return; }
+      if (Enemies.handHit(h, h.prev, this.tmp, len + 0.1)) { if (h.side === 1 && Gear.cur === 3) Gear.lanternBurst(h.pos); h.state = HAND.RETRACTING; return; }
       if (Physics.raycast(h.prev, this.tmp, len + 0.05, LAYER.HAND, this.hit)) {
         V3.copy(h.pos, this.hit.point);
         V3.copy(h.latchNormal, this.hit.normal);
@@ -3575,6 +3590,7 @@ const GrabPack = {
     // the fingers arrive open and snap shut around whatever they hit (see latched)
     h.state = HAND.LATCHED; h.latchTime = 0; h.latchKind = kind; h.latchRef = col.ref || null; h.grip = 0;
     sfx('clamp', h.pos);
+    if (h.side === 1 && Gear.cur === 3) Gear.lanternBurst(h.pos);
     // clamping onto metal throws a spray of electric sparks and a quick blue-white flash
     if (col.surface === SURFACE.METAL || kind !== 'world') {
       Particles.burst(h.pos, 18, 'spark');
@@ -3722,16 +3738,18 @@ const GrabPack = {
       return;
     }
     // a plain clamp holds on for a moment before letting go
-    if (h.latchTime > 0.6) h.state = HAND.RETRACTING;
+    if (h.latchTime > 0.6) { h.state = HAND.RETRACTING; h.retractT = 0; sfx('retract', h.pos); }
   },
 
   retract(h, dt) {
     const m = this.muzzle[h.side];
     V3.sub(this.tmp, m, h.pos);
     const d = V3.len(this.tmp);
-    const step = FEEL.handRetract * dt;
+    // the winch spins up: slow off the mark, then fast
+    h.retractT = (h.retractT || 0) + dt;
+    const step = FEEL.handRetract * dt * (0.35 + Math.min(1, h.retractT * 2.8) * 0.9);
     h.grip = damp(h.grip, 0, 8, dt);
-    if (d <= step + 0.05) { this.dock(h); sfx('dock', m); return; }
+    if (d <= step + 0.05) { this.dock(h); h.recoil = 0.7; sfx('dock', m); return; }
     V3.addScaled(h.pos, h.pos, this.tmp, step / d);
     V3.scale(h.dir, this.tmp, -1 / d);
   },
@@ -4068,6 +4086,8 @@ const Lights = {
   },
   // the seraph's halo-face blazing when its wings part (linear RGB, warm white)
   seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.85, 0.55]), current: 0, base: 4.0, radius: 9, scatter: 0.35, fixture: 'none', sector: 2 },
+  // sickly glow inside the toxic lint smog (linear RGB, yellow-green)
+  gasGlow: { pos: V3.create(-7.3, 1.6, -43.6), color: new Float32Array([0.55, 0.75, 0.12]), current: 0, base: 2.2, radius: 6.5, scatter: 0.6, fixture: 'none', sector: 2 },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
@@ -4117,6 +4137,7 @@ const Lights = {
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = SG;
     }
+    if (sectorVisible[2]) { const GG = this.gasGlow; GG.current = GG.base * (0.85 + 0.15 * Math.sin(time * 0.9)); if (list.count >= list.items.length) list.items.push(null); list.items[list.count++] = GG; }
     const TG = this.thimbleGlow, TP = Cast.plush;
     if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
       V3.set(TG.pos, TP.pos[0], 1.05, TP.pos[2]); TG.sector = TP.sector;
@@ -4591,10 +4612,17 @@ const Monster = {
       return 'shock';
     }
     if (this.stunImmune <= 0) {
-      this.stunTimer = 1.3; this.flinchAmt = 1; this.stunImmune = 4;
+      // the stun depends on the hand: ROSE 1.3 s, THUMPER 3.2 s (+ knock-back), STITCHER 4.5 s (pinned), LANTERN 2.6 s
+      const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE', st = Gear.stunFor(h.side);
+      this.stunTimer = st; this.flinchAmt = 1; this.stunImmune = st + 2.5;
       this.setState(MSTATE.STUNNED);
       sfx('monsterHurt', this.pos);
-      GrabPack.showHint('STAGGERED! A charged hand (tethered to a live node) stuns it for longer');
+      if (type === 'THUMPER') {
+        const dx = this.pos[0] - Player.body.pos[0], dz = this.pos[2] - Player.body.pos[2], d = Math.hypot(dx, dz) || 1;
+        this.pos[0] += dx / d * 1.6; this.pos[2] += dz / d * 1.6; sfx('thump', this.pos); Player.addTrauma(0.3);
+      }
+      if (type === 'STITCHER') { sfx('pin', this.pos); Particles.burst(this.hitPoint, 14, 'spark'); }
+      GrabPack.showHint(type === 'ROSE' ? 'STAGGERED! A charged hand or a stronger hand stuns it for longer' : type + ': stunned for ' + st.toFixed(1) + ' s');
       return 'stagger';
     }
     this.flinch(h.side);
@@ -5555,11 +5583,14 @@ const SFX = {
     }
   },
   land(t, pos, surface) { SFX.footstep(t, pos, surface); Audio.tone(t, 'sine', 90, 45, 0.18, 0.35, Audio.dest(pos)); },
+  // gauntlet launch: a pneumatic punch (low thump + air burst), a spring twang and the cable spool screaming out
   handFire(t, pos) {
     const out = Audio.dest(pos);
-    Audio.noise(t, 0.12, 0.35, 2500, 'bandpass', out, 1.5);
-    Audio.tone(t, 'sawtooth', Audio.vary(320), 90, 0.16, 0.12, out);
-    Audio.noise(t + 0.02, 0.4, 0.08, 6000, 'highpass', out); // cable whir
+    Audio.tone(t, 'sine', 140, 55, 0.12, 0.45, out);
+    Audio.noise(t, 0.09, 0.5, 1400, 'bandpass', out, 0.8);
+    Audio.tone(t + 0.005, 'square', Audio.vary(540), 220, 0.08, 0.06, out);
+    Audio.tone(t + 0.03, 'sawtooth', 900, 2600, 0.35, 0.05, out);
+    Audio.noise(t + 0.03, 0.4, 0.09, 6500, 'highpass', out);
   },
   handHit(t, pos, surface) {
     const out = Audio.dest(pos, 'sfx', 2, 1.0);
@@ -5576,8 +5607,34 @@ const SFX = {
     Audio.tone(t + 0.04, 'square', 2300, 1700, 0.03, 0.05, out);
   },
   handHitFlesh(t, pos) { const out = Audio.dest(pos); Audio.noise(t, 0.15, 0.4, 600, 'lowpass', out); Audio.tone(t, 'sine', 90, 40, 0.2, 0.3, out); },
-  retract(t, pos) { const out = Audio.dest(pos); Audio.noise(t, 0.35, 0.1, 5000, 'bandpass', out, 2); Audio.tone(t, 'sawtooth', 160, 420, 0.3, 0.06, out); },
-  dock(t) { Audio.noise(t, 0.04, 0.25, 2000, 'bandpass', Audio.buses.sfx, 2); Audio.tone(t, 'square', 300, 180, 0.06, 0.08, Audio.buses.sfx); },
+  // reeling in: an electric winch motor winding up, with the cable ticking over the spool
+  retract(t, pos) {
+    const out = Audio.dest(pos);
+    Audio.tone(t, 'sawtooth', 180, 620, 0.42, 0.06, out, 0.05);
+    Audio.tone(t, 'square', 90, 310, 0.42, 0.03, out, 0.05);
+    for (let k = 0; k < 6; k++) Audio.noise(t + k * 0.06, 0.012, 0.12, 4500, 'highpass', out);
+  },
+  // docking: a heavy mechanical clunk and a latch click
+  dock(t) {
+    const out = Audio.buses.sfx;
+    Audio.tone(t, 'sine', 110, 50, 0.16, 0.4, out);
+    Audio.noise(t, 0.05, 0.35, 900, 'lowpass', out);
+    Audio.ring(t + 0.06, [1700, 3300], 0.08, 0.1, out);
+  },
+  handSwap(t) { const out = Audio.buses.sfx; Audio.noise(t, 0.12, 0.2, 1200, 'bandpass', out, 1); Audio.ring(t + 0.08, [900, 2100], 0.12, 0.12, out); Audio.tone(t + 0.1, 'sine', 160, 70, 0.12, 0.3, out); },
+  maskOn(t) { const out = Audio.buses.sfx; Audio.noise(t, 0.35, 0.25, 600, 'lowpass', out); Audio.ring(t + 0.3, [700, 1500], 0.1, 0.1, out); },
+  maskOff(t) { const out = Audio.buses.sfx; Audio.noise(t, 0.25, 0.2, 900, 'lowpass', out); },
+  // breathing through filter canisters: a muffled rasping inhale and a valve-flutter exhale
+  maskBreath(t) {
+    const out = Audio.buses.sfx;
+    Audio.noise(t, 0.9, 0.11, 700, 'bandpass', out, 1.6);
+    Audio.noise(t + 1.0, 0.7, 0.08, 450, 'bandpass', out, 1.2);
+    for (let k = 0; k < 5; k++) Audio.noise(t + 1.05 + k * 0.05, 0.02, 0.05, 1200, 'bandpass', out, 4);
+  },
+  cough(t) { const out = Audio.buses.sfx; for (let k = 0; k < 2; k++) { Audio.noise(t + k * 0.22, 0.14, 0.35, 900, 'bandpass', out, 1.4); Audio.tone(t + k * 0.22, 'sawtooth', 170, 110, 0.12, 0.1, out); } },
+  lanternBurst(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.5); Audio.tone(t, 'sine', 300, 1800, 0.5, 0.18, out); Audio.noise(t, 0.5, 0.25, 3000, 'highpass', out); },
+  thump(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.6); Audio.tone(t, 'sine', 120, 38, 0.35, 0.8, out); Audio.noise(t, 0.12, 0.5, 600, 'lowpass', out); },
+  pin(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.6); Audio.ring(t, [3200, 6100], 0.18, 0.18, out); Audio.noise(t, 0.05, 0.3, 5000, 'highpass', out); },
   tether(t, pos) {
     const out = Audio.dest(pos, 'sfx', 2.5, 0.8);
     Audio.tone(t, 'sawtooth', 60, 120, 0.6, 0.2, out, 0.02);
@@ -5821,7 +5878,7 @@ function sfx(name, pos, extra) {
 
 const Input = {
   keys: Object.create(null), justPressed: new Set(), mouse: [false, false, false], mouseJust: [false, false, false],
-  lookDX: 0, lookDY: 0, locked: false, touchActive: false,
+  lookDX: 0, lookDY: 0, locked: false, touchActive: false, wheel: 0,
   stick: { id: -1, x: 0, y: 0, cx: 0, cy: 0 }, look: { id: -1, x: 0, y: 0 }, touchRun: false,
   pad: { lx: 0, ly: 0, rx: 0, ry: 0, buttons: new Uint8Array(17), prev: new Uint8Array(17) },
   PREVENT: new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'F1', 'F2', 'F9']),
@@ -5926,6 +5983,7 @@ const Input = {
     this.lookDX = 0; this.lookDY = 0;
   }
 };
+window.addEventListener('wheel', e => { if (Input.locked) Input.wheel += Math.sign(e.deltaY); }, { passive: true });
 
 function padDeadzone(v) { return Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85; }
 
@@ -6139,6 +6197,8 @@ const Player = {
     return this.lockerTarget;
   },
   findInteract() {
+    const pk = Gear.nearestPickup();
+    if (pk) { this.interactTarget = pk; return pk; }
     let best = null, bd = 2.4;
     for (const t of Level.tapes) {
       if (t.collected) continue;
@@ -6501,13 +6561,13 @@ const UI = {
     if (E.hudObjective.style.opacity !== op) E.hudObjective.style.opacity = op;
     for (let s = 0; s < 2; s++) {
       const h = GrabPack.hands[s];
-      const code = h.state * 2 + (h.tethered ? 1 : 0);
+      const code = h.state * 2 + (h.tethered ? 1 : 0) + (s === 1 ? Gear.cur * 16 : 0);
       const key = s === 0 ? 'l' : 'r';
       if (H[key] !== code) {
         H[key] = code;
         const el = s === 0 ? E.hudHandL : E.hudHandR;
         const stateTxt = h.tethered ? 'LIVE' : h.state === HAND.DOCKED ? 'READY' : h.state === HAND.FLYING ? 'FIRED' : h.state === HAND.LATCHED ? 'GRIP' : 'RECALL';
-        el.textContent = (s === 0 ? 'L · TEAL ' : 'R · ROSE ') + stateTxt;
+        el.textContent = (s === 0 ? 'L · TEAL ' : 'R · ' + HAND_TYPES[Gear.cur].id + ' ') + stateTxt;
         el.classList.toggle('away', h.state !== HAND.DOCKED && !h.tethered);
       }
     }
@@ -6524,7 +6584,7 @@ const UI = {
       }
     }
     const tape = Player.interactTarget;
-    const prompt = Player.hidden ? '[E] LEAVE LOCKER' : Player.lockerTarget ? '[E] HIDE' : tape ? '[E] PLAY TAPE' : '';
+    const prompt = Player.hidden ? '[E] LEAVE LOCKER' : Player.lockerTarget ? '[E] HIDE' : tape ? (tape.kind ? Gear.promptFor(tape) : '[E] PLAY TAPE') : '';
     if (H.prompt !== prompt) { H.prompt = prompt; E.hudPrompt.textContent = prompt; E.hudPrompt.style.display = prompt ? 'block' : 'none'; }
     const sub = Settings.values.subtitles && GrabPack.hintTimer > 0 ? GrabPack.hint : '';
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
@@ -6546,6 +6606,15 @@ const UI = {
     const rows = Assets.loaded.map(a => a.name + '  \u2192  ' + a.slot + '  (' + a.tris + ' tris)').concat(Assets.errors.map(e => 'error: ' + e));
     if (!rows.length) rows.push('none loaded - the procedural models are in use');
     for (const r of rows) { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); }
+  },
+  // VHS cassette icon (reels spinning) while a checkpoint saves or loads
+  vhsIcon(text) {
+    const el = document.getElementById('hudVhs'), tx = document.getElementById('hudVhsText');
+    if (!el) return;
+    if (tx) tx.textContent = text;
+    el.classList.add('on');
+    clearTimeout(this.vhsTimer);
+    this.vhsTimer = setTimeout(() => el.classList.remove('on'), 2400);
   },
   setMuteLabel() { this.el.btnMute.textContent = Game.muted ? 'MUTE' : 'SND'; }
 };
@@ -6712,14 +6781,14 @@ const Game = {
   scene: null, aimHit: makeHit(), menuEye: V3.create(),
   checkpoint: {
     valid: false, stage: 0, pos: V3.create(0, 0, 5.5), yaw: 0, doors: new Float32Array(8), doorLocked: new Uint8Array(8),
-    receptacles: new Uint8Array(16), levers: new Uint8Array(8), pegsLocked: new Uint8Array(32), tapes: new Uint8Array(8),
+    receptacles: new Uint8Array(16), levers: new Uint8Array(8), pegsLocked: new Uint8Array(32), tapes: new Uint8Array(8), pickups: new Uint8Array(8),
     triggers: new Uint8Array(16), steamActive: 1, monsterMode: 0
   },
 
   init() {
     this.muted = load('muted', '0') === '1';
     this.scene = {
-      flash: { on: true, intensity: LIGHTING.flashIntensity, pos: V3.create(), dir: V3.create(0, 0, -1) },
+      flash: { on: true, intensity: LIGHTING.flashIntensity, pos: V3.create(), dir: V3.create(0, 0, -1), tint: new Float32Array([1, 1, 1]) },
       shadows: true, sectorVisible: Streaming.visible, lights: Lights.visible, fogDensity: LIGHTING.fogDensity,
       fracture: this.fracture, fractureAmt: 0
     };
@@ -6797,6 +6866,7 @@ const Game = {
     for (const L of Level.lockers) { L.door = 0; L.doorTarget = 0; L.doorTimer = 0; L.occupied = false; }
     this.hidTip = false;
     Steam.setAll(true);
+    Gear.reset();
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) { L.pulse = 0; L.enabled = true; }
     GrabPack.reset();
@@ -6825,9 +6895,10 @@ const Game = {
     for (let i = 0; i < Level.pegs.length; i++) cp.pegsLocked[i] = Level.pegs[i].locked ? 1 : 0;
     for (let i = 0; i < Level.tapes.length; i++) cp.tapes[i] = Level.tapes[i].collected ? 1 : 0;
     for (let i = 0; i < Level.triggers.length; i++) cp.triggers[i] = Level.triggers[i].fired ? 1 : 0;
+    for (let i = 0; i < Gear.pickups.length; i++) cp.pickups[i] = Gear.pickups[i].taken ? 1 : 0;
     cp.steamActive = Level.steam.length && Level.steam[0].active ? 1 : 0;
     cp.monsterMode = stage === 4 ? 2 : Monster.active && !Monster.scripted && stage === 2 ? 1 : 0;
-    if (stage > 0) { sfx('checkpoint'); EventBus.emit(EV.CHECKPOINT, 0, 0, 0, stage, 0); }
+    if (stage > 0) { sfx('checkpoint'); EventBus.emit(EV.CHECKPOINT, 0, 0, 0, stage, 0); UI.vhsIcon('SAVING'); }
     save('checkpoint', JSON.stringify(this.serialize()));
   },
   serialize() {
@@ -6836,7 +6907,8 @@ const Game = {
       stage: cp.stage, doors: Array.from(cp.doors.subarray(0, Level.doors.length)), doorLocked: Array.from(cp.doorLocked.subarray(0, Level.doors.length)),
       receptacles: Array.from(cp.receptacles.subarray(0, Level.receptacles.length)), levers: Array.from(cp.levers.subarray(0, Level.levers.length)),
       pegsLocked: Array.from(cp.pegsLocked.subarray(0, Level.pegs.length)), tapes: Array.from(cp.tapes.subarray(0, Level.tapes.length)),
-      triggers: Array.from(cp.triggers.subarray(0, Level.triggers.length)), steamActive: cp.steamActive, monsterMode: cp.monsterMode
+      triggers: Array.from(cp.triggers.subarray(0, Level.triggers.length)), steamActive: cp.steamActive, monsterMode: cp.monsterMode,
+      pickups: Array.from(cp.pickups.subarray(0, Gear.pickups.length))
     };
   },
   // Defensive parse of stored data: every field is range-checked; corrupt data falls back to stage 0.
@@ -6851,6 +6923,7 @@ const Game = {
     arr(o.receptacles, cp.receptacles, Level.receptacles.length, 1); arr(o.levers, cp.levers, Level.levers.length, 1);
     arr(o.pegsLocked, cp.pegsLocked, Level.pegs.length, 1); arr(o.tapes, cp.tapes, Level.tapes.length, 1);
     arr(o.triggers, cp.triggers, Level.triggers.length, 1);
+    arr(o.pickups, cp.pickups, Gear.pickups.length, 1);
     cp.steamActive = num(o.steamActive, 0, 1, 1); cp.monsterMode = num(o.monsterMode, 0, 2, 0);
     cp.valid = true;
   },
@@ -6875,6 +6948,9 @@ const Game = {
     for (let i = 0; i < Level.pegs.length; i++) { Level.pegs[i].locked = !!cp.pegsLocked[i]; Level.pegs[i].linked = Level.pegs[i].locked; }
     for (let i = 0; i < Level.tapes.length; i++) Level.tapes[i].collected = !!cp.tapes[i];
     for (let i = 0; i < Level.triggers.length; i++) Level.triggers[i].fired = !!cp.triggers[i];
+    for (let i = 0; i < Gear.pickups.length; i++) Gear.pickups[i].taken = !!cp.pickups[i];
+    Gear.syncFromPickups();
+    UI.vhsIcon('LOADING');
     Steam.setAll(!!cp.steamActive);
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) L.pulse = 0;
@@ -7013,10 +7089,11 @@ const Game = {
       const locker = Player.findLocker();
       const tape = locker ? null : Player.findInteract();
       if (locker && usePressed) this.enterLocker(locker);
-      else if (tape && usePressed) { this.playTape(tape); return; }
+      else if (tape && usePressed) { if (tape.kind) Gear.take(tape); else { this.playTape(tape); return; } }
     }
     this.updateLockers(dt);
     GrabPack.update(dt, Player.cam);
+    Gear.update(dt);
     Doors.update(dt);
     Steam.update(dt, this.time);
     Triggers.update(Player.body.pos);
@@ -7294,13 +7371,14 @@ const Game = {
     this.submitPuzzles(vis);
     Monster.submit();
     Cast.submit(vis);
+    Gear.submit(vis);
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
     const menuLike = state === STATE.MAIN_MENU || state === STATE.SETTINGS_PANEL || state === STATE.CREDITS || state === STATE.VICTORY || state === STATE.BOOT_LOADING;
     if (menuLike) {
       // cinematic key light for the hero shot: from upper left, aimed at the creature's chest
-      sc.flash.on = true; sc.flash.intensity = 34;
+      sc.flash.on = true; sc.flash.intensity = 34; sc.flash.tint[0] = 1; sc.flash.tint[1] = 1; sc.flash.tint[2] = 1;
       V3.set(sc.flash.pos, Level.menuCam.pos[0] - 1.6, Level.menuCam.pos[1] + 2.4, Level.menuCam.pos[2] + 0.6);
       V3.set(_g.v, Monster.pos[0], Monster.pos[1] + 1.6, Monster.pos[2]);
       V3.sub(sc.flash.dir, _g.v, sc.flash.pos); V3.normalize(sc.flash.dir, sc.flash.dir);
@@ -7310,6 +7388,8 @@ const Game = {
       sc.flash.intensity = LIGHTING.flashIntensity * (1 - 0.6 * Math.max(0, noise1(this.time * 11) - 0.7) * this.threat);
       // the lamp stutters during the jumpscare so the mask reads in red emergency light, not a white-out
       if (state === STATE.JUMPSCARE) sc.flash.intensity *= noise1(this.jumpTimer * 45) > 0.1 ? 0.28 : 0.04;
+      // PIP's lamp: white, or ultraviolet in blacklight mode
+      if (Gear.blacklight) { sc.flash.tint[0] = 0.42; sc.flash.tint[1] = 0.16; sc.flash.tint[2] = 1.25; sc.flash.intensity *= 0.6; } else { sc.flash.tint[0] = 1; sc.flash.tint[1] = 1; sc.flash.tint[2] = 1; }
       V3.copy(sc.flash.pos, Player.flashPos);
       V3.copy(sc.flash.dir, Player.flashDir);
     }
@@ -7412,7 +7492,15 @@ const Game = {
         V3.addScaled(_g.b, _g.hp, _g.hf, -0.13);
         this.drawHose(_g.a, _g.b, up, h);
         V3.scale(_g.hu, fwd, -1);
+        // swapping the right hand: it drops out of view and comes back as the new one
+        if (s === 1 && Gear.swapT > 0) V3.addScaled(_g.hp, _g.hp, up, -Math.sin(Math.min(1, (0.4 - Gear.swapT) / 0.4) * Math.PI) * 0.45);
         this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 0.86, false, h, true);
+        if (s === 0) {
+          // PIP strapped to the wrist, facing you
+          V3.addScaled(_g.p2, _g.hp, _g.hf, 0.02); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.06); V3.addScaled(_g.p2, _g.p2, right, 0.01);
+          V3.cross(_g.d, _g.hf, _g.hu); V3.normalize(_g.d, _g.d);
+          Gear.submitPip(_g.p2, _g.hf, _g.hu, _g.d);
+        }
       } else {
         V3.copy(_g.b, m);
         this.drawHose(_g.a, _g.b, up, h);
@@ -7430,8 +7518,15 @@ const Game = {
         } else {
           V3.copy(_g.e, h.dir);
           if (V3.len(_g.e) < 0.5) V3.copy(_g.e, fwd);
-          const upRef = Math.abs(_g.e[1]) > 0.9 ? right : _g.up;
-          this.drawHand(h.pos, _g.e, upRef, s, 0.05, 1.15, true, h, false);
+          V3.copy(_g.c, Math.abs(_g.e[1]) > 0.9 ? right : _g.up);
+          // a slight corkscrew in flight (Rodrigues rotation of the up reference about the flight direction)
+          if (h.state === HAND.FLYING) {
+            const ang = Math.sin(h.travelled * 0.9) * 0.6, c = Math.cos(ang), sn = Math.sin(ang), e = _g.e, u = _g.c;
+            const kd = e[0] * u[0] + e[1] * u[1] + e[2] * u[2];
+            const cx = e[1] * u[2] - e[2] * u[1], cy = e[2] * u[0] - e[0] * u[2], cz = e[0] * u[1] - e[1] * u[0];
+            V3.set(_g.c, u[0] * c + cx * sn + e[0] * kd * (1 - c), u[1] * c + cy * sn + e[1] * kd * (1 - c), u[2] * c + cz * sn + e[2] * kd * (1 - c));
+          }
+          this.drawHand(h.pos, _g.e, _g.c, s, h.state === HAND.FLYING ? 0.05 : 0.35, 1.15, true, h, false);
         }
       }
     }
@@ -7457,7 +7552,9 @@ const Game = {
     if (clamp) { ringMatrix(clamp.model, b, _g.c, 0.03); clamp.tint[3] = 0.08; if (h.tethered) { clamp.emis[0] = 0.1 * h.energized; clamp.emis[1] = 0.5 * h.energized; clamp.emis[2] = 0.7 * h.energized; } }
   },
   drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
-    const R = RenderQueue, mat = side === 0 ? MAT.handTeal : MAT.handRose;
+    const R = RenderQueue, HT = HAND_TYPES[Gear.cur], mat = side === 0 ? MAT.handTeal : HT.mat;
+    // withered, grimy gloves: darker than new
+    const tr = side === 0 ? 0.62 : HT.tint[0], tg = side === 0 ? 0.66 : HT.tint[1], tb = side === 0 ? 0.62 : HT.tint[2];
     // right-handed basis (r = up x f) so back-face culling keeps the outside of the glove
     V3.cross(_g.r, upRef, f); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, f, _g.r); V3.normalize(_g.u, _g.u);
@@ -7477,7 +7574,11 @@ const Game = {
     const gm = (side === 0 ? 'glove_R_' : 'glove_L_') + (curl > 0.5 ? 'grip' : 'open');
     if (Sculpt.ready(gm)) {
       const it = R.push(gm, mat, shadow);
-      if (it) { basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[3] = lift; it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow; }
+      if (it) {
+        basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[0] = tr; it.tint[1] = tg; it.tint[2] = tb; it.tint[3] = lift;
+        it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow;
+        if (side === 1 && HT.glow) { const p = 0.7 + 0.3 * Math.sin(Game.time * 3); it.emis[0] += HT.glow[0] * p; it.emis[1] += HT.glow[1] * p; it.emis[2] += HT.glow[2] * p; }
+      }
       return;
     }
     const mirror = side === 0 ? 1 : -1;   // thumb on the inside of each hand
@@ -7593,6 +7694,7 @@ const Loader = {
         Monster.init();
         Cast.init();
         Enemies.init();
+        Gear.init();
         if (Audio.ctx && !Audio.emittersBuilt) Audio.buildEmitters();
         this.phase = 3;
         return;
@@ -7810,7 +7912,7 @@ async function runAll() {
   const T = window.__TEST__, F = window.__TEST_FIDELITY__;
   const results = [];
   // the cherubs and the seraph are tested in their own section; keep them out of the walkthrough
-  Enemies.disabled = true;
+  Enemies.disabled = true; Gear.gasDisabled = true;
   const check = (name, pass, detail) => {
     results.push({ name, pass: !!pass, detail: detail === undefined || detail === null ? '' : String(detail) });
     if (window.__HARNESS_VERBOSE__) console.log((pass ? 'PASS ' : 'FAIL ') + name + ' ' + (detail === undefined ? '' : String(detail)).slice(0, 300));
@@ -8370,6 +8472,59 @@ async function runAll() {
       T.aimAt(S.pos[0], S.pos[1] + 1.7, S.pos[2]); click(1); T.step(DT, 12);
       check('seraph: a charged hand shocks it back behind its wings', S.state === 'RECOIL' && S.unveil < 0.5, S.state);
       Game.invulnerable = false; GrabPack.reset(); Enemies.disabled = true; Cast.plush.hidden = false;
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+    }
+
+    // ---------------- gear: hands, gas mask, blacklight, VHS icon ----------------
+    {
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+      for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
+      check('gear: you start with your old ROSE hand only', Gear.cur === 0 && Gear.ownedCount() === 1 && !Gear.hasMask);
+      // the gas mask on the intake desk
+      const mk = Gear.pickups.find(p => p.kind === 'mask');
+      T.setPlayerPose(mk.pos[0], 0, mk.pos[2] + 1.4, 0, 0); T.aimAt(mk.pos[0], mk.pos[1], mk.pos[2]); T.step(DT, 2);
+      check('gear: prompt to take the gas mask', document.getElementById('hudPrompt').textContent === '[E] TAKE GAS MASK', document.getElementById('hudPrompt').textContent);
+      tap('KeyE');
+      check('gear: gas mask taken', Gear.hasMask && mk.taken);
+      tap('KeyG'); T.step(DT, 30);
+      check('gear: [G] puts the mask on (lens overlay)', Gear.maskOn && Gear.maskT > 0.8 && document.getElementById('maskOverlay').style.display === 'block', Gear.maskT.toFixed(2));
+      tap('KeyG'); T.step(DT, 30);
+      check('gear: [G] takes it off', !Gear.maskOn && document.getElementById('maskOverlay').style.display === 'none');
+      // a new hand: pick up the THUMPER and swap to it
+      const th = Gear.pickups.find(p => p.kind === 'hand' && p.type === 1);
+      T.setPlayerPose(th.pos[0], 0, th.pos[2] + 1.4, 0, 0); T.aimAt(th.pos[0], th.pos[1], th.pos[2]); T.step(DT, 2); tap('KeyE'); T.step(DT, 30);
+      check('gear: picking up a hand equips it on the right', Gear.owned[1] && Gear.cur === 1 && /THUMPER/.test(document.getElementById('hudHandR').textContent), document.getElementById('hudHandR').textContent);
+      tap('KeyX'); T.step(DT, 30);
+      check('gear: [X] swaps back to ROSE (the teal hand never swaps)', Gear.cur === 0, Gear.cur);
+      tap('KeyX'); T.step(DT, 30);
+      // the THUMPER stuns the Spoolwright far longer than the ROSE hand
+      Game.invulnerable = true; Game.stage = 1;
+      T.setPlayerPose(0, 0, -13.5, 0, 0); T.spawnMonsterNear(5); Monster.targetSpeed = 0; Monster.stunImmune = 0; T.step(DT, 2);
+      T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
+      check('gear: THUMPER hit stuns for longer (3.2 s) and knocks it back', Monster.state === MSTATE.STUNNED && Monster.stunTimer > 2.5, Monster.stunTimer.toFixed(2));
+      Monster.reset(); GrabPack.reset(); T.step(DT, 30);
+      // the gas: without the mask it chokes you, with it you breathe
+      Gear.gasDisabled = false; Game.invulnerable = false; Player.health = 100; Game.stage = 2;
+      const z = GAS_ZONES[0];
+      T.setPlayerPose((z.x0 + z.x1) / 2, 0, (z.z0 + z.z1) / 2, 0, 0); T.step(DT, 150);
+      check('gear: toxic smog chokes you without the mask', Player.health < 90 && T.getSfxLog().includes('cough'), Player.health.toFixed(1));
+      Player.health = 100; tap('KeyG'); T.step(DT, 150);
+      check('gear: with the mask on you can breathe in it', Player.health > 99 && T.getSfxLog().includes('maskBreath'), Player.health.toFixed(1));
+      tap('KeyG'); Gear.gasDisabled = true;
+      // the blacklight reveals hidden ink
+      const sc = UV_SECRETS[0];
+      Game.stage = 1; Player.flashOn = true;
+      T.setPlayerPose(sc.pos[0] + 4, 0, sc.pos[2], Math.PI / 2, 0); T.aimAt(sc.pos[0], sc.pos[1], sc.pos[2]); T.step(DT, 20);
+      check('gear: the ink stays invisible in plain light', Gear.secrets[0].reveal < 0.05);
+      tap('KeyB'); for (let i = 0; i < 40; i++) { T.aimAt(sc.pos[0], sc.pos[1], sc.pos[2]); T.step(DT, 1); }
+      check('gear: [B] blacklight reveals the hidden message (secret found, starry eyes)', Gear.secrets[0].reveal > 0.8 && Gear.secretsFound[0] === 1 && Pip.current === 'stars', Gear.secrets[0].reveal.toFixed(2) + ' ' + Pip.current);
+      tap('KeyB');
+      // VHS icon on save
+      Game.saveCheckpoint(1); T.step(DT, 2);
+      check('gear: VHS cassette icon while saving', document.getElementById('hudVhs').classList.contains('on') && document.getElementById('hudVhsText').textContent === 'SAVING');
+      T.setStepRender(true); T.setPlayerPose(0, 0, -10, 0, 0); T.step(DT, 2);
+      check('gear: PIP on the teal glove renders (face texture)', T.getLastError() === null && Renderer.stats.assetDraws > 0, Renderer.stats.assetDraws);
+      T.setStepRender(false);
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
 
@@ -9693,7 +9848,7 @@ const Pip = {
     let mood = this.moodTimer > 0 ? this.mood : 'smile';
     if (state === STATE.JUMPSCARE || state === STATE.FAILURE_STATE) mood = 'static';
     else if (state === STATE.CHASE_SEQUENCE) mood = 'panic';
-    else if (this.moodTimer <= 0 && Game.threat > 0.55) mood = 'scared';
+    else if (this.moodTimer <= 0 && (Game.threat > 0.55 || (Enemies.cherubs.length && Enemies.danger()))) mood = 'scared';
     else if (state === STATE.VICTORY) mood = 'love';
     if (GrabPack.hintTimer > 0 && GrabPack.hint !== this.lastHint) { this.lastHint = GrabPack.hint; this.talk = Math.min(2.2, GrabPack.hint.length * 0.045); }
     if (GrabPack.hintTimer <= 0) this.lastHint = '';
@@ -9713,6 +9868,12 @@ const Pip = {
     if (mood === 'love') {
       const heart = ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'];
       for (let y = 0; y < heart.length; y++) for (let x = 0; x < 7; x++) if (heart[y][x] === '1') this.setDot(4 + x, 3 + y);
+      return;
+    }
+    if (mood === 'stars') {
+      // starry eyes: a secret or a new find
+      for (const [ex, ey] of [[4, 3], [11, 3]]) { this.setDot(ex, ey - 2); this.setDot(ex, ey + 2); this.setDot(ex - 2, ey); this.setDot(ex + 2, ey); this.setDot(ex, ey); this.setDot(ex - 1, ey - 1); this.setDot(ex + 1, ey + 1); this.setDot(ex + 1, ey - 1); this.setDot(ex - 1, ey + 1); }
+      for (let x = 4; x <= 11; x++) { this.setDot(x, 8); if (x > 4 && x < 11) this.setDot(x, 9); }
       return;
     }
     if (mood === 'sunny') {
@@ -11061,6 +11222,9 @@ const Enemies = {
         c.pos[1] = damp(c.pos[1], 1.8, 3, dt);
         if (c.timer <= 0) c.state = lit ? 'SCARED' : 'CREEP';
         if (c.timer <= 0 && lit) c.timer = 0.6;
+      } else if (c.state === 'PINNED') {
+        c.timer -= dt; c.flap += dt * 30;
+        if (c.timer <= 0) c.state = 'CREEP';
       } else if (c.state === 'RETURN') {
         const hx = c.home[0] - c.pos[0], hz = c.home[2] - c.pos[2], hd = Math.hypot(hx, hz);
         if (hd < 0.2) { c.state = 'ROOST'; c.pos[1] = c.home[1]; }
@@ -11159,8 +11323,11 @@ const Enemies = {
       if (c.dead || c.state === 'ROOST' && !Streaming.visible[c.sector]) continue;
       V3.set(this.tmp, c.pos[0], c.pos[1] + 0.28, c.pos[2]);
       if (test(this.tmp, 0.34)) {
-        c.dead = true;
         V3.copy(h.pos, this.tmp);
+        const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE';
+        if (type === 'STITCHER') { c.state = 'PINNED'; c.timer = 6; sfx('pin', this.tmp); Particles.burst(this.tmp, 10, 'spark'); return true; }
+        if (type === 'THUMPER') for (const o of this.cherubs) if (!o.dead && o !== c && V3.dist(o.pos, c.pos) < 1.8) { o.dead = true; Particles.burst(o.pos, 16, 'debris'); }
+        c.dead = true;
         Particles.burst(this.tmp, 22, 'debris'); Particles.burst(this.tmp, 8, 'spark');
         sfx('shatter', this.tmp);
         Pip.react('happy', 1.5);
@@ -11182,10 +11349,18 @@ const Enemies = {
           Lights.pulse(this.tmp, 0.45, 0.85, 1.0, 6, 3.5, 0.5);
           GrabPack.showHint('SHOCKED - it hides behind its wings for a while');
         } else {
+          const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE';
           sfx('handHitFlesh', this.tmp);
           Particles.burst(this.tmp, 10, 'debris');
-          if (S.state === 'SWOOP' || S.state === 'UNVEIL') { S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 5; }
-          GrabPack.showHint('It flinched - a charged hand would drive it back for longer');
+          if (type === 'THUMPER' || type === 'STITCHER') {
+            // the heavy hands drive it back behind its wings (pinned in place for the Stitcher)
+            S.state = 'RECOIL'; S.timer = type === 'STITCHER' ? -0.5 : 0.5; S.unveil = 0;
+            sfx(type === 'STITCHER' ? 'pin' : 'thump', this.tmp);
+            GrabPack.showHint(type + ': it hides behind its wings');
+          } else {
+            if (S.state === 'SWOOP' || S.state === 'UNVEIL') { S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 5; }
+            GrabPack.showHint('It flinched - a charged or heavier hand drives it back for longer');
+          }
         }
         return true;
       }
@@ -11258,6 +11433,328 @@ const Enemies = {
     }
   }
 };
+
+// ===== module: 23_gear.js =====
+// =====================================================================================
+// GEAR: the swappable right hand, pickups, the gas mask, PIP's blacklight + hidden messages,
+// and PIP mounted on the teal glove.
+//
+//   RIGHT HAND (the teal left hand never changes). [X] / mouse wheel / pad Y cycles the hands you own:
+//     ROSE      your old hand. A plain hit staggers (1.3 s).
+//     THUMPER   brass knuckle-buster. Heavy hit: 3.2 s stun, knock-back, smashes nearby cherubs.
+//     STITCHER  steel needle fingers that pin whatever they hit in place (4.5 s; cherubs 6 s).
+//     LANTERN   violet lamp-hand: bursts with blinding light wherever it lands, stunning everything
+//               within 7 m (Spoolwright 2.6 s, the seraph hides its face 6 s, cherubs flee 5 s).
+//   GAS MASK  picked up in the intake lift. [G] puts it on / takes it off: a dual-lens view with a
+//             breathing rasp and breath fog. The back corner of the gallery is full of toxic lint smog.
+//   BLACKLIGHT [B] switches PIP's lamp to ultraviolet: it reveals messages painted in invisible ink.
+// =====================================================================================
+const HAND_TYPES = [
+  { id: 'ROSE', mat: MAT.handRose, tint: [0.7, 0.6, 0.6], glow: null, stun: 1.3, cool: 0.18, desc: 'your old hand - a solid slap that staggers' },
+  { id: 'THUMPER', mat: MAT.copper, tint: [0.95, 0.8, 0.6], glow: null, stun: 3.2, cool: 0.9, desc: 'heavy brass punch - long stun, knock-back, smashes cherubs' },
+  { id: 'STITCHER', mat: MAT.steel, tint: [1.15, 1.15, 1.2], glow: null, stun: 4.5, cool: 1.0, desc: 'needle fingers that pin whatever they hit' },
+  { id: 'LANTERN', mat: MAT.handRose, tint: [0.62, 0.48, 1.35], glow: [0.3, 0.1, 0.8], stun: 2.6, cool: 1.4, desc: 'bursts with blinding light where it lands' }
+];
+const PICKUP_SPOTS = [
+  { kind: 'mask', sector: 0, pos: [-2.6, 0.86, 2.2] },
+  { kind: 'hand', type: 1, sector: 1, pos: [-3.5, 1.08, -14.5] },
+  { kind: 'hand', type: 3, sector: 2, pos: [-6.5, 1.08, -33] },
+  { kind: 'hand', type: 2, sector: 3, pos: [4.6, 1.18, -56] }
+];
+const GAS_ZONES = [{ sector: 2, x0: -10, z0: -48, x1: -4.6, z1: -39.2 }];
+const UV_SECRETS = [
+  { sector: 1, pos: [-11.82, 2.0, -4.2], yaw: -Math.PI / 2, lines: ['THEY HATE THE LIGHT.', 'KEEP IT ON THE CHERUBS.'] },
+  { sector: 2, pos: [9.82, 2.1, -28.4], yaw: Math.PI / 2, lines: ['IT IS BLIND WHILE IT', 'HIDES ITS FACE. MOVE THEN.'] },
+  { sector: 3, pos: [5.82, 2.2, -60.5], yaw: Math.PI / 2, lines: ['6-06 KEEPS EVERYTHING', 'IT TAKES. EVEN ARMS.'] }
+];
+
+const Gear = {
+  owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0,
+  hasMask: false, maskOn: false, maskT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
+  blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
+  pickups: [], secrets: [], pipAsset: null, pipTimer: 0, overlay: null, gasOverlay: null,
+  tmp: V3.create(), m: M4.create(),
+
+  init() {
+    this.pickups = PICKUP_SPOTS.map(p => ({ kind: p.kind, type: p.type || 0, sector: p.sector, pos: V3.create(p.pos[0], p.pos[1], p.pos[2]), taken: false }));
+    this.secrets = UV_SECRETS.map(s => ({ s, asset: this.textQuad(s.lines), reveal: 0 }));
+    // PIP's face on the teal glove uses the HUD companion canvas as a live texture
+    const cv = document.getElementById('pipCanvas');
+    if (cv) this.pipAsset = this.canvasQuad(cv, 'pip-face', 2.2, false);
+    this.overlay = document.getElementById('maskOverlay');
+    this.gasOverlay = document.getElementById('gasOverlay');
+    this.reset();
+  },
+  reset() {
+    this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0;
+    this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
+    this.blacklight = false; this.secretsFound.fill(0);
+    for (const p of this.pickups) p.taken = false;
+  },
+  // after a checkpoint restore: what you own follows from which pickups are gone
+  syncFromPickups() {
+    this.owned.fill(0); this.owned[0] = 1; this.hasMask = false;
+    for (const p of this.pickups) if (p.taken) { if (p.kind === 'mask') this.hasMask = true; else this.owned[p.type] = 1; }
+    if (!this.owned[this.cur]) this.cur = 0;
+    if (!this.hasMask) this.maskOn = false;
+  },
+  type() { return HAND_TYPES[this.cur]; },
+
+  // ---------- textured quads (canvas -> texture) ----------
+  canvasQuad(cv, name, emissive, cutout) {
+    const gl = Renderer.gl;
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const v = new Float32Array([-0.5, -0.5, 0, 0, 0, -1, 1, 1, 0.5, -0.5, 0, 0, 0, -1, 0, 1, 0.5, 0.5, 0, 0, 0, -1, 0, 0, -0.5, 0.5, 0, 0, 0, -1, 1, 0]);
+    const idx = new Uint16Array([0, 2, 1, 0, 3, 2]);
+    const mat = { baseColor: new Float32Array([1, 1, 1, 1]), image: null, tex, rough: 0.3, metal: 0, emissive: new Float32Array(3), cutoff: cutout ? 0.5 : -1, doubleSided: true, texEmissive: emissive };
+    const asset = { name, prims: [{ vertices: v, indices: idx, node: M4.create(), material: mat, gpu: null, tris: 2 }], materials: [mat], fit: M4.create(), ready: true, size: V3.create(1, 1, 0), canvas: cv };
+    Assets.upload(asset);
+    mat.tex = tex;
+    return asset;
+  },
+  textQuad(lines) {
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 192;
+    const c = cv.getContext('2d');
+    c.clearRect(0, 0, 512, 192);
+    c.fillStyle = 'rgba(214,190,255,1)';
+    c.font = 'bold 46px "Comic Sans MS", "Segoe Print", cursive';
+    c.textAlign = 'center';
+    lines.forEach((l, i) => { c.save(); c.translate(256, 70 + i * 66); c.rotate((i % 2 ? 1 : -1) * 0.03); c.fillText(l, 0, 0); c.restore(); });
+    // dripping smears
+    c.fillRect(120, 90, 4, 40); c.fillRect(380, 150, 3, 30);
+    return this.canvasQuad(cv, 'uv-secret', 0, true);
+  },
+
+  // ---------- per-frame ----------
+  update(dt) {
+    const J = Input.justPressed;
+    // swap the right hand (the teal hand never swaps)
+    let dir = 0;
+    if (J.has('KeyX') || Input.padJust(3)) dir = 1;
+    if (Input.wheel) { dir = Input.wheel > 0 ? 1 : -1; Input.wheel = 0; }
+    if (dir) this.cycle(dir);
+    if (this.swapT > 0) {
+      this.swapT -= dt;
+      if (this.swapT < 0.2 && this.cur !== this.swapTo) { this.cur = this.swapTo; sfx('handSwap'); }
+    }
+    if (J.has('KeyG') && this.hasMask) this.toggleMask();
+    if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'PIP: BLACKLIGHT ON - hidden ink glows in the beam' : 'PIP: FLASHLIGHT'); }
+    this.maskT = damp(this.maskT, this.maskOn ? 1 : 0, 7, dt);
+    this.updateGas(dt);
+    this.updateSecrets(dt);
+    this.updateOverlays(dt);
+    // PIP's face texture on the glove
+    this.pipTimer -= dt;
+    if (this.pipAsset && this.pipTimer <= 0) {
+      this.pipTimer = 1 / 12;
+      const gl = Renderer.gl;
+      gl.bindTexture(gl.TEXTURE_2D, this.pipAsset.materials[0].tex);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.pipAsset.canvas);
+    }
+  },
+  cycle(dir) {
+    let n = (this.swapT > 0 ? this.swapTo : this.cur);
+    for (let k = 0; k < 4; k++) { n = (n + dir + 4) % 4; if (this.owned[n]) break; }
+    if (n === (this.swapT > 0 ? this.swapTo : this.cur)) { if (this.ownedCount() < 2) GrabPack.showHint('Only the ROSE hand so far - find more hands'); return; }
+    const h = GrabPack.hands[1];
+    if (h.state !== HAND.DOCKED) GrabPack.release(h, false);
+    this.swapTo = n; this.swapT = 0.4;
+    GrabPack.showHint('R HAND: ' + HAND_TYPES[n].id + ' - ' + HAND_TYPES[n].desc);
+  },
+  ownedCount() { let c = 0; for (const o of this.owned) c += o; return c; },
+  toggleMask() {
+    this.maskOn = !this.maskOn;
+    sfx(this.maskOn ? 'maskOn' : 'maskOff');
+    this.breathT = 0.6;
+  },
+
+  // ---------- pickups ----------
+  nearestPickup() {
+    let best = null, bd = 2.4;
+    for (const p of this.pickups) {
+      if (p.taken) continue;
+      const d = V3.dist(p.pos, Player.eyePos);
+      if (d > bd) continue;
+      V3.sub(this.tmp, p.pos, Player.eyePos); V3.normalize(this.tmp, this.tmp);
+      if (V3.dot(this.tmp, Renderer.camFwd) < 0.55) continue;
+      best = p; bd = d;
+    }
+    return best;
+  },
+  promptFor(p) { return p.kind === 'mask' ? '[E] TAKE GAS MASK' : '[E] TAKE ' + HAND_TYPES[p.type].id + ' HAND'; },
+  take(p) {
+    p.taken = true;
+    sfx('pickup');
+    if (p.kind === 'mask') {
+      this.hasMask = true;
+      GrabPack.showHint('GAS MASK - press [G] to put it on or take it off');
+    } else {
+      this.owned[p.type] = 1;
+      this.swapTo = p.type; this.swapT = 0.4;
+      GrabPack.showHint('NEW HAND: ' + HAND_TYPES[p.type].id + ' - ' + HAND_TYPES[p.type].desc + '  ([X] / wheel to swap)');
+    }
+    Pip.react('stars', 2.5);
+  },
+
+  // ---------- gas ----------
+  inGas(p) {
+    for (const z of GAS_ZONES) if (p[0] > z.x0 && p[0] < z.x1 && p[2] > z.z0 && p[2] < z.z1) return z;
+    return null;
+  },
+  updateGas(dt) {
+    const b = Player.body.pos, z = Game.isGameplay() && !Player.hidden ? this.inGas(b) : null;
+    if (z && !this.maskOn && !this.gasDisabled) {
+      this.gasT += dt;
+      if (!this.gasHinted) { this.gasHinted = true; GrabPack.showHint(this.hasMask ? 'TOXIC LINT SMOG - put on your gas mask [G]!' : 'TOXIC LINT SMOG - get out, find a gas mask!'); }
+      this.coughT -= dt;
+      if (this.coughT <= 0) { this.coughT = 1.2 + gameRng() * 0.6; sfx('cough'); Player.addTrauma(0.15); }
+      if (this.gasT > 1.0 && !Game.invulnerable) {
+        Player.health -= 7 * dt; Player.hurtTimer = 2;
+        if (Player.health <= 0) Game.onPlayerDied('CHOKED ON THE SMOG');
+      }
+    } else this.gasT = Math.max(0, this.gasT - dt * 2);
+    // breathing through the filters
+    if (this.maskOn && Game.isGameplay()) {
+      this.breathT -= dt;
+      const fast = Player.sprinting || state === STATE.CHASE_SEQUENCE;
+      if (this.breathT <= 0) { this.breathT = fast ? 1.8 : 3.4; sfx('maskBreath'); }
+    }
+    // the smog itself: drifting puffs
+    for (const zz of GAS_ZONES) {
+      if (!Streaming.visible[zz.sector] || gameRng() > dt * 14) continue;
+      V3.set(this.tmp, zz.x0 + gameRng() * (zz.x1 - zz.x0), 0.3 + gameRng() * 1.6, zz.z0 + gameRng() * (zz.z1 - zz.z0));
+      Particles.burst(this.tmp, 2, 'steam');
+    }
+  },
+
+  // ---------- blacklight secrets ----------
+  updateSecrets(dt) {
+    for (let i = 0; i < this.secrets.length; i++) {
+      const S = this.secrets[i], p = S.s.pos;
+      const lit = this.blacklight && Player.flashOn && Streaming.visible[S.s.sector] && Enemies.inBeam && Enemies.inBeam(V3.set(this.tmp, p[0], p[1], p[2]));
+      S.reveal = damp(S.reveal, lit ? 1 : 0, 5, dt);
+      if (S.reveal > 0.8 && !this.secretsFound[i] && V3.dist(this.tmp, Player.eyePos) < 7) {
+        this.secretsFound[i] = 1;
+        let n = 0; for (const f of this.secretsFound) n += f;
+        Pip.react('stars', 3);
+        sfx('pipChirp');
+        GrabPack.showHint('SECRET FOUND ' + n + ' / ' + this.secrets.length);
+      }
+    }
+  },
+
+  // ---------- overlays (mask lenses, smog tint) ----------
+  updateOverlays() {
+    if (this.overlay) {
+      const v = this.maskT;
+      const show = v > 0.04 && (Game.isGameplay() || state === STATE.PAUSED);
+      this.overlay.style.display = show ? 'block' : 'none';
+      if (show) {
+        this.overlay.style.transform = 'translateY(' + ((1 - v) * -105).toFixed(1) + '%)';
+        const fog = this.overlay.querySelector('.fog');
+        if (fog) fog.style.opacity = (Math.max(0, Math.sin(Game.time * (Player.sprinting ? 3.4 : 1.85))) * 0.35).toFixed(2);
+      }
+    }
+    if (this.gasOverlay) {
+      const g = clamp(this.gasT * 0.35, 0, 0.55) * (this.maskOn ? 0 : 1);
+      this.gasOverlay.style.opacity = g.toFixed(2);
+    }
+  },
+
+  // ---------- hand stats ----------
+  stunFor(side) { return side === 1 ? HAND_TYPES[this.cur].stun : 1.3; },
+  effectFor(side) { return side === 1 ? HAND_TYPES[this.cur].id : 'ROSE'; },
+  // the Lantern hand's blinding burst (also fired when it hits a wall)
+  lanternBurst(pos) {
+    Lights.pulse(pos, 0.75, 0.55, 1.0, 9, 9, 0.7, 0);
+    Particles.burst(pos, 30, 'spark');
+    sfx('lanternBurst', pos);
+    const P = Renderer.post; P.flash = 0.25; P.flashTint[0] = 0.8; P.flashTint[1] = 0.65; P.flashTint[2] = 1.0;
+    if (Monster.active && Monster.visible && V3.dist(Monster.pos, pos) < 7 && !Boss.active) { Monster.stunTimer = Math.max(Monster.stunTimer, 2.6); Monster.setState(MSTATE.STUNNED); }
+    else if (Boss.active && V3.dist(Monster.pos, pos) < 7) Monster.stunTimer = Math.max(Monster.stunTimer, 1.2);
+    const S = Enemies.seraph;
+    if (S.active && V3.dist(S.pos, pos) < 9) { S.state = 'RECOIL'; S.timer = -1.5; S.unveil = 0; }
+    for (const c of Enemies.cherubs) if (!c.dead && V3.dist(c.pos, pos) < 7) { c.state = 'SCARED'; c.timer = 5; }
+  },
+
+  // ---------- rendering ----------
+  submit(vis) {
+    const R = RenderQueue, t = Game.time;
+    for (const p of this.pickups) {
+      if (p.taken || !vis[p.sector]) continue;
+      const bob = Math.sin(t * 2 + p.pos[0]) * 0.03;
+      if (p.kind === 'hand') {
+        const T = HAND_TYPES[p.type], gm = 'glove_L_open';
+        if (Sculpt.ready(gm)) {
+          const it = R.push(gm, T.mat);
+          if (it) { M4.compose(it.model, p.pos[0], p.pos[1] + 0.12 + bob, p.pos[2], t * 0.8, -1.2, 0, 1.3, 1.3, 1.3); it.tint[0] = T.tint[0]; it.tint[1] = T.tint[1]; it.tint[2] = T.tint[2]; if (T.glow) { it.emis[0] = T.glow[0]; it.emis[1] = T.glow[1]; it.emis[2] = T.glow[2]; } }
+        }
+      } else {
+        // gas mask: rubber face piece, two round lenses, a filter canister and straps
+        const yaw = t * 0.6;
+        const it = R.trs('sphere', MAT.rubber, p.pos[0], p.pos[1] + 0.12 + bob, p.pos[2], yaw, 0, 0, 0.13, 0.15, 0.09);
+        for (const sx of [-1, 1]) {
+          Cast.pt(this.tmp, p.pos, yaw, sx * 0.055, 0.15 + bob, -0.075);
+          const l = R.trs('sphere', MAT.lens, this.tmp[0], this.tmp[1], this.tmp[2], yaw, 0, 0, 0.042, 0.042, 0.015);
+          if (l) { l.emis[0] = 0.1; l.emis[1] = 0.12; l.emis[2] = 0.1; }
+        }
+        Cast.pt(this.tmp, p.pos, yaw, 0, 0.05 + bob, -0.1);
+        R.trs('cyl', MAT.steel, this.tmp[0], this.tmp[1] - 0.04, this.tmp[2], yaw, Math.PI / 2 - 0.3, 0, 0.05, 0.08, 0.05);
+      }
+      // a soft glint so you notice it
+      const g = R.trs('sphereLow', MAT.screen, p.pos[0], p.pos[1] + 0.3 + bob, p.pos[2], 0, 0, 0, 0.015, 0.015, 0.015, false);
+      if (g) { g.emis[0] = 1.2; g.emis[1] = 1.1; g.emis[2] = 0.8; }
+    }
+    // hidden ink, glowing only in the blacklight beam
+    for (const S of this.secrets) {
+      if (S.reveal < 0.03 || !vis[S.s.sector]) continue;
+      const p = S.s.pos;
+      S.asset.materials[0].texEmissive = 3.5 * S.reveal;
+      M4.compose(this.m, p[0], p[1], p[2], S.s.yaw, 0, 0, 2.2, 0.82, 1);
+      AssetQueue.push(S.asset, this.m, false);
+    }
+  },
+  // PIP strapped to the back of the teal glove's wrist, facing you (called from Game.submitHands)
+  submitPip(pos, up, toCam, right) {
+    const R = RenderQueue;
+    V3.scale(this.tmp, toCam, -1);   // quad normal (-z) must face the camera
+    // cog-shaped brass casing
+    V3.addScaled(_gear.a, pos, toCam, -0.012); V3.addScaled(_gear.b, pos, toCam, 0.01);
+    let it = R.seg('cyl', MAT.paint, _gear.a, _gear.b, 0.05, false);
+    if (it) { it.tint[0] = 1.3; it.tint[1] = 0.85; it.tint[2] = 0.45; it.tint[3] = 0.1; }
+    for (let k = 0; k < 10; k++) {
+      const a = k / 10 * Math.PI * 2;
+      V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, right, Math.cos(a) * 0.055); V3.addScaled(_gear.c, _gear.c, up, Math.sin(a) * 0.055);
+      it = R.push('box', MAT.paint, false);
+      if (it) { basisMatrix(it.model, _gear.c, right, up, this.tmp, 0.015, 0.015, 0.02); it.tint[0] = 1.3; it.tint[1] = 0.85; it.tint[2] = 0.45; it.tint[3] = 0.1; }
+    }
+    // antenna and the front LED that is your flashlight
+    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, 0.05); V3.addScaled(_gear.c, _gear.c, right, 0.025);
+    V3.copy(_gear.d, _gear.c); V3.addScaled(_gear.d, _gear.d, up, 0.04);
+    R.seg('cylLow', MAT.rubber, _gear.c, _gear.d, 0.004, false);
+    it = R.trs('sphereLow', MAT.screen, _gear.d[0], _gear.d[1], _gear.d[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
+    if (it) { it.emis[0] = 2.5; it.emis[1] = 0.3; it.emis[2] = 0.2; }
+    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, -0.042); V3.addScaled(_gear.c, _gear.c, toCam, 0.012);
+    it = R.trs('sphereLow', MAT.screen, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.012, 0.012, 0.012, false);
+    if (it) { const on = Player.flashOn ? 1 : 0.05; if (this.blacklight) { it.emis[0] = 1.2 * on; it.emis[1] = 0.3 * on; it.emis[2] = 2.6 * on; } else { it.emis[0] = 2.6 * on; it.emis[1] = 2.4 * on; it.emis[2] = 2.0 * on; } }
+    // the LED face
+    if (this.pipAsset) {
+      V3.addScaled(_gear.c, pos, toCam, 0.012);
+      basisMatrix(this.m, _gear.c, right, up, this.tmp, 0.078, 0.078, 1);
+      const q = AssetQueue.push(this.pipAsset, this.m, false);
+      if (q) q.tint[3] = 0.1;
+    }
+  }
+};
+const _gear = { a: V3.create(), b: V3.create(), c: V3.create(), d: V3.create() };
 </script>
+<div id="gasOverlay"></div>
+<div id="maskOverlay"><svg viewBox="0 0 160 90" preserveAspectRatio="none"><defs><mask id="lensMask"><rect width="160" height="90" fill="white"/><ellipse cx="52" cy="42" rx="33" ry="30" fill="black"/><ellipse cx="108" cy="42" rx="33" ry="30" fill="black"/></mask><radialGradient id="lensEdge" cx="50%" cy="50%" r="50%"><stop offset="80%" stop-color="black" stop-opacity="0"/><stop offset="100%" stop-color="black" stop-opacity="0.85"/></radialGradient></defs><rect width="160" height="90" fill="rgb(5,5,5)" mask="url(#lensMask)"/><ellipse cx="52" cy="42" rx="33" ry="30" fill="url(#lensEdge)"/><ellipse cx="108" cy="42" rx="33" ry="30" fill="url(#lensEdge)"/><ellipse cx="52" cy="42" rx="33" ry="30" stroke="rgb(42,42,40)" stroke-width="2.4" fill="none"/><ellipse cx="108" cy="42" rx="33" ry="30" stroke="rgb(42,42,40)" stroke-width="2.4" fill="none"/><path d="M30 24 L44 31 M118 60 L128 52 M96 22 l6 4" stroke="rgba(255,255,255,0.18)" stroke-width="0.6"/></svg><div class="fog"></div></div>
 </body>
 </html>

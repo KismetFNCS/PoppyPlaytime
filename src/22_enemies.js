@@ -98,6 +98,9 @@ const Enemies = {
         c.pos[1] = damp(c.pos[1], 1.8, 3, dt);
         if (c.timer <= 0) c.state = lit ? 'SCARED' : 'CREEP';
         if (c.timer <= 0 && lit) c.timer = 0.6;
+      } else if (c.state === 'PINNED') {
+        c.timer -= dt; c.flap += dt * 30;
+        if (c.timer <= 0) c.state = 'CREEP';
       } else if (c.state === 'RETURN') {
         const hx = c.home[0] - c.pos[0], hz = c.home[2] - c.pos[2], hd = Math.hypot(hx, hz);
         if (hd < 0.2) { c.state = 'ROOST'; c.pos[1] = c.home[1]; }
@@ -196,8 +199,11 @@ const Enemies = {
       if (c.dead || c.state === 'ROOST' && !Streaming.visible[c.sector]) continue;
       V3.set(this.tmp, c.pos[0], c.pos[1] + 0.28, c.pos[2]);
       if (test(this.tmp, 0.34)) {
-        c.dead = true;
         V3.copy(h.pos, this.tmp);
+        const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE';
+        if (type === 'STITCHER') { c.state = 'PINNED'; c.timer = 6; sfx('pin', this.tmp); Particles.burst(this.tmp, 10, 'spark'); return true; }
+        if (type === 'THUMPER') for (const o of this.cherubs) if (!o.dead && o !== c && V3.dist(o.pos, c.pos) < 1.8) { o.dead = true; Particles.burst(o.pos, 16, 'debris'); }
+        c.dead = true;
         Particles.burst(this.tmp, 22, 'debris'); Particles.burst(this.tmp, 8, 'spark');
         sfx('shatter', this.tmp);
         Pip.react('happy', 1.5);
@@ -219,10 +225,18 @@ const Enemies = {
           Lights.pulse(this.tmp, 0.45, 0.85, 1.0, 6, 3.5, 0.5);
           GrabPack.showHint('SHOCKED - it hides behind its wings for a while');
         } else {
+          const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE';
           sfx('handHitFlesh', this.tmp);
           Particles.burst(this.tmp, 10, 'debris');
-          if (S.state === 'SWOOP' || S.state === 'UNVEIL') { S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 5; }
-          GrabPack.showHint('It flinched - a charged hand would drive it back for longer');
+          if (type === 'THUMPER' || type === 'STITCHER') {
+            // the heavy hands drive it back behind its wings (pinned in place for the Stitcher)
+            S.state = 'RECOIL'; S.timer = type === 'STITCHER' ? -0.5 : 0.5; S.unveil = 0;
+            sfx(type === 'STITCHER' ? 'pin' : 'thump', this.tmp);
+            GrabPack.showHint(type + ': it hides behind its wings');
+          } else {
+            if (S.state === 'SWOOP' || S.state === 'UNVEIL') { S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 5; }
+            GrabPack.showHint('It flinched - a charged or heavier hand drives it back for longer');
+          }
         }
         return true;
       }

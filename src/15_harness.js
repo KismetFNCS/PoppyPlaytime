@@ -197,7 +197,7 @@ async function runAll() {
   const T = window.__TEST__, F = window.__TEST_FIDELITY__;
   const results = [];
   // the cherubs and the seraph are tested in their own section; keep them out of the walkthrough
-  Enemies.disabled = true;
+  Enemies.disabled = true; Gear.gasDisabled = true;
   const check = (name, pass, detail) => {
     results.push({ name, pass: !!pass, detail: detail === undefined || detail === null ? '' : String(detail) });
     if (window.__HARNESS_VERBOSE__) console.log((pass ? 'PASS ' : 'FAIL ') + name + ' ' + (detail === undefined ? '' : String(detail)).slice(0, 300));
@@ -757,6 +757,59 @@ async function runAll() {
       T.aimAt(S.pos[0], S.pos[1] + 1.7, S.pos[2]); click(1); T.step(DT, 12);
       check('seraph: a charged hand shocks it back behind its wings', S.state === 'RECOIL' && S.unveil < 0.5, S.state);
       Game.invulnerable = false; GrabPack.reset(); Enemies.disabled = true; Cast.plush.hidden = false;
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+    }
+
+    // ---------------- gear: hands, gas mask, blacklight, VHS icon ----------------
+    {
+      Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
+      for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
+      check('gear: you start with your old ROSE hand only', Gear.cur === 0 && Gear.ownedCount() === 1 && !Gear.hasMask);
+      // the gas mask on the intake desk
+      const mk = Gear.pickups.find(p => p.kind === 'mask');
+      T.setPlayerPose(mk.pos[0], 0, mk.pos[2] + 1.4, 0, 0); T.aimAt(mk.pos[0], mk.pos[1], mk.pos[2]); T.step(DT, 2);
+      check('gear: prompt to take the gas mask', document.getElementById('hudPrompt').textContent === '[E] TAKE GAS MASK', document.getElementById('hudPrompt').textContent);
+      tap('KeyE');
+      check('gear: gas mask taken', Gear.hasMask && mk.taken);
+      tap('KeyG'); T.step(DT, 30);
+      check('gear: [G] puts the mask on (lens overlay)', Gear.maskOn && Gear.maskT > 0.8 && document.getElementById('maskOverlay').style.display === 'block', Gear.maskT.toFixed(2));
+      tap('KeyG'); T.step(DT, 30);
+      check('gear: [G] takes it off', !Gear.maskOn && document.getElementById('maskOverlay').style.display === 'none');
+      // a new hand: pick up the THUMPER and swap to it
+      const th = Gear.pickups.find(p => p.kind === 'hand' && p.type === 1);
+      T.setPlayerPose(th.pos[0], 0, th.pos[2] + 1.4, 0, 0); T.aimAt(th.pos[0], th.pos[1], th.pos[2]); T.step(DT, 2); tap('KeyE'); T.step(DT, 30);
+      check('gear: picking up a hand equips it on the right', Gear.owned[1] && Gear.cur === 1 && /THUMPER/.test(document.getElementById('hudHandR').textContent), document.getElementById('hudHandR').textContent);
+      tap('KeyX'); T.step(DT, 30);
+      check('gear: [X] swaps back to ROSE (the teal hand never swaps)', Gear.cur === 0, Gear.cur);
+      tap('KeyX'); T.step(DT, 30);
+      // the THUMPER stuns the Spoolwright far longer than the ROSE hand
+      Game.invulnerable = true; Game.stage = 1;
+      T.setPlayerPose(0, 0, -13.5, 0, 0); T.spawnMonsterNear(5); Monster.targetSpeed = 0; Monster.stunImmune = 0; T.step(DT, 2);
+      T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
+      check('gear: THUMPER hit stuns for longer (3.2 s) and knocks it back', Monster.state === MSTATE.STUNNED && Monster.stunTimer > 2.5, Monster.stunTimer.toFixed(2));
+      Monster.reset(); GrabPack.reset(); T.step(DT, 30);
+      // the gas: without the mask it chokes you, with it you breathe
+      Gear.gasDisabled = false; Game.invulnerable = false; Player.health = 100; Game.stage = 2;
+      const z = GAS_ZONES[0];
+      T.setPlayerPose((z.x0 + z.x1) / 2, 0, (z.z0 + z.z1) / 2, 0, 0); T.step(DT, 150);
+      check('gear: toxic smog chokes you without the mask', Player.health < 90 && T.getSfxLog().includes('cough'), Player.health.toFixed(1));
+      Player.health = 100; tap('KeyG'); T.step(DT, 150);
+      check('gear: with the mask on you can breathe in it', Player.health > 99 && T.getSfxLog().includes('maskBreath'), Player.health.toFixed(1));
+      tap('KeyG'); Gear.gasDisabled = true;
+      // the blacklight reveals hidden ink
+      const sc = UV_SECRETS[0];
+      Game.stage = 1; Player.flashOn = true;
+      T.setPlayerPose(sc.pos[0] + 4, 0, sc.pos[2], Math.PI / 2, 0); T.aimAt(sc.pos[0], sc.pos[1], sc.pos[2]); T.step(DT, 20);
+      check('gear: the ink stays invisible in plain light', Gear.secrets[0].reveal < 0.05);
+      tap('KeyB'); for (let i = 0; i < 40; i++) { T.aimAt(sc.pos[0], sc.pos[1], sc.pos[2]); T.step(DT, 1); }
+      check('gear: [B] blacklight reveals the hidden message (secret found, starry eyes)', Gear.secrets[0].reveal > 0.8 && Gear.secretsFound[0] === 1 && Pip.current === 'stars', Gear.secrets[0].reveal.toFixed(2) + ' ' + Pip.current);
+      tap('KeyB');
+      // VHS icon on save
+      Game.saveCheckpoint(1); T.step(DT, 2);
+      check('gear: VHS cassette icon while saving', document.getElementById('hudVhs').classList.contains('on') && document.getElementById('hudVhsText').textContent === 'SAVING');
+      T.setStepRender(true); T.setPlayerPose(0, 0, -10, 0, 0); T.step(DT, 2);
+      check('gear: PIP on the teal glove renders (face texture)', T.getLastError() === null && Renderer.stats.assetDraws > 0, Renderer.stats.assetDraws);
+      T.setStepRender(false);
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
 

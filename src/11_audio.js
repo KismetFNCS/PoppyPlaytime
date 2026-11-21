@@ -406,11 +406,14 @@ const SFX = {
     }
   },
   land(t, pos, surface) { SFX.footstep(t, pos, surface); Audio.tone(t, 'sine', 90, 45, 0.18, 0.35, Audio.dest(pos)); },
+  // gauntlet launch: a pneumatic punch (low thump + air burst), a spring twang and the cable spool screaming out
   handFire(t, pos) {
     const out = Audio.dest(pos);
-    Audio.noise(t, 0.12, 0.35, 2500, 'bandpass', out, 1.5);
-    Audio.tone(t, 'sawtooth', Audio.vary(320), 90, 0.16, 0.12, out);
-    Audio.noise(t + 0.02, 0.4, 0.08, 6000, 'highpass', out); // cable whir
+    Audio.tone(t, 'sine', 140, 55, 0.12, 0.45, out);
+    Audio.noise(t, 0.09, 0.5, 1400, 'bandpass', out, 0.8);
+    Audio.tone(t + 0.005, 'square', Audio.vary(540), 220, 0.08, 0.06, out);
+    Audio.tone(t + 0.03, 'sawtooth', 900, 2600, 0.35, 0.05, out);
+    Audio.noise(t + 0.03, 0.4, 0.09, 6500, 'highpass', out);
   },
   handHit(t, pos, surface) {
     const out = Audio.dest(pos, 'sfx', 2, 1.0);
@@ -427,8 +430,34 @@ const SFX = {
     Audio.tone(t + 0.04, 'square', 2300, 1700, 0.03, 0.05, out);
   },
   handHitFlesh(t, pos) { const out = Audio.dest(pos); Audio.noise(t, 0.15, 0.4, 600, 'lowpass', out); Audio.tone(t, 'sine', 90, 40, 0.2, 0.3, out); },
-  retract(t, pos) { const out = Audio.dest(pos); Audio.noise(t, 0.35, 0.1, 5000, 'bandpass', out, 2); Audio.tone(t, 'sawtooth', 160, 420, 0.3, 0.06, out); },
-  dock(t) { Audio.noise(t, 0.04, 0.25, 2000, 'bandpass', Audio.buses.sfx, 2); Audio.tone(t, 'square', 300, 180, 0.06, 0.08, Audio.buses.sfx); },
+  // reeling in: an electric winch motor winding up, with the cable ticking over the spool
+  retract(t, pos) {
+    const out = Audio.dest(pos);
+    Audio.tone(t, 'sawtooth', 180, 620, 0.42, 0.06, out, 0.05);
+    Audio.tone(t, 'square', 90, 310, 0.42, 0.03, out, 0.05);
+    for (let k = 0; k < 6; k++) Audio.noise(t + k * 0.06, 0.012, 0.12, 4500, 'highpass', out);
+  },
+  // docking: a heavy mechanical clunk and a latch click
+  dock(t) {
+    const out = Audio.buses.sfx;
+    Audio.tone(t, 'sine', 110, 50, 0.16, 0.4, out);
+    Audio.noise(t, 0.05, 0.35, 900, 'lowpass', out);
+    Audio.ring(t + 0.06, [1700, 3300], 0.08, 0.1, out);
+  },
+  handSwap(t) { const out = Audio.buses.sfx; Audio.noise(t, 0.12, 0.2, 1200, 'bandpass', out, 1); Audio.ring(t + 0.08, [900, 2100], 0.12, 0.12, out); Audio.tone(t + 0.1, 'sine', 160, 70, 0.12, 0.3, out); },
+  maskOn(t) { const out = Audio.buses.sfx; Audio.noise(t, 0.35, 0.25, 600, 'lowpass', out); Audio.ring(t + 0.3, [700, 1500], 0.1, 0.1, out); },
+  maskOff(t) { const out = Audio.buses.sfx; Audio.noise(t, 0.25, 0.2, 900, 'lowpass', out); },
+  // breathing through filter canisters: a muffled rasping inhale and a valve-flutter exhale
+  maskBreath(t) {
+    const out = Audio.buses.sfx;
+    Audio.noise(t, 0.9, 0.11, 700, 'bandpass', out, 1.6);
+    Audio.noise(t + 1.0, 0.7, 0.08, 450, 'bandpass', out, 1.2);
+    for (let k = 0; k < 5; k++) Audio.noise(t + 1.05 + k * 0.05, 0.02, 0.05, 1200, 'bandpass', out, 4);
+  },
+  cough(t) { const out = Audio.buses.sfx; for (let k = 0; k < 2; k++) { Audio.noise(t + k * 0.22, 0.14, 0.35, 900, 'bandpass', out, 1.4); Audio.tone(t + k * 0.22, 'sawtooth', 170, 110, 0.12, 0.1, out); } },
+  lanternBurst(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.5); Audio.tone(t, 'sine', 300, 1800, 0.5, 0.18, out); Audio.noise(t, 0.5, 0.25, 3000, 'highpass', out); },
+  thump(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.6); Audio.tone(t, 'sine', 120, 38, 0.35, 0.8, out); Audio.noise(t, 0.12, 0.5, 600, 'lowpass', out); },
+  pin(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.6); Audio.ring(t, [3200, 6100], 0.18, 0.18, out); Audio.noise(t, 0.05, 0.3, 5000, 'highpass', out); },
   tether(t, pos) {
     const out = Audio.dest(pos, 'sfx', 2.5, 0.8);
     Audio.tone(t, 'sawtooth', 60, 120, 0.6, 0.2, out, 0.02);

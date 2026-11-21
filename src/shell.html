@@ -50,7 +50,18 @@
   #hud .hand.l { left: 3vw; color: var(--handL); }
   #hud .hand.r { right: 3vw; color: var(--handR); }
   #hud .hand.away { opacity: 0.45; }
-  #pipCanvas { position: absolute; left: 2.4vw; bottom: calc(3.5vh + 58px); width: clamp(64px, 13vh, 128px); height: clamp(64px, 13vh, 128px); filter: drop-shadow(0 0 6px var(--void)); }
+  /* PIP now rides on the teal glove: the canvas is only its face texture */
+  #pipCanvas { position: absolute; left: -9999px; top: 0; width: 128px; height: 128px; }
+  /* gas mask: the inside of the face piece with two lens windows, breath fog and a scuffed visor */
+  #maskOverlay { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 30; transition: none; }
+  #maskOverlay svg { width: 100%; height: 100%; }
+  #maskOverlay .fog { position: absolute; inset: 0; background: radial-gradient(ellipse 60% 35% at 50% 85%, rgba(220,225,230,0.55), rgba(220,225,230,0) 70%); opacity: 0; }
+  #gasOverlay { position: fixed; inset: 0; pointer-events: none; z-index: 29; opacity: 0; background: radial-gradient(ellipse at center, rgba(150,170,60,0.25), rgba(90,110,30,0.75)); }
+  /* VHS cassette icon shown while the game saves or loads */
+  #hudVhs { position: absolute; left: 2.4vw; top: 9vh; display: none; align-items: center; gap: 10px; color: var(--accent); font: bold clamp(11px, 1.5vh, 15px) ui-monospace, Consolas, monospace; letter-spacing: 0.15em; opacity: 0.9; }
+  #hudVhs.on { display: flex; }
+  #hudVhs .reel { transform-box: fill-box; transform-origin: center; animation: vhsSpin 0.8s linear infinite; }
+  @keyframes vhsSpin { to { transform: rotate(360deg); } }
   #hud .cable { position: absolute; left: 50%; bottom: 3.5vh; transform: translateX(-50%); width: min(40vw, 380px); display: none; font-size: clamp(14px, 1.7vh, 18px); text-align: center; color: var(--live); }
   #hud .cable .bar { height: 6px; margin-top: 0.5vh; background: var(--panelFill); border: 1px solid var(--live); }
   #hud .cable .bar i { display: block; height: 100%; width: 0; background: var(--live); }
@@ -170,6 +181,7 @@
     <div class="objective" id="hudObjective"><b>OBJECTIVE</b><span id="hudObjText"></span></div>
     <div class="cross" id="hudCross"></div>
     <div class="prompt" id="hudPrompt"></div>
+    <div id="hudVhs"><svg width="64" height="40" viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="60" height="34" rx="3"/><rect x="12" y="10" width="40" height="15" rx="2"/><g class="reel"><circle cx="21" cy="17.5" r="5"/><path d="M21 12.5v10M16 17.5h10"/></g><g class="reel"><circle cx="43" cy="17.5" r="5"/><path d="M43 12.5v10M38 17.5h10"/></g><path d="M20 37l4-7h16l4 7"/></svg><span id="hudVhsText">SAVING</span></div>
     <div class="boss" id="hudBoss"><b>THE SPOOLWRIGHT</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
     <div class="dialog" id="hudDialog"><b id="hudDialogName"></b><span id="hudDialogText"></span></div>
@@ -219,5 +231,7 @@ window.addEventListener('error', function (e) {
 });
 </script>
 <!--@@SCRIPTS@@-->
+<div id="gasOverlay"></div>
+<div id="maskOverlay"><svg viewBox="0 0 160 90" preserveAspectRatio="none"><defs><mask id="lensMask"><rect width="160" height="90" fill="white"/><ellipse cx="52" cy="42" rx="33" ry="30" fill="black"/><ellipse cx="108" cy="42" rx="33" ry="30" fill="black"/></mask><radialGradient id="lensEdge" cx="50%" cy="50%" r="50%"><stop offset="80%" stop-color="black" stop-opacity="0"/><stop offset="100%" stop-color="black" stop-opacity="0.85"/></radialGradient></defs><rect width="160" height="90" fill="rgb(5,5,5)" mask="url(#lensMask)"/><ellipse cx="52" cy="42" rx="33" ry="30" fill="url(#lensEdge)"/><ellipse cx="108" cy="42" rx="33" ry="30" fill="url(#lensEdge)"/><ellipse cx="52" cy="42" rx="33" ry="30" stroke="rgb(42,42,40)" stroke-width="2.4" fill="none"/><ellipse cx="108" cy="42" rx="33" ry="30" stroke="rgb(42,42,40)" stroke-width="2.4" fill="none"/><path d="M30 24 L44 31 M118 60 L128 52 M96 22 l6 4" stroke="rgba(255,255,255,0.18)" stroke-width="0.6"/></svg><div class="fog"></div></div>
 </body>
 </html>

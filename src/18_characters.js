@@ -645,7 +645,7 @@ const Pip = {
     let mood = this.moodTimer > 0 ? this.mood : 'smile';
     if (state === STATE.JUMPSCARE || state === STATE.FAILURE_STATE) mood = 'static';
     else if (state === STATE.CHASE_SEQUENCE) mood = 'panic';
-    else if (this.moodTimer <= 0 && Game.threat > 0.55) mood = 'scared';
+    else if (this.moodTimer <= 0 && (Game.threat > 0.55 || (Enemies.cherubs.length && Enemies.danger()))) mood = 'scared';
     else if (state === STATE.VICTORY) mood = 'love';
     if (GrabPack.hintTimer > 0 && GrabPack.hint !== this.lastHint) { this.lastHint = GrabPack.hint; this.talk = Math.min(2.2, GrabPack.hint.length * 0.045); }
     if (GrabPack.hintTimer <= 0) this.lastHint = '';
@@ -665,6 +665,12 @@ const Pip = {
     if (mood === 'love') {
       const heart = ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'];
       for (let y = 0; y < heart.length; y++) for (let x = 0; x < 7; x++) if (heart[y][x] === '1') this.setDot(4 + x, 3 + y);
+      return;
+    }
+    if (mood === 'stars') {
+      // starry eyes: a secret or a new find
+      for (const [ex, ey] of [[4, 3], [11, 3]]) { this.setDot(ex, ey - 2); this.setDot(ex, ey + 2); this.setDot(ex - 2, ey); this.setDot(ex + 2, ey); this.setDot(ex, ey); this.setDot(ex - 1, ey - 1); this.setDot(ex + 1, ey + 1); this.setDot(ex + 1, ey - 1); this.setDot(ex - 1, ey + 1); }
+      for (let x = 4; x <= 11; x++) { this.setDot(x, 8); if (x > 4 && x < 11) this.setDot(x, 9); }
       return;
     }
     if (mood === 'sunny') {

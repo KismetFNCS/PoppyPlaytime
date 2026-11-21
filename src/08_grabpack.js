@@ -63,7 +63,7 @@ const GrabPack = {
 
   fire(side, cam) {
     const h = this.hands[side];
-    if (h.cooldown > 0) return false;
+    if (h.cooldown > 0 || (side === 1 && Gear.swapT > 0)) return false;
     if (h.state === HAND.LATCHED && h.tethered) { this.release(h, true); return true; }
     if (h.state !== HAND.DOCKED) return false;
     this.updateMuzzles(cam);
@@ -77,10 +77,11 @@ const GrabPack = {
     V3.scale(h.vel, h.dir, FEEL.handSpeed);
     // add a share of the player's momentum (inertial launch)
     h.vel[0] += Player.body.vel[0] * 0.5; h.vel[2] += Player.body.vel[2] * 0.5;
-    h.state = HAND.FLYING; h.travelled = 0; h.cooldown = FEEL.handCooldown; h.recoil = 1;
+    h.state = HAND.FLYING; h.travelled = 0; h.cooldown = side === 1 ? Math.max(FEEL.handCooldown, HAND_TYPES[Gear.cur].cool) : FEEL.handCooldown; h.recoil = 1; h.spin = 0;
     this.seedCable(h);
     h.cableActive = true;
     sfx('handFire', h.pos);
+    Particles.burst(h.pos, 4, 'steam');   // the pneumatic puff at launch
     EventBus.emit(EV.HAND_FIRE, h.pos[0], h.pos[1], h.pos[2], 9, side);
     EventBus.emit(EV.NOISE, h.pos[0], h.pos[1], h.pos[2], 9, 0);
     Player.addRecoil(side);
@@ -93,7 +94,7 @@ const GrabPack = {
     }
     if (h.latchKind === 'lever' && h.latchRef) h.latchRef.grab = null;
     h.tethered = false; h.wrapCount = 0; h.energized = 0;
-    h.state = HAND.RETRACTING; h.latchRef = null; h.latchKind = '';
+    h.state = HAND.RETRACTING; h.latchRef = null; h.latchKind = ''; h.retractT = 0;
     if (playSound) sfx('retract', h.pos);
   },
 
@@ -141,14 +142,15 @@ const GrabPack = {
       if (Monster.visible && Monster.hitTest(h.prev, this.tmp, len + 0.1)) {
         V3.copy(h.pos, Monster.hitPoint);
         if (Boss.active && Boss.tryShock(h)) { h.state = HAND.RETRACTING; return; }
-        if (!Boss.active) Monster.fightBack(h); else Monster.flinch(h.side);
+        if (!Boss.active) Monster.fightBack(h); else { Monster.flinch(h.side); if (h.side === 1 && Gear.cur > 0) Monster.stunTimer = Math.max(Monster.stunTimer, HAND_TYPES[Gear.cur].stun * 0.35); }
+        if (h.side === 1 && Gear.cur === 3) Gear.lanternBurst(h.pos);
         sfx('handHitFlesh', h.pos);
         Particles.burst(h.pos, 10, 'spark');
-        h.state = HAND.RETRACTING;
+        h.state = HAND.RETRACTING; h.retractT = 0;
         return;
       }
       // cherubs and the seraph
-      if (Enemies.handHit(h, h.prev, this.tmp, len + 0.1)) { h.state = HAND.RETRACTING; return; }
+      if (Enemies.handHit(h, h.prev, this.tmp, len + 0.1)) { if (h.side === 1 && Gear.cur === 3) Gear.lanternBurst(h.pos); h.state = HAND.RETRACTING; return; }
       if (Physics.raycast(h.prev, this.tmp, len + 0.05, LAYER.HAND, this.hit)) {
         V3.copy(h.pos, this.hit.point);
         V3.copy(h.latchNormal, this.hit.normal);
@@ -164,6 +166,7 @@ const GrabPack = {
     // the fingers arrive open and snap shut around whatever they hit (see latched)
     h.state = HAND.LATCHED; h.latchTime = 0; h.latchKind = kind; h.latchRef = col.ref || null; h.grip = 0;
     sfx('clamp', h.pos);
+    if (h.side === 1 && Gear.cur === 3) Gear.lanternBurst(h.pos);
     // clamping onto metal throws a spray of electric sparks and a quick blue-white flash
     if (col.surface === SURFACE.METAL || kind !== 'world') {
       Particles.burst(h.pos, 18, 'spark');
@@ -311,16 +314,18 @@ const GrabPack = {
       return;
     }
     // a plain clamp holds on for a moment before letting go
-    if (h.latchTime > 0.6) h.state = HAND.RETRACTING;
+    if (h.latchTime > 0.6) { h.state = HAND.RETRACTING; h.retractT = 0; sfx('retract', h.pos); }
   },
 
   retract(h, dt) {
     const m = this.muzzle[h.side];
     V3.sub(this.tmp, m, h.pos);
     const d = V3.len(this.tmp);
-    const step = FEEL.handRetract * dt;
+    // the winch spins up: slow off the mark, then fast
+    h.retractT = (h.retractT || 0) + dt;
+    const step = FEEL.handRetract * dt * (0.35 + Math.min(1, h.retractT * 2.8) * 0.9);
     h.grip = damp(h.grip, 0, 8, dt);
-    if (d <= step + 0.05) { this.dock(h); sfx('dock', m); return; }
+    if (d <= step + 0.05) { this.dock(h); h.recoil = 0.7; sfx('dock', m); return; }
     V3.addScaled(h.pos, h.pos, this.tmp, step / d);
     V3.scale(h.dir, this.tmp, -1 / d);
   },

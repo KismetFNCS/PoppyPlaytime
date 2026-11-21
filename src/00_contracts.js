@@ -195,7 +195,7 @@ function hexToLinear(h, scale) {
 
 const LIGHTING = {
   flashColor: '#ffe2b8', flashIntensity: 24.0, flashRange: 26.0, flashOuterDeg: 27.0, flashInnerDeg: 18.0,
-  flashOffset: [0.0, -0.3, 0.12],
+  flashOffset: [-0.24, -0.3, 0.3],
   fillColor: '#a9bcd8',
   emergencyColor: '#ff3b2e',
   hazardColor: '#ffb030',

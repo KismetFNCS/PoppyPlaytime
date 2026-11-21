@@ -1102,6 +1102,7 @@ const Renderer = {
     gl.uniform3fv(this.u('ambient', 'uFlashPos'), flash.pos);
     gl.uniform3fv(this.u('ambient', 'uFlashDir'), flash.dir);
     const fc = hexToLinear(LIGHTING.flashColor, flashActive ? flash.intensity : 0);
+    if (flash.tint) { fc[0] *= flash.tint[0]; fc[1] *= flash.tint[1]; fc[2] *= flash.tint[2]; }
     V3.copy(this.flashColorUpload, fc);
     gl.uniform3fv(this.u('ambient', 'uFlashColor'), this.flashColorUpload);
     gl.uniform3f(this.u('ambient', 'uFlashCone'), Math.cos(LIGHTING.flashOuterDeg * DEG), Math.cos(LIGHTING.flashInnerDeg * DEG), LIGHTING.flashRange);

@@ -345,13 +345,13 @@ const UI = {
     if (E.hudObjective.style.opacity !== op) E.hudObjective.style.opacity = op;
     for (let s = 0; s < 2; s++) {
       const h = GrabPack.hands[s];
-      const code = h.state * 2 + (h.tethered ? 1 : 0);
+      const code = h.state * 2 + (h.tethered ? 1 : 0) + (s === 1 ? Gear.cur * 16 : 0);
       const key = s === 0 ? 'l' : 'r';
       if (H[key] !== code) {
         H[key] = code;
         const el = s === 0 ? E.hudHandL : E.hudHandR;
         const stateTxt = h.tethered ? 'LIVE' : h.state === HAND.DOCKED ? 'READY' : h.state === HAND.FLYING ? 'FIRED' : h.state === HAND.LATCHED ? 'GRIP' : 'RECALL';
-        el.textContent = (s === 0 ? 'L · TEAL ' : 'R · ROSE ') + stateTxt;
+        el.textContent = (s === 0 ? 'L · TEAL ' : 'R · ' + HAND_TYPES[Gear.cur].id + ' ') + stateTxt;
         el.classList.toggle('away', h.state !== HAND.DOCKED && !h.tethered);
       }
     }
@@ -368,7 +368,7 @@ const UI = {
       }
     }
     const tape = Player.interactTarget;
-    const prompt = Player.hidden ? '[E] LEAVE LOCKER' : Player.lockerTarget ? '[E] HIDE' : tape ? '[E] PLAY TAPE' : '';
+    const prompt = Player.hidden ? '[E] LEAVE LOCKER' : Player.lockerTarget ? '[E] HIDE' : tape ? (tape.kind ? Gear.promptFor(tape) : '[E] PLAY TAPE') : '';
     if (H.prompt !== prompt) { H.prompt = prompt; E.hudPrompt.textContent = prompt; E.hudPrompt.style.display = prompt ? 'block' : 'none'; }
     const sub = Settings.values.subtitles && GrabPack.hintTimer > 0 ? GrabPack.hint : '';
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
@@ -390,6 +390,15 @@ const UI = {
     const rows = Assets.loaded.map(a => a.name + '  \u2192  ' + a.slot + '  (' + a.tris + ' tris)').concat(Assets.errors.map(e => 'error: ' + e));
     if (!rows.length) rows.push('none loaded - the procedural models are in use');
     for (const r of rows) { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); }
+  },
+  // VHS cassette icon (reels spinning) while a checkpoint saves or loads
+  vhsIcon(text) {
+    const el = document.getElementById('hudVhs'), tx = document.getElementById('hudVhsText');
+    if (!el) return;
+    if (tx) tx.textContent = text;
+    el.classList.add('on');
+    clearTimeout(this.vhsTimer);
+    this.vhsTimer = setTimeout(() => el.classList.remove('on'), 2400);
   },
   setMuteLabel() { this.el.btnMute.textContent = Game.muted ? 'MUTE' : 'SND'; }
 };

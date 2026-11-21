@@ -308,10 +308,17 @@ const Monster = {
       return 'shock';
     }
     if (this.stunImmune <= 0) {
-      this.stunTimer = 1.3; this.flinchAmt = 1; this.stunImmune = 4;
+      // the stun depends on the hand: ROSE 1.3 s, THUMPER 3.2 s (+ knock-back), STITCHER 4.5 s (pinned), LANTERN 2.6 s
+      const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE', st = Gear.stunFor(h.side);
+      this.stunTimer = st; this.flinchAmt = 1; this.stunImmune = st + 2.5;
       this.setState(MSTATE.STUNNED);
       sfx('monsterHurt', this.pos);
-      GrabPack.showHint('STAGGERED! A charged hand (tethered to a live node) stuns it for longer');
+      if (type === 'THUMPER') {
+        const dx = this.pos[0] - Player.body.pos[0], dz = this.pos[2] - Player.body.pos[2], d = Math.hypot(dx, dz) || 1;
+        this.pos[0] += dx / d * 1.6; this.pos[2] += dz / d * 1.6; sfx('thump', this.pos); Player.addTrauma(0.3);
+      }
+      if (type === 'STITCHER') { sfx('pin', this.pos); Particles.burst(this.hitPoint, 14, 'spark'); }
+      GrabPack.showHint(type === 'ROSE' ? 'STAGGERED! A charged hand or a stronger hand stuns it for longer' : type + ': stunned for ' + st.toFixed(1) + ' s');
       return 'stagger';
     }
     this.flinch(h.side);

@@ -103,14 +103,14 @@ const Game = {
   scene: null, aimHit: makeHit(), menuEye: V3.create(),
   checkpoint: {
     valid: false, stage: 0, pos: V3.create(0, 0, 5.5), yaw: 0, doors: new Float32Array(8), doorLocked: new Uint8Array(8),
-    receptacles: new Uint8Array(16), levers: new Uint8Array(8), pegsLocked: new Uint8Array(32), tapes: new Uint8Array(8),
+    receptacles: new Uint8Array(16), levers: new Uint8Array(8), pegsLocked: new Uint8Array(32), tapes: new Uint8Array(8), pickups: new Uint8Array(8),
     triggers: new Uint8Array(16), steamActive: 1, monsterMode: 0
   },
 
   init() {
     this.muted = load('muted', '0') === '1';
     this.scene = {
-      flash: { on: true, intensity: LIGHTING.flashIntensity, pos: V3.create(), dir: V3.create(0, 0, -1) },
+      flash: { on: true, intensity: LIGHTING.flashIntensity, pos: V3.create(), dir: V3.create(0, 0, -1), tint: new Float32Array([1, 1, 1]) },
       shadows: true, sectorVisible: Streaming.visible, lights: Lights.visible, fogDensity: LIGHTING.fogDensity,
       fracture: this.fracture, fractureAmt: 0
     };
@@ -188,6 +188,7 @@ const Game = {
     for (const L of Level.lockers) { L.door = 0; L.doorTarget = 0; L.doorTimer = 0; L.occupied = false; }
     this.hidTip = false;
     Steam.setAll(true);
+    Gear.reset();
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) { L.pulse = 0; L.enabled = true; }
     GrabPack.reset();
@@ -216,9 +217,10 @@ const Game = {
     for (let i = 0; i < Level.pegs.length; i++) cp.pegsLocked[i] = Level.pegs[i].locked ? 1 : 0;
     for (let i = 0; i < Level.tapes.length; i++) cp.tapes[i] = Level.tapes[i].collected ? 1 : 0;
     for (let i = 0; i < Level.triggers.length; i++) cp.triggers[i] = Level.triggers[i].fired ? 1 : 0;
+    for (let i = 0; i < Gear.pickups.length; i++) cp.pickups[i] = Gear.pickups[i].taken ? 1 : 0;
     cp.steamActive = Level.steam.length && Level.steam[0].active ? 1 : 0;
     cp.monsterMode = stage === 4 ? 2 : Monster.active && !Monster.scripted && stage === 2 ? 1 : 0;
-    if (stage > 0) { sfx('checkpoint'); EventBus.emit(EV.CHECKPOINT, 0, 0, 0, stage, 0); }
+    if (stage > 0) { sfx('checkpoint'); EventBus.emit(EV.CHECKPOINT, 0, 0, 0, stage, 0); UI.vhsIcon('SAVING'); }
     save('checkpoint', JSON.stringify(this.serialize()));
   },
   serialize() {
@@ -227,7 +229,8 @@ const Game = {
       stage: cp.stage, doors: Array.from(cp.doors.subarray(0, Level.doors.length)), doorLocked: Array.from(cp.doorLocked.subarray(0, Level.doors.length)),
       receptacles: Array.from(cp.receptacles.subarray(0, Level.receptacles.length)), levers: Array.from(cp.levers.subarray(0, Level.levers.length)),
       pegsLocked: Array.from(cp.pegsLocked.subarray(0, Level.pegs.length)), tapes: Array.from(cp.tapes.subarray(0, Level.tapes.length)),
-      triggers: Array.from(cp.triggers.subarray(0, Level.triggers.length)), steamActive: cp.steamActive, monsterMode: cp.monsterMode
+      triggers: Array.from(cp.triggers.subarray(0, Level.triggers.length)), steamActive: cp.steamActive, monsterMode: cp.monsterMode,
+      pickups: Array.from(cp.pickups.subarray(0, Gear.pickups.length))
     };
   },
   // Defensive parse of stored data: every field is range-checked; corrupt data falls back to stage 0.
@@ -242,6 +245,7 @@ const Game = {
     arr(o.receptacles, cp.receptacles, Level.receptacles.length, 1); arr(o.levers, cp.levers, Level.levers.length, 1);
     arr(o.pegsLocked, cp.pegsLocked, Level.pegs.length, 1); arr(o.tapes, cp.tapes, Level.tapes.length, 1);
     arr(o.triggers, cp.triggers, Level.triggers.length, 1);
+    arr(o.pickups, cp.pickups, Gear.pickups.length, 1);
     cp.steamActive = num(o.steamActive, 0, 1, 1); cp.monsterMode = num(o.monsterMode, 0, 2, 0);
     cp.valid = true;
   },
@@ -266,6 +270,9 @@ const Game = {
     for (let i = 0; i < Level.pegs.length; i++) { Level.pegs[i].locked = !!cp.pegsLocked[i]; Level.pegs[i].linked = Level.pegs[i].locked; }
     for (let i = 0; i < Level.tapes.length; i++) Level.tapes[i].collected = !!cp.tapes[i];
     for (let i = 0; i < Level.triggers.length; i++) Level.triggers[i].fired = !!cp.triggers[i];
+    for (let i = 0; i < Gear.pickups.length; i++) Gear.pickups[i].taken = !!cp.pickups[i];
+    Gear.syncFromPickups();
+    UI.vhsIcon('LOADING');
     Steam.setAll(!!cp.steamActive);
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) L.pulse = 0;
@@ -404,10 +411,11 @@ const Game = {
       const locker = Player.findLocker();
       const tape = locker ? null : Player.findInteract();
       if (locker && usePressed) this.enterLocker(locker);
-      else if (tape && usePressed) { this.playTape(tape); return; }
+      else if (tape && usePressed) { if (tape.kind) Gear.take(tape); else { this.playTape(tape); return; } }
     }
     this.updateLockers(dt);
     GrabPack.update(dt, Player.cam);
+    Gear.update(dt);
     Doors.update(dt);
     Steam.update(dt, this.time);
     Triggers.update(Player.body.pos);
@@ -685,13 +693,14 @@ const Game = {
     this.submitPuzzles(vis);
     Monster.submit();
     Cast.submit(vis);
+    Gear.submit(vis);
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
     const menuLike = state === STATE.MAIN_MENU || state === STATE.SETTINGS_PANEL || state === STATE.CREDITS || state === STATE.VICTORY || state === STATE.BOOT_LOADING;
     if (menuLike) {
       // cinematic key light for the hero shot: from upper left, aimed at the creature's chest
-      sc.flash.on = true; sc.flash.intensity = 34;
+      sc.flash.on = true; sc.flash.intensity = 34; sc.flash.tint[0] = 1; sc.flash.tint[1] = 1; sc.flash.tint[2] = 1;
       V3.set(sc.flash.pos, Level.menuCam.pos[0] - 1.6, Level.menuCam.pos[1] + 2.4, Level.menuCam.pos[2] + 0.6);
       V3.set(_g.v, Monster.pos[0], Monster.pos[1] + 1.6, Monster.pos[2]);
       V3.sub(sc.flash.dir, _g.v, sc.flash.pos); V3.normalize(sc.flash.dir, sc.flash.dir);
@@ -701,6 +710,8 @@ const Game = {
       sc.flash.intensity = LIGHTING.flashIntensity * (1 - 0.6 * Math.max(0, noise1(this.time * 11) - 0.7) * this.threat);
       // the lamp stutters during the jumpscare so the mask reads in red emergency light, not a white-out
       if (state === STATE.JUMPSCARE) sc.flash.intensity *= noise1(this.jumpTimer * 45) > 0.1 ? 0.28 : 0.04;
+      // PIP's lamp: white, or ultraviolet in blacklight mode
+      if (Gear.blacklight) { sc.flash.tint[0] = 0.42; sc.flash.tint[1] = 0.16; sc.flash.tint[2] = 1.25; sc.flash.intensity *= 0.6; } else { sc.flash.tint[0] = 1; sc.flash.tint[1] = 1; sc.flash.tint[2] = 1; }
       V3.copy(sc.flash.pos, Player.flashPos);
       V3.copy(sc.flash.dir, Player.flashDir);
     }
@@ -803,7 +814,15 @@ const Game = {
         V3.addScaled(_g.b, _g.hp, _g.hf, -0.13);
         this.drawHose(_g.a, _g.b, up, h);
         V3.scale(_g.hu, fwd, -1);
+        // swapping the right hand: it drops out of view and comes back as the new one
+        if (s === 1 && Gear.swapT > 0) V3.addScaled(_g.hp, _g.hp, up, -Math.sin(Math.min(1, (0.4 - Gear.swapT) / 0.4) * Math.PI) * 0.45);
         this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 0.86, false, h, true);
+        if (s === 0) {
+          // PIP strapped to the wrist, facing you
+          V3.addScaled(_g.p2, _g.hp, _g.hf, 0.02); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.06); V3.addScaled(_g.p2, _g.p2, right, 0.01);
+          V3.cross(_g.d, _g.hf, _g.hu); V3.normalize(_g.d, _g.d);
+          Gear.submitPip(_g.p2, _g.hf, _g.hu, _g.d);
+        }
       } else {
         V3.copy(_g.b, m);
         this.drawHose(_g.a, _g.b, up, h);
@@ -821,8 +840,15 @@ const Game = {
         } else {
           V3.copy(_g.e, h.dir);
           if (V3.len(_g.e) < 0.5) V3.copy(_g.e, fwd);
-          const upRef = Math.abs(_g.e[1]) > 0.9 ? right : _g.up;
-          this.drawHand(h.pos, _g.e, upRef, s, 0.05, 1.15, true, h, false);
+          V3.copy(_g.c, Math.abs(_g.e[1]) > 0.9 ? right : _g.up);
+          // a slight corkscrew in flight (Rodrigues rotation of the up reference about the flight direction)
+          if (h.state === HAND.FLYING) {
+            const ang = Math.sin(h.travelled * 0.9) * 0.6, c = Math.cos(ang), sn = Math.sin(ang), e = _g.e, u = _g.c;
+            const kd = e[0] * u[0] + e[1] * u[1] + e[2] * u[2];
+            const cx = e[1] * u[2] - e[2] * u[1], cy = e[2] * u[0] - e[0] * u[2], cz = e[0] * u[1] - e[1] * u[0];
+            V3.set(_g.c, u[0] * c + cx * sn + e[0] * kd * (1 - c), u[1] * c + cy * sn + e[1] * kd * (1 - c), u[2] * c + cz * sn + e[2] * kd * (1 - c));
+          }
+          this.drawHand(h.pos, _g.e, _g.c, s, h.state === HAND.FLYING ? 0.05 : 0.35, 1.15, true, h, false);
         }
       }
     }
@@ -848,7 +874,9 @@ const Game = {
     if (clamp) { ringMatrix(clamp.model, b, _g.c, 0.03); clamp.tint[3] = 0.08; if (h.tethered) { clamp.emis[0] = 0.1 * h.energized; clamp.emis[1] = 0.5 * h.energized; clamp.emis[2] = 0.7 * h.energized; } }
   },
   drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
-    const R = RenderQueue, mat = side === 0 ? MAT.handTeal : MAT.handRose;
+    const R = RenderQueue, HT = HAND_TYPES[Gear.cur], mat = side === 0 ? MAT.handTeal : HT.mat;
+    // withered, grimy gloves: darker than new
+    const tr = side === 0 ? 0.62 : HT.tint[0], tg = side === 0 ? 0.66 : HT.tint[1], tb = side === 0 ? 0.62 : HT.tint[2];
     // right-handed basis (r = up x f) so back-face culling keeps the outside of the glove
     V3.cross(_g.r, upRef, f); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, f, _g.r); V3.normalize(_g.u, _g.u);
@@ -868,7 +896,11 @@ const Game = {
     const gm = (side === 0 ? 'glove_R_' : 'glove_L_') + (curl > 0.5 ? 'grip' : 'open');
     if (Sculpt.ready(gm)) {
       const it = R.push(gm, mat, shadow);
-      if (it) { basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[3] = lift; it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow; }
+      if (it) {
+        basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[0] = tr; it.tint[1] = tg; it.tint[2] = tb; it.tint[3] = lift;
+        it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow;
+        if (side === 1 && HT.glow) { const p = 0.7 + 0.3 * Math.sin(Game.time * 3); it.emis[0] += HT.glow[0] * p; it.emis[1] += HT.glow[1] * p; it.emis[2] += HT.glow[2] * p; }
+      }
       return;
     }
     const mirror = side === 0 ? 1 : -1;   // thumb on the inside of each hand
@@ -984,6 +1016,7 @@ const Loader = {
         Monster.init();
         Cast.init();
         Enemies.init();
+        Gear.init();
         if (Audio.ctx && !Audio.emittersBuilt) Audio.buildEmitters();
         this.phase = 3;
         return;

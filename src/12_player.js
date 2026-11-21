@@ -4,7 +4,7 @@
 
 const Input = {
   keys: Object.create(null), justPressed: new Set(), mouse: [false, false, false], mouseJust: [false, false, false],
-  lookDX: 0, lookDY: 0, locked: false, touchActive: false,
+  lookDX: 0, lookDY: 0, locked: false, touchActive: false, wheel: 0,
   stick: { id: -1, x: 0, y: 0, cx: 0, cy: 0 }, look: { id: -1, x: 0, y: 0 }, touchRun: false,
   pad: { lx: 0, ly: 0, rx: 0, ry: 0, buttons: new Uint8Array(17), prev: new Uint8Array(17) },
   PREVENT: new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'F1', 'F2', 'F9']),
@@ -109,6 +109,7 @@ const Input = {
     this.lookDX = 0; this.lookDY = 0;
   }
 };
+window.addEventListener('wheel', e => { if (Input.locked) Input.wheel += Math.sign(e.deltaY); }, { passive: true });
 
 function padDeadzone(v) { return Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85; }
 
@@ -322,6 +323,8 @@ const Player = {
     return this.lockerTarget;
   },
   findInteract() {
+    const pk = Gear.nearestPickup();
+    if (pk) { this.interactTarget = pk; return pk; }
     let best = null, bd = 2.4;
     for (const t of Level.tapes) {
       if (t.collected) continue;

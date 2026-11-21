@@ -34,6 +34,22 @@ Overstretching the cable (42 m) snaps it, and arcs crawl along it as it nears th
 (and a spray of sparks and a blue flash on metal). On a lever it stays clamped: **hold** the fire button and
 drag your view **down** (or back away) to wrench the handle over; let go too early and it springs back.
 
+**Gear:**
+- **Hands.** The teal left hand never changes. The right slot swaps between every hand you own with **[X]**,
+  the mouse wheel or pad Y: **ROSE** (your old hand: a slap that staggers for 1.3 s), **THUMPER** (brass
+  knuckle-buster, found in the Reclamation Hall: 3.2 s stun, knock-back, smashes nearby cherubs), **LANTERN**
+  (violet lamp-hand, found in the Pressure Gallery: bursts with blinding light wherever it lands, stunning
+  everything within 7 m) and **STITCHER** (steel needle fingers, found in the Spool Foundry: pins whatever it
+  hits for 4.5 s). Gloves are worn and grimy; launches puff and spin, the winch spins up to reel them in, and
+  they dock with a clunk.
+- **PIP** rides on the back of the teal glove. Its LED face warns you (worried when something is close,
+  starry-eyed for finds), its front lamp is your flashlight, and **[B]** switches it to a blacklight that reveals
+  three messages painted in invisible ink.
+- **Gas mask.** Take it from the intake-lift desk and put it on or off with **[G]**: you see through two lens
+  windows, hear your breath rasp through the filters and watch it fog. The back corner of the Pressure Gallery
+  is full of toxic lint smog that chokes you without it.
+- A VHS cassette icon spins at the top left while the game saves or loads a checkpoint.
+
 **Fighting back:** you can't kill the Spoolwright until the Loom, but you can stop it. A plain hand hit
 staggers it for a moment; a *charged* hit (your other hand tethered to a live node) shocks it for a long stun,
 and a stalker then slinks back into the vents. Only in the Loom boss fight can it actually be beaten.
