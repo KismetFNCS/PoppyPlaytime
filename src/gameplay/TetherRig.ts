@@ -118,6 +118,8 @@ const HAND_POSE_BLEND_METERS: number = 0.9;
 const HELD_HAND_OFFSET: Vec3 = [0.09, 0.0, 0.07];
 const SIDE_POLARITY: Readonly<Record<ClawSide, Polarity>> = { left: 'teal', right: 'rose' };
 const CLAW_MODEL: Readonly<Record<Polarity, ImportedMeshId>> = { teal: 'tether_claw_teal', rose: 'tether_claw_rose' };
+const MAX_SPARKS: number = 120;
+
 /** Swappable right hands (the teal left hand never changes). All of them answer rose scanners. */
 export type RightHandType = 'rose' | 'volt' | 'chime';
 const RIGHT_HAND_MODELS: Readonly<Record<RightHandType, { readonly open: ImportedMeshId; readonly gripping: ImportedMeshId }>> = {
@@ -144,6 +146,10 @@ export class TetherRig {
   /** Which hand is mounted on the right launcher. */
   public rightHandType: RightHandType = 'rose';
   private readonly cableMesh: GpuMesh;
+  private readonly sparks: Array<{ position: Vec3; velocity: Vec3; life: number; maxLife: number }> = [];
+  /** Brightest recent spark burst, for a brief cosmetic light (position + 0..1 strength, decays). */
+  public readonly sparkFlash: { position: Vec3; strength: number } = { position: [0, 0, 0], strength: 0 };
+  private arcClock: number = 0;
   private cameraBasis: { origin: Vec3; right: Vec3; up: Vec3; forward: Vec3 } = { origin: [0, 0, 0], right: [1, 0, 0], up: [0, 1, 0], forward: [0, 0, -1] };
 
   public constructor(
@@ -204,6 +210,9 @@ export class TetherRig {
     return orthonormalBasisFromForward(fingersUp, vec3Scale(basis.forward, -1));
   }
 
+  /** Optional aim assist: given the launch origin and direction, returns a corrected direction (e.g. onto a monster). */
+  public aimAssist: ((origin: Readonly<Vec3>, direction: Readonly<Vec3>) => Vec3 | null) | null = null;
+
   /** Where the cosmetic hand fill light sits: just below and in front of the eye, between the hands. */
   public handFillPosition(): Vec3 {
     const basis = this.cameraBasis;
@@ -216,6 +225,72 @@ export class TetherRig {
       return gripping ? models.gripping : models.open;
     }
     return gripping ? CLAMPED_MODEL[claw.polarity] : CLAW_MODEL[claw.polarity];
+  }
+
+  /** Spray of sparks from `point`, biased along `normal` (hand grips metal, ricochets, strikes). */
+  public spawnSparks(point: Readonly<Vec3>, normal: Readonly<Vec3>, count: number, speed: number = 3.2): void {
+    for (let index = 0; index < count && this.sparks.length < MAX_SPARKS; index += 1) {
+      const random = (): number => Math.random() * 2 - 1;
+      const direction: Vec3 = vec3Normalize([normal[0] + random() * 0.9, normal[1] + random() * 0.9 + 0.35, normal[2] + random() * 0.9]);
+      const velocity: Vec3 = vec3Scale(direction, speed * (0.5 + Math.random()));
+      const life: number = 0.25 + Math.random() * 0.35;
+      this.sparks.push({ position: [point[0], point[1], point[2]], velocity, life, maxLife: life });
+    }
+    this.sparkFlash.position = [point[0], point[1], point[2]];
+    this.sparkFlash.strength = Math.max(this.sparkFlash.strength, Math.min(1, count / 14));
+  }
+
+  private updateSparks(deltaSeconds: number): void {
+    for (let index = this.sparks.length - 1; index >= 0; index -= 1) {
+      const spark = this.sparks[index];
+      if (spark === undefined) continue;
+      spark.life -= deltaSeconds;
+      if (spark.life <= 0) {
+        this.sparks.splice(index, 1);
+        continue;
+      }
+      spark.velocity[1] -= 9.8 * deltaSeconds;
+      spark.position = vec3Add(spark.position, vec3Scale(spark.velocity, deltaSeconds));
+    }
+    this.sparkFlash.strength = Math.max(0, this.sparkFlash.strength - deltaSeconds * 5);
+    this.arcClock += deltaSeconds;
+  }
+
+  /** Thin streaks along each spark's velocity. */
+  private pushSparks(output: DrawItem[]): void {
+    for (const spark of this.sparks) {
+      const speed: number = Math.hypot(spark.velocity[0], spark.velocity[1], spark.velocity[2]);
+      if (speed < 1e-3) continue;
+      const along: Vec3 = vec3Scale(spark.velocity, 1 / speed);
+      const length: number = Math.min(0.12, speed * 0.018);
+      const [xAxis, , zAxis] = orthonormalBasisFromForward(along);
+      const thickness: number = 0.45 * (spark.life / spark.maxLife);
+      output.push({ mesh: this.cableMesh, materialId: 'spark_glow', modelMatrix: mat4FromBasis(spark.position, vec3Scale(xAxis, thickness), vec3Scale(along, length), vec3Scale(zAxis, thickness)), emissiveBoost: 1 });
+    }
+  }
+
+  /** Crackling arcs that run down a cable pulled taut on an anchor. */
+  private pushCableArcs(output: DrawItem[], start: Vec3, end: Vec3): void {
+    const flicker: number = Math.floor(this.arcClock * 18);
+    if (flicker % 3 === 0) return;
+    const segments = 7;
+    let previous: Vec3 = start;
+    for (let index = 1; index <= segments; index += 1) {
+      const t: number = index / segments;
+      const noise = (channel: number): number => {
+        const value: number = Math.sin((flicker * 7 + index * 13 + channel * 31) * 12.9898) * 43758.5453;
+        return (value - Math.floor(value) - 0.5) * 0.09;
+      };
+      const point: Vec3 = index === segments ? end : vec3Add(vec3Lerp(start, end, t), [noise(1), noise(2), noise(3)]);
+      const segment: Vec3 = vec3Subtract(point, previous);
+      const length: number = Math.hypot(segment[0], segment[1], segment[2]);
+      if (length > 1e-4) {
+        const along: Vec3 = vec3Scale(segment, 1 / length);
+        const [xAxis, , zAxis] = orthonormalBasisFromForward(along);
+        output.push({ mesh: this.cableMesh, materialId: 'arc_glow', modelMatrix: mat4FromBasis(vec3Lerp(previous, point, 0.5), vec3Scale(xAxis, 0.55), vec3Scale(along, length), vec3Scale(zAxis, 0.55)), emissiveBoost: 1 });
+      }
+      previous = point;
+    }
   }
 
   /** Snaps a launched hand back (e.g. after it strikes a monster). */
@@ -255,6 +330,10 @@ export class TetherRig {
     const direction: Vec3 = vec3Normalize(vec3Subtract(aimPoint, socket));
     claw.position = socket;
     claw.direction = direction[0] === 0 && direction[1] === 0 && direction[2] === 0 ? basis.forward : direction;
+    const assisted: Vec3 | null = this.aimAssist?.(socket, claw.direction) ?? null;
+    if (assisted !== null) {
+      claw.direction = assisted;
+    }
     claw.traveledDistance = 0;
     claw.target = null;
     this.setPhase(claw, 'extending');
@@ -295,11 +374,13 @@ export class TetherRig {
           claw.autoReelTarget = null;
         }
         this.setPhase(claw, 'latched');
+        this.spawnSparks(claw.position, hit.target.attachNormal, hit.target.kind === 'anchor' ? 14 : 8);
         this.events.emit('clawLatched', { side: claw.side, polarity: claw.polarity, target: hit.target, point: claw.position });
       } else {
         // Plain surface: the magnet finds no polarity contact and the claw rebounds.
         claw.position = vec3Add(hit.point, vec3Scale(hit.normal, 0.05));
         this.setPhase(claw, 'retracting');
+        this.spawnSparks(hit.point, hit.normal, 10);
         this.events.emit('clawDeflected', { side: claw.side, polarity: claw.polarity, point: hit.point, normal: hit.normal });
       }
       return;
@@ -367,6 +448,7 @@ export class TetherRig {
   /** Advances both claws. Call before the motor step. */
   public update(deltaSeconds: number, input: TetherControlInput, world: TetherWorld, camera: PerspectiveCamera): void {
     this.syncCamera(camera);
+    this.updateSparks(deltaSeconds);
     const triggers: Record<ClawSide, { pressed: boolean; held: boolean }> = {
       left: { pressed: input.leftTriggerPressed, held: input.leftTriggerHeld },
       right: { pressed: input.rightTriggerPressed, held: input.rightTriggerHeld },
@@ -532,6 +614,7 @@ export class TetherRig {
   }
 
   public collectDrawItems(output: DrawItem[], timeSeconds: number): void {
+    this.pushSparks(output);
     const basis = this.cameraBasis;
     for (const side of ['left', 'right'] as const) {
       const claw: ClawState = this.claws[side];
@@ -577,6 +660,9 @@ export class TetherRig {
         const visualLength: number =
           claw.phase === 'latched' && claw.target?.kind === 'anchor' ? claw.restLength : claw.phase === 'extending' ? claw.traveledDistance * 1.04 : span * 1.08;
         this.pushCable(output, socket, claw.position, visualLength - span);
+        if (claw.phase === 'latched' && claw.target?.kind === 'anchor' && span >= claw.restLength * 0.97) {
+          this.pushCableArcs(output, socket, claw.position);
+        }
       }
     }
   }

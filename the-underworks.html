@@ -2719,6 +2719,45 @@ var MATERIAL_PROFILES = {
     emissiveStrength: 0,
     uvScale: 2
   },
+  jester_hood_rose: {
+    id: "jester_hood_rose",
+    displayName: "Gully \xB7 Rose Hood",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 5601, resolution: 128, bumpStrength: 1.2 },
+    baseTint: [0.62, 0.16, 0.26],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  jester_hood_gold: {
+    id: "jester_hood_gold",
+    displayName: "Gully \xB7 Gold Hood",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 5602, resolution: 128, bumpStrength: 1.2 },
+    baseTint: [0.78, 0.58, 0.2],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0.5,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
+  jester_hood_teal: {
+    id: "jester_hood_teal",
+    displayName: "Gully \xB7 Teal Hood",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "wornPaint", seed: 5603, resolution: 128, bumpStrength: 1.2 },
+    baseTint: [0.1, 0.42, 0.4],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2
+  },
   jester_entity_porcelain: {
     id: "jester_entity_porcelain",
     displayName: "Jester Entity \xB7 Cracked Porcelain",
@@ -2860,6 +2899,32 @@ var MATERIAL_PROFILES = {
     metallic: 0,
     emissiveColor: [0.08, 0.95, 0.82],
     emissiveStrength: 8,
+    uvScale: 1
+  },
+  spark_glow: {
+    id: "spark_glow",
+    displayName: "VFX \xB7 Spark",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "emissiveSolid", seed: 9101, resolution: 64, bumpStrength: 0 },
+    baseTint: [1, 0.85, 0.5],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [1, 0.78, 0.4],
+    emissiveStrength: 12,
+    uvScale: 1
+  },
+  arc_glow: {
+    id: "arc_glow",
+    displayName: "VFX \xB7 Cable Arc",
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: "emissiveSolid", seed: 9102, resolution: 64, bumpStrength: 0 },
+    baseTint: [0.7, 0.9, 1],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0.6, 0.85, 1],
+    emissiveStrength: 14,
     uvScale: 1
   },
   tether_core_rose: {
@@ -3096,7 +3161,9 @@ var IMPORTED_MESH_PROFILES = {
       { partId: "shard", materialId: "tallyman_lamp", importUri: null, fallbackBuilder: "jester_lantern_shard" },
       { partId: "key", materialId: "tether_brass", importUri: null, fallbackBuilder: "jester_wind_key" },
       { partId: "head", materialId: "jester_entity_porcelain", importUri: null, fallbackBuilder: "jester_head" },
-      { partId: "hat", materialId: "jester_entity_fabric", importUri: null, fallbackBuilder: "jester_hat" },
+      { partId: "hoodRose", materialId: "jester_hood_rose", importUri: null, fallbackBuilder: "jester_hood_rose_part" },
+      { partId: "hoodGold", materialId: "jester_hood_gold", importUri: null, fallbackBuilder: "jester_hood_gold_part" },
+      { partId: "hoodTeal", materialId: "jester_hood_teal", importUri: null, fallbackBuilder: "jester_hood_teal_part" },
       { partId: "eyes", materialId: "jester_entity_eyes", importUri: null, fallbackBuilder: "jester_eyes" },
       { partId: "arm", materialId: "jester_entity_fabric", importUri: null, fallbackBuilder: "jester_arm" },
       { partId: "hand", materialId: "jester_entity_porcelain", importUri: null, fallbackBuilder: "jester_hand" },
@@ -4421,23 +4488,44 @@ function buildJesterHead() {
   }
   return builder.build();
 }
-function buildJesterHat() {
+function hoodHornPath(lateral) {
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
+  const lift = lateral === 0 ? 0.55 : 0.25;
+  return [
+    [cx + lateral * 0.1, cy + 0.36, cz - 0.05],
+    [cx + lateral * 0.32, cy + 0.56 + lift * 0.15, cz - 0.09],
+    [cx + lateral * 0.52, cy + 0.32 + lift * 0.1, cz - 0.09 - (lateral === 0 ? 0.2 : 0)],
+    [cx + lateral * 0.58, cy + 0.08, cz - 0.07 - (lateral === 0 ? 0.3 : 0)]
+  ];
+}
+function appendHoodHorn(builder, lateral) {
+  builder.appendMesh(createTubeMesh(hoodHornPath(lateral), [0.1, 0.065, 0.034, 0.016], 10), mat4Identity());
+}
+function buildJesterHoodRose() {
   const builder = new MeshBuilder();
   const [cx, cy, cz] = JESTER_HEAD_CENTER;
-  place2(builder, createCylinderMesh(0.21, 0.23, 0.1, 16), [cx, cy + 0.2, cz], [0.05, 0, 0], [1, 1, 0.95]);
-  const horns = [
-    [-1, 0.25],
-    [0, 0.55],
-    [1, 0.25]
-  ];
-  for (const [lateral, lift] of horns) {
-    const base = [cx + lateral * 0.1, cy + 0.24, cz - 0.02];
-    const mid = [cx + lateral * 0.3, cy + 0.42 + lift * 0.15, cz - 0.06];
-    const tip = [cx + lateral * 0.5, cy + 0.2 + lift * 0.1, cz - 0.04];
-    const end = [cx + lateral * 0.55, cy + 0.02, cz - 0.02];
-    builder.appendMesh(createTubeMesh([base, mid, tip, end], [0.11, 0.07, 0.035, 0.015], 10), mat4Identity());
-    place2(builder, createSphereMesh(0.045, 10, 8), [end[0], end[1] - 0.04, end[2]], [0, 0, 0], [1, 1, 1]);
+  place2(builder, createSphereMesh(0.25, 18, 12), [cx, cy + 0.03, cz - 0.05], [0, 0, 0], [1.02, 1.12, 0.96]);
+  place2(builder, createCylinderMesh(0.3, 0.2, 0.22, 16), [cx, cy - 0.27, cz - 0.04], [0, 0, 0], [1, 1, 0.82]);
+  place2(builder, createCylinderMesh(0.2, 0.2, 0.03, 18), [cx, cy - 0.01, cz + 0.17], [Math.PI / 2, 0, 0], [1, 1.18, 1]);
+  appendHoodHorn(builder, -1);
+  return builder.build();
+}
+function buildJesterHoodGold() {
+  const builder = new MeshBuilder();
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
+  place2(builder, createCylinderMesh(0.255, 0.27, 0.07, 20), [cx, cy + 0.22, cz - 0.04], [0.08, 0, 0], [1, 1, 0.96]);
+  place2(builder, createSphereMesh(0.235, 18, 10), [cx, cy + 0.26, cz - 0.05], [0, 0, 0], [1, 0.55, 0.95]);
+  appendHoodHorn(builder, 0);
+  for (const lateral of [-1, 0, 1]) {
+    const tip = hoodHornPath(lateral)[3];
+    place2(builder, createSphereMesh(0.048, 10, 8), [tip[0], tip[1] - 0.045, tip[2]], [0, 0, 0], [1, 1.05, 1]);
+    place2(builder, createCylinderMesh(0.012, 0.012, 0.03, 6), [tip[0], tip[1] - 5e-3, tip[2]], [0, 0, 0], [1, 1, 1]);
   }
+  return builder.build();
+}
+function buildJesterHoodTeal() {
+  const builder = new MeshBuilder();
+  appendHoodHorn(builder, 1);
   return builder.build();
 }
 function buildJesterEyes() {
@@ -4798,7 +4886,9 @@ var PROCEDURAL_MESH_BUILDERS = {
   jester_lantern_shard: buildJesterLanternShard,
   jester_wind_key: buildJesterWindKey,
   jester_head: buildJesterHead,
-  jester_hat: buildJesterHat,
+  jester_hood_rose_part: buildJesterHoodRose,
+  jester_hood_gold_part: buildJesterHoodGold,
+  jester_hood_teal_part: buildJesterHoodTeal,
   jester_eyes: buildJesterEyes,
   jester_arm: buildJesterArm,
   jester_hand: buildJesterHand,
@@ -5822,7 +5912,7 @@ function wrapAngle(angle) {
 function horizontalDistance(first, second) {
   return Math.hypot(first[0] - second[0], first[2] - second[2]);
 }
-var STUN_RESIST_SECONDS = 4;
+var STUN_RESIST_SECONDS = 2.5;
 var EntityBrain = class {
   constructor(id, profile, view, patrolRoute) {
     this.id = id;
@@ -8244,7 +8334,9 @@ var JesterEntity = class {
       };
       switch (part.partId) {
         case "head":
-        case "hat":
+        case "hoodRose":
+        case "hoodGold":
+        case "hoodTeal":
         case "eyes":
           push(headWorld);
           break;
@@ -8788,6 +8880,22 @@ var CinematicDirector = class {
       completed: false
     };
     context.audio.setCinematicDuck(timeline.ambientDuck);
+  }
+  /** Non-lethal scenes that hand control back can be skipped. */
+  get isSkippable() {
+    return this.playback !== null && !this.playback.completed && this.playback.timeline.returnsControl && this.playback.time > 0.3;
+  }
+  /**
+   * Jumps to the end of a skippable scene so it finishes normally (hooks and completion still run). Remaining audio
+   * cues are dropped so they don't all fire at once.
+   */
+  skip() {
+    const playback = this.playback;
+    if (playback === null || !this.isSkippable) {
+      return;
+    }
+    playback.nextAudioIndex = Number.MAX_SAFE_INTEGER;
+    playback.time = Math.max(playback.time, playback.timeline.durationSeconds + playback.timeline.blendOutSeconds);
   }
   /** Immediately ends playback and releases audio overrides (no completion callback). */
   stop() {
@@ -10074,6 +10182,7 @@ var HAND_POSE_BLEND_METERS = 0.9;
 var HELD_HAND_OFFSET = [0.09, 0, 0.07];
 var SIDE_POLARITY = { left: "teal", right: "rose" };
 var CLAW_MODEL = { teal: "tether_claw_teal", rose: "tether_claw_rose" };
+var MAX_SPARKS = 120;
 var RIGHT_HAND_MODELS = {
   rose: { open: "tether_claw_rose", gripping: "tether_claw_rose_clamped" },
   volt: { open: "tether_claw_volt", gripping: "tether_claw_volt_clamped" },
@@ -10109,6 +10218,10 @@ var TetherRig = class {
   /** Which hand is mounted on the right launcher. */
   rightHandType = "rose";
   cableMesh;
+  sparks = [];
+  /** Brightest recent spark burst, for a brief cosmetic light (position + 0..1 strength, decays). */
+  sparkFlash = { position: [0, 0, 0], strength: 0 };
+  arcClock = 0;
   cameraBasis = { origin: [0, 0, 0], right: [1, 0, 0], up: [0, 1, 0], forward: [0, 0, -1] };
   // ---- Geometry helpers ------------------------------------------------------------------------------------------
   /** Captures the camera frame once per update so sockets follow the view. */
@@ -10140,6 +10253,8 @@ var TetherRig = class {
     const fingersUp = vec3Normalize(vec3Add(basis.up, vec3Add(vec3Scale(basis.forward, 0.3), vec3Scale(basis.right, outward * 0.18))));
     return orthonormalBasisFromForward(fingersUp, vec3Scale(basis.forward, -1));
   }
+  /** Optional aim assist: given the launch origin and direction, returns a corrected direction (e.g. onto a monster). */
+  aimAssist = null;
   /** Where the cosmetic hand fill light sits: just below and in front of the eye, between the hands. */
   handFillPosition() {
     const basis = this.cameraBasis;
@@ -10151,6 +10266,68 @@ var TetherRig = class {
       return gripping ? models.gripping : models.open;
     }
     return gripping ? CLAMPED_MODEL[claw.polarity] : CLAW_MODEL[claw.polarity];
+  }
+  /** Spray of sparks from `point`, biased along `normal` (hand grips metal, ricochets, strikes). */
+  spawnSparks(point, normal, count, speed = 3.2) {
+    for (let index = 0; index < count && this.sparks.length < MAX_SPARKS; index += 1) {
+      const random = () => Math.random() * 2 - 1;
+      const direction = vec3Normalize([normal[0] + random() * 0.9, normal[1] + random() * 0.9 + 0.35, normal[2] + random() * 0.9]);
+      const velocity = vec3Scale(direction, speed * (0.5 + Math.random()));
+      const life = 0.25 + Math.random() * 0.35;
+      this.sparks.push({ position: [point[0], point[1], point[2]], velocity, life, maxLife: life });
+    }
+    this.sparkFlash.position = [point[0], point[1], point[2]];
+    this.sparkFlash.strength = Math.max(this.sparkFlash.strength, Math.min(1, count / 14));
+  }
+  updateSparks(deltaSeconds) {
+    for (let index = this.sparks.length - 1; index >= 0; index -= 1) {
+      const spark = this.sparks[index];
+      if (spark === void 0) continue;
+      spark.life -= deltaSeconds;
+      if (spark.life <= 0) {
+        this.sparks.splice(index, 1);
+        continue;
+      }
+      spark.velocity[1] -= 9.8 * deltaSeconds;
+      spark.position = vec3Add(spark.position, vec3Scale(spark.velocity, deltaSeconds));
+    }
+    this.sparkFlash.strength = Math.max(0, this.sparkFlash.strength - deltaSeconds * 5);
+    this.arcClock += deltaSeconds;
+  }
+  /** Thin streaks along each spark's velocity. */
+  pushSparks(output) {
+    for (const spark of this.sparks) {
+      const speed = Math.hypot(spark.velocity[0], spark.velocity[1], spark.velocity[2]);
+      if (speed < 1e-3) continue;
+      const along = vec3Scale(spark.velocity, 1 / speed);
+      const length = Math.min(0.12, speed * 0.018);
+      const [xAxis, , zAxis] = orthonormalBasisFromForward(along);
+      const thickness = 0.45 * (spark.life / spark.maxLife);
+      output.push({ mesh: this.cableMesh, materialId: "spark_glow", modelMatrix: mat4FromBasis(spark.position, vec3Scale(xAxis, thickness), vec3Scale(along, length), vec3Scale(zAxis, thickness)), emissiveBoost: 1 });
+    }
+  }
+  /** Crackling arcs that run down a cable pulled taut on an anchor. */
+  pushCableArcs(output, start, end) {
+    const flicker = Math.floor(this.arcClock * 18);
+    if (flicker % 3 === 0) return;
+    const segments = 7;
+    let previous = start;
+    for (let index = 1; index <= segments; index += 1) {
+      const t = index / segments;
+      const noise = (channel) => {
+        const value = Math.sin((flicker * 7 + index * 13 + channel * 31) * 12.9898) * 43758.5453;
+        return (value - Math.floor(value) - 0.5) * 0.09;
+      };
+      const point = index === segments ? end : vec3Add(vec3Lerp(start, end, t), [noise(1), noise(2), noise(3)]);
+      const segment = vec3Subtract(point, previous);
+      const length = Math.hypot(segment[0], segment[1], segment[2]);
+      if (length > 1e-4) {
+        const along = vec3Scale(segment, 1 / length);
+        const [xAxis, , zAxis] = orthonormalBasisFromForward(along);
+        output.push({ mesh: this.cableMesh, materialId: "arc_glow", modelMatrix: mat4FromBasis(vec3Lerp(previous, point, 0.5), vec3Scale(xAxis, 0.55), vec3Scale(along, length), vec3Scale(zAxis, 0.55)), emissiveBoost: 1 });
+      }
+      previous = point;
+    }
   }
   /** Snaps a launched hand back (e.g. after it strikes a monster). */
   recall(side) {
@@ -10185,6 +10362,10 @@ var TetherRig = class {
     const direction = vec3Normalize(vec3Subtract(aimPoint, socket));
     claw.position = socket;
     claw.direction = direction[0] === 0 && direction[1] === 0 && direction[2] === 0 ? basis.forward : direction;
+    const assisted = this.aimAssist?.(socket, claw.direction) ?? null;
+    if (assisted !== null) {
+      claw.direction = assisted;
+    }
     claw.traveledDistance = 0;
     claw.target = null;
     this.setPhase(claw, "extending");
@@ -10222,10 +10403,12 @@ var TetherRig = class {
           claw.autoReelTarget = null;
         }
         this.setPhase(claw, "latched");
+        this.spawnSparks(claw.position, hit.target.attachNormal, hit.target.kind === "anchor" ? 14 : 8);
         this.events.emit("clawLatched", { side: claw.side, polarity: claw.polarity, target: hit.target, point: claw.position });
       } else {
         claw.position = vec3Add(hit.point, vec3Scale(hit.normal, 0.05));
         this.setPhase(claw, "retracting");
+        this.spawnSparks(hit.point, hit.normal, 10);
         this.events.emit("clawDeflected", { side: claw.side, polarity: claw.polarity, point: hit.point, normal: hit.normal });
       }
       return;
@@ -10288,6 +10471,7 @@ var TetherRig = class {
   /** Advances both claws. Call before the motor step. */
   update(deltaSeconds, input, world, camera) {
     this.syncCamera(camera);
+    this.updateSparks(deltaSeconds);
     const triggers = {
       left: { pressed: input.leftTriggerPressed, held: input.leftTriggerHeld },
       right: { pressed: input.rightTriggerPressed, held: input.rightTriggerHeld }
@@ -10443,6 +10627,7 @@ var TetherRig = class {
     }
   }
   collectDrawItems(output, timeSeconds) {
+    this.pushSparks(output);
     const basis = this.cameraBasis;
     for (const side of ["left", "right"]) {
       const claw = this.claws[side];
@@ -10483,6 +10668,9 @@ var TetherRig = class {
         const span = vec3Distance(socket, claw.position);
         const visualLength = claw.phase === "latched" && claw.target?.kind === "anchor" ? claw.restLength : claw.phase === "extending" ? claw.traveledDistance * 1.04 : span * 1.08;
         this.pushCable(output, socket, claw.position, visualLength - span);
+        if (claw.phase === "latched" && claw.target?.kind === "anchor" && span >= claw.restLength * 0.97) {
+          this.pushCableArcs(output, socket, claw.position);
+        }
       }
     }
   }
@@ -12717,6 +12905,8 @@ var RIGHT_HANDS = [
 ];
 var VOLT_RECHARGE_SECONDS = 5;
 var CHIME_RADIUS_METERS = 5.5;
+var AIM_ASSIST_RANGE_METERS = 16;
+var AIM_ASSIST_COSINE = Math.cos(15 * Math.PI / 180);
 var SAVE_INDICATOR_SECONDS = 2.4;
 var SECOND_WIND_STUN_SECONDS = 3.5;
 var JESTER_ENTRANCE_CHUNK = 22;
@@ -12807,6 +12997,8 @@ var ActiveLevelStreamerState = class {
   };
   /** Dim cosmetic light just below the camera so the painted hands read in dark rooms. */
   handFill = null;
+  /** Brief cosmetic flash where sparks fly. */
+  sparkLight = null;
   foreman = null;
   loreReader = new LoreTapeReader();
   lastTape = null;
@@ -12850,6 +13042,7 @@ var ActiveLevelStreamerState = class {
       this.pitchRadians = 0;
     }
     const rig = new TetherRig(services.gl, services.meshes, this.tetherEvents);
+    rig.aimAssist = (origin, direction) => this.assistAim(origin, direction);
     this.rig = rig;
     this.relayNetwork = new RelayPlateNetwork(this.tetherEvents, streamer, rig);
     this.threats = new ThreatDirector(services.meshes, services.lighting, streamer, services.audio);
@@ -12871,6 +13064,7 @@ var ActiveLevelStreamerState = class {
         services.audio.playSpatialCue(line.speaker === "pip" ? "pipChirp" : "radioCrackle", line.speaker === "pip" && this.pip !== null ? this.pip.position : camera.position, 0.8);
       }
     });
+    this.sparkLight = services.lighting.add({ position: [0, -100, 0], color: [1, 0.75, 0.4], intensity: 0, range: 4.5, behavior: { kind: "steady" }, cosmetic: true });
     this.handFill = services.lighting.add({ position: [0, 0, 0], color: [1, 0.94, 0.86], intensity: 0.9, range: 1, behavior: { kind: "steady" }, cosmetic: true });
     this.pip = new PipCompanion(services.meshes, services.lighting, {
       ventOpened: (vent) => {
@@ -12936,6 +13130,10 @@ var ActiveLevelStreamerState = class {
     if (this.handFill !== null) {
       this.services.lighting.remove(this.handFill.handle);
       this.handFill = null;
+    }
+    if (this.sparkLight !== null) {
+      this.services.lighting.remove(this.sparkLight.handle);
+      this.sparkLight = null;
     }
     this.foreman?.dispose();
     this.foreman = null;
@@ -13120,6 +13318,9 @@ var ActiveLevelStreamerState = class {
       }
     }
     const result = threats.strike(id, this.motor.position, stunScale);
+    const toPlayer = [this.motor.position[0] - impact[0], 0.4, this.motor.position[2] - impact[2]];
+    const toPlayerLength = Math.hypot(toPlayer[0], toPlayer[1], toPlayer[2]) || 1;
+    this.rig?.spawnSparks(impact, [toPlayer[0] / toPlayerLength, toPlayer[1] / toPlayerLength, toPlayer[2] / toPlayerLength], handType === "volt" ? 26 : 16, handType === "volt" ? 4.5 : 3.4);
     const name = THREAT_DISPLAY_NAMES[kind];
     this.services.audio.playSpatialCue("breakerClunk", impact, result.outcome === "resisted" ? 0.6 : 1.3);
     threats.emitNoise("gateMoving", impact, 0.5);
@@ -13702,6 +13903,41 @@ var ActiveLevelStreamerState = class {
     this.leavingLevel = true;
     this.services.lifecycle.requestTransition({ target: "TitleScreen" /* TitleScreen */, payload: { reason: "returnFromLevel" } });
   }
+  /**
+   * Aim assist for hand launches: picks the monster closest to the crosshair (measured from the eye, within ~15° and
+   * 16 m) and sends the hand from its launcher straight at that monster's chest.
+   */
+  assistAim(origin, direction) {
+    const threats = this.threats;
+    if (threats === null) {
+      return null;
+    }
+    void direction;
+    const eye = this.services.camera.position;
+    const look = [-Math.sin(this.yawRadians) * Math.cos(this.pitchRadians), Math.sin(this.pitchRadians), -Math.cos(this.yawRadians) * Math.cos(this.pitchRadians)];
+    let best = null;
+    let bestScore = Infinity;
+    for (const managed of threats.activeThreats) {
+      const chest = [managed.view.position[0], managed.view.position[1] + managed.profile.vision.eyeHeight * 0.65, managed.view.position[2]];
+      const fromEye = [chest[0] - eye[0], chest[1] - eye[1], chest[2] - eye[2]];
+      const distance = Math.hypot(fromEye[0], fromEye[1], fromEye[2]);
+      if (distance < 0.5 || distance > AIM_ASSIST_RANGE_METERS) {
+        continue;
+      }
+      const cosine = (fromEye[0] * look[0] + fromEye[1] * look[1] + fromEye[2] * look[2]) / distance;
+      if (cosine < AIM_ASSIST_COSINE) {
+        continue;
+      }
+      const score = (1 - cosine) * 40 + distance * 0.05;
+      if (score < bestScore) {
+        bestScore = score;
+        const fromHand = [chest[0] - origin[0], chest[1] - origin[1], chest[2] - origin[2]];
+        const handDistance = Math.hypot(fromHand[0], fromHand[1], fromHand[2]) || 1;
+        best = [fromHand[0] / handDistance, fromHand[1] / handDistance, fromHand[2] / handDistance];
+      }
+    }
+    return best;
+  }
   retireBossHushlings() {
     const threats = this.threats;
     if (threats === null) {
@@ -13823,6 +14059,12 @@ var ActiveLevelStreamerState = class {
     }
     rig.update(deltaSeconds, this.buildTetherInput(input, controlsEnabled, intent), streamer, services.camera);
     this.resolveHandStrikes(rig, threats, worldEvents);
+    if (this.sparkLight !== null) {
+      this.sparkLight.position[0] = rig.sparkFlash.position[0];
+      this.sparkLight.position[1] = rig.sparkFlash.position[1];
+      this.sparkLight.position[2] = rig.sparkFlash.position[2];
+      this.sparkLight.intensity = rig.sparkFlash.strength * 5;
+    }
     if (this.handFill !== null) {
       const fill = rig.handFillPosition();
       this.handFill.position[0] = fill[0];
@@ -13852,6 +14094,9 @@ var ActiveLevelStreamerState = class {
         }
       }
       this.lastFootstepPhase = stepPhase;
+    }
+    if (this.cinematics.isSkippable && frame.inputEnabled && (input.wasAnyKeyPressed(["KeyE", "Escape", "Enter"]) || lostLock)) {
+      this.cinematics.skip();
     }
     if (this.cinematics.ownsCamera) {
       this.cinematics.update(deltaSeconds);
@@ -14105,6 +14350,17 @@ var ActiveLevelStreamerState = class {
       drawActCard(context, campaign.actCardSnapshot);
     }
     this.loreReader.draw(context, this.lastTape);
+    if (this.cinematics.isSkippable) {
+      context.save();
+      context.font = UI_FONTS.small;
+      context.textAlign = "right";
+      context.fillStyle = "rgba(0, 0, 0, 0.5)";
+      context.fillRect(VIRTUAL_RESOLUTION.width - 330, VIRTUAL_RESOLUTION.height - 108, 270, 54);
+      context.fillStyle = UI_COLORS.textPrimary;
+      context.globalAlpha = 0.8 + 0.2 * Math.sin(frame.elapsedSeconds * 3);
+      context.fillText("E / ESC \xB7 SKIP", VIRTUAL_RESOLUTION.width - 80, VIRTUAL_RESOLUTION.height - 72);
+      context.restore();
+    }
     this.ending.draw(context, frame.elapsedSeconds);
     this.pauseMenu.draw(context, frame.elapsedSeconds);
   }

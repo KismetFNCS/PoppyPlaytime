@@ -62,7 +62,7 @@ function horizontalDistance(first: Readonly<Vec3>, second: Readonly<Vec3>): numb
  *                                                           └─────────┘ ◀── escape ─└───────────┘
  */
 /** Seconds a threat ignores further hand strikes after a stun ends. */
-const STUN_RESIST_SECONDS: number = 4;
+const STUN_RESIST_SECONDS: number = 2.5;
 
 export class EntityBrain {
   public state: ThreatState = 'dormant';

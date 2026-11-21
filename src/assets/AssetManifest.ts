@@ -14,6 +14,9 @@ export type MaterialId =
   | 'lamp_housing_red'
   | 'lamp_housing_blue'
   | 'jester_entity_fabric'
+  | 'jester_hood_rose'
+  | 'jester_hood_gold'
+  | 'jester_hood_teal'
   | 'jester_entity_porcelain'
   | 'jester_entity_eyes'
   | 'gas_mask_rubber'
@@ -25,6 +28,8 @@ export type MaterialId =
   | 'tether_claw_volt'
   | 'tether_claw_chime'
   | 'tether_core_teal'
+  | 'spark_glow'
+  | 'arc_glow'
   | 'tether_core_rose'
   | 'tallyman_dial'
   | 'tallyman_lamp'
@@ -149,6 +154,45 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     maps: proceduralMaps(),
     proceduralFallback: { kind: 'harlequinFabric', seed: 5505, resolution: 256, bumpStrength: 2.2 },
     baseTint: [1, 1, 1],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  jester_hood_rose: {
+    id: 'jester_hood_rose',
+    displayName: 'Gully · Rose Hood',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 5601, resolution: 128, bumpStrength: 1.2 },
+    baseTint: [0.62, 0.16, 0.26],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  jester_hood_gold: {
+    id: 'jester_hood_gold',
+    displayName: 'Gully · Gold Hood',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 5602, resolution: 128, bumpStrength: 1.2 },
+    baseTint: [0.78, 0.58, 0.2],
+    normalStrength: 1,
+    roughnessScale: 1,
+    metallic: 0.5,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 2,
+  },
+  jester_hood_teal: {
+    id: 'jester_hood_teal',
+    displayName: 'Gully · Teal Hood',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'wornPaint', seed: 5603, resolution: 128, bumpStrength: 1.2 },
+    baseTint: [0.1, 0.42, 0.4],
     normalStrength: 1,
     roughnessScale: 1,
     metallic: 0,
@@ -297,6 +341,32 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
     metallic: 0,
     emissiveColor: [0.08, 0.95, 0.82],
     emissiveStrength: 8,
+    uvScale: 1,
+  },
+  spark_glow: {
+    id: 'spark_glow',
+    displayName: 'VFX · Spark',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'emissiveSolid', seed: 9101, resolution: 64, bumpStrength: 0 },
+    baseTint: [1, 0.85, 0.5],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [1, 0.78, 0.4],
+    emissiveStrength: 12,
+    uvScale: 1,
+  },
+  arc_glow: {
+    id: 'arc_glow',
+    displayName: 'VFX · Cable Arc',
+    maps: proceduralMaps(),
+    proceduralFallback: { kind: 'emissiveSolid', seed: 9102, resolution: 64, bumpStrength: 0 },
+    baseTint: [0.7, 0.9, 1],
+    normalStrength: 0,
+    roughnessScale: 1,
+    metallic: 0,
+    emissiveColor: [0.6, 0.85, 1],
+    emissiveStrength: 14,
     uvScale: 1,
   },
   tether_core_rose: {
@@ -566,7 +636,9 @@ export type ProceduralMeshBuilderId =
   | 'jester_lantern_shard'
   | 'jester_wind_key'
   | 'jester_head'
-  | 'jester_hat'
+  | 'jester_hood_rose_part'
+  | 'jester_hood_gold_part'
+  | 'jester_hood_teal_part'
   | 'jester_eyes'
   | 'jester_arm'
   | 'jester_hand'
@@ -654,7 +726,9 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
       { partId: 'shard', materialId: 'tallyman_lamp', importUri: null, fallbackBuilder: 'jester_lantern_shard' },
       { partId: 'key', materialId: 'tether_brass', importUri: null, fallbackBuilder: 'jester_wind_key' },
       { partId: 'head', materialId: 'jester_entity_porcelain', importUri: null, fallbackBuilder: 'jester_head' },
-      { partId: 'hat', materialId: 'jester_entity_fabric', importUri: null, fallbackBuilder: 'jester_hat' },
+      { partId: 'hoodRose', materialId: 'jester_hood_rose', importUri: null, fallbackBuilder: 'jester_hood_rose_part' },
+      { partId: 'hoodGold', materialId: 'jester_hood_gold', importUri: null, fallbackBuilder: 'jester_hood_gold_part' },
+      { partId: 'hoodTeal', materialId: 'jester_hood_teal', importUri: null, fallbackBuilder: 'jester_hood_teal_part' },
       { partId: 'eyes', materialId: 'jester_entity_eyes', importUri: null, fallbackBuilder: 'jester_eyes' },
       { partId: 'arm', materialId: 'jester_entity_fabric', importUri: null, fallbackBuilder: 'jester_arm' },
       { partId: 'hand', materialId: 'jester_entity_porcelain', importUri: null, fallbackBuilder: 'jester_hand' },

@@ -6,7 +6,7 @@ import type { CameraPose } from '../cinematics/CinematicDirector';
 import { CinematicDirector } from '../cinematics/CinematicDirector';
 import { CINEMATIC_LIBRARY } from '../cinematics/CinematicLibrary';
 import type { CinematicHookId, CinematicId } from '../cinematics/CinematicTimeline';
-import { LIGHT_PALETTE, UI_COLORS } from '../config/GameConstants';
+import { LIGHT_PALETTE, UI_COLORS, UI_FONTS, VIRTUAL_RESOLUTION } from '../config/GameConstants';
 import type { SpatialCueId } from '../core/AudioManager';
 import type { GameServices } from '../core/GameServices';
 import type { DeathCause, FrameContext, FrameRenderRequest, GameStateHandler, GameStatePayloadMap } from '../core/GameStateTypes';
@@ -119,6 +119,8 @@ const RIGHT_HANDS: ReadonlyArray<{ readonly type: RightHandType; readonly label:
 const VOLT_RECHARGE_SECONDS: number = 5;
 const CHIME_RADIUS_METERS: number = 5.5;
 
+const AIM_ASSIST_RANGE_METERS: number = 16;
+const AIM_ASSIST_COSINE: number = Math.cos((15 * Math.PI) / 180);
 const SAVE_INDICATOR_SECONDS: number = 2.4;
 const SECOND_WIND_STUN_SECONDS: number = 3.5;
 
@@ -202,6 +204,8 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   };
   /** Dim cosmetic light just below the camera so the painted hands read in dark rooms. */
   private handFill: PointLight | null = null;
+  /** Brief cosmetic flash where sparks fly. */
+  private sparkLight: PointLight | null = null;
   private foreman: ForemanEncounter | null = null;
   private readonly loreReader: LoreTapeReader = new LoreTapeReader();
   private lastTape: LoreTape | null = null;
@@ -271,6 +275,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
     // Systems.
     const rig = new TetherRig(services.gl, services.meshes, this.tetherEvents);
+    rig.aimAssist = (origin: Readonly<Vec3>, direction: Readonly<Vec3>) => this.assistAim(origin, direction);
     this.rig = rig;
     this.relayNetwork = new RelayPlateNetwork(this.tetherEvents, streamer, rig);
     this.threats = new ThreatDirector(services.meshes, services.lighting, streamer, services.audio);
@@ -292,6 +297,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         services.audio.playSpatialCue(line.speaker === 'pip' ? 'pipChirp' : 'radioCrackle', line.speaker === 'pip' && this.pip !== null ? this.pip.position : camera.position, 0.8);
       },
     });
+    this.sparkLight = services.lighting.add({ position: [0, -100, 0], color: [1, 0.75, 0.4], intensity: 0, range: 4.5, behavior: { kind: 'steady' }, cosmetic: true });
     this.handFill = services.lighting.add({ position: [0, 0, 0], color: [1, 0.94, 0.86], intensity: 0.9, range: 1.0, behavior: { kind: 'steady' }, cosmetic: true });
     this.pip = new PipCompanion(services.meshes, services.lighting, {
       ventOpened: (vent: VentRecord) => {
@@ -362,6 +368,10 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     if (this.handFill !== null) {
       this.services.lighting.remove(this.handFill.handle);
       this.handFill = null;
+    }
+    if (this.sparkLight !== null) {
+      this.services.lighting.remove(this.sparkLight.handle);
+      this.sparkLight = null;
     }
     this.foreman?.dispose();
     this.foreman = null;
@@ -557,6 +567,9 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       }
     }
     const result = threats.strike(id, this.motor.position, stunScale);
+    const toPlayer: Vec3 = [this.motor.position[0] - impact[0], 0.4, this.motor.position[2] - impact[2]];
+    const toPlayerLength: number = Math.hypot(toPlayer[0], toPlayer[1], toPlayer[2]) || 1;
+    this.rig?.spawnSparks(impact, [toPlayer[0] / toPlayerLength, toPlayer[1] / toPlayerLength, toPlayer[2] / toPlayerLength], handType === 'volt' ? 26 : 16, handType === 'volt' ? 4.5 : 3.4);
     const name: string = THREAT_DISPLAY_NAMES[kind];
     this.services.audio.playSpatialCue('breakerClunk', impact, result.outcome === 'resisted' ? 0.6 : 1.3);
     threats.emitNoise('gateMoving', impact, 0.5);
@@ -1203,6 +1216,42 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.services.lifecycle.requestTransition({ target: GameStateId.TitleScreen, payload: { reason: 'returnFromLevel' } });
   }
 
+  /**
+   * Aim assist for hand launches: picks the monster closest to the crosshair (measured from the eye, within ~15° and
+   * 16 m) and sends the hand from its launcher straight at that monster's chest.
+   */
+  private assistAim(origin: Readonly<Vec3>, direction: Readonly<Vec3>): Vec3 | null {
+    const threats: ThreatDirector | null = this.threats;
+    if (threats === null) {
+      return null;
+    }
+    void direction;
+    const eye: Vec3 = this.services.camera.position;
+    const look: Vec3 = [-Math.sin(this.yawRadians) * Math.cos(this.pitchRadians), Math.sin(this.pitchRadians), -Math.cos(this.yawRadians) * Math.cos(this.pitchRadians)];
+    let best: Vec3 | null = null;
+    let bestScore = Infinity;
+    for (const managed of threats.activeThreats) {
+      const chest: Vec3 = [managed.view.position[0], managed.view.position[1] + managed.profile.vision.eyeHeight * 0.65, managed.view.position[2]];
+      const fromEye: Vec3 = [chest[0] - eye[0], chest[1] - eye[1], chest[2] - eye[2]];
+      const distance: number = Math.hypot(fromEye[0], fromEye[1], fromEye[2]);
+      if (distance < 0.5 || distance > AIM_ASSIST_RANGE_METERS) {
+        continue;
+      }
+      const cosine: number = (fromEye[0] * look[0] + fromEye[1] * look[1] + fromEye[2] * look[2]) / distance;
+      if (cosine < AIM_ASSIST_COSINE) {
+        continue;
+      }
+      const score: number = (1 - cosine) * 40 + distance * 0.05;
+      if (score < bestScore) {
+        bestScore = score;
+        const fromHand: Vec3 = [chest[0] - origin[0], chest[1] - origin[1], chest[2] - origin[2]];
+        const handDistance: number = Math.hypot(fromHand[0], fromHand[1], fromHand[2]) || 1;
+        best = [fromHand[0] / handDistance, fromHand[1] / handDistance, fromHand[2] / handDistance];
+      }
+    }
+    return best;
+  }
+
   private retireBossHushlings(): void {
     const threats = this.threats;
     if (threats === null) {
@@ -1340,6 +1389,12 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     }
     rig.update(deltaSeconds, this.buildTetherInput(input, controlsEnabled, intent), streamer, services.camera);
     this.resolveHandStrikes(rig, threats, worldEvents);
+    if (this.sparkLight !== null) {
+      this.sparkLight.position[0] = rig.sparkFlash.position[0];
+      this.sparkLight.position[1] = rig.sparkFlash.position[1];
+      this.sparkLight.position[2] = rig.sparkFlash.position[2];
+      this.sparkLight.intensity = rig.sparkFlash.strength * 5;
+    }
     if (this.handFill !== null) {
       const fill: Vec3 = rig.handFillPosition();
       this.handFill.position[0] = fill[0];
@@ -1374,6 +1429,10 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       this.lastFootstepPhase = stepPhase;
     }
 
+    // E / Esc (or the browser taking the mouse back on Esc) skips a non-lethal scene.
+    if (this.cinematics.isSkippable && frame.inputEnabled && (input.wasAnyKeyPressed(['KeyE', 'Escape', 'Enter']) || lostLock)) {
+      this.cinematics.skip();
+    }
     // Camera: cinematic takeover or gameplay pose.
     if (this.cinematics.ownsCamera) {
       this.cinematics.update(deltaSeconds);
@@ -1665,6 +1724,17 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
       drawActCard(context, campaign.actCardSnapshot);
     }
     this.loreReader.draw(context, this.lastTape);
+    if (this.cinematics.isSkippable) {
+      context.save();
+      context.font = UI_FONTS.small;
+      context.textAlign = 'right';
+      context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      context.fillRect(VIRTUAL_RESOLUTION.width - 330, VIRTUAL_RESOLUTION.height - 108, 270, 54);
+      context.fillStyle = UI_COLORS.textPrimary;
+      context.globalAlpha = 0.8 + 0.2 * Math.sin(frame.elapsedSeconds * 3);
+      context.fillText('E / ESC · SKIP', VIRTUAL_RESOLUTION.width - 80, VIRTUAL_RESOLUTION.height - 72);
+      context.restore();
+    }
     this.ending.draw(context, frame.elapsedSeconds);
     this.pauseMenu.draw(context, frame.elapsedSeconds);
   }

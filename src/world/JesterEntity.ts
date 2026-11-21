@@ -149,7 +149,9 @@ export class JesterEntity implements ThreatActorView {
       };
       switch (part.partId) {
         case 'head':
-        case 'hat':
+        case 'hoodRose':
+        case 'hoodGold':
+        case 'hoodTeal':
         case 'eyes':
           push(headWorld);
           break;

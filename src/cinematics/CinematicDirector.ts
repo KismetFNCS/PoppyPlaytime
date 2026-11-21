@@ -155,6 +155,24 @@ export class CinematicDirector {
     context.audio.setCinematicDuck(timeline.ambientDuck);
   }
 
+  /** Non-lethal scenes that hand control back can be skipped. */
+  public get isSkippable(): boolean {
+    return this.playback !== null && !this.playback.completed && this.playback.timeline.returnsControl && this.playback.time > 0.3;
+  }
+
+  /**
+   * Jumps to the end of a skippable scene so it finishes normally (hooks and completion still run). Remaining audio
+   * cues are dropped so they don't all fire at once.
+   */
+  public skip(): void {
+    const playback: ActivePlayback | null = this.playback;
+    if (playback === null || !this.isSkippable) {
+      return;
+    }
+    playback.nextAudioIndex = Number.MAX_SAFE_INTEGER;
+    playback.time = Math.max(playback.time, playback.timeline.durationSeconds + playback.timeline.blendOutSeconds);
+  }
+
   /** Immediately ends playback and releases audio overrides (no completion callback). */
   public stop(): void {
     if (this.playback === null) {

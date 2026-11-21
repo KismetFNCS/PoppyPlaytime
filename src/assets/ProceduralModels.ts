@@ -111,24 +111,55 @@ function buildJesterHead(): MeshData {
   return builder.build();
 }
 
-/** Drooping three-horned bell hat (moves with the head). */
-function buildJesterHat(): MeshData {
+/** One drooping hood horn from the crown of the cowl, ending at its bell. lateral: -1 left, 0 middle, 1 right. */
+function hoodHornPath(lateral: number): Vec3Tuple[] {
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
+  const lift: number = lateral === 0 ? 0.55 : 0.25;
+  // Horns rise from the hat crown (which sits on top of the hood), arc outward and droop to their bells.
+  return [
+    [cx + lateral * 0.1, cy + 0.36, cz - 0.05],
+    [cx + lateral * 0.32, cy + 0.56 + lift * 0.15, cz - 0.09],
+    [cx + lateral * 0.52, cy + 0.32 + lift * 0.1, cz - 0.09 - (lateral === 0 ? 0.2 : 0)],
+    [cx + lateral * 0.58, cy + 0.08, cz - 0.07 - (lateral === 0 ? 0.3 : 0)],
+  ];
+}
+
+function appendHoodHorn(builder: MeshBuilder, lateral: number): void {
+  builder.appendMesh(createTubeMesh(hoodHornPath(lateral), [0.1, 0.065, 0.034, 0.016], 10), mat4Identity());
+}
+
+/** Rose hood: cowl framing the porcelain face, draping to the shoulders, plus the hat's left (rose) horn. */
+function buildJesterHoodRose(): MeshData {
   const builder = new MeshBuilder();
   const [cx, cy, cz] = JESTER_HEAD_CENTER;
-  place(builder, createCylinderMesh(0.21, 0.23, 0.1, 16), [cx, cy + 0.2, cz], [0.05, 0, 0], [1, 1, 0.95]);
-  const horns: ReadonlyArray<[number, number]> = [
-    [-1, 0.25],
-    [0, 0.55],
-    [1, 0.25],
-  ];
-  for (const [lateral, lift] of horns) {
-    const base: Vec3Tuple = [cx + lateral * 0.1, cy + 0.24, cz - 0.02];
-    const mid: Vec3Tuple = [cx + lateral * 0.3, cy + 0.42 + lift * 0.15, cz - 0.06];
-    const tip: Vec3Tuple = [cx + lateral * 0.5, cy + 0.2 + lift * 0.1, cz - 0.04];
-    const end: Vec3Tuple = [cx + lateral * 0.55, cy + 0.02, cz - 0.02];
-    builder.appendMesh(createTubeMesh([base, mid, tip, end], [0.11, 0.07, 0.035, 0.015], 10), mat4Identity());
-    place(builder, createSphereMesh(0.045, 10, 8), [end[0], end[1] - 0.04, end[2]], [0, 0, 0], [1, 1, 1]);
+  place(builder, createSphereMesh(0.25, 18, 12), [cx, cy + 0.03, cz - 0.05], [0, 0, 0], [1.02, 1.12, 0.96]);
+  // Draped collar falling from the cowl onto the shoulders.
+  place(builder, createCylinderMesh(0.3, 0.2, 0.22, 16), [cx, cy - 0.27, cz - 0.04], [0, 0, 0], [1, 1, 0.82]);
+  // Face opening rim.
+  place(builder, createCylinderMesh(0.2, 0.2, 0.03, 18), [cx, cy - 0.01, cz + 0.17], [Math.PI / 2, 0, 0], [1, 1.18, 1]);
+  appendHoodHorn(builder, -1);
+  return builder.build();
+}
+
+/** The jester hat worn over the hood: gold band and rounded crown, the gold middle horn, and all three bells. */
+function buildJesterHoodGold(): MeshData {
+  const builder = new MeshBuilder();
+  const [cx, cy, cz] = JESTER_HEAD_CENTER;
+  place(builder, createCylinderMesh(0.255, 0.27, 0.07, 20), [cx, cy + 0.22, cz - 0.04], [0.08, 0, 0], [1, 1, 0.96]);
+  place(builder, createSphereMesh(0.235, 18, 10), [cx, cy + 0.26, cz - 0.05], [0, 0, 0], [1, 0.55, 0.95]);
+  appendHoodHorn(builder, 0);
+  for (const lateral of [-1, 0, 1]) {
+    const tip: Vec3Tuple = hoodHornPath(lateral)[3] as Vec3Tuple;
+    place(builder, createSphereMesh(0.048, 10, 8), [tip[0], tip[1] - 0.045, tip[2]], [0, 0, 0], [1, 1.05, 1]);
+    place(builder, createCylinderMesh(0.012, 0.012, 0.03, 6), [tip[0], tip[1] - 0.005, tip[2]], [0, 0, 0], [1, 1, 1]);
   }
+  return builder.build();
+}
+
+/** The hat's right (teal) horn. */
+function buildJesterHoodTeal(): MeshData {
+  const builder = new MeshBuilder();
+  appendHoodHorn(builder, 1);
   return builder.build();
 }
 
@@ -583,7 +614,9 @@ export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, 
   jester_lantern_shard: buildJesterLanternShard,
   jester_wind_key: buildJesterWindKey,
   jester_head: buildJesterHead,
-  jester_hat: buildJesterHat,
+  jester_hood_rose_part: buildJesterHoodRose,
+  jester_hood_gold_part: buildJesterHoodGold,
+  jester_hood_teal_part: buildJesterHoodTeal,
   jester_eyes: buildJesterEyes,
   jester_arm: buildJesterArm,
   jester_hand: buildJesterHand,
