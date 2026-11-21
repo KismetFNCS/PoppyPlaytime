@@ -885,12 +885,8 @@ const Monster = {
     if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.2; it.emis[0] = 3.2; it.emis[1] = 2.7; it.emis[2] = 0.25; }
     this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
     R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.07 * s, 0.07 * s, 0.035 * s, false);
-    // battered tailor's top hat, cocked to one side
-    if (Sculpt.ready('sp_hat')) {
-      this.headLocal(m, 0.05, 0.36, 0.04, this.tmp3);
-      it = R.push('sp_hat', MAT.clothWine);
-      if (it) M4.compose(it.model, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw + 0.3, pitch - 0.1, roll - 0.22, s, s, s);
-    }
+    // the hood and its hat as one piece: rose / teal / gold patchwork with the battered harlequin top hat sewn on
+    if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(m); it.tint[0] = 0.95; it.tint[1] = 0.88; it.tint[2] = 0.82; } }
   },
   headLocal(m, x, y, z, out) { V3.set(_mh.local, x, y, z); return M4.transformPoint(out, m, _mh.local); },
 

@@ -293,6 +293,57 @@ function sculptThimbleHead(open) {
   return SDF.mesh(n, [-0.52, -0.36, -0.42], [0.42, 0.5, 0.36], 76);
 }
 
+// Battered harlequin top hat nodes (base at y 0); sewn onto the crown of the Spoolwright's hood (sp_hood)
+function hatNodes() {
+    // battered harlequin top hat: crown pieced from rose, teal and gold panels with diamond patches, a gold
+    // brim, a teal band, bells hanging on frayed ribbons, a crushed dent, a torn hole and stuck pins
+    const RO = MAT.clothWine, TE = MAT.handTeal, GO = MAT.paint, n = [
+      { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: RO, n: [0.008, 22] },
+      { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: RO, k: 0.05 },
+      { t: 'sph', c: [0.13, 0.36, -0.12], r: 0.07, op: 's', k: 0.04, sm: RO },
+      { t: 'cyl', c: [0, 0.015, 0], r: 0.29, h: 0.012, rr: 0.01, m: GO, k: 0.02, n: [0.01, 18] },
+      { t: 'tor', c: [0, 0.03, 0], R: 0.28, r: 0.016, m: GO, k: 0.02, n: [0.008, 30] },
+      { t: 'cyl', c: [0, 0.07, 0], r: 0.177, h: 0.034, rr: 0.004, m: TE, k: 0.004 },
+      { t: 'sph', c: [-0.16, 0.26, 0.06], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.012, 60] }
+    ];
+    // pieced crown: teal and gold panels sewn over the rose felt
+    for (let k = 0; k < 6; k++) {
+      if (k % 3 === 0) continue;
+      const ang = k / 6 * Math.PI * 2;
+      n.push({ t: 'box', c: [Math.sin(ang) * 0.172, 0.23, Math.cos(ang) * 0.172], h: [0.075, 0.15, 0.01], rr: 0.008, rot: [ang, 0, 0], m: k % 3 === 1 ? TE : GO, k: 0.012, n: [0.006, 40] });
+    }
+    // harlequin diamonds on the panels
+    for (let k = 0; k < 6; k++) {
+      const ang = k / 6 * Math.PI * 2 + 0.5;
+      n.push({ t: 'box', c: [Math.sin(ang) * 0.181, 0.27, Math.cos(ang) * 0.181], h: [0.03, 0.03, 0.006], rot: [ang, 0, Math.PI / 4], m: k % 2 ? GO : TE, k: 0.004 });
+    }
+    // two long, drooping cloth tails flopping off the crown, each ending in a bell
+    for (const [sx, m] of [[-1, TE], [1, GO]]) {
+      const pts = [[sx * 0.08, 0.38, 0.0], [sx * 0.24, 0.42, 0.04], [sx * 0.34, 0.3, 0.06], [sx * 0.37, 0.12, 0.05], [sx * 0.36, -0.06, 0.04]];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const r0 = 0.055 - i * 0.011, r1 = 0.055 - (i + 1) * 0.011;
+        n.push({ t: 'cap', a: pts[i], b: pts[i + 1], r: r0, r2: Math.max(0.012, r1), m, k: 0.03, n: [0.008, 30] });
+      }
+      const e = pts[pts.length - 1];
+      n.push({ t: 'sph', c: [e[0], e[1] - 0.04, e[2]], r: 0.036, m: GO, k: 0.006 });
+      n.push({ t: 'box', c: [e[0], e[1] - 0.058, e[2]], h: [0.026, 0.004, 0.004], op: 's', sm: MAT.rubber });
+    }
+    // bells dangling on frayed ribbons from the band
+    for (const [ang, len, m] of [[1.9, 0.16, RO], [2.6, 0.22, TE], [-2.2, 0.18, GO]]) {
+      const x = Math.sin(ang) * 0.18, z = Math.cos(ang) * 0.18;
+      n.push({ t: 'cap', a: [x, 0.07, z], b: [x * 1.25, 0.07 - len, z * 1.25], r: 0.012, r2: 0.008, m, k: 0.006, n: [0.004, 60] });
+      n.push({ t: 'sph', c: [x * 1.27, 0.04 - len, z * 1.27], r: 0.03, m: GO, k: 0.006 });
+      n.push({ t: 'box', c: [x * 1.27, 0.025 - len, z * 1.27], h: [0.022, 0.004, 0.004], op: 's', sm: MAT.rubber });
+    }
+    for (const [x, z, h] of [[-0.08, -0.15, 0.3], [0.12, 0.1, 0.25]]) {
+      n.push({ t: 'cap', a: [x * 0.6, h - 0.05, z * 0.6], b: [x * 1.6, h + 0.08, z * 1.6], r: 0.006, m: MAT.steel, k: 0.002 });
+      n.push({ t: 'sph', c: [x * 1.6, h + 0.08, z * 1.6], r: 0.022, m: MAT.lining, k: 0.004 });
+    }
+    // grime and scorch smudges
+    for (let k = 0; k < 7; k++) { const ang = k * 2.3; n.push({ t: 'sph', c: [Math.sin(ang) * 0.175, 0.08 + (k * 0.047) % 0.3, Math.cos(ang) * 0.175], r: 0.03, m: MAT.burnt, k: 0.01 }); }
+    return n;
+}
+
 // ---------- character models ----------
 const SCULPTS = {
   glove_R_open: () => sculptGlove(1, 0.04),
@@ -382,54 +433,34 @@ const SCULPTS = {
   },
   // Battered tailor's top hat (base at y 0): dented black felt crown, curled brim, a measuring-tape band,
   // a spool of red thread tucked in the band, a torn hole and two pins stuck through the crown
-  sp_hat: () => {
-    // battered harlequin top hat: crown pieced from rose, teal and gold panels with diamond patches, a gold
-    // brim, a teal band, bells hanging on frayed ribbons, a crushed dent, a torn hole and stuck pins
+  // Ragged patchwork hood worn under the hat (head origin, opening facing -z): rose cloth pieced with teal and
+  // gold panels, a gold trim round the face, a frayed drape hanging down the back, stitched seams and grime
+  sp_hood: () => {
     const RO = MAT.clothWine, TE = MAT.handTeal, GO = MAT.paint, n = [
-      { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: RO, n: [0.008, 22] },
-      { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: RO, k: 0.05 },
-      { t: 'sph', c: [0.13, 0.36, -0.12], r: 0.07, op: 's', k: 0.04, sm: RO },
-      { t: 'cyl', c: [0, 0.015, 0], r: 0.29, h: 0.012, rr: 0.01, m: GO, k: 0.02, n: [0.01, 18] },
-      { t: 'tor', c: [0, 0.03, 0], R: 0.28, r: 0.016, m: GO, k: 0.02, n: [0.008, 30] },
-      { t: 'cyl', c: [0, 0.07, 0], r: 0.177, h: 0.034, rr: 0.004, m: TE, k: 0.004 },
-      { t: 'sph', c: [-0.16, 0.26, 0.06], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.012, 60] }
+      { t: 'ell', c: [0, 0.04, 0.07], r: [0.43, 0.5, 0.42], m: RO, n: [0.02, 14] },
+      { t: 'cap', a: [0, 0.0, 0.3], b: [0, -0.5, 0.42], r: 0.3, r2: 0.2, m: RO, k: 0.12, n: [0.03, 10] },
+      { t: 'ell', c: [0, 0.03, 0.03], r: [0.37, 0.45, 0.37], op: 's', k: 0.02, sm: RO },
+      { t: 'box', c: [0, -0.06, -0.38], h: [0.4, 0.55, 0.28], op: 's', k: 0.05, sm: RO, n: [0.03, 9] },
+      { t: 'box', c: [0, -0.72, 0.4], h: [0.4, 0.12, 0.3], op: 's', k: 0.03, sm: RO, n: [0.06, 8] }
     ];
-    // pieced crown: teal and gold panels sewn over the rose felt
-    for (let k = 0; k < 6; k++) {
-      if (k % 3 === 0) continue;
-      const ang = k / 6 * Math.PI * 2;
-      n.push({ t: 'box', c: [Math.sin(ang) * 0.172, 0.23, Math.cos(ang) * 0.172], h: [0.075, 0.15, 0.01], rr: 0.008, rot: [ang, 0, 0], m: k % 3 === 1 ? TE : GO, k: 0.012, n: [0.006, 40] });
+    // pieced panels: teal and gold sewn over the rose
+    for (let k = 0; k < 9; k++) {
+      const ang = -2.2 + k * 0.55, y = 0.05 + ((k * 3) % 4) * 0.08;
+      const rr = Math.sqrt(Math.max(0.05, 1 - ((y - 0.04) / 0.5) ** 2));
+      n.push({ t: 'box', c: [Math.sin(ang) * 0.43 * rr, y, 0.07 + Math.cos(ang) * 0.42 * rr], h: [0.12, 0.16, 0.014], rr: 0.01, rot: [ang, -0.2, 0], m: k % 2 ? TE : GO, k: 0.015, n: [0.008, 40] });
     }
-    // harlequin diamonds on the panels
-    for (let k = 0; k < 6; k++) {
-      const ang = k / 6 * Math.PI * 2 + 0.5;
-      n.push({ t: 'box', c: [Math.sin(ang) * 0.181, 0.27, Math.cos(ang) * 0.181], h: [0.03, 0.03, 0.006], rot: [ang, 0, Math.PI / 4], m: k % 2 ? GO : TE, k: 0.004 });
+    // gold trim round the face opening
+    n.push({ t: 'tor', c: [0, -0.05, -0.27], R: 0.37, r: 0.026, rot: [0, Math.PI / 2, 0], m: GO, k: 0.02, n: [0.006, 40] });
+    // stitched seam down the back, grime and soot
+    for (let k = 0; k < 6; k++) { const y = 0.36 - k * 0.07; n.push({ t: 'cap', a: [-0.015, y, 0.49 - k * 0.01], b: [0.015, y - 0.03, 0.49 - k * 0.01], r: 0.005, m: GO, k: 0.002 }); }
+    for (let k = 0; k < 8; k++) { const ang = k * 2.4; n.push({ t: 'sph', c: [Math.sin(ang) * 0.41, 0.2 - (k * 0.09) % 0.6, 0.07 + Math.cos(ang) * 0.4], r: 0.045, m: MAT.burnt, k: 0.015, n: [0.012, 40] }); }
+    // the battered harlequin top hat, sewn onto the crown of the hood as one piece
+    const off = [0.03, 0.47, 0.06];
+    for (const h of hatNodes()) {
+      for (const key of ['c', 'a', 'b']) if (h[key]) h[key] = [h[key][0] + off[0], h[key][1] + off[1], h[key][2] + off[2]];
+      n.push(h);
     }
-    // two long, drooping cloth tails flopping off the crown, each ending in a bell
-    for (const [sx, m] of [[-1, TE], [1, GO]]) {
-      const pts = [[sx * 0.08, 0.38, 0.0], [sx * 0.24, 0.42, 0.04], [sx * 0.34, 0.3, 0.06], [sx * 0.37, 0.12, 0.05], [sx * 0.36, -0.06, 0.04]];
-      for (let i = 0; i < pts.length - 1; i++) {
-        const r0 = 0.055 - i * 0.011, r1 = 0.055 - (i + 1) * 0.011;
-        n.push({ t: 'cap', a: pts[i], b: pts[i + 1], r: r0, r2: Math.max(0.012, r1), m, k: 0.03, n: [0.008, 30] });
-      }
-      const e = pts[pts.length - 1];
-      n.push({ t: 'sph', c: [e[0], e[1] - 0.04, e[2]], r: 0.036, m: GO, k: 0.006 });
-      n.push({ t: 'box', c: [e[0], e[1] - 0.058, e[2]], h: [0.026, 0.004, 0.004], op: 's', sm: MAT.rubber });
-    }
-    // bells dangling on frayed ribbons from the band
-    for (const [ang, len, m] of [[1.9, 0.16, RO], [2.6, 0.22, TE], [-2.2, 0.18, GO]]) {
-      const x = Math.sin(ang) * 0.18, z = Math.cos(ang) * 0.18;
-      n.push({ t: 'cap', a: [x, 0.07, z], b: [x * 1.25, 0.07 - len, z * 1.25], r: 0.012, r2: 0.008, m, k: 0.006, n: [0.004, 60] });
-      n.push({ t: 'sph', c: [x * 1.27, 0.04 - len, z * 1.27], r: 0.03, m: GO, k: 0.006 });
-      n.push({ t: 'box', c: [x * 1.27, 0.025 - len, z * 1.27], h: [0.022, 0.004, 0.004], op: 's', sm: MAT.rubber });
-    }
-    for (const [x, z, h] of [[-0.08, -0.15, 0.3], [0.12, 0.1, 0.25]]) {
-      n.push({ t: 'cap', a: [x * 0.6, h - 0.05, z * 0.6], b: [x * 1.6, h + 0.08, z * 1.6], r: 0.006, m: MAT.steel, k: 0.002 });
-      n.push({ t: 'sph', c: [x * 1.6, h + 0.08, z * 1.6], r: 0.022, m: MAT.lining, k: 0.004 });
-    }
-    // grime and scorch smudges
-    for (let k = 0; k < 7; k++) { const ang = k * 2.3; n.push({ t: 'sph', c: [Math.sin(ang) * 0.175, 0.08 + (k * 0.047) % 0.3, Math.cos(ang) * 0.175], r: 0.03, m: MAT.burnt, k: 0.01 }); }
-    return SDF.mesh(n, [-0.46, -0.3, -0.36], [0.46, 0.5, 0.36], 66);
+    return SDF.mesh(n, [-0.58, -0.66, -0.45], [0.58, 1.0, 0.78], 84);
   },
   // Filthy, ragged jester's motley on a skeletal upper torso (origin at the chest, facing -z): ruby cloth with
   // teal and orange harlequin diamonds, a pleated teal/ruby ruff, a dagged hem of pointed tatters, pom-pom
