@@ -1099,6 +1099,19 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.campaign?.update(deltaSeconds);
     this.pip?.update(deltaSeconds, this.playerPosition(), this.yawRadians, streamer, this.sessionSeconds);
     this.ensureForemanEncounter(streamer);
+    // Start the fight whenever the player is inside the arena zone and the Foreman is still dormant.
+    // (The entry event alone can fire before the encounter exists if the arena streamed in that frame.)
+    const arena = streamer.bossArena;
+    if (
+      this.foreman !== null &&
+      this.foreman.state === 'dormant' &&
+      arena !== null &&
+      worldEvents.flag('foremanPhasesCleared') < 3 &&
+      worldEvents.isPlayerInsideZone(`zone.foremanArena.${arena.chunkIndex}`)
+    ) {
+      worldEvents.setFlag('foremanEncountered', 1);
+      this.foreman.begin();
+    }
     this.foreman?.update(deltaSeconds);
     if (this.endingCountdown > 0) {
       this.endingCountdown -= deltaSeconds;
