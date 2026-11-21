@@ -1002,7 +1002,8 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         lensFog: this.gasMask.lensFog * this.gasMask.coverage,
         filterStrain: this.gasMask.isWorn ? 1 - this.gasMask.filterRemaining : 0,
       },
-      toast: this.toast !== null ? { text: this.toast.text, color: this.toast.color, alpha: clamp(this.toast.remainingSeconds, 0, 1) * this.objectiveOpacity } : null,
+      // Hidden while paused: the pause menu shows its own status line and the toast would overlap its buttons.
+      toast: this.toast !== null && !this.paused ? { text: this.toast.text, color: this.toast.color, alpha: clamp(this.toast.remainingSeconds, 0, 1) * this.objectiveOpacity } : null,
       dread: this.dread,
       letterbox: this.letterbox,
       pointerLocked: this.services.input.isPointerLocked,
