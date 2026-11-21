@@ -17,7 +17,7 @@ const TAPES = [
     lines: [
       'Welcome to Sector Six: Reclamation. Down here, nothing is ever thrown away.',
       'Broken toys, broken machines, broken ideas... we stitch them back together, good as new!',
-      'Your TetherRig is your best friend. Teal hand on the left, amber hand on the right.',
+      'This is your LIFELINE pack: two reaching hands on live cables. Teal on the left, amber on the right.',
       'Latch a hand onto a power node, carry the current around the relays, and close the circuit.',
       'And remember: if you hear clicking in the ducts, keep your footsteps soft.'
     ]

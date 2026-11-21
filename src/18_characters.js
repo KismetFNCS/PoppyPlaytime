@@ -25,8 +25,8 @@ const Cast = {
     pos: V3.create(0, -50, 0), yaw: 0, headYaw: 0, state: 'HIDDEN', timer: 0, stareTime: 0, used: new Uint8Array(4),
     eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
   },
-  doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0 },
-  plush: { pos: V3.create(-5.15, 0, -68.6), yaw: -Math.PI / 2, headYaw: 0, eyeGlow: 0.4 },
+  doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
+  plush: { pos: V3.create(-5.15, 0, -68.6), yaw: -Math.PI / 2, headYaw: 0, eyeGlow: 0.4, lunge: 0, lunged: false, talked: false, armRaise: 0 },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
@@ -64,8 +64,11 @@ const Cast = {
     const U = this.usher;
     U.state = 'HIDDEN'; U.timer = 0; U.stareTime = 0; U.used.fill(0); U.glitch = 0; U.perch = -1;
     V3.set(U.pos, 0, -50, 0);
-    const D = this.doll; D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0;
-    this.plush.headYaw = 0; this.plush.eyeGlow = 0.4;
+    const D = this.doll; D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0; D.met = false; D.farewell = false;
+    const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
+    V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
+    const T = this.plush; T.headYaw = 0; T.eyeGlow = 0.4; T.lunge = 0; T.lunged = false; T.talked = false; T.armRaise = 0;
+    Dialogue.clear();
     Pip.reset();
   },
 
@@ -94,6 +97,8 @@ const Cast = {
       if (Streaming.current === sector && Math.hypot(Player.body.pos[0] - P[0], Player.body.pos[2] - P[1]) > 12) {
         U.state = 'WATCHING'; U.perch = stagePerch; U.timer = 0; U.stareTime = 0;
         V3.set(U.pos, P[0], 0, P[1]); U.yaw = P[2]; U.headYaw = 0;
+        Dialogue.say('USHER', USHER_LINES[stagePerch]);
+        sfx('tapeGlitch');
       }
     }
     if (U.state === 'HIDDEN') return;
@@ -128,7 +133,28 @@ const Cast = {
 
   updateDoll(dt) {
     const D = this.doll;
-    if (Streaming.current !== 1 && !Streaming.visible[1]) return;
+    // relocate to the seat for the current stage while nobody can see her
+    const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
+    const sector = Level.sectorAt(seat[0], seat[2]);
+    V3.set(this.tmp2, seat[0], seat[1] + 0.5, seat[2]);
+    V3.set(this.tmp, D.pos[0], D.pos[1] + 0.5, D.pos[2]);
+    const offscreen = !Renderer.sphereVisible(this.tmp, 1.2) && !Renderer.sphereVisible(this.tmp2, 1.2);
+    if ((D.pos[0] !== seat[0] || D.pos[2] !== seat[2]) && offscreen && V3.dist(Player.eyePos, this.tmp2) > 5) {
+      V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.headYaw = 0;
+    }
+    D.sector = Level.sectorAt(D.pos[0], D.pos[2]);
+    if (!Streaming.visible[D.sector]) return;
+    const near = Math.hypot(Player.body.pos[0] - D.pos[0], Player.body.pos[2] - D.pos[2]);
+    if (!D.met && near < 6.5 && D.sector === 1) {
+      D.met = true;
+      Dialogue.say('MARIGOLD', '...You can see me? Nobody has looked at me in such a long time.');
+      Dialogue.say('MARIGOLD', 'They called this floor Reclamation. It never gave anything back.');
+      Dialogue.say('MARIGOLD', 'Close the circuit and the door will listen to you. It never listened to me.');
+    }
+    if (D.sector === 4 && near < 3.5 && !D.farewell) {
+      D.farewell = true;
+      Dialogue.say('MARIGOLD', 'You came all this way for a broken doll? ...Take me with you. Please.');
+    }
     const head = this.tmp;
     V3.set(head, D.pos[0], D.pos[1] + 0.62, D.pos[2]);
     const eye = Player.eyePos;
@@ -162,7 +188,24 @@ const Cast = {
     const want = clamp(wrapAngle(Math.atan2(-(eye[0] - P.pos[0]), -(eye[2] - P.pos[2])) - P.yaw), -1.0, 1.0);
     const d = Math.hypot(eye[0] - P.pos[0], eye[2] - P.pos[2]);
     P.headYaw = damp(P.headYaw, d < 14 ? want : 0, Game.chaseActive ? 2.5 : 0.6, dt);
-    P.eyeGlow = damp(P.eyeGlow, Game.chaseActive ? 1.6 : 0.45 + 0.2 * Math.sin(Game.time * 2), 3, dt);
+    P.eyeGlow = damp(P.eyeGlow, Game.chaseActive || P.lunge > 0 ? 1.8 : 0.45 + 0.2 * Math.sin(Game.time * 2), 3, dt);
+    // the voice box crackles to life when you come close, then he lunges once
+    if (!P.talked && d < 9) {
+      P.talked = true;
+      Dialogue.say('THIMBLE', 'H-hug... time? Is it... hug time?');
+    }
+    if (!P.lunged && d < 3.4) {
+      P.lunged = true; P.lunge = 1;
+      Dialogue.say('THIMBLE', 'HUG TIME!');
+      Dialogue.say('THIMBLE', '...sorry. So... sorry. I don\'t... mean it anymore.');
+      V3.set(this.tmp, P.pos[0], 1.2, P.pos[2]);
+      sfx('screech', this.tmp);
+      Player.addTrauma(0.55);
+      Pip.react('surprised', 2);
+      Particles.burst(this.tmp, 14, 'ember');
+    }
+    P.lunge = Math.max(0, P.lunge - dt * 0.9);
+    P.armRaise = damp(P.armRaise, P.lunge > 0.3 ? 1 : 0, P.lunge > 0.3 ? 14 : 2, dt);
   },
 
   // ---------- CRT face ----------
@@ -199,7 +242,7 @@ const Cast = {
   // ---------- rendering ----------
   submit(vis) {
     if (this.usher.state !== 'HIDDEN' && vis[Level.sectorAt(this.usher.pos[0], this.usher.pos[2])]) this.submitUsher();
-    if (vis[1]) this.submitDoll();
+    if (vis[this.doll.sector]) this.submitDoll();
     if (vis[3]) this.submitPlush();
   },
 
@@ -326,8 +369,9 @@ const Cast = {
     const P = this.plush, R = RenderQueue, p = P.pos, yaw = P.yaw;
     const a = this.tmp, b = this.tmp2;
     // slumped body, pale belly patch, splayed legs and drooping arms
-    this.pt(a, p, yaw, 0, 0.55, 0.12);
-    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], yaw, -0.25, 0, 0.42, 0.52, 0.36);
+    const L = P.armRaise;
+    this.pt(a, p, yaw, 0, 0.55 + L * 0.15, 0.12 - L * 0.25);
+    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], yaw, -0.25 + L * 0.5, 0, 0.42, 0.52, 0.36);
     this.pt(a, p, yaw, 0, 0.5, -0.17);
     R.trs('sphere', MAT.furLight, a[0], a[1], a[2], yaw, -0.25, 0, 0.26, 0.32, 0.12);
     for (const sx of [-1, 1]) {
@@ -335,15 +379,15 @@ const Cast = {
       R.seg('cyl', MAT.burnt, a, b, 0.14);
       R.trs('sphere', MAT.burnt, b[0], b[1], b[2], yaw, 0, 0, 0.16, 0.15, 0.12);
       R.trs('sphereLow', MAT.furLight, b[0], b[1], b[2] , yaw, 0, 0, 0.1, 0.11, 0.06);
-      this.pt(a, p, yaw, sx * 0.38, 0.82, 0.08); this.pt(b, p, yaw, sx * 0.55, 0.3, -0.12);
+      this.pt(a, p, yaw, sx * 0.38, 0.82 + L * 0.2, 0.08 - L * 0.3); this.pt(b, p, yaw, sx * (0.55 - L * 0.15), 0.3 + L * 1.0, -0.12 - L * 0.75);
       R.seg('cyl', MAT.burnt, a, b, 0.1);
       R.trs('sphere', MAT.burnt, b[0], b[1], b[2], 0, 0, 0, 0.12, 0.11, 0.12);
     }
     // head turns slowly toward the player
     const hy = yaw + P.headYaw;
-    this.pt(a, p, yaw, 0, 1.18, 0.1);
-    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], hy, 0.15, 0.12, 0.34, 0.3, 0.3);
-    M4.compose(this.m, a[0], a[1], a[2], hy, 0.15, 0.12, 1, 1, 1);
+    this.pt(a, p, yaw, 0, 1.18 + L * 0.25, 0.1 - L * 0.45);
+    R.trs('sphere', MAT.burnt, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), 0.34, 0.3, 0.3);
+    M4.compose(this.m, a[0], a[1], a[2], hy, 0.15 - L * 0.4, 0.12 * (1 - L), 1, 1, 1);
     const hp = (x, y, z, out) => { V3.set(this.local, x, y, z); return M4.transformPoint(out, this.m, this.local); };
     hp(0, -0.08, -0.24, b);
     R.trs('sphere', MAT.furLight, b[0], b[1], b[2], hy, 0, 0, 0.15, 0.11, 0.1);
@@ -377,6 +421,64 @@ const _cast = {
   e: V3.create(),
   boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })()
 };
+
+// =====================================================================================
+// DIALOGUE: speaker-labelled lines with typewriter text and per-character voices
+// =====================================================================================
+const SPEAKERS = {
+  MARIGOLD: { name: 'MARIGOLD', color: '#e8c35a', pitch: 430, wobble: 0.1 },
+  USHER: { name: 'THE USHER  (PA)', color: '#3fd4a8', pitch: 105, wobble: 0.04 },
+  THIMBLE: { name: 'MISTER THIMBLE', color: '#b98cff', pitch: 170, wobble: 0.25 },
+  PIP: { name: 'PIP', color: '#7dff6a', pitch: 620, wobble: 0.15 }
+};
+// Source: [ASSUMED] speaker label colours reuse documented cast/VHS palette entries (#e8c35a, #3fd4a8, #b98cff, #7dff6a).
+const Dialogue = {
+  queue: [], current: null, chars: 0, acc: 0, hold: 0, el: null, nameEl: null, textEl: null, shown: '',
+  init() { this.el = document.getElementById('hudDialog'); this.nameEl = document.getElementById('hudDialogName'); this.textEl = document.getElementById('hudDialogText'); },
+  say(speaker, text) { if (this.queue.length < 12) this.queue.push({ speaker, text }); },
+  clear() { this.queue.length = 0; this.current = null; this.render(); },
+  busy() { return !!this.current || this.queue.length > 0; },
+  update(dt) {
+    if (!this.current && this.queue.length) { this.current = this.queue.shift(); this.chars = 0; this.acc = 0; this.hold = 0; }
+    const c = this.current;
+    if (c) {
+      const sp = SPEAKERS[c.speaker];
+      if (this.chars < c.text.length) {
+        this.acc += dt * 34;
+        while (this.acc >= 1 && this.chars < c.text.length) {
+          const ch = c.text[this.chars++];
+          this.acc -= ch === '.' || ch === ',' || ch === '?' || ch === '!' ? 5 : 1;
+          if (/[a-z]/i.test(ch) && this.chars % 2 === 0) sfx('voiceBlip', null, sp.pitch * (1 + sp.wobble * Math.sin(this.chars * 2.3)) * ('aeiou'.indexOf(ch.toLowerCase()) >= 0 ? 1.15 : 1));
+        }
+      } else {
+        this.hold += dt;
+        if (this.hold > 1.6 + c.text.length * 0.035) this.current = null;
+      }
+    }
+    this.render();
+  },
+  render() {
+    if (!this.el) return;
+    const c = this.current;
+    const txt = c ? c.text.slice(0, this.chars) : '';
+    const key = c ? c.speaker + txt : '';
+    if (key === this.shown) return;
+    this.shown = key;
+    this.el.style.display = c && Settings.values.subtitles !== false ? 'block' : 'none';
+    if (!c) return;
+    const sp = SPEAKERS[c.speaker];
+    this.nameEl.textContent = sp.name; this.nameEl.style.color = sp.color;
+    this.textEl.textContent = txt;
+  }
+};
+
+// Marigold's seat per story stage (she is moved only while out of sight)
+const MARIGOLD_SEATS = [[10.6, 1.0, -6.6, Math.PI / 2], [10.6, 1.0, -6.6, Math.PI / 2], [5.0, 2.4, -44.0, Math.PI / 2], [1.7, 0, -96.9, 0.3], [1.7, 0, -96.9, 0.3]];
+const USHER_LINES = [
+  'You were not scheduled for this floor.',
+  'Every toy returns to the line. Eventually.',
+  'Run, then. The foundry remembers its children.'
+];
 
 // =====================================================================================
 // PIP: HUD companion with an LED dot-matrix face (16 x 12 LEDs)

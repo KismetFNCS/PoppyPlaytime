@@ -9,6 +9,8 @@ require('fs').mkdirSync(out, { recursive: true });
   page.on('pageerror', e => console.log('pageerror', e.message));
   await page.goto('file://' + path.resolve('index.html'));
   await page.waitForFunction('window.__TEST__ && window.__TEST__.ready === true', null, { timeout: 120000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: out + '/menu.png' });
   await page.evaluate(() => { Game.uiAction('new'); VHS.finish(); __TEST__.setAutoRun(false); __TEST__.step(1 / 60, 2); });
   const pose = async (name, js) => {
     await page.evaluate(js);
@@ -23,5 +25,7 @@ require('fs').mkdirSync(out, { recursive: true });
   await pose('usher', "Game.stage = 1; __TEST__.setPlayerPose(0, 0, -3, 0, 0); for (let i = 0; i < 5; i++) update(1/60); __TEST__.aimAt(-10.6, 2.0, -21.6); Cast.usher.stareTime = -999");
   await pose('usher-close', "__TEST__.setPlayerPose(-7.2, 0, -17.6, 0, 0); Cast.usher.state = 'WATCHING'; Cast.usher.timer = 0; Cast.usher.used[0] = 0; V3.set(Cast.usher.pos, -10.6, 0, -21.6); Cast.usher.stareTime = -999; __TEST__.aimAt(-10.6, 1.6, -21.6)");
   await pose('plush', "Cast.usher.state = 'HIDDEN'; Doors.setOpen('D1', true); Level.doorById('D1').open = 1; Doors.setOpen('D2', true); Level.doorById('D2').open = 1; Monster.reset(); __TEST__.setPlayerPose(-2.6, 0, -66.6, 0, 0); __TEST__.aimAt(-5.15, 0.9, -68.6)");
+  await pose('thimble-lunge', "__TEST__.setPlayerPose(-2.9, 0, -67.4, 0, 0); __TEST__.aimAt(-5.15, 1.0, -68.6); for (let i = 0; i < 20; i++) update(1/60)");
+  await pose('creature', "Game.invulnerable = true; __TEST__.setPlayerPose(0.5, 0, -58, 0, 0); __TEST__.spawnMonsterNear(5.5); Monster.targetSpeed = 0; __TEST__.aimAt(Monster.pos[0], 1.6, Monster.pos[2])");
   await browser.close();
 })();

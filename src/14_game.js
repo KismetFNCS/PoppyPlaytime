@@ -284,6 +284,7 @@ const Game = {
         this.stage = 1; UI.setObjective(OBJECTIVES[1]); this.saveCheckpoint(1);
         break;
       case 'R1':
+        Dialogue.say('MARIGOLD', 'There. You see? You are good at fixing things.');
         Doors.setOpen('D1', true);
         this.stage = 2; UI.setObjective(OBJECTIVES[2]); this.saveCheckpoint(2);
         break;
@@ -292,6 +293,7 @@ const Game = {
         this.pulseLightsNear(0, 3, -36, -0.9);
         sfx('ventClick', Level.vents[0].pos);
         GrabPack.showHint('Something is moving in the ducts. Walk - do not run.');
+        Dialogue.say('MARIGOLD', 'Shh... it listens to the floor. Walk softly. Please.');
         this.checkpoint.monsterMode = 1;
         break;
       case 'L1':
@@ -300,6 +302,7 @@ const Game = {
         EventBus.emit(EV.STEAM, 0, 0, 0, 0, 0);
         break;
       case 'R2':
+        Dialogue.say('MARIGOLD', 'The foundry is where it was stitched together. Once you are in, do not stop running.');
         Doors.setOpen('D2', true);
         Monster.reset();
         this.stage = 3; UI.setObjective(OBJECTIVES[3]); this.saveCheckpoint(3);
@@ -405,6 +408,7 @@ const Game = {
     const next = chase ? STATE.CHASE_SEQUENCE : GrabPack.tetheredHand() ? STATE.INTERACTIVE_PUZZLE : STATE.GAMEPLAY_ACTIVE;
     if (next !== state && this.isGameplay()) setState(next);
     Pip.update(dt);
+    Dialogue.update(dt);
     UI.updateHud(dt);
   },
 
@@ -632,7 +636,7 @@ const Game = {
     }
   },
 
-  // TetherRig hands: docked in view at the muzzles, or out in the world
+  // LIFELINE hands: docked in view at the muzzles, or out in the world
   submitHands() {
     const cam = Player.cam, right = Renderer.camRight, up = Renderer.camUp, fwd = Renderer.camFwd;
     for (let s = 0; s < 2; s++) {
@@ -650,12 +654,12 @@ const Game = {
         V3.addScaled(_g.hp, _g.hp, right, Player.swayX * 0.5);
         V3.addScaled(_g.hp, _g.hp, up, -Player.swayY * 0.5 - h.recoil * 0.03);
         V3.addScaled(_g.hp, _g.hp, fwd, h.recoil * 0.05);
-        V3.scale(_g.hf, fwd, 0.5); V3.addScaled(_g.hf, _g.hf, up, 0.84); V3.addScaled(_g.hf, _g.hf, right, -side * 0.16); V3.normalize(_g.hf, _g.hf);
+        V3.scale(_g.hf, fwd, 0.3); V3.addScaled(_g.hf, _g.hf, up, 0.95); V3.addScaled(_g.hf, _g.hf, right, -side * 0.12); V3.normalize(_g.hf, _g.hf);
         // hose runs from the pack into the bottom of the cuff
         V3.addScaled(_g.b, _g.hp, _g.hf, -0.13);
         this.drawHose(_g.a, _g.b, up, h);
         V3.scale(_g.hu, fwd, -1);
-        this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.1 + h.grip * 0.85, 1.0, false, h, true);
+        this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 0.86, false, h, true);
       } else {
         V3.copy(_g.b, m);
         this.drawHose(_g.a, _g.b, up, h);
@@ -715,42 +719,42 @@ const Game = {
     // padded palm (rounded) and a riveted knuckle plate on the back
     V3.addScaled(_g.p0, pos, f, 0.012 * s);
     let it = R.push('sphere', mat, shadow);
-    if (it) { basisMatrix(it.model, _g.p0, r, u, f, 0.058 * s, 0.027 * s, 0.062 * s); it.tint[3] = lift; it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow; }
+    if (it) { basisMatrix(it.model, _g.p0, r, u, f, 0.066 * s, 0.033 * s, 0.07 * s); it.tint[3] = lift; it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow; }
     V3.addScaled(_g.p0, pos, u, 0.022 * s); V3.addScaled(_g.p0, _g.p0, f, 0.046 * s);
     it = R.push('box', MAT.copper, shadow);
     if (it) { basisMatrix(it.model, _g.p0, r, u, f, 0.07 * s, 0.009 * s, 0.018 * s); it.tint[3] = lift * 0.5; }
     // four jointed fingers, three phalanges each, fanned when open and curled when gripping
     for (let i = 0; i < 4; i++) {
       const L = HAND_FINGERS[i];
-      const splay = (i - 1.5) * 0.09 * (1 - curl) * mirror;
+      const splay = (i - 1.5) * 0.15 * (1 - curl) * mirror;
       V3.scale(_g.d, f, Math.cos(splay)); V3.addScaled(_g.d, _g.d, r, Math.sin(splay));
-      V3.addScaled(_g.p0, pos, f, 0.058 * s); V3.addScaled(_g.p0, _g.p0, r, (i - 1.5) * 0.026 * s * mirror);
+      V3.addScaled(_g.p0, pos, f, 0.064 * s); V3.addScaled(_g.p0, _g.p0, r, (i - 1.5) * 0.03 * s * mirror);
       let ang = 0;
       for (let j = 0; j < 3; j++) {
         ang += curl * (j === 0 ? 0.95 : 1.15);
         V3.scale(_g.c, _g.d, Math.cos(ang)); V3.addScaled(_g.c, _g.c, u, -Math.sin(ang));
         V3.addScaled(_g.p1, _g.p0, _g.c, L[j] * s);
-        const seg = R.seg('cylLow', mat, _g.p0, _g.p1, (0.0125 - j * 0.0012) * s, shadow);
+        const seg = R.seg('cyl', mat, _g.p0, _g.p1, (0.0165 - j * 0.0012) * s, shadow);
         if (seg) seg.tint[3] = lift;
-        const kn = R.push('sphereLow', j === 0 ? MAT.copper : mat, shadow);
-        if (kn) { const kr = (0.0145 - j * 0.0012) * s; M4.compose(kn.model, _g.p0[0], _g.p0[1], _g.p0[2], 0, 0, 0, kr, kr, kr); kn.tint[3] = lift; }
+        const kn = R.push('sphere', mat, shadow);
+        if (kn) { const kr = (0.0165 - j * 0.0012) * s; M4.compose(kn.model, _g.p0[0], _g.p0[1], _g.p0[2], 0, 0, 0, kr, kr, kr); kn.tint[3] = lift; }
         V3.copy(_g.p0, _g.p1);
       }
-      const tip = R.push('sphereLow', mat, shadow);
-      if (tip) { const tr = 0.0105 * s; M4.compose(tip.model, _g.p0[0], _g.p0[1], _g.p0[2], 0, 0, 0, tr, tr, tr); tip.tint[3] = lift; }
+      const tip = R.push('sphere', mat, shadow);
+      if (tip) { const tr = 0.0141 * s; M4.compose(tip.model, _g.p0[0], _g.p0[1], _g.p0[2], 0, 0, 0, tr, tr, tr); tip.tint[3] = lift; }
     }
     // opposable thumb: two phalanges swinging from the side toward the palm as the grip closes
     V3.addScaled(_g.p0, pos, r, -mirror * 0.05 * s); V3.addScaled(_g.p0, _g.p0, u, -0.008 * s);
     V3.scale(_g.d, f, 0.62); V3.addScaled(_g.d, _g.d, r, -mirror * 0.72 * (1 - curl * 0.7)); V3.addScaled(_g.d, _g.d, u, -0.3 * curl); V3.normalize(_g.d, _g.d);
     for (let j = 0; j < 2; j++) {
       V3.addScaled(_g.p1, _g.p0, _g.d, (j === 0 ? 0.036 : 0.03) * s);
-      const seg = R.seg('cylLow', mat, _g.p0, _g.p1, 0.0135 * s, shadow);
+      const seg = R.seg('cyl', mat, _g.p0, _g.p1, 0.0175 * s, shadow);
       if (seg) seg.tint[3] = lift;
       V3.copy(_g.p0, _g.p1);
       V3.scale(_g.d, _g.d, 0.8); V3.addScaled(_g.d, _g.d, f, 0.25 + curl * 0.2); V3.addScaled(_g.d, _g.d, r, mirror * 0.25 * curl); V3.normalize(_g.d, _g.d);
     }
-    const tip = R.push('sphereLow', mat, shadow);
-    if (tip) { const tr = 0.012 * s; M4.compose(tip.model, _g.p0[0], _g.p0[1], _g.p0[2], 0, 0, 0, tr, tr, tr); tip.tint[3] = lift; }
+    const tip = R.push('sphere', mat, shadow);
+    if (tip) { const tr = 0.016 * s; M4.compose(tip.model, _g.p0[0], _g.p0[1], _g.p0[2], 0, 0, 0, tr, tr, tr); tip.tint[3] = lift; }
   },
 
   render() {
@@ -765,7 +769,7 @@ const _g = {
   idle: hexToLinear(PALETTE.relayIdle), linked: hexToLinear(PALETTE.relayLinked), red: hexToLinear(PALETTE.receptacleIdle)
 };
 // Finger phalanx lengths (index, middle, ring, little), metres at scale 1.
-const HAND_FINGERS = [[0.042, 0.03, 0.024], [0.046, 0.034, 0.026], [0.043, 0.031, 0.025], [0.035, 0.025, 0.02]];
+const HAND_FINGERS = [[0.048, 0.035, 0.028], [0.053, 0.039, 0.03], [0.05, 0.036, 0.029], [0.041, 0.03, 0.024]];
 // Torus (ring around local Y) oriented so its axis follows direction d, radius rad.
 function ringMatrix(o, p, d, rad) {
   let hx = 0, hy = 1, hz = 0;

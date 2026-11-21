@@ -4,7 +4,7 @@ A fan-made, first-person survival-horror slice inspired by industrial toy-factor
 **single self-contained `index.html`** on a custom WebGL2 deferred renderer. Every mesh, texture, sound, tape
 and UI element is generated in code at runtime. The game uses no engines, libraries, image files or audio files.
 
-The setting and cast are original: Merriweather Toy Works, Sector 06 "Reclamation", the **TetherRig** (twin
+The setting and cast are original: Merriweather Toy Works, Sector 06 "Reclamation", the **LIFELINE** (twin
 launchable gauntlets) and Experiment 6-06, **"The Spoolwright"**. It is not affiliated with any studio.
 
 ## Play
@@ -34,12 +34,14 @@ high shutter lever) → Freight Lift (ending tape).
 
 All original designs, built to read like the genre without copying any existing character:
 
-- **The Spoolwright** (Experiment 6-06): the stalker. A spool-bodied machine on six needle legs with a cracked porcelain mask.
-- **The Usher**: a hooded, robed watcher on spindly black machine limbs whose face is a CRT lens showing one roving teal eye. It appears at vantage points in each area and glitches out of existence if you stare at it or walk up to it.
-- **Marigold**: a cracked porcelain display doll (ash-blonde ringlets, mustard pinafore, one hollow socket, one amber glass eye) sitting near the first tape. Look away and her head is already turned toward you; catch her and she ticks.
-- **Mister Thimble**: a scorched plush bear slumped in the Spool Foundry, with a copper thimble cap and one glowing violet eye that brightens when the chase starts.
+- **The Spoolwright** (Experiment 6-06): the stalker. A spool-bodied machine with a lumpy fur sac, glowing red pressure tanks, an exposed bone ribcage and spine, and six plated legs with copper pistons, red tendon cables and blade feet, under a cracked porcelain mask crowned with sewing needles.
+- **The Usher**: a hooded, robed watcher on spindly black machine limbs whose face is a CRT lens showing one roving teal eye. It speaks to you over the factory PA when it appears at a vantage point in each area, then glitches out of existence if you stare at it or walk up to it.
+- **Marigold**: a cracked porcelain display doll (ash-blonde ringlets, mustard pinafore, one hollow socket, one amber glass eye) who acts as your guide. She introduces herself near the first tape, talks you through each area, moves ahead of you through the factory while you aren't looking, and waits in the freight lift at the end. Look away and her head is already turned toward you; catch her and she ticks.
+- **Mister Thimble**: a scorched plush bear slumped in the Spool Foundry, with a copper thimble cap and one glowing violet eye. His broken voice box crackles when you approach, and he lunges once ("HUG TIME!") before apologising.
 - **PIP**: your pocket companion on the HUD. A cog-shaped device with an LED dot-matrix face that talks with the hints, cheers when a circuit closes, sulks when one is refused, winks at relays, panics in chases and fills with static when you're caught.
-- **The TetherRig**: jointed gauntlets (teal left, amber right) with brass knuckles and corrugated hoses, raised in view and launched by mouse buttons.
+- **The LIFELINE pack**: two big jointed gloves (teal left, amber right) held up in view on corrugated hoses, fired with the mouse buttons.
+
+Characters speak through on-screen dialogue with a name label and their own synthesized voice.
 
 ## Custom models
 
@@ -66,7 +68,7 @@ src/04_textures.js  procedural material synthesis into 2D texture arrays (albedo
 src/05_meshes.js    primitive builders (box, cylinder, sphere, cone, torus, spool), static batching
 src/06_renderer.js  WebGL2 deferred pipeline + post stack + render queue
 src/07_level.js     sector layout, doors, puzzle entities, lights, vents, nav grid + A*
-src/08_grabpack.js  TetherRig hands, Verlet cables, peg wrapping, circuit closure, cable tube mesh
+src/08_grabpack.js  LIFELINE hands, Verlet cables, peg wrapping, circuit closure, cable tube mesh
 src/09_world.js     particles, light flicker models, doors, steam, triggers, sector streaming
 src/10_ai.js        Spoolwright behavior tree + FSM, perception, locomotion, 6-leg IK rig
 src/11_audio.js     Web Audio engine: FM threat drone, chase score, HRTF emitters, synthesized SFX

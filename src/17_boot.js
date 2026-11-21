@@ -59,6 +59,7 @@ function init() {
   FidelityOverlay.init();
   initAssetInput();
   Pip.init();
+  Dialogue.init();
   buildPrimitives();
   CableMesh.init();
   RenderQueue.init();

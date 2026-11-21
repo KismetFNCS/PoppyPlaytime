@@ -21,6 +21,11 @@ function btCondition(fn) { return { tick(ctx) { return fn(ctx) ? BT.SUCCESS : BT
 function btAction(fn) { return { tick(ctx) { return fn(ctx); } }; }
 
 const LEG_COUNT = 6;
+// fur sac tufts: local x, y, z, radius, blue (1) or violet (0)
+const FUR_SAC = new Float32Array([
+  0, 1.5, 0.95, 0.62, 0, -0.32, 1.42, 0.8, 0.42, 1, 0.32, 1.44, 0.82, 0.42, 0, 0, 1.72, 0.85, 0.45, 0,
+  0, 1.38, 1.4, 0.45, 1, -0.22, 1.25, 1.55, 0.3, 0, 0.24, 1.3, 1.5, 0.3, 1, 0, 1.15, 1.75, 0.28, 0
+]);
 const Monster = {
   state: MSTATE.DORMANT, stateTime: 0, active: false, scripted: false, visible: false,
   pos: V3.create(0, 0, 0), vel: V3.create(), yaw: 0, speed: 0, targetSpeed: 0,
@@ -438,61 +443,131 @@ const Monster = {
       M4.transformPoint(this.head, this.m, _mh.local);
       return;
     }
-    const B = this.tmp, H = this.tmp2;
-    // abdomen (rear fur sac)
-    this.bodyPoint(B, 0, 1.45, 0.95);
-    R.trs('sphere', MAT.furViolet, B[0], B[1], B[2], yaw, lean, 0, 0.72, 0.62, 0.95);
-    this.bodyPoint(B, 0, 1.3, 1.65);
-    R.trs('sphere', MAT.furBlue, B[0], B[1], B[2], yaw, lean - 0.4, 0, 0.38, 0.32, 0.4);
-    // thorax spool (axis across the body)
+    const B = this.tmp, H = this.tmp2, X = this.tmp3;
+    // ---- abdomen: lumpy fur sac built from overlapping tufts ----
+    for (let i = 0; i < FUR_SAC.length; i += 5) {
+      this.bodyPoint(B, FUR_SAC[i], FUR_SAC[i + 1] + Math.sin(this.breathe * 1.7 + i) * 0.02, FUR_SAC[i + 2]);
+      const r = FUR_SAC[i + 3];
+      R.trs('sphere', FUR_SAC[i + 4] ? MAT.furBlue : MAT.furViolet, B[0], B[1], B[2], yaw + i * 0.3, lean + i * 0.11, 0, r, r * 0.85, r * 1.1);
+    }
+    // glowing red pressure tanks strapped on top of the sac
+    for (const sx of [-0.16, 0.16]) {
+      this.bodyPoint(B, sx, 1.95, 0.55); this.bodyPoint(H, sx, 1.95, 0.95);
+      let tk = R.seg('cyl', MAT.lens, B, H, 0.085);
+      if (tk) { tk.tint[0] = 1.0; tk.tint[1] = 0.12; tk.tint[2] = 0.1; tk.emis[0] = 1.1 + Math.sin(this.breathe * 4 + sx) * 0.3; tk.emis[1] = 0.05; tk.emis[2] = 0.04; }
+      this.bodyPoint(X, sx, 1.95, 0.5); R.seg('cyl', MAT.steel, X, B, 0.095);
+      this.bodyPoint(X, sx, 1.95, 1.0); R.seg('cyl', MAT.steel, H, X, 0.095);
+    }
+    this.bodyPoint(B, 0, 1.92, 0.75);
+    R.trs('box', MAT.rubber, B[0], B[1], B[2], yaw, lean, 0, 0.48, 0.03, 0.06);
+    // ---- thorax: armoured drum with copper flanges and an exposed bone ribcage ----
     this.bodyPoint(B, 0, 1.45, 0);
     let it = R.push('cyl', MAT.furBlue);
-    if (it) { M4.compose(it.model, B[0], B[1], B[2], yaw, lean, Math.PI / 2, 0.52, 1, 0.52); M4.multiply(it.model, it.model, _mh.centerY); }
+    if (it) { M4.compose(it.model, B[0], B[1], B[2], yaw, lean, Math.PI / 2, 0.5, 1.0, 0.5); M4.multiply(it.model, it.model, _mh.centerY); }
     for (const sx of [-0.52, 0.52]) {
       this.bodyPoint(H, sx, 1.45, 0);
       it = R.push('cyl', MAT.copper);
-      if (it) { M4.compose(it.model, H[0], H[1], H[2], yaw, lean, Math.PI / 2, 0.72, 0.08, 0.72); M4.multiply(it.model, it.model, _mh.centerY); }
+      if (it) { M4.compose(it.model, H[0], H[1], H[2], yaw, lean, Math.PI / 2, 0.7, 0.08, 0.7); M4.multiply(it.model, it.model, _mh.centerY); }
+      this.bodyPoint(H, sx * 1.12, 1.45, 0);
+      R.trs('sphereLow', MAT.steel, H[0], H[1], H[2], 0, 0, 0, 0.11, 0.11, 0.11);
     }
-    // spine rods + amber core
+    for (let k = 0; k < 5; k++) {
+      this.bodyPoint(B, 0, 1.42, -0.36 + k * 0.18);
+      it = R.push('torus', MAT.porcelain);
+      if (it) {
+        M4.compose(it.model, B[0], B[1], B[2], yaw, lean + Math.PI / 2, 0, 0.6 - Math.abs(k - 2) * 0.05, 0.25, 0.55 - Math.abs(k - 2) * 0.05);
+        it.tint[0] = 0.85; it.tint[1] = 0.82; it.tint[2] = 0.76;
+      }
+    }
+    // spine: vertebrae from tail to neck
+    for (let k = 0; k < 7; k++) {
+      this.bodyPoint(B, 0, 1.78 - k * 0.02, 1.0 - k * 0.24);
+      R.trs('sphereLow', MAT.porcelain, B[0], B[1], B[2], yaw, 0, 0, 0.075, 0.06, 0.07);
+    }
     this.bodyPoint(B, 0, 1.55, -0.2); this.bodyPoint(H, 0, 1.45, 0.9);
-    R.seg('cylLow', MAT.steel, B, H, 0.08);
-    this.bodyPoint(B, 0, 1.62, -0.42);
-    it = R.trs('sphere', MAT.lens, B[0], B[1], B[2], 0, 0, 0, 0.11, 0.11, 0.11, false);
-    // neck: two segments toward the head
+    R.seg('cyl', MAT.steel, B, H, 0.07);
+    // amber core lamp in the chest housing
+    this.bodyPoint(B, 0, 1.62, -0.45);
+    R.trs('cyl', MAT.steel, B[0], B[1], B[2], yaw, lean + Math.PI / 2, 0, 0.16, 0.08, 0.16);
+    this.bodyPoint(B, 0, 1.62, -0.53);
+    it = R.trs('sphere', MAT.lens, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1, false);
+    if (it) { const g = 1.6 + Math.sin(this.breathe * 3) * 0.5; it.emis[0] = g; it.emis[1] = g * 0.75; it.emis[2] = g * 0.15; }
+    // torn plush flaps hanging from the flanks (remains of the toy skin)
+    for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) {
+      this.bodyPoint(B, sx * 0.48, 1.2, -0.15 + k * 0.28);
+      this.bodyPoint(H, sx * (0.55 + Math.sin(this.breathe * 2 + k) * 0.03), 0.72 - k * 0.08, -0.12 + k * 0.3);
+      it = R.push('box', k === 1 ? MAT.furBlue : MAT.furViolet);
+      if (it) { M4.segment(it.model, H, B, 1); it.model[0] *= 0.16; it.model[1] *= 0.16; it.model[2] *= 0.16; it.model[8] *= 0.035; it.model[9] *= 0.035; it.model[10] *= 0.035; M4.multiply(it.model, it.model, _mh.boxUp); }
+    }
+    // ---- neck: segmented cable bundle up to the mask ----
     this.bodyPoint(B, 0, 1.75, -0.35);
     this.bodyPoint(this.chest, 0, 2.15, -0.55);
     const hx = Math.sin(this.headTilt) * 0.15;
     this.bodyPoint(this.head, hx, 2.55 + this.flinchAmt * 0.2, -0.8);
-    R.seg('cylLow', MAT.steel, B, this.chest, 0.07);
-    R.seg('cylLow', MAT.rubber, this.chest, this.head, 0.06);
+    R.seg('cyl', MAT.steel, B, this.chest, 0.07);
+    for (let k = 1; k < 4; k++) { V3.lerp(X, this.chest, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
+    R.seg('cyl', MAT.rubber, this.chest, this.head, 0.05);
+    for (const off of [-0.05, 0.05]) {
+      this.bodyPoint(X, off, 1.8, -0.3);
+      it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
+      if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
+    }
     this.submitHead(this.head, yaw + this.headTilt * 0.4, -0.15 + lean * 0.5, this.headTilt * 0.6, 1.15);
-    // arms
+    // ---- arms: long thin machine arms ending in needle fingers ----
     for (const side of [-1, 1]) {
       this.bodyPoint(B, side * 0.42, 1.75, -0.4);
       const reach = this.armReach;
       this.bodyPoint(H, side * (0.95 - reach * 0.35), 1.6 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
-      R.seg('cylLow', MAT.steel, B, H, 0.05);
-      this.bodyPoint(this.tmp3, side * (0.75 - reach * 0.4), 1.2 + reach * 0.9, -1.55 - reach * 0.9);
-      R.seg('cylLow', MAT.steel, H, this.tmp3, 0.04);
-      R.trs('sphereLow', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.08, 0.08, 0.08);
-      // scissor-blade fingers
+      R.trs('sphere', MAT.steel, B[0], B[1], B[2], 0, 0, 0, 0.09, 0.09, 0.09);
+      R.seg('cyl', MAT.steel, B, H, 0.045);
+      this.bodyPoint(X, side * (0.75 - reach * 0.4), 1.2 + reach * 0.9, -1.55 - reach * 0.9);
+      R.seg('cyl', MAT.steel, H, X, 0.035);
+      R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
+      R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.055, 0.055, 0.055);
       const hlx = side * (0.75 - reach * 0.4), hly = 1.2 + reach * 0.9, hlz = -1.55 - reach * 0.9;
-      for (let f = -1; f <= 1; f++) {
-        this.bodyPoint(B, hlx + f * 0.12, hly - 0.45 + Math.abs(f) * 0.1, hlz - 0.2 - reach * 0.2);
-        R.seg('cone', MAT.steel, this.tmp3, B, 0.025);
+      for (let f = -2; f <= 2; f++) {
+        // two-joint needle fingers, longest in the middle
+        this.bodyPoint(B, hlx + f * 0.09, hly - 0.22 + Math.abs(f) * 0.04, hlz - 0.18 - reach * 0.1);
+        R.seg('cylLow', MAT.steel, X, B, 0.012);
+        R.trs('sphereLow', MAT.steel, B[0], B[1], B[2], 0, 0, 0, 0.02, 0.02, 0.02);
+        this.bodyPoint(H, hlx + f * 0.13, hly - 0.6 + Math.abs(f) * 0.12, hlz - 0.3 - reach * 0.3);
+        R.seg('cone', MAT.steel, B, H, 0.011);
       }
     }
-    // legs
+    // ---- legs: plated femur with a copper piston, heavy knee joint, blade foot, red tendon cables ----
     for (const l of this.legs) {
       this.bodyPoint(this.hipW, l.hip[0], l.hip[1], l.hip[2]);
-      this.solveKnee(this.hipW, l.foot, l.a, l.b, l.hip[0] < 0 ? -1 : 1, this.kneeW);
-      R.seg('cylLow', MAT.steel, this.hipW, this.kneeW, 0.09);
-      R.seg('cylLow', MAT.steel, this.kneeW, l.foot, 0.058);
-      R.trs('sphereLow', MAT.copper, this.kneeW[0], this.kneeW[1], this.kneeW[2], 0, 0, 0, 0.1, 0.1, 0.1);
-      R.trs('sphereLow', MAT.steel, this.hipW[0], this.hipW[1], this.hipW[2], 0, 0, 0, 0.12, 0.12, 0.12);
-      // fur tufts on upper legs
-      V3.lerp(B, this.hipW, this.kneeW, 0.35);
-      R.trs('sphereLow', l.group ? MAT.furViolet : MAT.furBlue, B[0], B[1], B[2], yaw, 0, 0, 0.16, 0.16, 0.22);
+      const side = l.hip[0] < 0 ? -1 : 1;
+      this.solveKnee(this.hipW, l.foot, l.a, l.b, side, this.kneeW);
+      const hip = this.hipW, knee = this.kneeW, foot = l.foot;
+      R.trs('sphere', MAT.steel, hip[0], hip[1], hip[2], 0, 0, 0, 0.13, 0.13, 0.13);
+      it = R.push('box', MAT.steel);
+      if (it) { M4.segment(it.model, hip, knee, 1); it.model[0] *= 0.15; it.model[1] *= 0.15; it.model[2] *= 0.15; it.model[8] *= 0.1; it.model[9] *= 0.1; it.model[10] *= 0.1; M4.multiply(it.model, it.model, _mh.boxUp); }
+      // piston riding along the femur
+      V3.lerp(B, hip, knee, 0.15); V3.lerp(H, hip, knee, 0.8); B[1] += 0.09; H[1] += 0.09;
+      R.seg('cylLow', MAT.copper, B, H, 0.03);
+      // knee: joint drum + bolt
+      R.trs('sphere', MAT.steel, knee[0], knee[1], knee[2], 0, 0, 0, 0.12, 0.12, 0.12);
+      R.trs('cyl', MAT.copper, knee[0], knee[1] - 0.04, knee[2], this.yaw, 0, Math.PI / 2, 0.06, 0.28, 0.06);
+      // tibia: tapered shaft then a flat blade claw into the floor
+      V3.lerp(X, knee, foot, 0.72);
+      R.seg('cyl', MAT.steel, knee, X, 0.06);
+      R.trs('sphereLow', MAT.steel, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065);
+      it = R.push('cone', MAT.steel);
+      if (it) { M4.segment(it.model, X, foot, 1); it.model[0] *= 0.075; it.model[1] *= 0.075; it.model[2] *= 0.075; it.model[8] *= 0.025; it.model[9] *= 0.025; it.model[10] *= 0.025; }
+      // red tendon cables spanning hip -> shin
+      for (const off of [-0.07, 0.07]) {
+        V3.set(B, hip[0] + off * side, hip[1] - 0.05, hip[2] + off);
+        V3.lerp(H, knee, foot, 0.35); H[0] += off * side; H[2] += off;
+        V3.lerp(X, B, knee, 0.5); X[1] += 0.12;
+        let tn = R.seg('cylLow', MAT.rubber, B, X, 0.016);
+        if (tn) { tn.tint[0] = 4.5; tn.tint[1] = 0.6; tn.tint[2] = 0.55; }
+        tn = R.seg('cylLow', MAT.rubber, X, H, 0.016);
+        if (tn) { tn.tint[0] = 4.5; tn.tint[1] = 0.6; tn.tint[2] = 0.55; }
+      }
+      // a fur tuft caught on the upper leg
+      V3.lerp(B, hip, knee, 0.3);
+      R.trs('sphereLow', l.group ? MAT.furViolet : MAT.furBlue, B[0], B[1], B[2], yaw, 0, 0, 0.14, 0.13, 0.19);
     }
   },
 
@@ -562,6 +637,7 @@ const Monster = {
   }
 };
 const _mh = {
+  boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })(),
   groupStepping: new Uint8Array(2), spheres: [V3.create(), V3.create()], radii: new Float32Array([1.0, 0.6]), local: V3.create(), pole: V3.create(),
   centerY: (() => { const m = M4.create(); m[13] = -0.5; return m; })(),
   hoodOffset: (() => { const m = M4.create(); m[13] = -0.15; return m; })()

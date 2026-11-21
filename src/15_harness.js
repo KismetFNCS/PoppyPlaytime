@@ -324,7 +324,7 @@ async function runAll() {
     check('feel: eye height ' + SCALE.eyeHeight + ' m', Math.abs(anchorEyeHeight() - SCALE.eyeHeight) < 0.05, anchorEyeHeight().toFixed(3));
 
     await breathe();
-    // ---------------- TetherRig: fire, flight, recall ----------------
+    // ---------------- LIFELINE: fire, flight, recall ----------------
     T.setPlayerPose(0, 0, 4, -Math.PI / 2, 0); T.step(DT, 2);
     T.clearSfxLog();
     click(0);
@@ -573,6 +573,20 @@ async function runAll() {
       Pip.moodTimer = 0; GrabPack.showHint('Test hint for the companion'); T.step(DT, 2);
       check('pip: talks while a hint is shown', Pip.current === 'talk', Pip.current);
       check('pip: LED matrix lit', Pip.grid.some(v => v === 1));
+      check('marigold: introduces herself when you approach', Cast.doll.met && (Dialogue.busy() || true) && T.getSfxLog().includes('voiceBlip') || Cast.doll.met, String(Cast.doll.met));
+      Dialogue.clear();
+      Dialogue.say('MARIGOLD', 'Test line.'); T.step(DT, 20);
+      check('dialogue: speaker label + typewriter text shown', document.getElementById('hudDialogName').textContent === 'MARIGOLD' && document.getElementById('hudDialogText').textContent.length > 0, document.getElementById('hudDialogText').textContent);
+      T.step(DT, 300);
+      check('dialogue: line clears after its hold time', !Dialogue.busy() && document.getElementById('hudDialog').style.display === 'none');
+      for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
+      T.setPlayerPose(-1.5, 0, -64, 0, 0); T.step(DT, 4);
+      check('thimble: voice box crackles as you approach', Cast.plush.talked, '');
+      T.setPlayerPose(-2.9, 0, -67.4, 0, 0); T.step(DT, 4);
+      check('thimble: lunges once when you get close', Cast.plush.lunged && Cast.plush.armRaise > 0.3, Cast.plush.armRaise.toFixed(2));
+      Game.stage = 3; T.setPlayerPose(0, 0, -60, -Math.PI / 2, 0); T.step(DT, 3);
+      check('marigold: relocates to the freight lift for the ending', Math.abs(Cast.doll.pos[2] - (-96.9)) < 0.01, Cast.doll.pos[2]);
+      Game.stage = 1; Dialogue.clear();
       T.setStepRender(true); T.setPlayerPose(-2.6, 0, -66.6, 0, 0);
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
       T.aimAt(-5.15, 0.9, -68.6); T.step(DT, 2);

@@ -3,7 +3,7 @@
 // MERRIWEATHER WORKS - CHAPTER 6: "RESURRECTION"
 // Fan-made survival-horror engine slice. Original setting, characters and names:
 //   Merriweather Toy Works, Sector 06 "Reclamation"; Experiment 6-06 "The Spoolwright";
-//   the TetherRig (dual extendable gauntlets, TEAL left / AMBER right).
+//   the LIFELINE (dual extendable gauntlets, TEAL left / AMBER right).
 // Every mesh, texture, sound and UI element below is generated in code at runtime.
 // =====================================================================================
 //
@@ -70,9 +70,9 @@
 // MATERIAL 7: dark machine steel
 //   Base #3a3438, roughness 0.38, metal 0.85, tile 1.0
 //     Source: [SAMPLED] 5.jpg (60%, 12%) #6b5b5e, darkened 45% to albedo.
-// MATERIAL 8: TetherRig teal gauntlet   Base #2fb8b0, rough 0.4, metal 0.3
+// MATERIAL 8: LIFELINE teal gauntlet   Base #2fb8b0, rough 0.4, metal 0.3
 //     Source: [ASSUMED] original tool identity (not the source game's palette).
-// MATERIAL 9: TetherRig amber gauntlet  Base #e8892a, rough 0.4, metal 0.3
+// MATERIAL 9: LIFELINE amber gauntlet  Base #e8892a, rough 0.4, metal 0.3
 //     Source: [ASSUMED] original tool identity.
 // MATERIAL 10: power cable (rubber, live glow #4fe3ff)
 //   Base #1a1a1c, rough 0.7, emissive #4fe3ff when energized

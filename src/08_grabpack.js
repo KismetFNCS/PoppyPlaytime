@@ -1,5 +1,5 @@
 // =====================================================================================
-// TETHERRIG: two launchable gauntlets (LEFT = TEAL, RIGHT = AMBER) with inertial flight,
+// LIFELINE: two launchable gauntlets (LEFT = TEAL, RIGHT = AMBER) with inertial flight,
 // Verlet power cables, peg wrapping (2D sweep test in XZ) and circuit closure.
 // =====================================================================================
 
@@ -51,11 +51,11 @@ const GrabPack = {
   // Muzzle positions follow the camera (view-model space -> world)
   updateMuzzles(cam) {
     for (let s = 0; s < 2; s++) {
-      const x = s === 0 ? -0.2 : 0.2;
+      const x = s === 0 ? -0.25 : 0.25;
       const m = this.muzzle[s];
       V3.copy(m, cam.eye);
       V3.addScaled(m, m, Renderer.camRight, x);
-      V3.addScaled(m, m, Renderer.camUp, -0.17);
+      V3.addScaled(m, m, Renderer.camUp, -0.21);
       V3.addScaled(m, m, Renderer.camFwd, 0.45);
     }
   },
