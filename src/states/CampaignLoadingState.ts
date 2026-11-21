@@ -14,7 +14,7 @@ const LOADING_TIPS: readonly string[] = [
   'Gully only moves while you look away. Keep your eyes on him.',
   'Hushlings freeze in light. Keep Pip’s lantern close.',
   'Fit a spare filter cartridge with slot 2 and F.',
-  'Relay plates only accept the claw of their own colour.',
+  'Hand scanners only accept the hand of their own colour.',
   'Shift tapes tell you what happened in 1987. Listen to all of them.',
   'The Choir Mother hunts by sound. Silence the music boxes while she is away.',
   'Low beams: jump. High beams: crouch.',

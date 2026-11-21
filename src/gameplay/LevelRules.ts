@@ -79,7 +79,7 @@ export const LEVEL_TRIGGER_RULES: readonly TriggerRule[] = [
     event: 'zoneEntered',
     match: (payload) => payload.zone.kind === 'relayApproach',
     conditions: [{ flag: 'relayPlatesPowered', comparison: 'below', value: 1 }],
-    actions: [{ type: 'toast', text: 'RELAY PLATE · FIRE THE CLAW THAT MATCHES ITS COLOUR', seconds: 3.5, tone: 'info' }],
+    actions: [{ type: 'toast', text: 'HAND SCANNER · FIRE THE HAND THAT MATCHES ITS COLOUR', seconds: 3.5, tone: 'info' }],
     once: true,
   },
   {

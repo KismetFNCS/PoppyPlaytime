@@ -27,6 +27,7 @@ import { TypedEventBus } from '../gameplay/TypedEventBus';
 import type { QuestFlagId, ToastTone, TriggerActionHost } from '../gameplay/WorldEventSystem';
 import { WorldEventSystem } from '../gameplay/WorldEventSystem';
 import type { SceneEnvironment } from '../graphics/SceneRenderer';
+import type { PointLight } from '../graphics/LightingSystem';
 import type { Vec3 } from '../math/Vec3';
 import { clamp, smoothstep, vec3Add } from '../math/Vec3';
 import type { CrosshairKind, HotbarSlotSnapshot, HudSnapshot } from '../ui/hud/HudController';
@@ -148,6 +149,8 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
   private leavingLevel: boolean = false;
   private campaign: CampaignDirector | null = null;
   private pip: PipCompanion | null = null;
+  /** Dim cosmetic light just below the camera so the painted hands read in dark rooms. */
+  private handFill: PointLight | null = null;
   private foreman: ForemanEncounter | null = null;
   private readonly loreReader: LoreTapeReader = new LoreTapeReader();
   private lastTape: LoreTape | null = null;
@@ -232,6 +235,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         services.audio.playSpatialCue(line.speaker === 'pip' ? 'pipChirp' : 'radioCrackle', line.speaker === 'pip' && this.pip !== null ? this.pip.position : camera.position, 0.8);
       },
     });
+    this.handFill = services.lighting.add({ position: [0, 0, 0], color: [1, 0.94, 0.86], intensity: 0.9, range: 1.0, behavior: { kind: 'steady' }, cosmetic: true });
     this.pip = new PipCompanion(services.meshes, services.lighting, {
       ventOpened: (vent: VentRecord) => {
         if (streamer.openVent(vent.id)) {
@@ -298,6 +302,10 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
     this.pauseMenu.close();
     this.pip?.dispose();
     this.pip = null;
+    if (this.handFill !== null) {
+      this.services.lighting.remove(this.handFill.handle);
+      this.handFill = null;
+    }
     this.foreman?.dispose();
     this.foreman = null;
     this.campaign = null;
@@ -1008,6 +1016,12 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
     // 4–7. Tether claws, cable forces, motor integration, rope constraints.
     rig.update(deltaSeconds, this.buildTetherInput(input, controlsEnabled, intent), streamer, services.camera);
+    if (this.handFill !== null) {
+      const fill: Vec3 = rig.handFillPosition();
+      this.handFill.position[0] = fill[0];
+      this.handFill.position[1] = fill[1];
+      this.handFill.position[2] = fill[2];
+    }
     this.relayNetwork?.tick(deltaSeconds);
     const tension: Vec3 = vec3Add(rig.computeTensionAcceleration(this.motor), rig.computePumpAcceleration(this.motor, intent.moveForward));
     const report: MotorStepReport = this.motor.step(deltaSeconds, intent, streamer, tension);
@@ -1210,7 +1224,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         keyHint,
         count: null,
         available: claw !== undefined,
-        statusText: `${polarity.toUpperCase()} CLAW · ${claw?.phase.toUpperCase() ?? 'OFFLINE'}`,
+        statusText: `${polarity.toUpperCase()} HAND · ${claw?.phase.toUpperCase() ?? 'OFFLINE'}`,
         accentColor: POLARITY_HUD_COLORS[polarity],
       };
     });

@@ -15,6 +15,8 @@ export interface PointLightDescriptor {
   readonly intensity: number;
   readonly range: number;
   readonly behavior: LightBehavior;
+  /** Cosmetic lights (e.g. the first-person hand fill) render but never count for AI light-freeze or stealth. */
+  readonly cosmetic?: boolean;
 }
 
 export interface PointLight extends PointLightDescriptor {
@@ -135,7 +137,7 @@ export class LightingSystem {
   public illuminanceAt(point: Readonly<Vec3>): number {
     let illuminance = 0;
     for (const light of this.lights.values()) {
-      if (light.effectiveScale <= 0.001) {
+      if (light.effectiveScale <= 0.001 || light.cosmetic === true) {
         continue;
       }
       const distance: number = vec3Distance(point, light.position);

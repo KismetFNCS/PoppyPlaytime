@@ -234,29 +234,29 @@ export const MATERIAL_PROFILES: Readonly<Record<MaterialId, MaterialProfile>> = 
   },
   tether_claw_teal: {
     id: 'tether_claw_teal',
-    displayName: 'Tether Rig · Teal Hand Plating',
+    displayName: 'Tether Rig · Teal Hand Paint',
     maps: proceduralMaps(),
-    proceduralFallback: { kind: 'emissiveSolid', seed: 8801, resolution: 64, bumpStrength: 0 },
-    baseTint: [0.35, 1.7, 1.55],
-    normalStrength: 0.8,
-    roughnessScale: 0.55,
-    metallic: 0.3,
-    emissiveColor: [0.08, 0.95, 0.82],
-    emissiveStrength: 0.45,
-    uvScale: 2,
+    proceduralFallback: { kind: 'emissiveSolid', seed: 8801, resolution: 32, bumpStrength: 0 },
+    baseTint: [0.16, 0.62, 0.6],
+    normalStrength: 0,
+    roughnessScale: 0.6,
+    metallic: 0.05,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 1,
   },
   tether_claw_rose: {
     id: 'tether_claw_rose',
-    displayName: 'Tether Rig · Rose Hand Plating',
+    displayName: 'Tether Rig · Rose Hand Paint',
     maps: proceduralMaps(),
-    proceduralFallback: { kind: 'emissiveSolid', seed: 8802, resolution: 64, bumpStrength: 0 },
-    baseTint: [1.95, 0.6, 0.9],
-    normalStrength: 0.8,
-    roughnessScale: 0.55,
-    metallic: 0.3,
-    emissiveColor: [1, 0.22, 0.48],
-    emissiveStrength: 0.45,
-    uvScale: 2,
+    proceduralFallback: { kind: 'emissiveSolid', seed: 8801, resolution: 32, bumpStrength: 0 },
+    baseTint: [0.82, 0.24, 0.36],
+    normalStrength: 0,
+    roughnessScale: 0.6,
+    metallic: 0.05,
+    emissiveColor: [0, 0, 0],
+    emissiveStrength: 0,
+    uvScale: 1,
   },
   tether_core_teal: {
     id: 'tether_core_teal',
@@ -537,8 +537,7 @@ export type ProceduralMeshBuilderId =
   | 'foundation_rebar'
   | 'tether_hand_shell_left'
   | 'tether_hand_shell_right'
-  | 'tether_hand_core_left'
-  | 'tether_hand_core_right'
+  | 'tether_hand_cuff'
   | 'tether_launcher_body'
   | 'relay_plate_frame'
   | 'relay_plate_core'
@@ -635,7 +634,7 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
     importScale: 1,
     parts: [
       { partId: 'shell', materialId: 'tether_claw_teal', importUri: null, fallbackBuilder: 'tether_hand_shell_left' },
-      { partId: 'core', materialId: 'tether_core_teal', importUri: null, fallbackBuilder: 'tether_hand_core_left' },
+      { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
     ],
   },
   tether_claw_rose: {
@@ -644,7 +643,7 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
     importScale: 1,
     parts: [
       { partId: 'shell', materialId: 'tether_claw_rose', importUri: null, fallbackBuilder: 'tether_hand_shell_right' },
-      { partId: 'core', materialId: 'tether_core_rose', importUri: null, fallbackBuilder: 'tether_hand_core_right' },
+      { partId: 'cuff', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'tether_hand_cuff' },
     ],
   },
   tether_launcher: {

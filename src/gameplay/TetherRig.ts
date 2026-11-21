@@ -175,6 +175,12 @@ export class TetherRig {
     return vec3Add(basis.origin, vec3Add(vec3Scale(basis.right, offset[0]), vec3Add(vec3Scale(basis.up, offset[1]), vec3Scale(basis.forward, offset[2]))));
   }
 
+  /** Where the cosmetic hand fill light sits: just below and in front of the eye, between the hands. */
+  public handFillPosition(): Vec3 {
+    const basis = this.cameraBasis;
+    return vec3Add(basis.origin, vec3Add(vec3Scale(basis.up, -0.05), vec3Scale(basis.forward, 0.12)));
+  }
+
   public get isAnchored(): boolean {
     return (Object.values(this.claws) as ClawState[]).some((claw: ClawState) => claw.phase === 'latched' && claw.target?.kind === 'anchor');
   }
