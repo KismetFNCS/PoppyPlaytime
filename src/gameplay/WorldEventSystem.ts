@@ -57,7 +57,12 @@ export type QuestFlagId =
   | 'choirMotherIntroduced'
   | 'jesterShowdownHint'
   | 'secondWindHint'
-  | 'handsAnnounced';
+  | 'handsAnnounced'
+  | 'cherubsIntroduced'
+  | 'seraphIntroduced'
+  | 'cherubDefeated'
+  | 'seraphDefeated'
+  | 'cherubShatterHint';
 
 export const QUEST_FLAG_IDS: readonly QuestFlagId[] = [
   'elevatorIntroSeen',
@@ -97,6 +102,11 @@ export const QUEST_FLAG_IDS: readonly QuestFlagId[] = [
   'jesterShowdownHint',
   'secondWindHint',
   'handsAnnounced',
+  'cherubsIntroduced',
+  'seraphIntroduced',
+  'cherubDefeated',
+  'seraphDefeated',
+  'cherubShatterHint',
 ];
 
 export type QuestFlagSnapshot = Readonly<Record<QuestFlagId, number>>;

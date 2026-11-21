@@ -242,6 +242,96 @@ function buildJesterLegGear(): MeshData {
   return builder.build();
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Cherub (clockwork tin toy angel) and the Seraph (robed six-winged mannequin).
+// ---------------------------------------------------------------------------------------------------------------------
+
+export const CHERUB_HEAD_HEIGHT: number = 0.62;
+export const SERAPH_HEAD_HEIGHT: number = 2.5;
+
+function buildCherubBody(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createSphereMesh(0.17, 16, 12), [0, 0.34, 0], [0, 0, 0], [1, 1.1, 0.9]);
+  for (const side of [-1, 1]) {
+    place(builder, createCylinderMesh(0.055, 0.045, 0.2, 8), [side * 0.08, 0.1, 0.02], [0.2, 0, 0], [1, 1, 1]);
+    place(builder, createSphereMesh(0.055, 8, 6), [side * 0.08, 0.02, 0.05], [0, 0, 0], [1, 0.7, 1.3]);
+    place(builder, createCylinderMesh(0.04, 0.032, 0.18, 8), [side * 0.19, 0.4, 0.06], [-0.6, 0, side * 0.5], [1, 1, 1]);
+  }
+  // Wind-up key in the back.
+  place(builder, createCylinderMesh(0.015, 0.015, 0.1, 6), [0, 0.38, -0.2], [Math.PI / 2, 0, 0], [1, 1, 1]);
+  for (const side of [-1, 1]) {
+    place(builder, createCylinderMesh(0.05, 0.05, 0.015, 10), [side * 0.05, 0.38, -0.25], [0, 0, Math.PI / 2], [1, 1, 0.6]);
+  }
+  return builder.build();
+}
+
+function buildCherubFace(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createSphereMesh(0.13, 16, 12), [0, CHERUB_HEAD_HEIGHT, 0.02], [0, 0, 0], [1, 1.02, 0.98]);
+  for (const side of [-1, 1]) {
+    place(builder, createSphereMesh(0.04, 8, 6), [side * 0.07, CHERUB_HEAD_HEIGHT - 0.04, 0.1], [0, 0, 0], [1, 0.8, 0.6]);
+  }
+  // Painted curls.
+  for (let curl = 0; curl < 6; curl += 1) {
+    const angle: number = (curl / 6) * Math.PI * 2;
+    place(builder, createSphereMesh(0.035, 8, 6), [Math.sin(angle) * 0.09, CHERUB_HEAD_HEIGHT + 0.1, Math.cos(angle) * 0.07 - 0.01], [0, 0, 0], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
+function buildCherubEyes(): MeshData {
+  const builder = new MeshBuilder();
+  for (const side of [-1, 1]) {
+    place(builder, createBoxMesh(0.045, 0.01, 0.01), [side * 0.045, CHERUB_HEAD_HEIGHT + 0.015, 0.125], [0, 0, side * 0.25], [1, 1, 1]);
+  }
+  place(builder, createBoxMesh(0.04, 0.008, 0.01), [0, CHERUB_HEAD_HEIGHT - 0.06, 0.125], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** One scalloped tin wing, hinge at the origin, spreading toward +X and up. */
+function buildCherubWing(): MeshData {
+  const builder = new MeshBuilder();
+  for (let feather = 0; feather < 4; feather += 1) {
+    const t: number = feather / 3;
+    place(builder, createBoxMesh(0.2 - t * 0.05, 0.045, 0.012), [0.1 + t * 0.02, 0.06 - t * 0.05, 0], [0, 0, 0.5 - t * 0.35], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
+function buildSeraphRobe(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createCylinderMesh(0.52, 0.2, 1.9, 18), [0, 0.95, 0], [0, 0, 0], [1, 1, 0.8]);
+  place(builder, createCylinderMesh(0.22, 0.3, 0.3, 16), [0, 2.05, 0], [0, 0, 0], [1, 1, 0.8]);
+  // Long sleeves hanging forward, hands hidden.
+  for (const side of [-1, 1]) {
+    place(builder, createCylinderMesh(0.07, 0.12, 0.9, 10), [side * 0.3, 1.6, 0.12], [0.35, 0, side * 0.12], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
+function buildSeraphHead(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createSphereMesh(0.15, 16, 12), [0, SERAPH_HEAD_HEIGHT, 0], [0, 0, 0], [0.9, 1.15, 0.95]);
+  place(builder, createCylinderMesh(0.06, 0.07, 0.16, 10), [0, SERAPH_HEAD_HEIGHT - 0.2, 0], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+function buildSeraphEye(): MeshData {
+  const builder = new MeshBuilder();
+  place(builder, createBoxMesh(0.12, 0.016, 0.02), [0, SERAPH_HEAD_HEIGHT + 0.02, 0.26], [0, 0, 0], [1, 1, 1]);
+  return builder.build();
+}
+
+/** One long brass wing made of stacked blades, hinge at the origin, spreading toward +X. */
+function buildSeraphWing(): MeshData {
+  const builder = new MeshBuilder();
+  for (let blade = 0; blade < 6; blade += 1) {
+    const t: number = blade / 5;
+    place(builder, createBoxMesh(0.62 - t * 0.28, 0.06, 0.014), [0.3 - t * 0.05, 0.12 - t * 0.09, -t * 0.01], [0, 0, 0.35 - t * 0.5], [1, 1, 1]);
+  }
+  return builder.build();
+}
+
 /** Gas mask face plate, modelled lying on its back by default; instances rotate it into place. */
 function buildGasMaskShell(): MeshData {
   const builder = new MeshBuilder();
@@ -610,6 +700,14 @@ function buildBreakerSwitchIndicator(): MeshData {
 export const PROCEDURAL_MESH_BUILDERS: Readonly<Record<ProceduralMeshBuilderId, () => MeshData>> = {
   ...(CAMPAIGN_MESH_BUILDERS as Record<ProceduralMeshBuilderId, () => MeshData>),
   jester_body: buildJesterBody,
+  cherub_body: buildCherubBody,
+  cherub_face: buildCherubFace,
+  cherub_eyes: buildCherubEyes,
+  cherub_wing: buildCherubWing,
+  seraph_robe: buildSeraphRobe,
+  seraph_head: buildSeraphHead,
+  seraph_eye: buildSeraphEye,
+  seraph_wing: buildSeraphWing,
   jester_stuffing: buildJesterStuffing,
   jester_lantern_shard: buildJesterLanternShard,
   jester_wind_key: buildJesterWindKey,

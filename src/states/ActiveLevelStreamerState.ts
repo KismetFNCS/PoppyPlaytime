@@ -29,6 +29,7 @@ import { WorldEventSystem } from '../gameplay/WorldEventSystem';
 import type { SceneEnvironment } from '../graphics/SceneRenderer';
 import type { PointLight } from '../graphics/LightingSystem';
 import type { RightHandType } from '../gameplay/TetherRig';
+import { SERAPH_CHUNK } from '../world/LevelStreamer';
 import type { Vec3 } from '../math/Vec3';
 import { clamp, smoothstep, vec3Add, vec3Scale } from '../math/Vec3';
 import type { CrosshairKind, HotbarSlotSnapshot, HudSnapshot } from '../ui/hud/HudController';
@@ -62,6 +63,8 @@ const KILLER_CINEMATICS: Readonly<Record<ThreatKind, CinematicId>> = {
   tallyman: 'tallymanJumpscare',
   choirMother: 'choirMotherJumpscare',
   hushling: 'hushlingSwarm',
+  cherub: 'hushlingSwarm',
+  seraph: 'choirMotherJumpscare',
 };
 const WADING_DEPTH: number = 0.12;
 const WADING_SPEED_MULTIPLIER: number = 0.62;
@@ -107,8 +110,8 @@ interface PendingDeath {
  * and save serialization.
  */
 /** Horizontal hit radius of each monster for hand strikes. */
-const STRIKE_RADIUS: Readonly<Record<ThreatKind, number>> = { jester: 0.75, tallyman: 0.7, choirMother: 0.95, hushling: 0.5 };
-const THREAT_DISPLAY_NAMES: Readonly<Record<ThreatKind, string>> = { jester: 'THE JESTER', tallyman: 'THE TALLYMAN', choirMother: 'THE CHOIR MOTHER', hushling: 'HUSHLING' };
+const STRIKE_RADIUS: Readonly<Record<ThreatKind, number>> = { jester: 0.75, tallyman: 0.7, choirMother: 0.95, hushling: 0.5, cherub: 0.5, seraph: 0.85 };
+const THREAT_DISPLAY_NAMES: Readonly<Record<ThreatKind, string>> = { jester: 'GULLY', tallyman: 'THE TALLYMAN', choirMother: 'THE CHOIR MOTHER', hushling: 'HUSHLING', cherub: 'CHERUB', seraph: 'THE SERAPH' };
 
 /** Right-hand roster: unlocked by act; each changes how a strike lands. */
 const RIGHT_HANDS: ReadonlyArray<{ readonly type: RightHandType; readonly label: string; readonly color: string; readonly unlockAct: number; readonly stunScale: number }> = [
@@ -138,9 +141,11 @@ const JESTER_ENTRANCE_CHUNK: number = 22;
 /** Gully's showdown: the last flooded archive hall of Act IV. */
 const GULLY_SHOWDOWN_CHUNK: number = 28;
 const GULLY_SHOWDOWN_STRIKES: number = 4;
-/** One entrance per monster, in story order: Tallyman (Act II), Hushlings and Choir Mother (Act III), Jester (Act IV). */
+/** One entrance per monster, in story order: Cherubs (Act I), Tallyman and Seraph (Act II), Hushlings and Choir Mother (Act III), Jester (Act IV). */
 const THREAT_ENTRANCES: readonly ThreatEntrance[] = [
+  { kind: 'cherub', flag: 'cherubsIntroduced', chunk: 2, dialogue: 'cherub.entrance', cue: 'musicBoxChime', graceSeconds: 5 },
   { kind: 'tallyman', flag: 'tallymanIntroduced', chunk: 7, dialogue: 'tallyman.entrance', cue: 'tallymanStep', graceSeconds: 8 },
+  { kind: 'seraph', flag: 'seraphIntroduced', chunk: SERAPH_CHUNK, dialogue: 'seraph.entrance', cue: 'choirHymn', graceSeconds: 6 },
   { kind: 'hushling', flag: 'hushlingsIntroduced', chunk: 14, dialogue: 'hushling.entrance', cue: 'hushlingSkitter', graceSeconds: 6 },
   { kind: 'choirMother', flag: 'choirMotherIntroduced', chunk: 16, dialogue: 'choirMother.entrance', cue: 'choirHymn', graceSeconds: 8 },
   { kind: 'jester', flag: 'jesterAwakened', chunk: JESTER_ENTRANCE_CHUNK, dialogue: 'jester.entrance', cue: 'jesterBells', graceSeconds: 6 },
@@ -593,7 +598,7 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         break;
       case 'defeated':
         worldEvents.setFlag(`${kind}Defeated`, 1);
-        this.showToast(`${name} DEFEATED`, 3, 'success');
+        this.showToast(kind === 'cherub' ? `${name} SHATTERED` : `${name} DEFEATED`, kind === 'cherub' ? 1.8 : 3, 'success');
         this.services.audio.playSpatialCue('foremanBoom', impact, 0.8);
         if (kind === 'choirMother') {
           threats.setDefeatable('choirMother', null);
@@ -601,6 +606,12 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
         } else if (kind === 'jester') {
           threats.setDefeatable('jester', null);
           this.campaign?.say('jester.defeated');
+        } else if (kind === 'seraph') {
+          threats.setDefeatable('seraph', null);
+          this.campaign?.say('seraph.defeated');
+        } else if (kind === 'cherub' && worldEvents.flag('cherubShatterHint') < 1) {
+          worldEvents.setFlag('cherubShatterHint', 1);
+          this.campaign?.say('cherub.shattered');
         }
         break;
     }
@@ -661,6 +672,18 @@ export class ActiveLevelStreamerState implements GameStateHandler<GameStateId.Ac
 
   /** Decides which monsters can be beaten for good right now; everything else can only be staggered. */
   private updateCombatScenes(threats: ThreatDirector, worldEvents: WorldEventSystem): void {
+    // Cherubs are always fragile: one strike shatters one.
+    if (!threats.isDefeatable('cherub')) {
+      threats.setDefeatable('cherub', 1);
+    }
+    // The Seraph can be folded for good once it has made its entrance, and stays down.
+    if (worldEvents.flag('seraphDefeated') >= 1) {
+      for (const managed of threats.activeThreats) {
+        if (managed.kind === 'seraph') threats.retire(managed.id);
+      }
+    } else if (worldEvents.flag('seraphIntroduced') >= 1 && !threats.isDefeatable('seraph')) {
+      threats.setDefeatable('seraph', 3);
+    }
     this.updateChoirMotherScene(threats, worldEvents);
     this.updateGullyShowdown(threats, worldEvents);
   }

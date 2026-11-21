@@ -174,7 +174,11 @@ export type DialogueId =
   | 'jester.defeated'
   | 'secondWind.first'
   | 'hand.volt'
-  | 'hand.chime';
+  | 'hand.chime'
+  | 'cherub.entrance'
+  | 'cherub.shattered'
+  | 'seraph.entrance'
+  | 'seraph.defeated';
 
 export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   'intro.wake': [{ speaker: 'pa', text: 'Night shift, report to your stations. Night shift, report to your stations.', seconds: 3.5 }],
@@ -262,6 +266,16 @@ export const DIALOGUE: Readonly<Record<DialogueId, readonly DialogueLine[]>> = {
   'secondWind.first': [{ speaker: 'mabel', text: 'You threw it off! Don’t count on that twice. Get to the next checkpoint before it catches you again.', seconds: 4 }],
   'hand.volt': [{ speaker: 'mabel', text: 'I sent a Volt hand down the dumbwaiter. Press X to swap it onto your right launcher. One shock keeps them down twice as long, but it needs a few seconds to recharge.', seconds: 5 }],
   'hand.chime': [{ speaker: 'mabel', text: 'One more: the Chime hand. When it hits, it rings out and staggers everything around the impact. Good against a crowd.', seconds: 4.6 }],
+  'cherub.entrance': [
+    { speaker: 'pa', text: 'Welcome, little helpers. Please greet our new employee.', seconds: 3 },
+    { speaker: 'mabel', text: 'Clockwork cherubs. Shop-floor toys. They’re slow and they’re tin. One good smack with the rig will break them.', seconds: 4.4 },
+  ],
+  'cherub.shattered': [{ speaker: 'mabel', text: 'That’s it. They come apart easy. Save your nerve for the big ones; those you can only stagger.', seconds: 4 }],
+  'seraph.entrance': [
+    { speaker: 'pa', text: 'Floor supervision is now active in Hall Eleven.', seconds: 3 },
+    { speaker: 'mabel', text: 'That’s the Seraph. It hides its face behind those wings. It isn’t fast, but it doesn’t give up. Three hard hits and it’ll fold.', seconds: 4.8 },
+  ],
+  'seraph.defeated': [{ speaker: 'mabel', text: 'It folded. Hall Eleven’s clear. Keep moving before the line notices.', seconds: 3.6 }],
   'choirMother.defeated': [{ speaker: 'mabel', text: 'She’s down. The little ones are going quiet. That nursery won’t sing again.', seconds: 3.8 }],
 };
 

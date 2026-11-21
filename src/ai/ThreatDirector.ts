@@ -16,6 +16,7 @@ import type { ThreatActorView } from '../world/JesterEntity';
 import { JesterEntity } from '../world/JesterEntity';
 import type { LevelStreamer, LoadedChunkView, ThreatKind, ThreatSpawnDefinition } from '../world/LevelStreamer';
 import { TallymanEntity } from '../world/TallymanEntity';
+import { CherubEntity, SeraphEntity } from '../world/AngelEntities';
 import { ChoirMotherEntity, HushlingEntity } from '../world/ChoirEntities';
 
 export interface ThreatEventMap {
@@ -55,7 +56,7 @@ export const JESTER_THREAT_ID: string = 'threat.jester.primary';
  * spatial audio cues, dread computation and threat events.
  */
 /** How long a hand strike staggers each kind. Big threats recover faster; Hushlings are bowled over. */
-const STRIKE_STUN_SECONDS: Readonly<Record<ThreatKind, number>> = { jester: 2.2, tallyman: 2.8, choirMother: 2.5, hushling: 4 };
+const STRIKE_STUN_SECONDS: Readonly<Record<ThreatKind, number>> = { jester: 2.2, tallyman: 2.8, choirMother: 2.5, hushling: 4, cherub: 4, seraph: 2.6 };
 
 export class ThreatDirector {
   public readonly events: TypedEventBus<ThreatEventMap> = new TypedEventBus();
@@ -104,6 +105,10 @@ export class ThreatDirector {
         return new ChoirMotherEntity(this.meshes);
       case 'hushling':
         return new HushlingEntity(this.meshes);
+      case 'cherub':
+        return new CherubEntity(this.meshes);
+      case 'seraph':
+        return new SeraphEntity(this.meshes);
     }
   }
 
@@ -291,7 +296,7 @@ export class ThreatDirector {
         this.audio.playSpatialCue(managed.profile.audio.idleCue, view.headPosition(), 0.6);
       }
       // Light disturbance: lights stutter around threats that are actively closing in.
-      const disturbanceProfile: Readonly<Record<ThreatKind, [number, number]>> = { jester: [10, 0.9], tallyman: [6, 0.5], choirMother: [9, 0.7], hushling: [0, 0] };
+      const disturbanceProfile: Readonly<Record<ThreatKind, [number, number]>> = { jester: [10, 0.9], tallyman: [6, 0.5], choirMother: [9, 0.7], hushling: [0, 0], cherub: [0, 0], seraph: [8, 0.6] };
       const [disturbanceRadius, disturbanceScale] = disturbanceProfile[managed.kind];
       view.disturbance.radius = Math.max(0.1, disturbanceRadius);
       view.disturbance.strength = STATE_DREAD_WEIGHT[managed.brain.state] * disturbanceScale;

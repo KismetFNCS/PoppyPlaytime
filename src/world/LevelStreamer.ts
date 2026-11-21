@@ -142,7 +142,12 @@ export interface SwitchSequenceDefinition {
   readonly timeLimitSeconds: number;
 }
 
-export type ThreatKind = 'jester' | 'tallyman' | 'choirMother' | 'hushling';
+/** Early halls with Cherubs (Acts I and II). */
+const CHERUB_CHUNKS: ReadonlySet<number> = new Set([2, 4, 5, 8, 9, 10]);
+/** Where the Seraph stands guard. */
+export const SERAPH_CHUNK: number = 11;
+
+export type ThreatKind = 'jester' | 'tallyman' | 'choirMother' | 'hushling' | 'cherub' | 'seraph';
 
 export interface ThreatSpawnDefinition {
   readonly id: string;
@@ -773,6 +778,24 @@ export class LevelChunkBuilder {
         zone('foremanArena', endZ + 2, startZ - 0.6);
         break;
       }
+    }
+    // Cherubs: a couple of slow clockwork toys in the early halls, the first things you can fight back against.
+    if (CHERUB_CHUNKS.has(chunkIndex)) {
+      const count: number = chunkIndex % 2 === 0 ? 2 : 1;
+      for (let cherub = 0; cherub < count; cherub += 1) {
+        const offsetZ: number = (cherub - (count - 1) / 2) * 3;
+        const route: Vec3[] = [
+          [-1.2, 0, centerZ + offsetZ - 1.5],
+          [1.2, 0, centerZ + offsetZ - 1.5],
+          [1.2, 0, centerZ + offsetZ + 1.5],
+          [-1.2, 0, centerZ + offsetZ + 1.5],
+        ];
+        threatSpawns.push({ id: `threat.cherub.${chunkIndex}.${cherub}`, kind: 'cherub', chunkIndex, position: route[cherub % 4] as Vec3, patrolRoute: route });
+      }
+    }
+    // The Seraph guards the last breaker hall of Act II.
+    if (chunkIndex === SERAPH_CHUNK) {
+      patrolLoop(`threat.seraph.${chunkIndex}`, 'seraph');
     }
     if (archetype === 'standard' && chunkIndex >= 8) {
       patrolLoop(`threat.tallyman.${chunkIndex}`, 'tallyman');

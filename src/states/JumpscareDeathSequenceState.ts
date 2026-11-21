@@ -18,6 +18,8 @@ const KILLER_HEADLINES: Readonly<Record<KillerId, string>> = {
   tallyman: 'THE TALLYMAN COUNTED YOU',
   choirMother: 'MOTHER SANG YOU TO SLEEP',
   hushling: 'HUSH NOW',
+  cherub: 'WOUND DOWN',
+  seraph: 'THE WINGS CLOSED',
   foreman: 'YOUR CARD WAS PUNCHED',
 };
 

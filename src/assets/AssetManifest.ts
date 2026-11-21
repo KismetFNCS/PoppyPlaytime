@@ -600,6 +600,8 @@ export const MATERIAL_IDS: readonly MaterialId[] = Object.keys(MATERIAL_PROFILES
 
 export type ImportedMeshId =
   | 'jester_entity'
+  | 'cherub_entity'
+  | 'seraph_entity'
   | 'gas_mask_prop'
   | 'shattered_foundation'
   | 'tether_claw_teal'
@@ -632,6 +634,14 @@ export type ImportedMeshId =
 
 export type ProceduralMeshBuilderId =
   | 'jester_body'
+  | 'cherub_body'
+  | 'cherub_face'
+  | 'cherub_eyes'
+  | 'cherub_wing'
+  | 'seraph_robe'
+  | 'seraph_head'
+  | 'seraph_eye'
+  | 'seraph_wing'
   | 'jester_stuffing'
   | 'jester_lantern_shard'
   | 'jester_wind_key'
@@ -735,6 +745,28 @@ export const IMPORTED_MESH_PROFILES: Readonly<Record<ImportedMeshId, ImportedMes
       { partId: 'armGear', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'jester_arm_gear' },
       { partId: 'leg', materialId: 'jester_entity_fabric', importUri: null, fallbackBuilder: 'jester_leg' },
       { partId: 'legGear', materialId: 'rusted_steel', importUri: null, fallbackBuilder: 'jester_leg_gear' },
+    ],
+  },
+  cherub_entity: {
+    id: 'cherub_entity',
+    displayName: 'Cherub',
+    importScale: 1,
+    parts: [
+      { partId: 'body', materialId: 'tin_plate', importUri: null, fallbackBuilder: 'cherub_body' },
+      { partId: 'face', materialId: 'porcelain_glaze', importUri: null, fallbackBuilder: 'cherub_face' },
+      { partId: 'eyes', materialId: 'choir_glow', importUri: null, fallbackBuilder: 'cherub_eyes' },
+      { partId: 'wing', materialId: 'tin_plate', importUri: null, fallbackBuilder: 'cherub_wing' },
+    ],
+  },
+  seraph_entity: {
+    id: 'seraph_entity',
+    displayName: 'The Seraph',
+    importScale: 1,
+    parts: [
+      { partId: 'robe', materialId: 'hymn_paper', importUri: null, fallbackBuilder: 'seraph_robe' },
+      { partId: 'head', materialId: 'porcelain_glaze', importUri: null, fallbackBuilder: 'seraph_head' },
+      { partId: 'eyes', materialId: 'choir_glow', importUri: null, fallbackBuilder: 'seraph_eye' },
+      { partId: 'wing', materialId: 'tether_brass', importUri: null, fallbackBuilder: 'seraph_wing' },
     ],
   },
   gas_mask_prop: {
