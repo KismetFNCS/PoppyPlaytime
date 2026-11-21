@@ -26,7 +26,7 @@ const Cast = {
     eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
   },
   doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
-  plush: { pos: V3.create(-5.15, 0, -68.6), yaw: -Math.PI / 2, headYaw: 0, eyeGlow: 0.4, lunge: 0, lunged: false, talked: false, armRaise: 0 },
+  plush: { pos: V3.create(-4.85, 0, -68.6), yaw: -Math.PI / 2, headYaw: 0, eyeGlow: 0.4, lunge: 0, lunged: false, talked: false, armRaise: 0 },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
@@ -352,8 +352,8 @@ const Cast = {
     if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, S, S, S);
     // arms: limp at rest, thrown up and forward for the "hug"
     for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.4 * S, (0.86 + L * 0.2) * S, (0.08 - L * 0.3) * S);
-      this.pt(b, p, yaw, sx * (0.6 - L * 0.2) * S, (0.3 + L * 1.05) * S, (-0.14 - L * 0.8) * S);
+      this.pt(a, p, yaw, sx * 0.42 * S, (1.33 + L * 0.15) * S, (0.0 - L * 0.3) * S);
+      this.pt(b, p, yaw, sx * (0.56 - L * 0.2) * S, (0.62 + L * 1.0) * S, (-0.1 - L * 0.85) * S);
       it = R.push('th_arm', MAT.burnt);
       if (it) M4.segment(it.model, a, b, 1);
     }
@@ -361,7 +361,7 @@ const Cast = {
     const hy = yaw + P.headYaw;
     // the head sags heavily toward his right shoulder (straightens for the lunge)
     const sag = 1 - L;
-    this.pt(a, p, yaw, 0.1 * sag * S, (1.2 - 0.07 * sag + L * 0.25) * S, (0.1 - L * 0.45) * S);
+    this.pt(a, p, yaw, 0.1 * sag * S, (1.74 - 0.07 * sag + L * 0.12) * S, (-0.02 - L * 0.4) * S);
     M4.compose(this.m, a[0], a[1], a[2], hy, 0.22 * sag - L * 0.4, -0.42 * sag, S * 1.08, S * 0.98, S);
     it = R.push('th_head', MAT.burnt);
     if (it) it.model.set(this.m);

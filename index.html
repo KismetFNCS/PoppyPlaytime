@@ -8391,7 +8391,7 @@ const Cast = {
     eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
   },
   doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
-  plush: { pos: V3.create(-5.15, 0, -68.6), yaw: -Math.PI / 2, headYaw: 0, eyeGlow: 0.4, lunge: 0, lunged: false, talked: false, armRaise: 0 },
+  plush: { pos: V3.create(-4.85, 0, -68.6), yaw: -Math.PI / 2, headYaw: 0, eyeGlow: 0.4, lunge: 0, lunged: false, talked: false, armRaise: 0 },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
@@ -8717,8 +8717,8 @@ const Cast = {
     if (it) M4.compose(it.model, a[0], a[1], a[2], yaw, L * 0.35, 0, S, S, S);
     // arms: limp at rest, thrown up and forward for the "hug"
     for (const sx of [-1, 1]) {
-      this.pt(a, p, yaw, sx * 0.4 * S, (0.86 + L * 0.2) * S, (0.08 - L * 0.3) * S);
-      this.pt(b, p, yaw, sx * (0.6 - L * 0.2) * S, (0.3 + L * 1.05) * S, (-0.14 - L * 0.8) * S);
+      this.pt(a, p, yaw, sx * 0.42 * S, (1.33 + L * 0.15) * S, (0.0 - L * 0.3) * S);
+      this.pt(b, p, yaw, sx * (0.56 - L * 0.2) * S, (0.62 + L * 1.0) * S, (-0.1 - L * 0.85) * S);
       it = R.push('th_arm', MAT.burnt);
       if (it) M4.segment(it.model, a, b, 1);
     }
@@ -8726,7 +8726,7 @@ const Cast = {
     const hy = yaw + P.headYaw;
     // the head sags heavily toward his right shoulder (straightens for the lunge)
     const sag = 1 - L;
-    this.pt(a, p, yaw, 0.1 * sag * S, (1.2 - 0.07 * sag + L * 0.25) * S, (0.1 - L * 0.45) * S);
+    this.pt(a, p, yaw, 0.1 * sag * S, (1.74 - 0.07 * sag + L * 0.12) * S, (-0.02 - L * 0.4) * S);
     M4.compose(this.m, a[0], a[1], a[2], hy, 0.22 * sag - L * 0.4, -0.42 * sag, S * 1.08, S * 0.98, S);
     it = R.push('th_head', MAT.burnt);
     if (it) it.model.set(this.m);
@@ -9277,71 +9277,79 @@ const SCULPTS = {
   // Mister Thimble: matted auburn/chestnut fur, crimson stains and soil streaks along the seams, a faded
   // slate vest with brass buttons, split belly seam with stuffing, scorched spots, care tag
   th_body: () => {
+    // standing: torso centred at y 1.0, legs planted under the hips, feet pointing forward (-z)
     const F = MAT.burnt, R = MAT.lining, W = MAT.furLight, D = MAT.rubber, V = MAT.vest, n = [
-      { t: 'ell', c: [0, 0.55, 0.12], r: [0.42, 0.52, 0.36], m: F, n: [0.03, 8] },
-      // vest: a shell over the torso, open at the front, frayed hem
-      { t: 'ell', c: [0, 0.62, 0.12], r: [0.445, 0.44, 0.385], m: V, k: 0.01, n: [0.01, 30] },
-      { t: 'box', c: [0, 0.22, 0.12], h: [0.6, 0.16, 0.6], op: 's', k: 0.01, sm: F, n: [0.03, 18] },
-      { t: 'box', c: [0, 0.6, -0.35], h: [0.1, 0.5, 0.2], op: 's', k: 0.04, sm: F },
-      { t: 'cap', a: [-0.32, 0.8, 0.1], b: [-0.42, 0.62, 0.1], r: 0.12, op: 's', k: 0.04, sm: F },
-      { t: 'cap', a: [0.32, 0.8, 0.1], b: [0.42, 0.62, 0.1], r: 0.12, op: 's', k: 0.04, sm: F },
-      // split belly seam with stuffing, scorched hole
-      { t: 'cap', a: [-0.01, 0.7, -0.26], b: [0.03, 0.3, -0.27], r: 0.04, op: 's', k: 0.01, sm: D, n: [0.015, 28] },
-      { t: 'sph', c: [-0.27, 0.36, -0.1], r: 0.07, op: 's', k: 0.02, sm: D, n: [0.022, 30] },
-      { t: 'box', c: [0.1, 1.06, 0.33], h: [0.04, 0.055, 0.004], rot: [0.3, 0.4, 0.2], m: W, k: 0.004 }
+      { t: 'ell', c: [0, 1.0, 0], r: [0.4, 0.5, 0.33], m: F, n: [0.03, 8] },
+      { t: 'ell', c: [0, 1.07, 0], r: [0.425, 0.42, 0.355], m: V, k: 0.01, n: [0.01, 30] },
+      { t: 'box', c: [0, 0.6, 0], h: [0.6, 0.2, 0.6], op: 's', k: 0.01, sm: F, n: [0.03, 18] },
+      { t: 'box', c: [0, 1.05, -0.36], h: [0.1, 0.5, 0.2], op: 's', k: 0.04, sm: F },
+      { t: 'cap', a: [-0.3, 1.27, 0], b: [-0.42, 1.08, 0], r: 0.12, op: 's', k: 0.04, sm: F },
+      { t: 'cap', a: [0.3, 1.27, 0], b: [0.42, 1.08, 0], r: 0.12, op: 's', k: 0.04, sm: F },
+      { t: 'cap', a: [-0.01, 1.15, -0.3], b: [0.03, 0.75, -0.31], r: 0.04, op: 's', k: 0.01, sm: D, n: [0.015, 28] },
+      { t: 'sph', c: [-0.26, 0.8, -0.2], r: 0.07, op: 's', k: 0.02, sm: D, n: [0.022, 30] },
+      { t: 'box', c: [0.1, 1.5, 0.2], h: [0.04, 0.055, 0.004], rot: [0.3, 0.4, 0.2], m: W, k: 0.004 }
     ];
-    for (let i = 0; i < 6; i++) n.push({ t: 'sph', c: [0.01 + Math.sin(i * 2.1) * 0.03, 0.66 - i * 0.065, -0.29 - (i % 2) * 0.02], r: 0.038 + (i % 3) * 0.01, m: W, k: 0.02, n: [0.014, 45] });
-    // brass vest buttons down both front edges
-    for (let i = 0; i < 4; i++) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.11, 0.88 - i * 0.13, -0.28 + i * 0.012], r: 0.018, h: 0.006, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.004 });
-    // crimson stains and soil streaks scored along the seams
+    for (let i = 0; i < 6; i++) n.push({ t: 'sph', c: [0.01 + Math.sin(i * 2.1) * 0.03, 1.11 - i * 0.065, -0.33 - (i % 2) * 0.02], r: 0.038 + (i % 3) * 0.01, m: W, k: 0.02, n: [0.014, 45] });
+    for (let i = 0; i < 4; i++) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.11, 1.32 - i * 0.13, -0.32 + i * 0.012], r: 0.018, h: 0.006, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.004 });
     for (let i = 0; i < 9; i++) {
-      const a = i * 1.9 + 0.5, yy = 0.18 + (i * 0.097) % 0.5;
-      const rr = Math.sqrt(Math.max(0.01, 1 - ((yy - 0.55) / 0.52) ** 2));
-      n.push({ t: 'ell', c: [Math.cos(a) * 0.415 * rr, yy, Math.sin(a) * 0.355 * rr + 0.12], r: [0.06, 0.045, 0.06], m: i % 3 === 0 ? D : R, k: 0.006 });
+      const a = i * 1.9 + 0.5, yy = 0.63 + (i * 0.097) % 0.5;
+      const rr = Math.sqrt(Math.max(0.01, 1 - ((yy - 1.0) / 0.5) ** 2));
+      n.push({ t: 'ell', c: [Math.cos(a) * 0.395 * rr, yy, Math.sin(a) * 0.325 * rr], r: [0.06, 0.045, 0.06], m: i % 3 === 0 ? D : R, k: 0.006 });
     }
-    for (const sx of [-1, 1]) {
-      n.push({ t: 'cap', a: [sx * 0.24, 0.18, -0.1], b: [sx * 0.4, 0.13, -0.58], r: 0.15, r2: 0.13, m: F, k: 0.08, n: [0.025, 8] });
-      n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.66], r: [0.15, 0.15, 0.08], m: F, k: 0.05 });
-      n.push({ t: 'ell', c: [sx * 0.41, 0.13, -0.71], r: [0.1, 0.1, 0.03], m: W, k: 0.02 });
-      n.push({ t: 'ell', c: [sx * 0.36, 0.2, -0.35], r: [0.07, 0.05, 0.09], m: R, k: 0.006 });
-    }
-    // mismatched patchwork panels on the lower belly and hips
-    n.push({ t: 'box', c: [-0.25, 0.3, -0.2], h: [0.1, 0.08, 0.015], rr: 0.012, rot: [0.5, -0.5, 0.2], m: MAT.clothWine, k: 0.008 });
-    n.push({ t: 'box', c: [0.28, 0.32, -0.16], h: [0.09, 0.09, 0.015], rr: 0.012, rot: [0.4, 0.6, -0.3], m: MAT.furLight, k: 0.008 });
-    // yellow and red cross-stitches sealing the side seams
+    // patchwork panels and cross-stitched side seams
+    n.push({ t: 'box', c: [-0.25, 0.78, -0.25], h: [0.1, 0.08, 0.015], rr: 0.012, rot: [0.5, -0.5, 0.2], m: MAT.clothWine, k: 0.008 });
+    n.push({ t: 'box', c: [0.27, 0.8, -0.22], h: [0.09, 0.09, 0.015], rr: 0.012, rot: [0.4, 0.6, -0.3], m: W, k: 0.008 });
     for (let i = 0; i < 8; i++) {
-      const yy = 0.22 + i * 0.09, side = i % 2 ? 1 : -1;
-      const rr = Math.sqrt(Math.max(0.05, 1 - ((yy - 0.55) / 0.52) ** 2));
-      const cx = side * 0.4 * rr, cz = 0.12 - 0.12 * rr, m = i % 3 ? MAT.paint : MAT.lining;
-      n.push({ t: 'cap', a: [cx, yy - 0.018, cz - 0.018], b: [cx, yy + 0.018, cz + 0.018], r: 0.005, m, k: 0.002 });
-      n.push({ t: 'cap', a: [cx, yy + 0.018, cz - 0.018], b: [cx, yy - 0.018, cz + 0.018], r: 0.005, m, k: 0.002 });
+      const yy = 0.68 + i * 0.09, side = i % 2 ? 1 : -1;
+      const rr = Math.sqrt(Math.max(0.05, 1 - ((yy - 1.0) / 0.5) ** 2));
+      const cx = side * 0.4 * rr, m = i % 3 ? MAT.paint : MAT.lining;
+      n.push({ t: 'cap', a: [cx, yy - 0.018, -0.018], b: [cx, yy + 0.018, 0.018], r: 0.005, m, k: 0.002 });
+      n.push({ t: 'cap', a: [cx, yy + 0.018, -0.018], b: [cx, yy - 0.018, 0.018], r: 0.005, m, k: 0.002 });
     }
-    // frayed edges around the foot pads
-    for (const sx of [-1, 1]) n.push({ t: 'tor', c: [sx * 0.41, 0.13, -0.7], R: 0.12, r: 0.014, rot: [0, Math.PI / 2, 0], m: F, k: 0.01, n: [0.012, 70] });
-    return SDF.mesh(n, [-0.62, -0.05, -0.82], [0.62, 1.15, 0.55], 76);
+    // stubby plush legs planted under the hips, big flat feet with pale toe pads and frayed rims
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cap', a: [sx * 0.2, 0.72, 0.0], b: [sx * 0.23, 0.16, -0.02], r: 0.16, r2: 0.14, m: F, k: 0.1, n: [0.025, 8] });
+      n.push({ t: 'ell', c: [sx * 0.24, 0.09, -0.1], r: [0.15, 0.1, 0.22], m: F, k: 0.06 });
+      n.push({ t: 'ell', c: [sx * 0.24, 0.1, -0.3], r: [0.1, 0.07, 0.035], m: W, k: 0.02 });
+      n.push({ t: 'tor', c: [sx * 0.24, 0.12, -0.27], R: 0.09, r: 0.012, rot: [0, Math.PI / 2, 0], m: F, k: 0.01, n: [0.01, 70] });
+      n.push({ t: 'ell', c: [sx * 0.25, 0.45, -0.12], r: [0.07, 0.09, 0.05], m: R, k: 0.006 });
+    }
+    return SDF.mesh(n, [-0.62, -0.05, -0.62], [0.62, 1.62, 0.52], 80);
   },
-  // Mister Thimble's head: matted auburn fur, pale muzzle, stains, torn maw, sewn button eye,
-  // gouged socket for the violet eye, ripped ear, thimble cap
   th_head: () => {
     const F = MAT.burnt, R = MAT.lining, W = MAT.furLight, D = MAT.rubber, C = MAT.copper, T = MAT.porcelain, n = [
       { t: 'ell', c: [0, 0, 0], r: [0.34, 0.3, 0.3], m: F, n: [0.022, 9] },
-      { t: 'ell', c: [0, -0.1, -0.24], r: [0.17, 0.13, 0.12], m: W, k: 0.06, n: [0.012, 26] },
-      { t: 'ell', c: [0, -0.02, -0.35], r: [0.05, 0.036, 0.032], m: D, k: 0.015 },
-      { t: 'ell', c: [0, -0.15, -0.3], r: [0.13, 0.05, 0.1], op: 's', k: 0.01, sm: D, n: [0.012, 40] },
+      { t: 'ell', c: [0, -0.1, -0.235], r: [0.235, 0.15, 0.135], m: W, k: 0.06, n: [0.012, 26] },
+      { t: 'ell', c: [0, -0.01, -0.36], r: [0.055, 0.04, 0.034], m: D, k: 0.015 },
       { t: 'cyl', c: [-0.12, 0.06, -0.27], r: 0.055, h: 0.014, rr: 0.006, rot: [0, Math.PI / 2, 0], m: D, k: 0.01 },
       { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: F },
       { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: F },
       { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.055, op: 's', k: 0.015, sm: D, n: [0.008, 50] },
       { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 },
-      { t: 'ell', c: [0.1, -0.14, -0.27], r: [0.05, 0.035, 0.04], m: R, k: 0.005 },
       { t: 'ell', c: [-0.2, 0.12, -0.18], r: [0.06, 0.05, 0.05], m: R, k: 0.005 }
     ];
-    // blunt square teeth, slightly uneven, upper and lower rows
-    for (let i = 0; i < 7; i++) {
-      const a = -0.78 + i * 0.26, x = Math.sin(a) * 0.12, z = -0.31 - Math.cos(a) * 0.015 + 0.02;
-      const hu = 0.017 + ((i * 5) % 3) * 0.003, hl = 0.015 + ((i * 7) % 3) * 0.003;
-      n.push({ t: 'box', c: [x, -0.115 - hu, z], h: [0.0145, hu, 0.01], rr: 0.003, rot: [a * 0.9, 0, Math.sin(i * 2.7) * 0.08], m: T, k: 0.002 });
-      n.push({ t: 'box', c: [x, -0.192 + hl, z + 0.006], h: [0.0135, hl, 0.01], rr: 0.003, rot: [a * 0.9, 0, -Math.sin(i * 1.9) * 0.08], m: T, k: 0.002 });
+    // wide stitched grin: a curved slot across the whole muzzle, corners curling up into the cheeks
+    const arc = k => {
+      const a = k * 0.2;
+      return [Math.sin(a) * 0.21, -0.155 + a * a * 0.13, -0.34 + (1 - Math.cos(a)) * 0.24, a];
+    };
+    for (let k = -4; k <= 4; k++) {
+      const [x, y, z] = arc(k);
+      n.push({ t: 'ell', c: [x, y, z], r: [0.05, Math.abs(k) === 4 ? 0.03 : 0.044, 0.075], op: 's', k: 0.012, sm: D });
+    }
+    // chunky square teeth following the curve (upper row hangs, lower row stands)
+    for (let k = -3; k <= 3; k++) {
+      const [x, y, z, a] = arc(k);
+      const hu = 0.02 + ((k + 7) * 5 % 3) * 0.004, hl = 0.018 + ((k + 7) * 7 % 3) * 0.004;
+      n.push({ t: 'box', c: [x, y + 0.04 - hu, z + 0.012], h: [0.017, hu, 0.012], rr: 0.004, rot: [a, 0, Math.sin(k * 2.7) * 0.07], m: T, k: 0.002 });
+      n.push({ t: 'box', c: [x, y - 0.04 + hl, z + 0.018], h: [0.016, hl, 0.012], rr: 0.004, rot: [a, 0, -Math.sin(k * 1.9) * 0.07], m: T, k: 0.002 });
+    }
+    // heavy thread stitches across both lips
+    for (let k = -4; k <= 4; k++) {
+      const [x, y, z, a] = arc(k);
+      const ox = Math.cos(a) * 0.006, oz = Math.sin(a) * 0.006;
+      n.push({ t: 'cap', a: [x - ox, y + 0.065, z - 0.012 + oz], b: [x + ox, y + 0.03, z - 0.004 - oz], r: 0.0045, m: D, k: 0.002 });
+      n.push({ t: 'cap', a: [x + ox, y - 0.065, z - 0.012 - oz], b: [x - ox, y - 0.03, z - 0.004 + oz], r: 0.0045, m: D, k: 0.002 });
     }
     for (let i = 0; i < 8; i++) {
       const a = i / 8 * Math.PI * 2;
@@ -9356,7 +9364,7 @@ const SCULPTS = {
     for (let i = 0; i < 8; i++) n.push({ t: 'sph', c: [Math.sin(i * 2.2) * 0.22, 0.2 + (i % 3) * 0.04, Math.cos(i * 2.2) * 0.2 + 0.05], r: 0.04, m: F, k: 0.02, n: [0.018, 60] });
     // mismatched patchwork panels sewn onto the head
     n.push({ t: 'box', c: [0.2, 0.08, -0.2], h: [0.07, 0.06, 0.012], rr: 0.01, rot: [-0.7, 0.1, 0.2], m: MAT.vest, k: 0.006 });
-    n.push({ t: 'box', c: [-0.16, -0.12, -0.24], h: [0.06, 0.05, 0.012], rr: 0.01, rot: [0.55, 0.3, -0.3], m: MAT.clothWine, k: 0.006 });
+    n.push({ t: 'box', c: [0.13, 0.21, -0.2], h: [0.06, 0.05, 0.012], rr: 0.01, rot: [-0.9, -0.3, -0.3], m: MAT.clothWine, k: 0.006 });
     // yellow and red cross-stitches along the seams
     const X = (cx, cy, cz, sz, m) => {
       n.push({ t: 'cap', a: [cx - sz, cy - sz, cz], b: [cx + sz, cy + sz, cz], r: 0.0045, m, k: 0.002 });
