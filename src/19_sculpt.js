@@ -781,7 +781,7 @@ const SCULPTS = {
   // cracked porcelain angel face in a dark hood (head origin, facing -z), dark tear streaks
   seraph_face: () => {
     const P = MAT.porcelain, D = MAT.rubber, H = MAT.hairDark, n = [
-      { t: 'ell', c: [0, 0.01, 0.04], r: [0.15, 0.19, 0.16], m: H, n: [0.01, 18] },
+      { t: 'ell', c: [0, 0.03, 0.07], r: [0.14, 0.18, 0.13], m: H, n: [0.01, 18] },
       { t: 'ell', c: [0, 0, -0.03], r: [0.115, 0.155, 0.11], m: P, k: 0.01, n: [0.002, 40] },
       { t: 'ell', c: [0, 0.005, -0.08], r: [0.11, 0.15, 0.1], m: P, k: 0.03 },
       { t: 'cap', a: [0, -0.18, 0.02], b: [0, -0.3, 0.03], r: 0.06, m: H, k: 0.05 },
@@ -803,7 +803,8 @@ const SCULPTS = {
     const V = MAT.furViolet, G = MAT.paint, C = MAT.copper, P = MAT.porcelain, n = [
       { t: 'cap', a: [0, 0.04, 0], b: [0, 0.86, 0], r: 0.2, r2: 0.22, m: V, n: [0.012, 14] },
       { t: 'cap', a: [-0.24, 0.9, 0.0], b: [0.24, 0.9, 0.0], r: 0.075, m: V, k: 0.08 },
-      { t: 'box', c: [0.11, 0.5, -0.03], h: [0.11, 0.38, 0.2], rr: 0.05, m: G, k: 0.015, n: [0.01, 16] },
+      // split down the middle: the right half is gold, front and back
+      { t: 'box', c: [0.12, 0.47, 0], h: [0.125, 0.42, 0.235], rr: 0.06, m: G, k: 0.012, n: [0.008, 16] },
       { t: 'tor', c: [0, 0.5, 0], R: 0.205, r: 0.02, m: MAT.cable, k: 0.01, n: [0.004, 60] },
       { t: 'box', c: [0, -0.05, 0], h: [0.4, 0.06, 0.4], op: 's', k: 0.02, sm: V, n: [0.04, 10] },
       { t: 'sph', c: [-0.15, 0.35, -0.14], r: 0.04, op: 's', k: 0.005, sm: MAT.rubber, n: [0.012, 50] }
@@ -815,11 +816,13 @@ const SCULPTS = {
       n.push({ t: 'sph', c: [x * 1.17, -0.125, z * 1.17], r: 0.022, m: C, k: 0.004 });
     }
     // dagged gold collar with bells
-    for (let k = 0; k < 9; k++) {
-      const a = k / 9 * Math.PI * 2, x = Math.sin(a), z = Math.cos(a);
-      n.push({ t: 'cap', a: [x * 0.09, 0.98, z * 0.08], b: [x * 0.3, 0.8, z * 0.26], r: 0.06, r2: 0.01, m: G, k: 0.02, n: [0.006, 30] });
-      n.push({ t: 'sph', c: [x * 0.31, 0.78, z * 0.27], r: 0.022, m: C, k: 0.004 });
+    for (let k = 0; k < 10; k++) {
+      const a = k / 10 * Math.PI * 2, x = Math.sin(a), z = Math.cos(a), shoulder = Math.abs(x) > 0.7 ? 0.08 : 0;
+      n.push({ t: 'cap', a: [x * 0.09, 1.0, z * 0.08], b: [x * (0.34 + shoulder), 0.76, z * 0.28], r: 0.075, r2: 0.012, m: G, k: 0.025, n: [0.006, 30] });
+      n.push({ t: 'sph', c: [x * (0.35 + shoulder), 0.735, z * 0.29], r: 0.026, m: C, k: 0.004 });
     }
+    // more bells sewn down the front
+    for (let k = 0; k < 4; k++) n.push({ t: 'sph', c: [0.0, 0.7 - k * 0.14, -0.215], r: 0.02, m: C, k: 0.004 });
     // sleeves, gold cuffs with bells, pale hands
     for (const sx of [-1, 1]) {
       n.push({ t: 'cap', a: [sx * 0.27, 0.88, 0], b: [sx * 0.33, 0.36, -0.02], r: 0.07, r2: 0.06, m: V, k: 0.04, n: [0.008, 20] });
@@ -829,7 +832,7 @@ const SCULPTS = {
       for (let f = 0; f < 4; f++) n.push({ t: 'cap', a: [sx * (0.315 + f * 0.013), 0.25, -0.03], b: [sx * (0.315 + f * 0.016), 0.17, -0.045], r: 0.009, m: P, k: 0.006 });
     }
     for (let k = 0; k < 9; k++) { const a = k * 2.2; n.push({ t: 'sph', c: [Math.sin(a) * 0.21, 0.15 + (k * 0.091) % 0.7, Math.cos(a) * 0.21], r: 0.04, m: MAT.burnt, k: 0.012, n: [0.01, 40] }); }
-    return SDF.mesh(n, [-0.48, -0.18, -0.34], [0.48, 1.1, 0.34], 74);
+    return SDF.mesh(n, [-0.52, -0.18, -0.36], [0.52, 1.12, 0.36], 80);
   }
 };
 const SCULPT_ORDER = Object.keys(SCULPTS);

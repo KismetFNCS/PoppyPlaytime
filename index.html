@@ -10873,7 +10873,7 @@ const SCULPTS = {
   // cracked porcelain angel face in a dark hood (head origin, facing -z), dark tear streaks
   seraph_face: () => {
     const P = MAT.porcelain, D = MAT.rubber, H = MAT.hairDark, n = [
-      { t: 'ell', c: [0, 0.01, 0.04], r: [0.15, 0.19, 0.16], m: H, n: [0.01, 18] },
+      { t: 'ell', c: [0, 0.03, 0.07], r: [0.14, 0.18, 0.13], m: H, n: [0.01, 18] },
       { t: 'ell', c: [0, 0, -0.03], r: [0.115, 0.155, 0.11], m: P, k: 0.01, n: [0.002, 40] },
       { t: 'ell', c: [0, 0.005, -0.08], r: [0.11, 0.15, 0.1], m: P, k: 0.03 },
       { t: 'cap', a: [0, -0.18, 0.02], b: [0, -0.3, 0.03], r: 0.06, m: H, k: 0.05 },
@@ -10895,7 +10895,8 @@ const SCULPTS = {
     const V = MAT.furViolet, G = MAT.paint, C = MAT.copper, P = MAT.porcelain, n = [
       { t: 'cap', a: [0, 0.04, 0], b: [0, 0.86, 0], r: 0.2, r2: 0.22, m: V, n: [0.012, 14] },
       { t: 'cap', a: [-0.24, 0.9, 0.0], b: [0.24, 0.9, 0.0], r: 0.075, m: V, k: 0.08 },
-      { t: 'box', c: [0.11, 0.5, -0.03], h: [0.11, 0.38, 0.2], rr: 0.05, m: G, k: 0.015, n: [0.01, 16] },
+      // split down the middle: the right half is gold, front and back
+      { t: 'box', c: [0.12, 0.47, 0], h: [0.125, 0.42, 0.235], rr: 0.06, m: G, k: 0.012, n: [0.008, 16] },
       { t: 'tor', c: [0, 0.5, 0], R: 0.205, r: 0.02, m: MAT.cable, k: 0.01, n: [0.004, 60] },
       { t: 'box', c: [0, -0.05, 0], h: [0.4, 0.06, 0.4], op: 's', k: 0.02, sm: V, n: [0.04, 10] },
       { t: 'sph', c: [-0.15, 0.35, -0.14], r: 0.04, op: 's', k: 0.005, sm: MAT.rubber, n: [0.012, 50] }
@@ -10907,11 +10908,13 @@ const SCULPTS = {
       n.push({ t: 'sph', c: [x * 1.17, -0.125, z * 1.17], r: 0.022, m: C, k: 0.004 });
     }
     // dagged gold collar with bells
-    for (let k = 0; k < 9; k++) {
-      const a = k / 9 * Math.PI * 2, x = Math.sin(a), z = Math.cos(a);
-      n.push({ t: 'cap', a: [x * 0.09, 0.98, z * 0.08], b: [x * 0.3, 0.8, z * 0.26], r: 0.06, r2: 0.01, m: G, k: 0.02, n: [0.006, 30] });
-      n.push({ t: 'sph', c: [x * 0.31, 0.78, z * 0.27], r: 0.022, m: C, k: 0.004 });
+    for (let k = 0; k < 10; k++) {
+      const a = k / 10 * Math.PI * 2, x = Math.sin(a), z = Math.cos(a), shoulder = Math.abs(x) > 0.7 ? 0.08 : 0;
+      n.push({ t: 'cap', a: [x * 0.09, 1.0, z * 0.08], b: [x * (0.34 + shoulder), 0.76, z * 0.28], r: 0.075, r2: 0.012, m: G, k: 0.025, n: [0.006, 30] });
+      n.push({ t: 'sph', c: [x * (0.35 + shoulder), 0.735, z * 0.29], r: 0.026, m: C, k: 0.004 });
     }
+    // more bells sewn down the front
+    for (let k = 0; k < 4; k++) n.push({ t: 'sph', c: [0.0, 0.7 - k * 0.14, -0.215], r: 0.02, m: C, k: 0.004 });
     // sleeves, gold cuffs with bells, pale hands
     for (const sx of [-1, 1]) {
       n.push({ t: 'cap', a: [sx * 0.27, 0.88, 0], b: [sx * 0.33, 0.36, -0.02], r: 0.07, r2: 0.06, m: V, k: 0.04, n: [0.008, 20] });
@@ -10921,7 +10924,7 @@ const SCULPTS = {
       for (let f = 0; f < 4; f++) n.push({ t: 'cap', a: [sx * (0.315 + f * 0.013), 0.25, -0.03], b: [sx * (0.315 + f * 0.016), 0.17, -0.045], r: 0.009, m: P, k: 0.006 });
     }
     for (let k = 0; k < 9; k++) { const a = k * 2.2; n.push({ t: 'sph', c: [Math.sin(a) * 0.21, 0.15 + (k * 0.091) % 0.7, Math.cos(a) * 0.21], r: 0.04, m: MAT.burnt, k: 0.012, n: [0.01, 40] }); }
-    return SDF.mesh(n, [-0.48, -0.18, -0.34], [0.48, 1.1, 0.34], 74);
+    return SDF.mesh(n, [-0.52, -0.18, -0.36], [0.52, 1.12, 0.36], 80);
   }
 };
 const SCULPT_ORDER = Object.keys(SCULPTS);
@@ -11564,8 +11567,8 @@ const Enemies = {
     S.timer += dt; S.cool = Math.max(0, S.cool - dt);
     const dx = b[0] - S.pos[0], dz = b[2] - S.pos[2], d = Math.hypot(dx, dz);
     // its face and red camera-eye (local up 2.25)
-    Cast.pt(S.face, S.pos, S.yaw, 0, 2.25, -0.05);
-    Cast.pt(S.eye, S.pos, S.yaw, 0.048, 2.27, -0.2);
+    Cast.pt(S.face, S.pos, S.yaw, 0, 2.2, -0.08);
+    Cast.pt(S.eye, S.pos, S.yaw, 0.06, 2.228, -0.235);
     const glide = (tx, tz, sp) => {
       const gx = tx - S.pos[0], gz = tz - S.pos[2], gd = Math.hypot(gx, gz);
       if (gd > 0.05) {
@@ -11786,70 +11789,125 @@ const Enemies = {
     if (!S.active || !vis[2]) return;
     const p = S.pos, yaw = S.yaw;
     const P = (x, y, z, out) => Cast.pt(out || A, p, yaw, x, y, z);
-    // two-wheel rig and axle box
-    P(0, 0.26, 0, A);
-    R.trs('box', MAT.rustIron, A[0], A[1], A[2], yaw, 0, 0, 0.5, 0.18, 0.24);
+    // ---- the two-wheel rig: spoked, rusted wheels with tread, an axle housing with bolts ----
+    P(0, 0.3, 0.02, A);
+    R.trs('box', MAT.rustIron, A[0], A[1], A[2], yaw, 0, 0, 0.52, 0.2, 0.28);
+    for (const bx of [-0.2, 0, 0.2]) { P(bx, 0.41, -0.14, B); R.trs('sphereLow', MAT.steel, B[0], B[1], B[2], 0, 0, 0, 0.022, 0.022, 0.022); }
+    V3.set(_en.d, Math.cos(yaw), 0, -Math.sin(yaw));   // the axle direction (local x)
     for (const sx of [-1, 1]) {
-      P(sx * 0.33, 0.26, 0, A);
-      R.trs('cyl', MAT.rustIron, A[0], A[1] , A[2], yaw, S.wheel, Math.PI / 2, 0.26, 0.08, 0.26);
-      R.trs('cyl', MAT.steel, A[0], A[1], A[2], yaw, S.wheel, Math.PI / 2, 0.09, 0.11, 0.09);
+      P(sx * 0.36, 0.3, 0.02, A);
+      let it = R.push('torus', MAT.rustIron); if (it) ringMatrix(it.model, A, _en.d, 0.27);
+      it = R.push('torus', MAT.rubber); if (it) { ringMatrix(it.model, A, _en.d, 0.3); it.model[4] *= 1.5; it.model[5] *= 1.5; it.model[6] *= 1.5; }
+      R.trs('cyl', MAT.steel, A[0] - _en.d[0] * 0.05, A[1], A[2] - _en.d[2] * 0.05, yaw, 0, Math.PI / 2, 0.07, 0.1, 0.07);
+      for (let k = 0; k < 6; k++) {
+        const ang = S.wheel + k / 6 * Math.PI * 2;
+        P(sx * 0.36, 0.3 + Math.cos(ang) * 0.26, 0.02 + Math.sin(ang) * 0.26, B);
+        R.seg('cylLow', MAT.rustIron, A, B, 0.016);
+      }
     }
-    // the cable bundle dragging down from the tunic to the rig
-    for (let k = 0; k < 7; k++) {
-      const a = k / 7 * Math.PI * 2, r = 0.12;
-      P(Math.cos(a) * 0.15, 0.32, Math.sin(a) * 0.1, A);
-      P(Math.cos(a) * r + Math.sin(t * 2 + k) * 0.04, 0.7, Math.sin(a) * r, B);
-      P(Math.cos(a) * 0.16, 1.05, Math.sin(a) * 0.16, X);
-      R.seg('cylLow', k % 2 ? MAT.cable : MAT.rubber, A, B, 0.02);
-      R.seg('cylLow', k % 2 ? MAT.cable : MAT.rubber, B, X, 0.02);
+    // ---- the braided cable bundle dragging down from under the tunic to the rig ----
+    for (let k = 0; k < 11; k++) {
+      const ang = k / 11 * Math.PI * 2, sw = Math.sin(t * 1.7 + k * 1.3) * 0.05;
+      P(Math.cos(ang) * 0.12, 0.42, Math.sin(ang) * 0.09, A);
+      P(Math.cos(ang + 0.6) * 0.1 + sw, 0.62, Math.sin(ang + 0.6) * 0.08, B);
+      P(Math.cos(ang + 1.2) * 0.12 + sw, 0.82, Math.sin(ang + 1.2) * 0.1, X);
+      P(Math.cos(ang) * 0.15, 1.04, Math.sin(ang) * 0.14, _en.c);
+      const m = k % 3 === 0 ? MAT.copper : k % 3 === 1 ? MAT.cable : MAT.rubber;
+      R.seg('cylLow', m, A, B, 0.019); R.seg('cylLow', m, B, X, 0.019); R.seg('cylLow', m, X, _en.c, 0.019);
     }
-    // jester tunic, arms and hands
+    // ---- jester tunic (arms and pale hands included) and the cracked porcelain angel face ----
     if (Sculpt.ready('seraph_tunic')) {
       P(0, 1.0, 0, A);
       const it = R.push('seraph_tunic', MAT.furViolet);
-      if (it) M4.compose(it.model, A[0], A[1], A[2], yaw, 0, Math.sin(t * 0.8) * 0.03, 1, 1, 1);
+      if (it) { M4.compose(it.model, A[0], A[1], A[2], yaw, 0, Math.sin(t * 0.8) * 0.03, 1, 1, 1); it.tint[0] = 1.45; it.tint[1] = 1.15; it.tint[2] = 1.55; }
     }
-    // cracked porcelain angel face in its hood, the red camera-eye in the right socket
     if (Sculpt.ready('seraph_face')) {
-      P(0, 2.25, -0.02, A);
+      P(0, 2.2, -0.02, A);
       const it = R.push('seraph_face', MAT.porcelain);
-      if (it) M4.compose(it.model, A[0], A[1], A[2], yaw, S.state === 'PROWL' ? 0.25 : -0.05, Math.sin(t * 0.6) * 0.06, 1, 1, 1);
+      if (it) M4.compose(it.model, A[0], A[1], A[2], yaw, S.state === 'PROWL' ? 0.25 : -0.05, Math.sin(t * 0.6) * 0.06, 1.25, 1.25, 1.25);
     }
-    let it = R.trs('sphereLow', MAT.screen, S.eye[0], S.eye[1], S.eye[2], 0, 0, 0, 0.016, 0.016, 0.016, false);
+    let it = R.trs('sphereLow', MAT.screen, S.eye[0], S.eye[1], S.eye[2], 0, 0, 0, 0.018, 0.018, 0.018, false);
     if (it) { it.tint[0] = 1; it.tint[1] = 0.1; it.tint[2] = 0.08; it.emis[0] = 3.5 * S.eyeGlow; it.emis[1] = 0.25 * S.eyeGlow; it.emis[2] = 0.15 * S.eyeGlow; }
-    // six mechanical wings: rusted rod trusses with hydraulic lines, joints, and a tool at each tip;
-    // reaching up to the rafters while it prowls, spread wide when it hunts
+    // ---- six mechanical wings: rusted lattice trusses fanned out like angel wings, hung with angular
+    //      metal blade-feathers, carrying syringes (top), long blades (middle) and scissors (bottom).
+    //      Folded up to the rafters while it prowls; spread wide when it hunts ----
     const w = S.wing;
-    for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) {
-      const ax = sx * (0.14 + i * 0.04), ay = 1.95 - i * 0.17, az = 0.14;
-      const ex = ax + sx * (0.45 + 0.3 * w), ey = ay + 0.8 - (0.35 + i * 0.35) * w, ez = az + 0.15 + 0.1 * w;
-      const tx = ex + sx * (0.3 + 0.45 * w), ty = ey + 1.0 - (0.65 + i * 0.45) * w + Math.sin(t * 1.5 + i + sx) * 0.05 * w, tz = ez - 0.05 * w;
-      P(ax, ay, az, A); P(ex, ey, ez, B); P(tx, ty, tz, X);
-      for (const off of [-0.035, 0.035]) {
-        P(ax, ay + off, az + off, _en.a); P(ex, ey + off, ez + off, _en.b); P(tx, ty + off, tz, _en.c);
-        R.seg('cylLow', MAT.rustIron, _en.a, _en.b, 0.022); R.seg('cylLow', MAT.rustIron, _en.b, _en.c, 0.018);
-      }
-      it = R.seg('cylLow', MAT.rubber, A, B, 0.009); if (it) { it.tint[0] = 3.6; it.tint[1] = 0.5; it.tint[2] = 0.45; }
-      for (let k = 1; k < 4; k++) { V3.lerp(_en.a, B, X, k / 4); R.trs('box', MAT.rustIron, _en.a[0], _en.a[1], _en.a[2], yaw, 0, 0, 0.1, 0.02, 0.02); }
-      R.trs('sphereLow', MAT.copper, B[0], B[1], B[2], 0, 0, 0, 0.05, 0.05, 0.05);
-      // the tool: a long needle, snapping scissors, or a spinning saw blade
-      V3.sub(_en.d, X, B); V3.normalize(_en.d, _en.d);
-      if (i === 0) {
-        V3.addScaled(_en.a, X, _en.d, 0.22); R.seg('cyl', MAT.lens, X, _en.a, 0.035);
-        V3.addScaled(_en.b, _en.a, _en.d, 0.4); R.seg('cone', MAT.steel, _en.a, _en.b, 0.012);
-      } else if (i === 1) {
-        const open = (S.state === 'CHASE' ? Math.abs(Math.sin(t * 7)) : 0.2) * 0.5;
-        for (const sgn of [-1, 1]) {
-          V3.copy(_en.a, X); V3.addScaled(_en.a, _en.a, _en.d, 0.25); _en.a[1] += sgn * open * 0.2;
-          it = R.seg('cylLow', MAT.steel, X, _en.a, 0.03); if (it) { it.model[8] *= 0.25; it.model[9] *= 0.25; it.model[10] *= 0.25; }
+    const pairs = [
+      { y: 1.92, up: 1.0, len: 1.55, ang: 0.95, sweep: 0.3, tool: 0 },
+      { y: 1.78, up: 0.0, len: 1.75, ang: 0.22, sweep: 0.42, tool: 1 },
+      { y: 1.62, up: -1.0, len: 1.35, ang: -0.5, sweep: 0.3, tool: 2 }
+    ];
+    for (const W of pairs) for (const sx of [-1, 1]) {
+      // spread angle (from horizontal) blends to near-vertical when folded up to the ceiling
+      const a = W.ang * w + 1.35 * (1 - w) + Math.sin(t * 1.3 + W.y * 3 + sx) * 0.04 * w;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const root = [sx * 0.13, W.y, 0.17];
+      const at = (tt, off) => {
+        // a point along the wing (tt 0..1) offset across its width (perpendicular in the wing plane)
+        const x = root[0] + sx * ca * W.len * tt - sx * sa * off, y = root[1] + sa * W.len * tt + ca * off, z = root[2] + W.sweep * tt;
+        return [x, y, z];
+      };
+      const width = tt => 0.17 * (1 - tt) + 0.03;
+      // two main beams with zig-zag bracing
+      let prevA = null, prevB = null;
+      for (let k = 0; k <= 7; k++) {
+        const tt = k / 7, wd = width(tt);
+        const pa = at(tt, wd * 0.5), pb = at(tt, -wd * 0.5);
+        P(pa[0], pa[1], pa[2], _en.a); P(pb[0], pb[1], pb[2], _en.b);
+        if (prevA) {
+          P(prevA[0], prevA[1], prevA[2], B); R.seg('cylLow', MAT.rustIron, B, _en.a, 0.026 - tt * 0.012);
+          P(prevB[0], prevB[1], prevB[2], X); R.seg('cylLow', MAT.rustIron, X, _en.b, 0.024 - tt * 0.011);
+          R.seg('cylLow', MAT.rustIron, k % 2 ? B : X, k % 2 ? _en.b : _en.a, 0.012);
         }
+        if (k % 2 === 0) R.trs('sphereLow', MAT.copper, _en.a[0], _en.a[1], _en.a[2], 0, 0, 0, 0.026, 0.026, 0.026);
+        prevA = pa; prevB = pb;
+      }
+      // a red hydraulic brake line running along the wing
+      P(root[0], root[1], root[2], B); const mid = at(0.55, 0); P(mid[0], mid[1] - 0.04, mid[2], X);
+      it = R.seg('cylLow', MAT.rubber, B, X, 0.01); if (it) { it.tint[0] = 3.8; it.tint[1] = 0.5; it.tint[2] = 0.45; }
+      // angular blade-feathers hanging off the lower edge, longest toward the tip
+      for (let f = 0; f < 4; f++) {
+        const tt = 0.3 + f * 0.2, base = at(tt, -width(tt) * 0.5);
+        const fl = 0.38 + f * 0.1, fa = a - 1.25 - f * 0.08;
+        const tip = [base[0] + sx * Math.cos(fa) * fl, base[1] + Math.sin(fa) * fl, base[2] + 0.06];
+        P(base[0], base[1], base[2], B); P(tip[0], tip[1], tip[2], X);
+        it = R.push('box', MAT.rustIron);
+        if (it) {
+          M4.segment(it.model, B, X, 1);
+          it.model[0] *= 0.075; it.model[1] *= 0.075; it.model[2] *= 0.075; it.model[8] *= 0.012; it.model[9] *= 0.012; it.model[10] *= 0.012;
+          M4.multiply(it.model, it.model, _en.boxUp);
+        }
+        R.seg('cone', MAT.steel, X, (V3.lerp(_en.c, B, X, 1.25), _en.c), 0.02);
+      }
+      // the tool at the tip
+      const e = at(1, 0), e2 = at(1.18, 0);
+      P(e[0], e[1], e[2], B); P(e2[0], e2[1], e2[2], X);
+      V3.sub(_en.d, X, B); V3.normalize(_en.d, _en.d);
+      if (W.tool === 0) {
+        // a big glass syringe with a plunger and a long needle
+        V3.addScaled(_en.a, B, _en.d, -0.08); R.seg('cylLow', MAT.steel, _en.a, B, 0.012);
+        V3.addScaled(_en.b, B, _en.d, 0.3); it = R.seg('cyl', MAT.lens, B, _en.b, 0.045);
+        if (it) { it.tint[0] = 0.9; it.tint[1] = 1.1; it.tint[2] = 0.7; it.emis[0] = 0.05; it.emis[1] = 0.09; it.emis[2] = 0.02; }
+        V3.addScaled(_en.c, _en.b, _en.d, 0.35); R.seg('cone', MAT.steel, _en.b, _en.c, 0.01);
+      } else if (W.tool === 1) {
+        // a long rusted blade
+        V3.addScaled(_en.b, B, _en.d, 0.7);
+        it = R.push('box', MAT.steel);
+        if (it) { M4.segment(it.model, B, _en.b, 1); it.model[0] *= 0.09; it.model[1] *= 0.09; it.model[2] *= 0.09; it.model[8] *= 0.01; it.model[9] *= 0.01; it.model[10] *= 0.01; M4.multiply(it.model, it.model, _en.boxUp); }
       } else {
-        it = R.trs('cyl', MAT.steel, X[0], X[1], X[2], yaw + t * 9, Math.PI / 2, 0, 0.17, 0.012, 0.17);
+        // snapping scissors
+        const open = (S.state === 'CHASE' ? Math.abs(Math.sin(t * 7)) : 0.15) * 0.5;
+        for (const sgn of [-1, 1]) {
+          V3.copy(_en.a, B); V3.addScaled(_en.a, _en.a, _en.d, 0.45); _en.a[1] += sgn * open * 0.25;
+          it = R.push('box', MAT.steel);
+          if (it) { M4.segment(it.model, B, _en.a, 1); it.model[0] *= 0.05; it.model[1] *= 0.05; it.model[2] *= 0.05; it.model[8] *= 0.012; it.model[9] *= 0.012; it.model[10] *= 0.012; M4.multiply(it.model, it.model, _en.boxUp); }
+        }
+        R.trs('torus', MAT.steel, B[0], B[1], B[2], yaw, 0, 0, 0.06, 0.06, 0.06);
       }
     }
   }
 };
-const _en = { l: V3.create(), o: V3.create(), a: V3.create(), b: V3.create(), c: V3.create(), d: V3.create() };
+const _en = { l: V3.create(), o: V3.create(), a: V3.create(), b: V3.create(), c: V3.create(), d: V3.create(), boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })() };
 
 // ===== module: 23_gear.js =====
 // =====================================================================================

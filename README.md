@@ -71,10 +71,11 @@ fight). It is not in the menu or the early levels: it is the chapter's later bos
   round 180 degrees, the face splits and it lets out an air-raid siren; then it drags itself on its belly
   into the nearest vent. It never attacks you, but its siren calls Seraphim Sam. Glowing acid puddles under
   the vents give their hiding places away. A THUMPER hit shatters one.
-- **Seraphim Sam** (a parade marionette): a cracked porcelain angel face with dark tear streaks in a black
-  hood, a tattered purple-and-gold jester tunic with a dagged collar, bells and a rope belt, six rusted
-  mechanical wings ending in a needle, snapping scissors and spinning saw blades, and a cable bundle dragging
-  down to a two-wheel rig. It prowls the gallery rafters (you mostly see its red camera-eye, and hear metal
+- **Seraphim Sam** (a parade marionette): a cracked porcelain angel face with dark tear streaks, a hood
+  behind it, a tattered jester tunic split purple and gold down the middle with a big dagged gold collar, bells
+  and a rope belt, six huge rusted lattice-truss wings fanned out like an angel's, hung with angular metal
+  blade-feathers and carrying syringes, long blades and snapping scissors, and a braided cable bundle dragging
+  down to a rig of two spoked, rusted wheels. It prowls the gallery rafters (you mostly see its red camera-eye, and hear metal
   scraping overhead). A Cherub's siren, or your light held on its face for 2 s, brings it crashing down to
   chase you, booming over its chest PA ("SYSTEM ALERT. FORBIDDEN MATERIAL DETECTED..."). Sprint, break line of
   sight or get into a locker; its strike hurts badly, then it climbs back up. Your hands stun it (a charged
