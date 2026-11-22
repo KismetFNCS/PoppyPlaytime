@@ -718,52 +718,55 @@ async function runAll() {
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
 
-    // ---------------- cherubs and the seraph ----------------
+    // ---------------- Cherub Cheeks and Seraphim Sam ----------------
     {
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE); Enemies.disabled = false; Enemies.reset();
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
-      Game.stage = 1; Monster.reset(); Player.health = 100; Cast.plush.hidden = true; Cast.plush.mode = 'WAIT';
-      const c = Enemies.cherubs[0];
-      // flashlight pointed away: it wakes and creeps closer
-      T.setPlayerPose(c.home[0] + 5, 0, c.home[2], 0, 0); T.aimAt(c.home[0] + 12, 1.5, c.home[2]); Player.flashOn = true; T.step(DT, 4);
-      const d0 = Math.hypot(c.pos[0] - Player.body.pos[0], c.pos[2] - Player.body.pos[2]);
-      T.step(DT, 40);
-      check('cherub: wakes and creeps toward you in the dark', c.state === 'CREEP' && Math.hypot(c.pos[0] - Player.body.pos[0], c.pos[2] - Player.body.pos[2]) < d0 - 1, c.state);
-      // turn the light on it: it shrieks and scatters
-      T.aimAt(c.pos[0], c.pos[1] + 0.3, c.pos[2]); for (let i = 0; i < 20 && c.state !== 'SCARED'; i++) { T.aimAt(c.pos[0], c.pos[1] + 0.3, c.pos[2]); T.step(DT, 1); }
-      check('cherub: scatters from the flashlight beam', c.state === 'SCARED' && T.getSfxLog().includes('cherubShriek'), c.state);
-      // let it reach you in the dark: it bites
-      Player.flashOn = false;
-      for (let i = 0; i < 300 && Player.health >= 100; i++) T.step(DT, 1);
-      check('cherub: bites when it reaches you', Player.health < 100 && T.getSfxLog().includes('cherubBite'), Player.health.toFixed(1));
-      Player.flashOn = true; Player.health = 100;
-      T.setPlayerPose(c.pos[0] + 3, 0, c.pos[2], 0, 0); T.aimAt(c.pos[0], c.pos[1] + 0.28, c.pos[2]); click(0);
-      for (let i = 0; i < 12 && !c.dead; i++) T.step(DT, 1);
-      check('cherub: a hand hit shatters it', c.dead && T.getSfxLog().includes('shatter'), c.state);
-      // the seraph: blind while veiled, swoops when it sees you unveiled, lockers hide you
-      Game.stage = 2; GrabPack.reset(); Enemies.reset();
-      for (const cc of Enemies.cherubs) cc.dead = true;
-      T.setPlayerPose(0, 0, -35, 0, 0); T.step(DT, 3);
+      Game.stage = 2; Monster.reset(); Player.health = 100; Cast.plush.hidden = true; Cast.plush.mode = 'WAIT';
+      for (const tr of Level.triggers) if (tr.action === 'enterGallery') tr.fired = true;
+      const c = Enemies.cherubs.find(cc => cc.sector === 2);
       const S = Enemies.seraph;
-      check('seraph: wakes in the gallery and patrols veiled', S.active && S.state === 'PATROL' && S.unveil < 0.2, S.state);
-      V3.set(S.pos, 0, 0.35, -40); S.nextUnveil = 0; T.step(DT, 2);
-      check('seraph: wings tremble and a hum warns before it unveils', S.state === 'WARN' && T.getSfxLog().includes('seraphHum'), S.state);
-      T.step(DT, 120);
-      check('seraph: sees you with its face open and swoops', S.state === 'SWOOP' || S.state === 'RECOVER', S.state);
-      for (let i = 0; i < 200 && S.state === 'SWOOP'; i++) T.step(DT, 1);
-      check('seraph: its strike hurts', Player.health < 80, Player.health.toFixed(1));
+      // it sits facing the wall; the seraph prowls up in the rafters
+      T.setPlayerPose(0, 0, -34, 0, 0); T.step(DT, 4);
+      check('cherub: sits facing the wall, music box playing', c.state === 'SIT' && c.head === 0, c.state);
+      check('seraph: prowls high in the rafters (red eye)', S.active && S.state === 'PROWL' && S.pos[1] > 2, S.state + ' y=' + S.pos[1].toFixed(2));
+      // walk up within 5 m: the head snaps round 180 degrees, siren, the seraph drops
+      V3.set(S.pos, c.home[0] + 6, S.pos[1], c.home[2]); S.cool = 0;
+      T.setPlayerPose(c.home[0] + 3.5, 0, c.home[2], 0, 0); T.step(DT, 2);
+      check('cherub: within 5 m its head snaps 180 degrees and it sirens', c.state === 'ALERT' && Math.abs(Math.abs(c.head) - Math.PI) < 1.2 && T.getSfxLog().includes('cherubSiren'), c.state + ' ' + c.head.toFixed(2));
+      check('cherub: the siren brings Seraphim Sam down', S.state === 'DROP' || S.state === 'CHASE', S.state);
+      T.step(DT, 140);
+      check('cherub: it drags itself into a vent and never attacks', (c.state === 'FLEE' || c.state === 'GONE') && Player.health >= 100 - 1e-6 || S.state !== 'CHASE', c.state + ' hp ' + Player.health.toFixed(0));
+      for (let i = 0; i < 200 && c.state !== 'GONE'; i++) T.step(DT, 1);
+      check('cherub: gone into the vent', c.state === 'GONE', c.state);
+      // the chase: PA voice, strike damage, then it climbs back up
       Player.health = 100;
-      // hidden in a locker it cannot see you
+      S.state = 'CHASE'; S.pos[1] = 0; S.lostT = 0; S.lineT = 0; V3.set(S.pos, Player.body.pos[0] + 4, 0, Player.body.pos[2]); Dialogue.clear();
+      T.step(DT, 4);
+      check('seraph: booms over its PA while it chases', Dialogue.busy() && Dialogue.current.speaker === 'SERAPH', Dialogue.current ? Dialogue.current.speaker : 'none');
+      for (let i = 0; i < 200 && S.state === 'CHASE'; i++) T.step(DT, 1);
+      check('seraph: its harvest strike hurts', Player.health < 80 && T.getSfxLog().includes('seraphStrike'), Player.health.toFixed(1));
+      for (let i = 0; i < 200 && S.state !== 'PROWL'; i++) T.step(DT, 1);
+      check('seraph: then climbs back into the rafters', S.state === 'PROWL' && S.pos[1] > 2, S.state);
+      // holding your light on its face for 2 s brings it down
+      Player.health = 100; S.cool = 0; V3.set(S.pos, 0, S.pos[1], -40); S.wp = 0;
+      T.setPlayerPose(0, 0, -34.5, 0, 0);
+      for (let i = 0; i < 160 && S.state === 'PROWL'; i++) { T.aimAt(S.face[0], S.face[1], S.face[2]); T.step(DT, 1); }
+      check('seraph: your light on its face for 2 s brings it down', S.state === 'DROP' || S.state === 'CHASE', S.state + ' lit ' + S.litT.toFixed(2));
+      // a locker hides you; it loses you and climbs back
+      for (let i = 0; i < 60 && S.state !== 'CHASE'; i++) T.step(DT, 1);
       const L = Level.lockers.find(l => l.sector === 2);
-      T.setPlayerPose(L.front[0], 0, L.front[2], L.yaw + Math.PI, 0); T.step(DT, 2); Game.enterLocker(L); T.step(DT, 30);
-      S.state = 'PATROL'; S.nextUnveil = 0; V3.set(S.pos, L.pos[0] + 2, 0.35, L.pos[2]); T.step(DT, 140);
-      check('seraph: cannot see you inside a locker', S.state !== 'SWOOP' && Player.health === 100, S.state);
+      T.setPlayerPose(L.front[0], 0, L.front[2], L.yaw + Math.PI, 0); T.step(DT, 1); Game.enterLocker(L); T.step(DT, 30);
+      const hp0 = Player.health;
+      for (let i = 0; i < 400 && S.state === 'CHASE'; i++) T.step(DT, 1);
+      check('seraph: cannot find you inside a locker - it climbs back', S.state !== 'CHASE' && Player.health === hp0, S.state);
       Game.leaveLocker(); T.step(DT, 30);
-      // a charged hand drives it back behind its wings
+      // a charged hand stuns it for a long while
+      Player.health = 100; Game.invulnerable = true;
       { const h0 = GrabPack.hands[0]; GrabPack.reset(); h0.state = HAND.LATCHED; h0.tethered = true; h0.latchKind = 'source'; }
-      S.state = 'UNVEIL'; S.timer = 0; V3.set(S.pos, Player.body.pos[0], 0.35, Player.body.pos[2] - 5); Game.invulnerable = true;
-      T.aimAt(S.pos[0], S.pos[1] + 1.7, S.pos[2]); click(1); T.step(DT, 12);
-      check('seraph: a charged hand shocks it back behind its wings', S.state === 'RECOIL' && S.unveil < 0.5, S.state);
+      S.state = 'CHASE'; S.pos[1] = 0; S.lostT = 0; V3.set(S.pos, Player.body.pos[0], 0, Player.body.pos[2] - 5); S.yaw = Math.PI;
+      T.aimAt(S.pos[0], 1.9, S.pos[2]); click(1); T.step(DT, 12);
+      check('seraph: a charged hand stuns it for a long while', S.state === 'STUNNED' && S.stun > 4, S.state + ' ' + S.stun.toFixed(2));
       Game.invulnerable = false; GrabPack.reset(); Enemies.disabled = true; Cast.plush.hidden = false;
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }

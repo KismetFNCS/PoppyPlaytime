@@ -130,8 +130,8 @@ const Lights = {
     L.radius = radius; L.base = intensity; L.dur = dur; L.t = 0; L.flicker = flicker || 0; L.alive = true;
     L.sector = Level.sectorAt(pos[0], pos[2]);
   },
-  // the seraph's halo-face blazing when its wings part (linear RGB, warm white)
-  seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.85, 0.55]), current: 0, base: 4.0, radius: 9, scatter: 0.35, fixture: 'none', sector: 2 },
+  // Seraphim Sam's red camera-eye (linear RGB, deep red)
+  seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.06, 0.04]), current: 0, base: 1.6, radius: 3.5, scatter: 0.4, fixture: 'none', sector: 2 },
   // sickly glow inside the toxic lint smog (linear RGB, yellow-green)
   gasGlow: { pos: V3.create(-7.3, 1.6, -43.6), color: new Float32Array([0.55, 0.75, 0.12]), current: 0, base: 2.2, radius: 6.5, scatter: 0.6, fixture: 'none', sector: 2 },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
@@ -177,9 +177,9 @@ const Lights = {
       list.items[list.count++] = L;
     }
     const SG = this.seraphGlow, SE = Enemies.seraph;
-    if (SE.active && SE.unveil > 0.05 && sectorVisible[2] && Game.isGameplay()) {
-      V3.set(SG.pos, SE.pos[0], SE.pos[1] + 2.05, SE.pos[2]);
-      SG.current = SG.base * SE.unveil;
+    if (SE.active && sectorVisible[2] && Game.isGameplay()) {
+      V3.copy(SG.pos, SE.eye); SG.pos[1] -= 0.05;
+      SG.current = SG.base * SE.eyeGlow;
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = SG;
     }

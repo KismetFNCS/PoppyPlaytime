@@ -569,7 +569,9 @@ const SPEAKERS = {
   USHER: { name: 'THE USHER  (PA)', color: '#3fd4a8', pitch: 105, wobble: 0.04 },
   THIMBLE: { name: 'MISTER THIMBLE', color: '#b98cff', pitch: 170, wobble: 0.25 },
   PIP: { name: 'PIP', color: '#7dff6a', pitch: 620, wobble: 0.15 },
-  SPOOLWRIGHT: { name: 'THE SPOOLWRIGHT', color: '#ff3b2e', pitch: 72, wobble: 0.35 }
+  SPOOLWRIGHT: { name: 'THE SPOOLWRIGHT', color: '#ff3b2e', pitch: 72, wobble: 0.35 },
+  CHERUB: { name: 'CHERUB CHEEKS', color: '#e8c35a', pitch: 760, wobble: 0.4 },
+  SERAPH: { name: 'SERAPHIM SAM  (PA)', color: '#ff3b2e', pitch: 60, wobble: 0.1 }
 };
 // Source: [ASSUMED] speaker label colours reuse documented cast/VHS palette entries (#e8c35a, #3fd4a8, #b98cff, #7dff6a, #ff3b2e).
 // Spoken voices (the browser's speech synthesis), shaped per character. Stage directions in brackets are
@@ -579,7 +581,9 @@ const VOICE_PROFILES = {
   MARIGOLD: { pitch: 1.85, rate: 0.86, volume: 0.85, pick: 2 },
   USHER: { pitch: 0.45, rate: 0.84, volume: 0.85, pick: 0 },
   PIP: { pitch: 2.0, rate: 1.25, volume: 0.8, pick: 3 },
-  SPOOLWRIGHT: { pitch: 0.15, rate: 0.8, volume: 1.0, pick: 0 }
+  SPOOLWRIGHT: { pitch: 0.15, rate: 0.8, volume: 1.0, pick: 0 },
+  CHERUB: { pitch: 2.0, rate: 0.7, volume: 0.5, pick: 2 },
+  SERAPH: { pitch: 0.05, rate: 0.85, volume: 1.0, pick: 0 }
 };
 const Voices = {
   ok: typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined',

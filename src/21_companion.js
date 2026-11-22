@@ -24,8 +24,8 @@ const COMPANION_LINES = {
   dark: ['Wait! Stop... it\'s too dark like this. Stick close behind me - my eye can throw enough purple light to show the floor.'],
   idle: ['Find anything interesting back there? Let me guess... rusted screws and old lint? Yeah. This place is a goldmine for junk.'],
   bump: ['Whoa - easy! You okay? That one sounded like it hurt.', 'Careful! The floors in here bite back.'],
-  seraph: ['Its wings are opening - get out of sight! Don\'t let it see you!'],
-  cherubs: ['Cherubs! Shine your light right at them - they hate it! Or give them a whack!'],
+  seraph: ['It\'s coming down! Run - find a locker!'],
+  cherubs: ['Shh... stay away from the dolls. If one of them screams, the thing up in the rafters comes down.'],
   threat: ['Shh! Do you hear that scraping up in the rafters? It\'s tracking the sound of your cables!',
     'Hide in a locker - quickly! I\'ll slip into the vents!'],
   safe: ['...Is it gone? Phew. My stuffing nearly jumped out of my seams.'],
@@ -135,10 +135,12 @@ const Companion = {
     }
     // the seraph opening its wings, or cherubs creeping close
     const S = Enemies.seraph;
-    if (S.active && S.state === 'WARN' && this.lineCool.seraph <= 0 && Math.hypot(S.pos[0] - b[0], S.pos[2] - b[2]) < 16) {
-      this.lineCool.seraph = 25; Dialogue.clear(); this.sayLines('THIMBLE', COMPANION_LINES.seraph);
+    if (S.active && S.state === 'DROP' && this.lineCool.seraph <= 0) {
+      this.lineCool.seraph = 25; this.sayLines('THIMBLE', COMPANION_LINES.seraph);
+      P.mode = 'HIDE'; P.hidden = true; this.hideTimer = 0;
+      return;
     }
-    if (this.lineCool.cherubs <= 0 && Enemies.cherubs.some(c => !c.dead && c.state === 'CREEP' && Math.hypot(c.pos[0] - b[0], c.pos[2] - b[2]) < 6)) {
+    if (this.lineCool.cherubs <= 0 && Enemies.cherubs.some(c => !c.dead && c.state === 'SIT' && Streaming.visible[c.sector] && Math.hypot(c.pos[0] - b[0], c.pos[2] - b[2]) < 10)) {
       this.lineCool.cherubs = 60; if (!Dialogue.busy()) this.sayLines('THIMBLE', COMPANION_LINES.cherubs);
     }
     this.calm = threat || Enemies.danger() ? 0 : this.calm + dt;
@@ -178,7 +180,8 @@ const Companion = {
 
   updateHide(dt) {
     const P = Cast.plush, M = Monster;
-    const gone = !M.active || M.inVent || V3.dist(M.pos, Player.body.pos) > 22;
+    const SE = Enemies.seraph;
+    const gone = (!M.active || M.inVent || V3.dist(M.pos, Player.body.pos) > 22) && !(SE.active && (SE.state === 'CHASE' || SE.state === 'DROP'));
     this.hideTimer = gone ? this.hideTimer + dt : 0;
     if (this.hideTimer > 4 && !Player.hidden) {
       const back = this.trailPoint(3, this.tmp);

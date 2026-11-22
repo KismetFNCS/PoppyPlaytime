@@ -585,6 +585,48 @@ const SFX = {
   },
   cherubShriek(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.8); Audio.tone(t, 'sawtooth', 1400, 2600, 0.3, 0.08, out); Audio.ring(t, [2300, 4100], 0.3, 0.06, out); },
   cherubBite(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.ring(t, [2800, 5200], 0.08, 0.2, out); Audio.noise(t, 0.06, 0.3, 1500, 'bandpass', out, 2); },
+  // Cherub Cheeks: a warped, backwards music box over a muffled mechanical whimper (through a tinny chest speaker)
+  musicBox(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 3, 0.9);
+    const NOTES = [1318, 1175, 1047, 988, 1047, 880, 784];
+    for (let k = 0; k < NOTES.length; k++) {
+      const s0 = t + k * 0.32, f = NOTES[k] * (1 + Math.sin(k * 1.7) * 0.012);
+      const o = Audio.ctx.createOscillator(), g = Audio.ctx.createGain(), bp = Audio.ctx.createBiquadFilter();
+      o.type = 'triangle'; o.frequency.value = f; bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.7;
+      // reversed envelope: swells in and cuts off
+      g.gain.setValueAtTime(0.0001, s0); g.gain.exponentialRampToValueAtTime(0.06, s0 + 0.28); g.gain.setValueAtTime(0.0001, s0 + 0.3);
+      o.connect(bp); bp.connect(g); g.connect(out); o.start(s0); o.stop(s0 + 0.32);
+    }
+    Audio.tone(t + 0.4, 'sawtooth', 300, 220, 1.2, 0.025, out, 0.4);
+    Audio.noise(t, 2.3, 0.02, 3000, 'bandpass', out, 1);
+  },
+  // the air-raid siren: a plastic snap, then a deafening, wavering mechanical wail
+  cherubSiren(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 8, 0.25);
+    Audio.ring(t, [2400, 5200], 0.08, 0.3, out);
+    for (const [f, d] of [[620, 1], [930, 1.003]]) {
+      const o = Audio.ctx.createOscillator(), g = Audio.ctx.createGain();
+      o.type = 'square'; o.frequency.setValueAtTime(f * 0.7, t + 0.05);
+      for (let k = 0; k < 4; k++) { o.frequency.linearRampToValueAtTime(f * 1.25 * d, t + 0.35 + k * 0.6); o.frequency.linearRampToValueAtTime(f * 0.8, t + 0.65 + k * 0.6); }
+      g.gain.setValueAtTime(0.0001, t + 0.05); g.gain.exponentialRampToValueAtTime(0.16, t + 0.12); g.gain.setValueAtTime(0.16, t + 2.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.7);
+      o.connect(g); g.connect(out); o.start(t + 0.05); o.stop(t + 2.75);
+    }
+  },
+  // plastic dragging fast over a metal vent, and a sped-up glitched baby laugh
+  cherubFlee(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 3, 0.8);
+    for (let k = 0; k < 10; k++) Audio.noise(t + k * 0.09, 0.07, 0.15, 2200, 'bandpass', out, 3);
+    for (let k = 0; k < 5; k++) Audio.tone(t + 0.3 + k * 0.07, 'triangle', 1300 + (k % 2) * 300, 1000, 0.06, 0.05, out);
+  },
+  // Seraphim Sam: metal scraping overhead, a crashing landing, and the harvest strike (static + grinding)
+  ceilingScrape(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.6); Audio.noise(t, 0.9, 0.1, 1800, 'bandpass', out, 6); Audio.tone(t, 'sawtooth', 70, 62, 0.9, 0.03, out); },
+  seraphLand(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.4); Audio.tone(t, 'sine', 90, 30, 0.6, 0.9, out); Audio.noise(t, 0.4, 0.6, 700, 'lowpass', out); for (let k = 0; k < 6; k++) Audio.ring(t + k * 0.05, [Audio.vary(1900), Audio.vary(4200)], 0.3, 0.05, out); },
+  seraphStrike(t) {
+    const out = Audio.buses.scare;
+    Audio.noise(t, 0.6, 0.55, 6000, 'highpass', out);
+    Audio.noise(t, 0.6, 0.4, 1200, 'bandpass', out, 0.6);
+    for (let k = 0; k < 8; k++) Audio.tone(t + k * 0.06, 'square', 120 + (k % 3) * 40, 60, 0.06, 0.12, out);
+  },
   // porcelain shattering
   shatter(t, pos) {
     const out = Audio.dest(pos, 'sfx', 3, 0.8);

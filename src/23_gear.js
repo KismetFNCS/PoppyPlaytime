@@ -241,9 +241,7 @@ const Gear = {
     const P = Renderer.post; P.flash = 0.25; P.flashTint[0] = 0.8; P.flashTint[1] = 0.65; P.flashTint[2] = 1.0;
     if (Monster.active && Monster.visible && V3.dist(Monster.pos, pos) < 7 && !Boss.active) { Monster.stunTimer = Math.max(Monster.stunTimer, 2.6); Monster.setState(MSTATE.STUNNED); }
     else if (Boss.active && V3.dist(Monster.pos, pos) < 7) Monster.stunTimer = Math.max(Monster.stunTimer, 1.2);
-    const S = Enemies.seraph;
-    if (S.active && V3.dist(S.pos, pos) < 9) { S.state = 'RECOIL'; S.timer = -1.5; S.unveil = 0; }
-    for (const c of Enemies.cherubs) if (!c.dead && V3.dist(c.pos, pos) < 7) { c.state = 'SCARED'; c.timer = 5; }
+    Enemies.burst(pos);
   },
 
   // ---------- rendering ----------

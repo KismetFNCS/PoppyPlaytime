@@ -21,12 +21,6 @@ function btCondition(fn) { return { tick(ctx) { return fn(ctx) ? BT.SUCCESS : BT
 function btAction(fn) { return { tick(ctx) { return fn(ctx); } }; }
 
 const LEG_COUNT = 6;
-// pincushion pins: direction (x, y, z) on the cushion and a head colour index
-const PINS = new Float32Array([
-  -0.6, 0.8, -0.2, 0, 0.3, 0.9, 0.1, 1, 0.7, 0.6, 0.3, 2, -0.2, 0.7, 0.7, 3, 0.1, 0.95, -0.5, 4,
-  -0.8, 0.5, 0.4, 2, 0.55, 0.75, -0.45, 3, 0.0, 1.0, 0.15, 0, -0.4, 0.85, -0.6, 1
-]);
-const PIN_COLORS = [[1.25, 0.32, 0.3], [0.32, 0.9, 1.2], [1.3, 1.05, 0.35], [0.45, 1.15, 0.45], [1.15, 0.5, 1.1]];
 const TAPE_SEGS = 16;
 // fur sac tufts: local x, y, z, radius, blue (1) or violet (0)
 // stolen plush arms: shoulder attachment points (local) and per-arm fur tint (teal, rose, pink)
@@ -478,7 +472,7 @@ const Monster = {
   },
   updateCreep(dt) {
     const eye = Player.cam.eye;
-    this.bodyPoint(this.head, Math.sin(this.headTilt) * 0.15, 2.72, -0.74);
+    this.bodyPoint(this.head, Math.sin(this.headTilt) * 0.15, 3.08, -0.74);
     V3.sub(this.tmp, this.head, eye);
     const l = V3.len(this.tmp) || 1;
     const seen = V3.dot(this.tmp, Renderer.camFwd) / l > 0.6 && Enemies.clearLine(eye, this.head);
@@ -597,19 +591,6 @@ const Monster = {
       it = R.push('sp_body', MAT.furViolet);
       if (it) M4.compose(it.model, this.pos[0], this.pos[1] + 1.35 + this.bodyBob, this.pos[2], yaw, lean, 0, 1, 1, 1);
     }
-    // plush pincushion strapped high on the back, bristling with oversized novelty pins
-    if (Sculpt.ready('sp_pincushion')) {
-      this.bodyPoint(B, 0, 2.12, 1.22);
-      it = R.push('sp_pincushion', MAT.clothWine);
-      if (it) M4.compose(it.model, B[0], B[1], B[2], yaw, lean - 0.25, 0, 1, 1, 1);
-      for (let k = 0; k < PINS.length; k += 4) {
-        this.bodyPoint(H, PINS[k] * 0.3, 2.12 + PINS[k + 1] * 0.2, 1.22 + PINS[k + 2] * 0.27);
-        this.bodyPoint(X, PINS[k] * 0.62, 2.12 + PINS[k + 1] * 0.62 + 0.18, 1.22 + PINS[k + 2] * 0.6);
-        R.seg('cylLow', MAT.steel, H, X, 0.008);
-        const hd = R.trs('sphereLow', MAT.porcelain, X[0], X[1], X[2], 0, 0, 0, 0.035, 0.035, 0.035);
-        if (hd) { const c = PIN_COLORS[PINS[k + 3] | 0]; hd.tint[0] = c[0]; hd.tint[1] = c[1]; hd.tint[2] = c[2]; }
-      }
-    }
     // yellow measuring tape trailing from the rear like a shredded tail
     this.bodyPoint(B, 0, 1.3, 1.85);
     V3.copy(_mh.tapePrev, B);
@@ -703,7 +684,7 @@ const Monster = {
     // ---- neck: segmented cable bundle up to the mask ----
     this.bodyPoint(B, 0, 2.24, -0.5);
     const hx = Math.sin(this.headTilt) * 0.15;
-    this.bodyPoint(this.head, hx, 2.72 + this.flinchAmt * 0.2, -0.74);
+    this.bodyPoint(this.head, hx, 3.08 + this.flinchAmt * 0.2, -0.74);
     for (let k = 1; k < 4; k++) { V3.lerp(X, B, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
     R.seg('cyl', MAT.rubber, B, this.head, 0.05);
     for (const off of [-0.05, 0.05]) {

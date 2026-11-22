@@ -633,7 +633,7 @@ const Game = {
     Monster.pos[0] = Player.eyePos[0] + fx * (dist + 0.8);
     Monster.pos[2] = Player.eyePos[2] + fz * (dist + 0.8);
     Monster.pos[1] = Math.max(0, Player.eyePos[1] - (Monster.kill.on ? 2.6 : 2.35));
-    Monster.bodyPoint(Monster.head, 0, 2.55, -0.8);
+    Monster.bodyPoint(Monster.head, 0, 2.93, -0.8);
   },
   updateJumpscare(dt) {
     this.jumpTimer += dt;

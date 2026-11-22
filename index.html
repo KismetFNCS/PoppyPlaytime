@@ -4085,8 +4085,8 @@ const Lights = {
     L.radius = radius; L.base = intensity; L.dur = dur; L.t = 0; L.flicker = flicker || 0; L.alive = true;
     L.sector = Level.sectorAt(pos[0], pos[2]);
   },
-  // the seraph's halo-face blazing when its wings part (linear RGB, warm white)
-  seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.85, 0.55]), current: 0, base: 4.0, radius: 9, scatter: 0.35, fixture: 'none', sector: 2 },
+  // Seraphim Sam's red camera-eye (linear RGB, deep red)
+  seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.06, 0.04]), current: 0, base: 1.6, radius: 3.5, scatter: 0.4, fixture: 'none', sector: 2 },
   // sickly glow inside the toxic lint smog (linear RGB, yellow-green)
   gasGlow: { pos: V3.create(-7.3, 1.6, -43.6), color: new Float32Array([0.55, 0.75, 0.12]), current: 0, base: 2.2, radius: 6.5, scatter: 0.6, fixture: 'none', sector: 2 },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
@@ -4132,9 +4132,9 @@ const Lights = {
       list.items[list.count++] = L;
     }
     const SG = this.seraphGlow, SE = Enemies.seraph;
-    if (SE.active && SE.unveil > 0.05 && sectorVisible[2] && Game.isGameplay()) {
-      V3.set(SG.pos, SE.pos[0], SE.pos[1] + 2.05, SE.pos[2]);
-      SG.current = SG.base * SE.unveil;
+    if (SE.active && sectorVisible[2] && Game.isGameplay()) {
+      V3.copy(SG.pos, SE.eye); SG.pos[1] -= 0.05;
+      SG.current = SG.base * SE.eyeGlow;
       if (list.count >= list.items.length) list.items.push(null);
       list.items[list.count++] = SG;
     }
@@ -4326,12 +4326,6 @@ function btCondition(fn) { return { tick(ctx) { return fn(ctx) ? BT.SUCCESS : BT
 function btAction(fn) { return { tick(ctx) { return fn(ctx); } }; }
 
 const LEG_COUNT = 6;
-// pincushion pins: direction (x, y, z) on the cushion and a head colour index
-const PINS = new Float32Array([
-  -0.6, 0.8, -0.2, 0, 0.3, 0.9, 0.1, 1, 0.7, 0.6, 0.3, 2, -0.2, 0.7, 0.7, 3, 0.1, 0.95, -0.5, 4,
-  -0.8, 0.5, 0.4, 2, 0.55, 0.75, -0.45, 3, 0.0, 1.0, 0.15, 0, -0.4, 0.85, -0.6, 1
-]);
-const PIN_COLORS = [[1.25, 0.32, 0.3], [0.32, 0.9, 1.2], [1.3, 1.05, 0.35], [0.45, 1.15, 0.45], [1.15, 0.5, 1.1]];
 const TAPE_SEGS = 16;
 // fur sac tufts: local x, y, z, radius, blue (1) or violet (0)
 // stolen plush arms: shoulder attachment points (local) and per-arm fur tint (teal, rose, pink)
@@ -4783,7 +4777,7 @@ const Monster = {
   },
   updateCreep(dt) {
     const eye = Player.cam.eye;
-    this.bodyPoint(this.head, Math.sin(this.headTilt) * 0.15, 2.72, -0.74);
+    this.bodyPoint(this.head, Math.sin(this.headTilt) * 0.15, 3.08, -0.74);
     V3.sub(this.tmp, this.head, eye);
     const l = V3.len(this.tmp) || 1;
     const seen = V3.dot(this.tmp, Renderer.camFwd) / l > 0.6 && Enemies.clearLine(eye, this.head);
@@ -4902,19 +4896,6 @@ const Monster = {
       it = R.push('sp_body', MAT.furViolet);
       if (it) M4.compose(it.model, this.pos[0], this.pos[1] + 1.35 + this.bodyBob, this.pos[2], yaw, lean, 0, 1, 1, 1);
     }
-    // plush pincushion strapped high on the back, bristling with oversized novelty pins
-    if (Sculpt.ready('sp_pincushion')) {
-      this.bodyPoint(B, 0, 2.12, 1.22);
-      it = R.push('sp_pincushion', MAT.clothWine);
-      if (it) M4.compose(it.model, B[0], B[1], B[2], yaw, lean - 0.25, 0, 1, 1, 1);
-      for (let k = 0; k < PINS.length; k += 4) {
-        this.bodyPoint(H, PINS[k] * 0.3, 2.12 + PINS[k + 1] * 0.2, 1.22 + PINS[k + 2] * 0.27);
-        this.bodyPoint(X, PINS[k] * 0.62, 2.12 + PINS[k + 1] * 0.62 + 0.18, 1.22 + PINS[k + 2] * 0.6);
-        R.seg('cylLow', MAT.steel, H, X, 0.008);
-        const hd = R.trs('sphereLow', MAT.porcelain, X[0], X[1], X[2], 0, 0, 0, 0.035, 0.035, 0.035);
-        if (hd) { const c = PIN_COLORS[PINS[k + 3] | 0]; hd.tint[0] = c[0]; hd.tint[1] = c[1]; hd.tint[2] = c[2]; }
-      }
-    }
     // yellow measuring tape trailing from the rear like a shredded tail
     this.bodyPoint(B, 0, 1.3, 1.85);
     V3.copy(_mh.tapePrev, B);
@@ -5008,7 +4989,7 @@ const Monster = {
     // ---- neck: segmented cable bundle up to the mask ----
     this.bodyPoint(B, 0, 2.24, -0.5);
     const hx = Math.sin(this.headTilt) * 0.15;
-    this.bodyPoint(this.head, hx, 2.72 + this.flinchAmt * 0.2, -0.74);
+    this.bodyPoint(this.head, hx, 3.08 + this.flinchAmt * 0.2, -0.74);
     for (let k = 1; k < 4; k++) { V3.lerp(X, B, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
     R.seg('cyl', MAT.rubber, B, this.head, 0.05);
     for (const off of [-0.05, 0.05]) {
@@ -5812,6 +5793,48 @@ const SFX = {
   },
   cherubShriek(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.8); Audio.tone(t, 'sawtooth', 1400, 2600, 0.3, 0.08, out); Audio.ring(t, [2300, 4100], 0.3, 0.06, out); },
   cherubBite(t, pos) { const out = Audio.dest(pos, 'sfx', 2, 1); Audio.ring(t, [2800, 5200], 0.08, 0.2, out); Audio.noise(t, 0.06, 0.3, 1500, 'bandpass', out, 2); },
+  // Cherub Cheeks: a warped, backwards music box over a muffled mechanical whimper (through a tinny chest speaker)
+  musicBox(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 3, 0.9);
+    const NOTES = [1318, 1175, 1047, 988, 1047, 880, 784];
+    for (let k = 0; k < NOTES.length; k++) {
+      const s0 = t + k * 0.32, f = NOTES[k] * (1 + Math.sin(k * 1.7) * 0.012);
+      const o = Audio.ctx.createOscillator(), g = Audio.ctx.createGain(), bp = Audio.ctx.createBiquadFilter();
+      o.type = 'triangle'; o.frequency.value = f; bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.7;
+      // reversed envelope: swells in and cuts off
+      g.gain.setValueAtTime(0.0001, s0); g.gain.exponentialRampToValueAtTime(0.06, s0 + 0.28); g.gain.setValueAtTime(0.0001, s0 + 0.3);
+      o.connect(bp); bp.connect(g); g.connect(out); o.start(s0); o.stop(s0 + 0.32);
+    }
+    Audio.tone(t + 0.4, 'sawtooth', 300, 220, 1.2, 0.025, out, 0.4);
+    Audio.noise(t, 2.3, 0.02, 3000, 'bandpass', out, 1);
+  },
+  // the air-raid siren: a plastic snap, then a deafening, wavering mechanical wail
+  cherubSiren(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 8, 0.25);
+    Audio.ring(t, [2400, 5200], 0.08, 0.3, out);
+    for (const [f, d] of [[620, 1], [930, 1.003]]) {
+      const o = Audio.ctx.createOscillator(), g = Audio.ctx.createGain();
+      o.type = 'square'; o.frequency.setValueAtTime(f * 0.7, t + 0.05);
+      for (let k = 0; k < 4; k++) { o.frequency.linearRampToValueAtTime(f * 1.25 * d, t + 0.35 + k * 0.6); o.frequency.linearRampToValueAtTime(f * 0.8, t + 0.65 + k * 0.6); }
+      g.gain.setValueAtTime(0.0001, t + 0.05); g.gain.exponentialRampToValueAtTime(0.16, t + 0.12); g.gain.setValueAtTime(0.16, t + 2.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.7);
+      o.connect(g); g.connect(out); o.start(t + 0.05); o.stop(t + 2.75);
+    }
+  },
+  // plastic dragging fast over a metal vent, and a sped-up glitched baby laugh
+  cherubFlee(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 3, 0.8);
+    for (let k = 0; k < 10; k++) Audio.noise(t + k * 0.09, 0.07, 0.15, 2200, 'bandpass', out, 3);
+    for (let k = 0; k < 5; k++) Audio.tone(t + 0.3 + k * 0.07, 'triangle', 1300 + (k % 2) * 300, 1000, 0.06, 0.05, out);
+  },
+  // Seraphim Sam: metal scraping overhead, a crashing landing, and the harvest strike (static + grinding)
+  ceilingScrape(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.6); Audio.noise(t, 0.9, 0.1, 1800, 'bandpass', out, 6); Audio.tone(t, 'sawtooth', 70, 62, 0.9, 0.03, out); },
+  seraphLand(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.4); Audio.tone(t, 'sine', 90, 30, 0.6, 0.9, out); Audio.noise(t, 0.4, 0.6, 700, 'lowpass', out); for (let k = 0; k < 6; k++) Audio.ring(t + k * 0.05, [Audio.vary(1900), Audio.vary(4200)], 0.3, 0.05, out); },
+  seraphStrike(t) {
+    const out = Audio.buses.scare;
+    Audio.noise(t, 0.6, 0.55, 6000, 'highpass', out);
+    Audio.noise(t, 0.6, 0.4, 1200, 'bandpass', out, 0.6);
+    for (let k = 0; k < 8; k++) Audio.tone(t + k * 0.06, 'square', 120 + (k % 3) * 40, 60, 0.06, 0.12, out);
+  },
   // porcelain shattering
   shatter(t, pos) {
     const out = Audio.dest(pos, 'sfx', 3, 0.8);
@@ -7367,7 +7390,7 @@ const Game = {
     Monster.pos[0] = Player.eyePos[0] + fx * (dist + 0.8);
     Monster.pos[2] = Player.eyePos[2] + fz * (dist + 0.8);
     Monster.pos[1] = Math.max(0, Player.eyePos[1] - (Monster.kill.on ? 2.6 : 2.35));
-    Monster.bodyPoint(Monster.head, 0, 2.55, -0.8);
+    Monster.bodyPoint(Monster.head, 0, 2.93, -0.8);
   },
   updateJumpscare(dt) {
     this.jumpTimer += dt;
@@ -8495,52 +8518,55 @@ async function runAll() {
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
 
-    // ---------------- cherubs and the seraph ----------------
+    // ---------------- Cherub Cheeks and Seraphim Sam ----------------
     {
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE); Enemies.disabled = false; Enemies.reset();
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
-      Game.stage = 1; Monster.reset(); Player.health = 100; Cast.plush.hidden = true; Cast.plush.mode = 'WAIT';
-      const c = Enemies.cherubs[0];
-      // flashlight pointed away: it wakes and creeps closer
-      T.setPlayerPose(c.home[0] + 5, 0, c.home[2], 0, 0); T.aimAt(c.home[0] + 12, 1.5, c.home[2]); Player.flashOn = true; T.step(DT, 4);
-      const d0 = Math.hypot(c.pos[0] - Player.body.pos[0], c.pos[2] - Player.body.pos[2]);
-      T.step(DT, 40);
-      check('cherub: wakes and creeps toward you in the dark', c.state === 'CREEP' && Math.hypot(c.pos[0] - Player.body.pos[0], c.pos[2] - Player.body.pos[2]) < d0 - 1, c.state);
-      // turn the light on it: it shrieks and scatters
-      T.aimAt(c.pos[0], c.pos[1] + 0.3, c.pos[2]); for (let i = 0; i < 20 && c.state !== 'SCARED'; i++) { T.aimAt(c.pos[0], c.pos[1] + 0.3, c.pos[2]); T.step(DT, 1); }
-      check('cherub: scatters from the flashlight beam', c.state === 'SCARED' && T.getSfxLog().includes('cherubShriek'), c.state);
-      // let it reach you in the dark: it bites
-      Player.flashOn = false;
-      for (let i = 0; i < 300 && Player.health >= 100; i++) T.step(DT, 1);
-      check('cherub: bites when it reaches you', Player.health < 100 && T.getSfxLog().includes('cherubBite'), Player.health.toFixed(1));
-      Player.flashOn = true; Player.health = 100;
-      T.setPlayerPose(c.pos[0] + 3, 0, c.pos[2], 0, 0); T.aimAt(c.pos[0], c.pos[1] + 0.28, c.pos[2]); click(0);
-      for (let i = 0; i < 12 && !c.dead; i++) T.step(DT, 1);
-      check('cherub: a hand hit shatters it', c.dead && T.getSfxLog().includes('shatter'), c.state);
-      // the seraph: blind while veiled, swoops when it sees you unveiled, lockers hide you
-      Game.stage = 2; GrabPack.reset(); Enemies.reset();
-      for (const cc of Enemies.cherubs) cc.dead = true;
-      T.setPlayerPose(0, 0, -35, 0, 0); T.step(DT, 3);
+      Game.stage = 2; Monster.reset(); Player.health = 100; Cast.plush.hidden = true; Cast.plush.mode = 'WAIT';
+      for (const tr of Level.triggers) if (tr.action === 'enterGallery') tr.fired = true;
+      const c = Enemies.cherubs.find(cc => cc.sector === 2);
       const S = Enemies.seraph;
-      check('seraph: wakes in the gallery and patrols veiled', S.active && S.state === 'PATROL' && S.unveil < 0.2, S.state);
-      V3.set(S.pos, 0, 0.35, -40); S.nextUnveil = 0; T.step(DT, 2);
-      check('seraph: wings tremble and a hum warns before it unveils', S.state === 'WARN' && T.getSfxLog().includes('seraphHum'), S.state);
-      T.step(DT, 120);
-      check('seraph: sees you with its face open and swoops', S.state === 'SWOOP' || S.state === 'RECOVER', S.state);
-      for (let i = 0; i < 200 && S.state === 'SWOOP'; i++) T.step(DT, 1);
-      check('seraph: its strike hurts', Player.health < 80, Player.health.toFixed(1));
+      // it sits facing the wall; the seraph prowls up in the rafters
+      T.setPlayerPose(0, 0, -34, 0, 0); T.step(DT, 4);
+      check('cherub: sits facing the wall, music box playing', c.state === 'SIT' && c.head === 0, c.state);
+      check('seraph: prowls high in the rafters (red eye)', S.active && S.state === 'PROWL' && S.pos[1] > 2, S.state + ' y=' + S.pos[1].toFixed(2));
+      // walk up within 5 m: the head snaps round 180 degrees, siren, the seraph drops
+      V3.set(S.pos, c.home[0] + 6, S.pos[1], c.home[2]); S.cool = 0;
+      T.setPlayerPose(c.home[0] + 3.5, 0, c.home[2], 0, 0); T.step(DT, 2);
+      check('cherub: within 5 m its head snaps 180 degrees and it sirens', c.state === 'ALERT' && Math.abs(Math.abs(c.head) - Math.PI) < 1.2 && T.getSfxLog().includes('cherubSiren'), c.state + ' ' + c.head.toFixed(2));
+      check('cherub: the siren brings Seraphim Sam down', S.state === 'DROP' || S.state === 'CHASE', S.state);
+      T.step(DT, 140);
+      check('cherub: it drags itself into a vent and never attacks', (c.state === 'FLEE' || c.state === 'GONE') && Player.health >= 100 - 1e-6 || S.state !== 'CHASE', c.state + ' hp ' + Player.health.toFixed(0));
+      for (let i = 0; i < 200 && c.state !== 'GONE'; i++) T.step(DT, 1);
+      check('cherub: gone into the vent', c.state === 'GONE', c.state);
+      // the chase: PA voice, strike damage, then it climbs back up
       Player.health = 100;
-      // hidden in a locker it cannot see you
+      S.state = 'CHASE'; S.pos[1] = 0; S.lostT = 0; S.lineT = 0; V3.set(S.pos, Player.body.pos[0] + 4, 0, Player.body.pos[2]); Dialogue.clear();
+      T.step(DT, 4);
+      check('seraph: booms over its PA while it chases', Dialogue.busy() && Dialogue.current.speaker === 'SERAPH', Dialogue.current ? Dialogue.current.speaker : 'none');
+      for (let i = 0; i < 200 && S.state === 'CHASE'; i++) T.step(DT, 1);
+      check('seraph: its harvest strike hurts', Player.health < 80 && T.getSfxLog().includes('seraphStrike'), Player.health.toFixed(1));
+      for (let i = 0; i < 200 && S.state !== 'PROWL'; i++) T.step(DT, 1);
+      check('seraph: then climbs back into the rafters', S.state === 'PROWL' && S.pos[1] > 2, S.state);
+      // holding your light on its face for 2 s brings it down
+      Player.health = 100; S.cool = 0; V3.set(S.pos, 0, S.pos[1], -40); S.wp = 0;
+      T.setPlayerPose(0, 0, -34.5, 0, 0);
+      for (let i = 0; i < 160 && S.state === 'PROWL'; i++) { T.aimAt(S.face[0], S.face[1], S.face[2]); T.step(DT, 1); }
+      check('seraph: your light on its face for 2 s brings it down', S.state === 'DROP' || S.state === 'CHASE', S.state + ' lit ' + S.litT.toFixed(2));
+      // a locker hides you; it loses you and climbs back
+      for (let i = 0; i < 60 && S.state !== 'CHASE'; i++) T.step(DT, 1);
       const L = Level.lockers.find(l => l.sector === 2);
-      T.setPlayerPose(L.front[0], 0, L.front[2], L.yaw + Math.PI, 0); T.step(DT, 2); Game.enterLocker(L); T.step(DT, 30);
-      S.state = 'PATROL'; S.nextUnveil = 0; V3.set(S.pos, L.pos[0] + 2, 0.35, L.pos[2]); T.step(DT, 140);
-      check('seraph: cannot see you inside a locker', S.state !== 'SWOOP' && Player.health === 100, S.state);
+      T.setPlayerPose(L.front[0], 0, L.front[2], L.yaw + Math.PI, 0); T.step(DT, 1); Game.enterLocker(L); T.step(DT, 30);
+      const hp0 = Player.health;
+      for (let i = 0; i < 400 && S.state === 'CHASE'; i++) T.step(DT, 1);
+      check('seraph: cannot find you inside a locker - it climbs back', S.state !== 'CHASE' && Player.health === hp0, S.state);
       Game.leaveLocker(); T.step(DT, 30);
-      // a charged hand drives it back behind its wings
+      // a charged hand stuns it for a long while
+      Player.health = 100; Game.invulnerable = true;
       { const h0 = GrabPack.hands[0]; GrabPack.reset(); h0.state = HAND.LATCHED; h0.tethered = true; h0.latchKind = 'source'; }
-      S.state = 'UNVEIL'; S.timer = 0; V3.set(S.pos, Player.body.pos[0], 0.35, Player.body.pos[2] - 5); Game.invulnerable = true;
-      T.aimAt(S.pos[0], S.pos[1] + 1.7, S.pos[2]); click(1); T.step(DT, 12);
-      check('seraph: a charged hand shocks it back behind its wings', S.state === 'RECOIL' && S.unveil < 0.5, S.state);
+      S.state = 'CHASE'; S.pos[1] = 0; S.lostT = 0; V3.set(S.pos, Player.body.pos[0], 0, Player.body.pos[2] - 5); S.yaw = Math.PI;
+      T.aimAt(S.pos[0], 1.9, S.pos[2]); click(1); T.step(DT, 12);
+      check('seraph: a charged hand stuns it for a long while', S.state === 'STUNNED' && S.stun > 4, S.state + ' ' + S.stun.toFixed(2));
       Game.invulnerable = false; GrabPack.reset(); Enemies.disabled = true; Cast.plush.hidden = false;
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
@@ -9842,7 +9868,9 @@ const SPEAKERS = {
   USHER: { name: 'THE USHER  (PA)', color: '#3fd4a8', pitch: 105, wobble: 0.04 },
   THIMBLE: { name: 'MISTER THIMBLE', color: '#b98cff', pitch: 170, wobble: 0.25 },
   PIP: { name: 'PIP', color: '#7dff6a', pitch: 620, wobble: 0.15 },
-  SPOOLWRIGHT: { name: 'THE SPOOLWRIGHT', color: '#ff3b2e', pitch: 72, wobble: 0.35 }
+  SPOOLWRIGHT: { name: 'THE SPOOLWRIGHT', color: '#ff3b2e', pitch: 72, wobble: 0.35 },
+  CHERUB: { name: 'CHERUB CHEEKS', color: '#e8c35a', pitch: 760, wobble: 0.4 },
+  SERAPH: { name: 'SERAPHIM SAM  (PA)', color: '#ff3b2e', pitch: 60, wobble: 0.1 }
 };
 // Source: [ASSUMED] speaker label colours reuse documented cast/VHS palette entries (#e8c35a, #3fd4a8, #b98cff, #7dff6a, #ff3b2e).
 // Spoken voices (the browser's speech synthesis), shaped per character. Stage directions in brackets are
@@ -9852,7 +9880,9 @@ const VOICE_PROFILES = {
   MARIGOLD: { pitch: 1.85, rate: 0.86, volume: 0.85, pick: 2 },
   USHER: { pitch: 0.45, rate: 0.84, volume: 0.85, pick: 0 },
   PIP: { pitch: 2.0, rate: 1.25, volume: 0.8, pick: 3 },
-  SPOOLWRIGHT: { pitch: 0.15, rate: 0.8, volume: 1.0, pick: 0 }
+  SPOOLWRIGHT: { pitch: 0.15, rate: 0.8, volume: 1.0, pick: 0 },
+  CHERUB: { pitch: 2.0, rate: 0.7, volume: 0.5, pick: 2 },
+  SERAPH: { pitch: 0.05, rate: 0.85, volume: 1.0, pick: 0 }
 };
 const Voices = {
   ok: typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined',
@@ -10462,13 +10492,7 @@ const SCULPTS = {
     return SDF.mesh(n, [-0.12, -0.1, -0.1], [0.12, 1.05, 0.1], 64);
   },
   // Torn canvas hood that frames the mask
-  sp_pincushion: () => {
-    const W = MAT.clothWine, n = [{ t: 'ell', c: [0, 0, 0], r: [0.36, 0.24, 0.32], m: W, n: [0.006, 30] }];
-    for (let i = 0; i < 6; i++) n.push({ t: 'tor', c: [0, 0, 0], R: 0.33, r: 0.016, rot: [i / 6 * Math.PI, Math.PI / 2, 0], op: 's', k: 0.03, sm: W });
-    n.push({ t: 'cyl', c: [0, 0.22, 0], r: 0.05, h: 0.02, rr: 0.01, m: MAT.copper, k: 0.02 });
-    n.push({ t: 'cyl', c: [0, -0.2, 0], r: 0.16, h: 0.04, rr: 0.02, m: MAT.steel, k: 0.04 });
-    return SDF.mesh(n, [-0.42, -0.3, -0.38], [0.42, 0.3, 0.38], 56);
-  },
+
   // Battered tailor's top hat (base at y 0): dented black felt crown, curled brim, a measuring-tape band,
   // a spool of red thread tucked in the band, a torn hole and two pins stuck through the crown
   // Ragged patchwork hood worn under the hat (head origin, opening facing -z): rose cloth pieced with teal and
@@ -10518,12 +10542,17 @@ const SCULPTS = {
       const z = -Math.sqrt(Math.max(0.0001, 1 - (x / 0.23) ** 2 - (y / 0.32) ** 2)) * 0.15 - 0.005;
       n.push({ t: 'box', c: [x, y, Math.min(z, -0.1)], h: [0.05, 0.05, 0.012], rot: [Math.atan2(x, 0.3), 0, Math.PI / 4], m, k: 0.01, n: [0.006, 40] });
     }
-    // pleated ruff around the neck, alternating teal and ruby
-    for (let k = 0; k < 16; k++) {
-      const ang = k / 16 * Math.PI * 2;
-      n.push({ t: 'ell', c: [Math.sin(ang) * 0.15, 0.25, Math.cos(ang) * 0.12], r: [0.05, 0.035, 0.05], rot: [ang, 0.6, 0], m: k % 2 ? TE : RU, k: 0.015, n: [0.008, 45] });
-    }
+    // a tall stand-up collar flaring round the neck: blue outside, yellow inside, open at the front
+    n.push({ t: 'cap', a: [0, 0.18, -0.01], b: [0, 0.52, -0.05], r: 0.17, r2: 0.36, m: MAT.furBlue, k: 0.02, n: [0.006, 30] });
+    n.push({ t: 'cap', a: [0, 0.16, -0.01], b: [0, 0.56, -0.05], r: 0.14, r2: 0.33, op: 's', k: 0.01, sm: MAT.paint });
+    n.push({ t: 'box', c: [0, 0.4, -0.27], h: [0.08, 0.16, 0.12], rot: [0, 0, 0], op: 's', k: 0.02, sm: MAT.paint });
     n.push({ t: 'ell', c: [0, 0.3, 0], r: [0.1, 0.1, 0.08], op: 's', k: 0.02, sm: RU });
+    // a red bow at the throat
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'ell', c: [sx * 0.065, 0.215, -0.165], r: [0.06, 0.04, 0.022], rot: [0, 0, sx * 0.35], m: MAT.lining, k: 0.012, n: [0.004, 50] });
+      n.push({ t: 'cap', a: [sx * 0.02, 0.2, -0.17], b: [sx * 0.05, 0.1, -0.175], r: 0.022, r2: 0.012, m: MAT.lining, k: 0.01 });
+    }
+    n.push({ t: 'sph', c: [0, 0.215, -0.175], r: 0.026, m: MAT.lining, k: 0.01 });
     // dagged hem: pointed tatters of every colour hanging round the skirt
     for (let k = 0; k < 11; k++) {
       const ang = (k / 11) * Math.PI * 2, x = Math.sin(ang) * 0.21, z = Math.cos(ang) * 0.14 + 0.03;
@@ -10543,7 +10572,7 @@ const SCULPTS = {
       n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
       n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
     }
-    return SDF.mesh(n, [-0.4, -0.78, -0.3], [0.4, 0.42, 0.3], 72);
+    return SDF.mesh(n, [-0.46, -0.78, -0.44], [0.46, 0.56, 0.4], 78);
   },
   // Stolen plush arm (shoulder at y 0, fingertips at y 1), coloured per draw: shaggy fur sleeve, a frayed
   // torn shoulder, and a soft four-fingered hand
@@ -10729,65 +10758,128 @@ const SCULPTS = {
     ];
     return SDF.mesh(n, [-0.35, -0.4, -0.35], [0.35, 0.55, 0.6], 52);
   },
-  // Cherub (feet at y 0, facing -z): a chubby, cracked porcelain baby doll with gilded curls, hollow eyes and
-  // a little round mouth of needle teeth
+  // CHERUB CHEEKS ---------------------------------------------------------------------------------------
+  // head (head centre at origin, facing -z): a big round vinyl baby head with puffy cheeks, a little nose,
+  // shallow eye sockets, a round "O" mouth bored straight through, and a hole in the soft spot for the stem
+  cherub_head: () => {
+    const M = -1, D = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.2, 0.2, 0.19], m: M, n: [0.002, 30] },
+      { t: 'sph', c: [-0.09, -0.065, -0.125], r: 0.07, m: M, k: 0.05 },
+      { t: 'sph', c: [0.09, -0.065, -0.125], r: 0.07, m: M, k: 0.05 },
+      { t: 'sph', c: [0, -0.015, -0.195], r: 0.018, m: M, k: 0.02 },
+      { t: 'ell', c: [-0.19, -0.01, 0.01], r: [0.025, 0.045, 0.035], m: M, k: 0.02 },
+      { t: 'ell', c: [0.19, -0.01, 0.01], r: [0.025, 0.045, 0.035], m: M, k: 0.02 },
+      { t: 'sph', c: [-0.075, 0.035, -0.205], r: 0.058, op: 's', k: 0.02, sm: M },
+      { t: 'sph', c: [0.075, 0.035, -0.205], r: 0.058, op: 's', k: 0.02, sm: M },
+      { t: 'tor', c: [0, -0.098, -0.17], R: 0.04, r: 0.013, rot: [0, Math.PI / 2, 0], m: M, k: 0.012 },
+      { t: 'cap', a: [0, -0.098, -0.25], b: [0, -0.098, -0.05], r: 0.034, op: 's', k: 0.006, sm: D },
+      { t: 'sph', c: [0, 0.2, 0.0], r: 0.022, op: 's', k: 0.008, sm: D },
+      // hairline cracks
+      { t: 'cap', a: [0.06, 0.18, -0.08], b: [0.13, 0.06, -0.14], r: 0.004, op: 's', sm: D, n: [0.003, 70] },
+      { t: 'cap', a: [-0.15, 0.1, -0.1], b: [-0.18, -0.05, -0.06], r: 0.004, op: 's', sm: D, n: [0.003, 70] }
+    ];
+    // painted-on eyelashes above each socket
+    for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) {
+      const x = sx * (0.045 + k * 0.022);
+      n.push({ t: 'cap', a: [x, 0.085, -0.19], b: [x + sx * 0.012, 0.11, -0.2], r: 0.004, m: D, k: 0.002 });
+    }
+    return SDF.mesh(n, [-0.26, -0.24, -0.26], [0.26, 0.24, 0.24], 60);
+  },
+  // body (feet at y 0, facing -z): a small bloated vinyl torso with stubby ball-jointed limbs
   cherub_body: () => {
-    const P = MAT.porcelain, D = MAT.rubber, G = MAT.paint, n = [
-      { t: 'ell', c: [0, 0.22, 0], r: [0.13, 0.14, 0.12], m: P, n: [0.004, 30] },
-      { t: 'sph', c: [0, 0.42, 0], r: 0.12, m: P, k: 0.05 },
-      { t: 'sph', c: [-0.06, 0.39, -0.07], r: 0.045, m: P, k: 0.03 },
-      { t: 'sph', c: [0.06, 0.39, -0.07], r: 0.045, m: P, k: 0.03 },
-      { t: 'sph', c: [-0.045, 0.445, -0.105], r: 0.028, op: 's', k: 0.01, sm: D },
-      { t: 'sph', c: [0.045, 0.445, -0.105], r: 0.028, op: 's', k: 0.01, sm: D },
-      { t: 'ell', c: [0, 0.375, -0.115], r: [0.026, 0.02, 0.025], op: 's', k: 0.006, sm: D },
-      { t: 'sph', c: [0.07, 0.48, -0.06], r: 0.035, op: 's', k: 0.005, sm: D, n: [0.01, 60] }
+    const M = -1, n = [
+      { t: 'ell', c: [0, 0.27, 0], r: [0.12, 0.15, 0.11], m: M },
+      { t: 'cap', a: [0, 0.38, 0], b: [0, 0.45, 0], r: 0.05, m: M, k: 0.03 }
     ];
     for (const sx of [-1, 1]) {
-      n.push({ t: 'cap', a: [sx * 0.06, 0.12, 0], b: [sx * 0.075, 0.03, -0.03], r: 0.05, r2: 0.04, m: P, k: 0.04 });
-      n.push({ t: 'cap', a: [sx * 0.11, 0.28, 0], b: [sx * 0.15, 0.19, -0.08], r: 0.038, r2: 0.03, m: P, k: 0.04 });
+      n.push({ t: 'sph', c: [sx * 0.065, 0.15, 0], r: 0.055, m: M, k: 0.03 });
+      n.push({ t: 'cap', a: [sx * 0.065, 0.14, 0], b: [sx * 0.072, 0.04, -0.01], r: 0.05, r2: 0.045, m: M, k: 0.03 });
+      n.push({ t: 'ell', c: [sx * 0.075, 0.025, -0.04], r: [0.045, 0.03, 0.065], m: M, k: 0.02 });
+      n.push({ t: 'sph', c: [sx * 0.12, 0.35, 0], r: 0.042, m: M, k: 0.02 });
+      n.push({ t: 'cap', a: [sx * 0.125, 0.34, 0], b: [sx * 0.165, 0.2, -0.04], r: 0.036, r2: 0.03, m: M, k: 0.02 });
+      n.push({ t: 'sph', c: [sx * 0.17, 0.18, -0.05], r: 0.034, m: M, k: 0.02 });
     }
-    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; n.push({ t: 'sph', c: [Math.sin(a) * 0.09, 0.5 + (i % 2) * 0.02, Math.cos(a) * 0.08 + 0.01], r: 0.035, m: G, k: 0.015, n: [0.006, 60] }); }
-    for (let i = 0; i < 6; i++) { const x = -0.06 + i * 0.024; n.push({ t: 'cap', a: [x, 0.39, -0.12], b: [x * 0.8, 0.37, -0.115], r: 0.004, r2: 0.0005, m: P, k: 0.001 }); }
-    const cracks = [[-0.08, 0.5, -0.06, -0.02, 0.4, -0.115], [0.1, 0.25, -0.08, 0.04, 0.15, -0.1], [-0.11, 0.2, -0.05, -0.05, 0.3, -0.1]];
-    for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.005, op: 's', sm: D, n: [0.003, 80] });
-    return SDF.mesh(n, [-0.22, -0.02, -0.2], [0.22, 0.6, 0.18], 56);
+    return SDF.mesh(n, [-0.24, -0.02, -0.14], [0.24, 0.5, 0.14], 52);
   },
-  // Cherub wing (root at origin, spreading along +x): a small downy wing with three feather lobes
-  cherub_wing: () => {
-    const W = -1, n = [{ t: 'ell', c: [0.11, 0.02, 0], r: [0.12, 0.07, 0.012], m: W, n: [0.004, 40] }];
-    for (let i = 0; i < 3; i++) n.push({ t: 'ell', c: [0.08 + i * 0.05, -0.04 - i * 0.01, 0], r: [0.04, 0.05, 0.01], m: W, k: 0.02 });
-    return SDF.mesh(n, [-0.04, -0.12, -0.04], [0.26, 0.11, 0.04], 40);
-  },
-  // Seraph (hover origin at y 0, facing -z): a tall, gaunt figure wrapped in stained bandages, with a frayed
-  // hem, dark bindings and a hooded head (its face is the halo drawn separately)
-  seraph_body: () => {
-    const C = MAT.canvas, D = MAT.rubber, n = [
-      { t: 'cap', a: [0, 0.15, 0], b: [0, 1.75, 0], r: 0.3, r2: 0.15, m: C, n: [0.02, 9] },
-      { t: 'ell', c: [0, 1.72, 0.02], r: [0.24, 0.14, 0.17], m: C, k: 0.12 },
-      { t: 'ell', c: [0, 2.05, 0.03], r: [0.15, 0.2, 0.16], m: C, k: 0.08, n: [0.01, 20] },
-      { t: 'ell', c: [0, 2.04, -0.08], r: [0.11, 0.15, 0.1], op: 's', k: 0.03, sm: D },
-      { t: 'box', c: [0, 0.02, 0], h: [0.5, 0.12, 0.5], op: 's', k: 0.02, sm: C, n: [0.08, 8] }
+  // tattered sailor outfit over the body: white shirt and shorts, a blue sailor collar and tie, rips
+  cherub_outfit: () => {
+    const W = MAT.furLight, B = MAT.furBlue, D = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0.29, 0], r: [0.142, 0.135, 0.128], m: W, n: [0.008, 22] },
+      { t: 'box', c: [0, 0.14, 0], h: [0.3, 0.07, 0.3], op: 's', k: 0.01, sm: W, n: [0.03, 18] },
+      { t: 'ell', c: [0, 0.17, 0], r: [0.135, 0.075, 0.122], m: W, k: 0.02, n: [0.008, 22] },
+      { t: 'box', c: [0, 0.075, 0], h: [0.3, 0.05, 0.3], op: 's', k: 0.01, sm: W, n: [0.025, 20] },
+      { t: 'box', c: [0, 0.39, 0.085], h: [0.125, 0.055, 0.014], rr: 0.01, rot: [0, -0.35, 0], m: B, k: 0.01 },
+      { t: 'box', c: [0, 0.37, -0.11], h: [0.1, 0.035, 0.012], rr: 0.01, rot: [0, 0.55, 0], m: B, k: 0.01 },
+      { t: 'box', c: [0, 0.31, -0.13], h: [0.022, 0.05, 0.01], rot: [0, 0.1, 0.25], m: B, k: 0.006 },
+      { t: 'box', c: [0.012, 0.3, -0.132], h: [0.022, 0.05, 0.01], rot: [0, 0.1, -0.25], m: B, k: 0.006 },
+      { t: 'sph', c: [0.1, 0.24, -0.09], r: 0.03, op: 's', k: 0.005, sm: D, n: [0.01, 60] },
+      { t: 'sph', c: [-0.11, 0.18, -0.06], r: 0.025, op: 's', k: 0.005, sm: D, n: [0.01, 60] }
     ];
-    for (let i = 0; i < 7; i++) {
-      const y = 0.3 + i * 0.21, r = 0.3 - (y - 0.15) / 1.6 * 0.15 + 0.005;
-      n.push({ t: 'tor', c: [0, y, 0], R: r, r: 0.012, rot: [0, 0, 0.12 * Math.sin(i * 1.7)], m: D, k: 0.006, n: [0.004, 50] });
-    }
-    for (let i = 0; i < 6; i++) { const a = i * 1.1; n.push({ t: 'cap', a: [Math.sin(a) * 0.27, 0.25, Math.cos(a) * 0.27], b: [Math.sin(a) * 0.3, -0.15 - (i % 3) * 0.08, Math.cos(a) * 0.3], r: 0.03, r2: 0.004, m: C, k: 0.03 }); }
-    return SDF.mesh(n, [-0.45, -0.45, -0.45], [0.45, 2.35, 0.45], 64);
+    for (let k = 0; k < 8; k++) { const a = k * 2.3; n.push({ t: 'sph', c: [Math.sin(a) * 0.14, 0.2 + (k * 0.031) % 0.2, Math.cos(a) * 0.12], r: 0.02, m: MAT.burnt, k: 0.008 }); }
+    return SDF.mesh(n, [-0.2, 0.06, -0.18], [0.2, 0.46, 0.18], 52);
   },
-  // Seraph wing (root at origin, spreading along +x): a long moth wing with a scalloped edge and two dark
-  // eye-spots on each face
-  seraph_wing: () => {
-    const C = MAT.canvas, D = MAT.rubber, n = [
-      { t: 'ell', c: [0.5, 0.05, 0], r: [0.52, 0.24, 0.014], m: C, n: [0.008, 18] },
-      { t: 'ell', c: [0.42, -0.2, 0], r: [0.3, 0.14, 0.012], m: C, k: 0.06 }
+  // little sailor cap (sits on the head)
+  cherub_hat: () => {
+    const W = MAT.furLight, B = MAT.furBlue, n = [
+      { t: 'cyl', c: [0, 0.035, 0], r: 0.085, h: 0.035, rr: 0.012, m: W, n: [0.004, 30] },
+      { t: 'tor', c: [0, 0.012, 0], R: 0.092, r: 0.024, m: W, k: 0.01 },
+      { t: 'cyl', c: [0, 0.03, 0], r: 0.088, h: 0.008, rr: 0.003, m: B, k: 0.003 }
     ];
-    for (let i = 0; i < 7; i++) n.push({ t: 'sph', c: [0.15 + i * 0.13, 0.3 - Math.abs(i - 3) * 0.02, 0], r: 0.06, op: 's', k: 0.02, sm: C });
-    for (const [x, y, r] of [[0.62, 0.06, 0.07], [0.35, -0.16, 0.05]]) for (const z of [-0.016, 0.016]) {
-      n.push({ t: 'cyl', c: [x, y, z], r, h: 0.004, rot: [0, Math.PI / 2, 0], m: D, k: 0.004 });
-      n.push({ t: 'cyl', c: [x, y, z * 1.2], r: r * 0.45, h: 0.004, rot: [0, Math.PI / 2, 0], m: MAT.paint, k: 0.003 });
+    return SDF.mesh(n, [-0.13, -0.03, -0.13], [0.13, 0.09, 0.13], 40);
+  },
+  // SERAPHIM SAM ----------------------------------------------------------------------------------------
+  // cracked porcelain angel face in a dark hood (head origin, facing -z), dark tear streaks
+  seraph_face: () => {
+    const P = MAT.porcelain, D = MAT.rubber, H = MAT.hairDark, n = [
+      { t: 'ell', c: [0, 0.01, 0.04], r: [0.15, 0.19, 0.16], m: H, n: [0.01, 18] },
+      { t: 'ell', c: [0, 0, -0.03], r: [0.115, 0.155, 0.11], m: P, k: 0.01, n: [0.002, 40] },
+      { t: 'ell', c: [0, 0.005, -0.08], r: [0.11, 0.15, 0.1], m: P, k: 0.03 },
+      { t: 'cap', a: [0, -0.18, 0.02], b: [0, -0.3, 0.03], r: 0.06, m: H, k: 0.05 },
+      { t: 'cap', a: [-0.07, 0.045, -0.165], b: [0.07, 0.045, -0.165], r: 0.022, m: P, k: 0.03 },
+      { t: 'cap', a: [0, 0.03, -0.17], b: [0, -0.04, -0.19], r: 0.014, r2: 0.02, m: P, k: 0.02 },
+      { t: 'sph', c: [-0.048, 0.022, -0.17], r: 0.026, op: 's', k: 0.008, sm: D },
+      { t: 'sph', c: [0.048, 0.022, -0.17], r: 0.026, op: 's', k: 0.008, sm: D },
+      { t: 'cap', a: [-0.022, -0.085, -0.17], b: [0.022, -0.085, -0.17], r: 0.005, op: 's', sm: D }
+    ];
+    // dark tear streaks and cracks
+    for (const sx of [-1, 1]) n.push({ t: 'cap', a: [sx * 0.05, -0.005, -0.172], b: [sx * 0.058, -0.12, -0.15], r: 0.006, r2: 0.003, m: D, k: 0.003, n: [0.002, 80] });
+    for (const c of [[0.02, 0.15, -0.12, 0.05, 0.06, -0.165], [-0.09, 0.08, -0.12, -0.06, -0.06, -0.15], [0.07, -0.03, -0.15, 0.1, -0.11, -0.11]])
+      n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.004, op: 's', sm: D, n: [0.003, 80] });
+    return SDF.mesh(n, [-0.2, -0.34, -0.24], [0.2, 0.24, 0.24], 60);
+  },
+  // tattered jester tunic, split purple and gold, with a dagged gold collar, dagged hem, bells, a rope belt,
+  // long sleeves with gold cuffs and pale porcelain hands (hem at y 0, shoulders at y ~0.95, facing -z)
+  seraph_tunic: () => {
+    const V = MAT.furViolet, G = MAT.paint, C = MAT.copper, P = MAT.porcelain, n = [
+      { t: 'cap', a: [0, 0.04, 0], b: [0, 0.86, 0], r: 0.2, r2: 0.22, m: V, n: [0.012, 14] },
+      { t: 'cap', a: [-0.24, 0.9, 0.0], b: [0.24, 0.9, 0.0], r: 0.075, m: V, k: 0.08 },
+      { t: 'box', c: [0.11, 0.5, -0.03], h: [0.11, 0.38, 0.2], rr: 0.05, m: G, k: 0.015, n: [0.01, 16] },
+      { t: 'tor', c: [0, 0.5, 0], R: 0.205, r: 0.02, m: MAT.cable, k: 0.01, n: [0.004, 60] },
+      { t: 'box', c: [0, -0.05, 0], h: [0.4, 0.06, 0.4], op: 's', k: 0.02, sm: V, n: [0.04, 10] },
+      { t: 'sph', c: [-0.15, 0.35, -0.14], r: 0.04, op: 's', k: 0.005, sm: MAT.rubber, n: [0.012, 50] }
+    ];
+    // dagged hem with bells
+    for (let k = 0; k < 10; k++) {
+      const a = k / 10 * Math.PI * 2, x = Math.sin(a) * 0.205, z = Math.cos(a) * 0.205;
+      n.push({ t: 'cap', a: [x, 0.08, z], b: [x * 1.15, -0.1, z * 1.15], r: 0.05, r2: 0.008, m: k % 2 ? G : V, k: 0.02, n: [0.008, 30] });
+      n.push({ t: 'sph', c: [x * 1.17, -0.125, z * 1.17], r: 0.022, m: C, k: 0.004 });
     }
-    return SDF.mesh(n, [-0.06, -0.4, -0.06], [1.06, 0.34, 0.06], 64);
+    // dagged gold collar with bells
+    for (let k = 0; k < 9; k++) {
+      const a = k / 9 * Math.PI * 2, x = Math.sin(a), z = Math.cos(a);
+      n.push({ t: 'cap', a: [x * 0.09, 0.98, z * 0.08], b: [x * 0.3, 0.8, z * 0.26], r: 0.06, r2: 0.01, m: G, k: 0.02, n: [0.006, 30] });
+      n.push({ t: 'sph', c: [x * 0.31, 0.78, z * 0.27], r: 0.022, m: C, k: 0.004 });
+    }
+    // sleeves, gold cuffs with bells, pale hands
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cap', a: [sx * 0.27, 0.88, 0], b: [sx * 0.33, 0.36, -0.02], r: 0.07, r2: 0.06, m: V, k: 0.04, n: [0.008, 20] });
+      n.push({ t: 'tor', c: [sx * 0.33, 0.37, -0.02], R: 0.06, r: 0.018, m: G, k: 0.01 });
+      n.push({ t: 'sph', c: [sx * 0.37, 0.35, -0.05], r: 0.018, m: C, k: 0.003 });
+      n.push({ t: 'ell', c: [sx * 0.335, 0.28, -0.025], r: [0.035, 0.05, 0.022], m: P, k: 0.02 });
+      for (let f = 0; f < 4; f++) n.push({ t: 'cap', a: [sx * (0.315 + f * 0.013), 0.25, -0.03], b: [sx * (0.315 + f * 0.016), 0.17, -0.045], r: 0.009, m: P, k: 0.006 });
+    }
+    for (let k = 0; k < 9; k++) { const a = k * 2.2; n.push({ t: 'sph', c: [Math.sin(a) * 0.21, 0.15 + (k * 0.091) % 0.7, Math.cos(a) * 0.21], r: 0.04, m: MAT.burnt, k: 0.012, n: [0.01, 40] }); }
+    return SDF.mesh(n, [-0.48, -0.18, -0.34], [0.48, 1.1, 0.34], 74);
   }
 };
 const SCULPT_ORDER = Object.keys(SCULPTS);
@@ -11022,8 +11114,8 @@ const COMPANION_LINES = {
   dark: ['Wait! Stop... it\'s too dark like this. Stick close behind me - my eye can throw enough purple light to show the floor.'],
   idle: ['Find anything interesting back there? Let me guess... rusted screws and old lint? Yeah. This place is a goldmine for junk.'],
   bump: ['Whoa - easy! You okay? That one sounded like it hurt.', 'Careful! The floors in here bite back.'],
-  seraph: ['Its wings are opening - get out of sight! Don\'t let it see you!'],
-  cherubs: ['Cherubs! Shine your light right at them - they hate it! Or give them a whack!'],
+  seraph: ['It\'s coming down! Run - find a locker!'],
+  cherubs: ['Shh... stay away from the dolls. If one of them screams, the thing up in the rafters comes down.'],
   threat: ['Shh! Do you hear that scraping up in the rafters? It\'s tracking the sound of your cables!',
     'Hide in a locker - quickly! I\'ll slip into the vents!'],
   safe: ['...Is it gone? Phew. My stuffing nearly jumped out of my seams.'],
@@ -11133,10 +11225,12 @@ const Companion = {
     }
     // the seraph opening its wings, or cherubs creeping close
     const S = Enemies.seraph;
-    if (S.active && S.state === 'WARN' && this.lineCool.seraph <= 0 && Math.hypot(S.pos[0] - b[0], S.pos[2] - b[2]) < 16) {
-      this.lineCool.seraph = 25; Dialogue.clear(); this.sayLines('THIMBLE', COMPANION_LINES.seraph);
+    if (S.active && S.state === 'DROP' && this.lineCool.seraph <= 0) {
+      this.lineCool.seraph = 25; this.sayLines('THIMBLE', COMPANION_LINES.seraph);
+      P.mode = 'HIDE'; P.hidden = true; this.hideTimer = 0;
+      return;
     }
-    if (this.lineCool.cherubs <= 0 && Enemies.cherubs.some(c => !c.dead && c.state === 'CREEP' && Math.hypot(c.pos[0] - b[0], c.pos[2] - b[2]) < 6)) {
+    if (this.lineCool.cherubs <= 0 && Enemies.cherubs.some(c => !c.dead && c.state === 'SIT' && Streaming.visible[c.sector] && Math.hypot(c.pos[0] - b[0], c.pos[2] - b[2]) < 10)) {
       this.lineCool.cherubs = 60; if (!Dialogue.busy()) this.sayLines('THIMBLE', COMPANION_LINES.cherubs);
     }
     this.calm = threat || Enemies.danger() ? 0 : this.calm + dt;
@@ -11176,7 +11270,8 @@ const Companion = {
 
   updateHide(dt) {
     const P = Cast.plush, M = Monster;
-    const gone = !M.active || M.inVent || V3.dist(M.pos, Player.body.pos) > 22;
+    const SE = Enemies.seraph;
+    const gone = (!M.active || M.inVent || V3.dist(M.pos, Player.body.pos) > 22) && !(SE.active && (SE.state === 'CHASE' || SE.state === 'DROP'));
     this.hideTimer = gone ? this.hideTimer + dt : 0;
     if (this.hideTimer > 4 && !Player.hidden) {
       const back = this.trailPoint(3, this.tmp);
@@ -11279,30 +11374,50 @@ const Ambush = {
 
 // ===== module: 22_enemies.js =====
 // =====================================================================================
-// EARLY ENEMIES (before the Spoolwright shows itself), named after heavenly beings:
-//   CHERUBS - little cracked porcelain cherub dolls with downy wings and rusted halos. They roost in
-//             dark corners of the Reclamation Hall and the Pressure Gallery, creep up on you when your
-//             light is elsewhere and bite. Your flashlight beam makes them shriek and scatter; a hand hit
-//             shatters them.
-//   SERAPH  - a tall, bandaged figure hovering on six moth wings: two cover its face, two its feet, two
-//             carry it. Veiled, it is blind and drifts along its patrol. Every few seconds its wings
-//             tremble (a rising hum), part, and its blazing halo-face looks around: if it can see you then
-//             (no cover, not in a locker) it swoops. A charged hand (other hand tethered to a live node)
-//             drives it back behind its wings for a long while; a plain hit makes it flinch.
+// EARLY ENEMIES (before the Spoolwright shows itself) - two old Playtime-style toys:
+//
+//   CHERUB CHEEKS - "the doll that cries real tears when it misses you" (1974). A 3-ft vinyl baby doll in a
+//     tattered sailor suit, glassy blue eyes, glowing acidic resin tears, a round "O" mouth with copper
+//     grinder teeth inside, and a red poppy growing out of its soft spot on a pulsing, fleshy stem.
+//       SIT    sits facing the wall, a backwards music box and a muffled whimper looping from its chest
+//       ALERT  come within 5 m and its head SNAPS round 180 degrees to face you, its face splits and it
+//              lets out an air-raid siren (which brings Seraphim Sam down from the rafters)
+//       FLEE   it drops on its belly and drags itself into the nearest vent. It never attacks you.
+//     Acid-tear puddles on the floor under the vents give away where they hide.
+//
+//   SERAPHIM SAM - a towering parade marionette: a cracked porcelain angel face in a dark hood, a tattered
+//     purple-and-gold jester tunic hung with bells, six mechanical wings of rusted rods and brake lines
+//     ending in tools (needles, scissors, saw blades), and a bundle of cables dragging down to a two-wheel rig.
+//       PROWL  hangs from the rafters by its wings, silent but for metal scraping; you see its red eye
+//       DROP   a Cherub's siren nearby, or your light held on its face for 2 s, brings it crashing down
+//       CHASE  it rolls after you, scissors snapping, booming over its chest PA. Sprint, break line of sight
+//              or get into a locker; a strike hurts badly, then it climbs back up
+//       Your hands stun it for longer or shorter depending on the hand (charged hits the longest).
 // =====================================================================================
-const CHERUB_SPAWNS = [[1, -9.2, -4.5], [1, -8.5, -18.5], [1, 9.4, -20.5], [2, -7.5, -26.2], [2, 8.2, -45.2], [2, -8.4, -46.4], [2, 2.6, -36.2]];
+const CHERUB_SPAWNS = [
+  // sector, x, z, facing yaw (toward the wall), flee point x, z
+  [1, -11.2, -4.6, Math.PI / 2, -11.9, -4.6], [1, 11.2, -12.4, -Math.PI / 2, 11.9, -12.4], [1, -11.2, -18.6, Math.PI / 2, -11.9, -18.6],
+  [2, -9.2, -27.6, Math.PI / 2, -9.0, -28.5], [2, 9.2, -36.4, -Math.PI / 2, 9.0, -35.0], [2, -9.2, -45.2, Math.PI / 2, -9.0, -46.5]
+];
 const SERAPH_PATH = [[0, -28.5], [5.4, -31], [6.2, -40], [0.5, -42.5], [-5.2, -40.5], [-6, -33.5]];
+const SERAPH_PROWL_Y = 2.65;
+const SERAPH_LINES = {
+  spot: 'SYSTEM ALERT. FORBIDDEN MATERIAL DETECTED IN THE SANCTUM. BEGINNING HARVEST.',
+  chase: 'THE FATHER REQUIRES YOUR COMPONENTS. YIELD. YIELD. YIELD.'
+};
 
 const Enemies = {
   disabled: false,
   cherubs: [],
-  seraph: { pos: V3.create(), yaw: 0, state: 'DORMANT', timer: 0, unveil: 0, wp: 0, nextUnveil: 7, sector: 2, hum: 0, swoopFrom: V3.create(), flap: 0, sees: false, active: false },
-  tmp: V3.create(), tmp2: V3.create(), hit: null,
+  seraph: { pos: V3.create(), yaw: 0, state: 'DORMANT', timer: 0, wp: 0, sector: 2, active: false, eye: V3.create(), face: V3.create(),
+    eyeGlow: 0.3, wing: 0, litT: 0, lostT: 0, lineT: 0, cool: 0, stun: 0, wheel: 0, scrapeT: 3, spoke: false },
+  tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hit: null, m: M4.create(),
 
   init() {
     this.cherubs.length = 0;
-    for (const [sector, x, z] of CHERUB_SPAWNS) {
-      this.cherubs.push({ sector, home: V3.create(x, 0.3, z), pos: V3.create(x, 0.3, z), vel: V3.create(), yaw: 0, state: 'ROOST', timer: 0, biteCool: 0, flap: gameRng() * 6, dead: false, giggle: 0 });
+    for (const [sector, x, z, yaw, fx, fz] of CHERUB_SPAWNS) {
+      this.cherubs.push({ sector, home: V3.create(x, 0, z), pos: V3.create(x, 0, z), homeYaw: yaw, yaw, flee: V3.create(fx, 0, fz),
+        state: 'SIT', timer: 0, head: 0, split: 0, dead: false, boxT: gameRng() * 6, whispered: false, gears: 0 });
     }
     this.hit = makeHit();
     this.reset();
@@ -11310,90 +11425,87 @@ const Enemies = {
 
   reset() {
     for (const c of this.cherubs) {
-      V3.copy(c.pos, c.home); V3.set(c.vel, 0, 0, 0); c.state = 'ROOST'; c.timer = 0; c.biteCool = 0; c.dead = false; c.giggle = 2 + gameRng() * 4;
+      V3.copy(c.pos, c.home); c.yaw = c.homeYaw; c.state = 'SIT'; c.timer = 0; c.head = 0; c.split = 0; c.dead = false; c.whispered = false;
     }
     const S = this.seraph;
-    S.state = 'DORMANT'; S.timer = 0; S.unveil = 0; S.wp = 0; S.nextUnveil = 6; S.hum = 0; S.sees = false; S.active = false;
-    V3.set(S.pos, SERAPH_PATH[0][0], 0.35, SERAPH_PATH[0][1]); S.yaw = 0;
+    S.state = 'DORMANT'; S.timer = 0; S.wp = 0; S.active = false; S.litT = 0; S.lostT = 0; S.lineT = 0; S.cool = 0; S.stun = 0; S.wing = 0; S.eyeGlow = 0.3; S.spoke = false;
+    V3.set(S.pos, SERAPH_PATH[0][0], SERAPH_PROWL_Y, SERAPH_PATH[0][1]); S.yaw = 0;
   },
 
-  // ---------- player damage (cherub bites, seraph strikes) ----------
+  // ---------- shared helpers ----------
   hurt(amount, src, reason) {
     if (Game.invulnerable || !Game.isGameplay()) return;
     Player.health -= amount; Player.hurtTimer = 2.5;
     sfx('hurt');
-    const P = Renderer.post; P.flash = 0.35; P.flashTint[0] = 1; P.flashTint[1] = 0.15; P.flashTint[2] = 0.1;
-    Player.addTrauma(Math.min(0.8, amount / 50));
+    const P = Renderer.post; P.flash = 0.4; P.flashTint[0] = 0.85; P.flashTint[1] = 0.85; P.flashTint[2] = 0.85;
+    Player.addTrauma(Math.min(0.8, amount / 45));
     const dx = Player.body.pos[0] - src[0], dz = Player.body.pos[2] - src[2], d = Math.hypot(dx, dz) || 1;
-    Player.body.vel[0] += dx / d * amount * 0.18; Player.body.vel[2] += dz / d * amount * 0.18;
+    Player.body.vel[0] += dx / d * amount * 0.2; Player.body.vel[2] += dz / d * amount * 0.2;
     Pip.react('scared', 1.5);
     if (Player.health <= 0) Game.onPlayerDied(reason);
   },
-
-  // is the point lit by the flashlight beam?
   inBeam(p) {
     if (!Player.flashOn) return false;
     const f = Player.flashPos, d = Player.flashDir;
     const dx = p[0] - f[0], dy = p[1] - f[1], dz = p[2] - f[2], l = Math.hypot(dx, dy, dz);
-    if (l > 10 || l < 1e-3) return false;
+    if (l > 14 || l < 1e-3) return false;
     return (dx * d[0] + dy * d[1] + dz * d[2]) / l > Math.cos((LIGHTING.flashOuterDeg + 4) * DEG);
   },
-  // clear line between two points through the level geometry?
   clearLine(a, b) {
     V3.sub(this.tmp, b, a); const l = V3.len(this.tmp); if (l < 1e-3) return true;
     V3.scale(this.tmp, this.tmp, 1 / l);
     return !Physics.raycast(a, this.tmp, l - 0.3, LAYER.HAND, this.hit);
   },
+  // a Cherub's siren brings the Seraph down if it is near
+  siren(pos) {
+    const S = this.seraph;
+    if (S.active && S.state === 'PROWL' && S.cool <= 0 && Math.hypot(S.pos[0] - pos[0], S.pos[2] - pos[2]) < 22) this.drop();
+  },
+  drop() {
+    const S = this.seraph;
+    S.state = 'DROP'; S.timer = 0; S.litT = 0;
+    sfx('seraphShriek', S.pos);
+  },
 
   update(dt) {
     if (this.disabled || !this.cherubs.length) return;
     const b = Player.body.pos, eye = Player.eyePos;
-    // ---- cherubs ----
     for (const c of this.cherubs) {
       if (c.dead) continue;
-      c.flap += dt * (c.state === 'ROOST' ? 2 : 22);
-      c.biteCool -= dt;
       const awake = Game.stage >= 1 && Streaming.visible[c.sector];
       const dx = b[0] - c.pos[0], dz = b[2] - c.pos[2], d = Math.hypot(dx, dz);
-      const lit = this.inBeam(c.pos);
-      if (c.state === 'ROOST') {
-        if (awake && d < 11 && !Player.hidden && !lit) { c.state = 'CREEP'; c.timer = 0; }
-      } else if (c.state === 'CREEP') {
-        if (lit) { c.state = 'SCARED'; c.timer = 2.2; sfx('cherubShriek', c.pos); continue; }
-        if (Player.hidden || d > 16 || !awake) { c.state = 'RETURN'; continue; }
-        const sp = 2.7;
-        c.pos[0] += dx / (d || 1) * sp * dt; c.pos[2] += dz / (d || 1) * sp * dt;
-        c.pos[1] = damp(c.pos[1], 1.0 + Math.sin(c.flap * 0.4) * 0.15, 3, dt);
-        c.yaw = Math.atan2(-dx, -dz);
-        c.giggle -= dt;
-        if (c.giggle <= 0) { c.giggle = 3 + gameRng() * 4; sfx('cherubGiggle', c.pos); }
-        if (d < 0.75 && c.biteCool <= 0) {
-          c.biteCool = 1.7;
-          sfx('cherubBite', c.pos);
-          this.hurt(4, c.pos, 'SWARMED BY CHERUBS');
+      c.gears += dt * (c.state === 'ALERT' ? 18 : 1.5);
+      if (c.state === 'SIT') {
+        c.split = damp(c.split, 0, 6, dt); c.head = 0;
+        c.boxT -= dt;
+        if (awake && d < 13 && c.boxT <= 0) { c.boxT = 6.5 + gameRng() * 2; V3.set(this.tmp, c.pos[0], 0.6, c.pos[2]); sfx('musicBox', this.tmp); }
+        if (awake && d < 8.5 && !c.whispered && !Dialogue.busy()) { c.whispered = true; Dialogue.say('CHERUB', '(muffled, stuttering) P-p-play... with... m-me... forever...'); }
+        if (awake && d < 5 && !Player.hidden) {
+          // the head snaps round 180 degrees with no in-between frames, the face splits, the siren starts
+          c.state = 'ALERT'; c.timer = 0; c.head = Math.PI;
+          V3.set(this.tmp, c.pos[0], 0.6, c.pos[2]);
+          sfx('headSnap', this.tmp); sfx('cherubSiren', this.tmp);
+          Player.addTrauma(0.35);
+          this.siren(c.pos);
+          Pip.react('scared', 2.5);
         }
-      } else if (c.state === 'SCARED') {
-        c.timer -= dt;
-        c.pos[0] -= dx / (d || 1) * 3.4 * dt; c.pos[2] -= dz / (d || 1) * 3.4 * dt;
-        c.pos[1] = damp(c.pos[1], 1.8, 3, dt);
-        if (c.timer <= 0) c.state = lit ? 'SCARED' : 'CREEP';
-        if (c.timer <= 0 && lit) c.timer = 0.6;
-      } else if (c.state === 'PINNED') {
-        c.timer -= dt; c.flap += dt * 30;
-        if (c.timer <= 0) c.state = 'CREEP';
-      } else if (c.state === 'RETURN') {
-        const hx = c.home[0] - c.pos[0], hz = c.home[2] - c.pos[2], hd = Math.hypot(hx, hz);
-        if (hd < 0.2) { c.state = 'ROOST'; c.pos[1] = c.home[1]; }
-        else { c.pos[0] += hx / hd * 2 * dt; c.pos[2] += hz / hd * 2 * dt; c.yaw = Math.atan2(-hx, -hz); }
-        if (awake && d < 7 && !lit && !Player.hidden) c.state = 'CREEP';
-      }
-      // keep them inside their room and apart from each other
-      const s = Level.sectors[c.sector];
-      if (s) { c.pos[0] = clamp(c.pos[0], s.min[0] + 0.4, s.max[0] - 0.4); c.pos[2] = clamp(c.pos[2], s.min[2] + 0.4, s.max[2] - 0.4); }
-      for (const o of this.cherubs) {
-        if (o === c || o.dead) continue;
-        const ox = c.pos[0] - o.pos[0], oz = c.pos[2] - o.pos[2], od = Math.hypot(ox, oz);
-        if (od < 0.5 && od > 1e-4) { c.pos[0] += ox / od * (0.5 - od) * 0.5; c.pos[2] += oz / od * (0.5 - od) * 0.5; }
+      } else if (c.state === 'ALERT') {
+        c.timer += dt; c.split = damp(c.split, 1, 10, dt);
+        // keep staring at you over its shoulder
+        c.head = wrapAngle(Math.atan2(-dx, -dz) - c.yaw);
+        if (c.timer > 1.7) { c.state = 'FLEE'; c.timer = 0; V3.set(this.tmp, c.pos[0], 0.3, c.pos[2]); sfx('cherubFlee', this.tmp); }
+      } else if (c.state === 'FLEE') {
+        // flat on its belly, limbs twisting, dragging itself into the nearest vent at speed
+        c.timer += dt;
+        const fx = c.flee[0] - c.pos[0], fz = c.flee[2] - c.pos[2], fd = Math.hypot(fx, fz);
+        if (fd < 0.3) { c.state = 'GONE'; c.timer = 0; continue; }
+        const st = Math.min(fd, 5.5 * dt);
+        c.pos[0] += fx / fd * st; c.pos[2] += fz / fd * st;
+        c.yaw = Math.atan2(-fx, -fz);
+        c.head = Math.sin(c.timer * 21) * 0.6;
+      } else if (c.state === 'GONE') {
+        c.timer += dt;
+        if (c.timer > 30 && d > 12) { V3.copy(c.pos, c.home); c.yaw = c.homeYaw; c.state = 'SIT'; c.split = 0; c.whispered = false; }
       }
     }
     this.updateSeraph(dt, b, eye);
@@ -11401,72 +11513,95 @@ const Enemies = {
 
   updateSeraph(dt, b, eye) {
     const S = this.seraph;
-    S.flap += dt * (S.state === 'SWOOP' ? 9 : 2.4);
     if (S.state === 'DORMANT') {
-      if (Game.stage >= 2 && Streaming.visible[2] && Game.stage < 3) { S.state = 'PATROL'; S.active = true; S.nextUnveil = 6; }
+      if (Game.stage === 2 && Streaming.visible[2]) { S.state = 'PROWL'; S.active = true; }
       return;
     }
-    if (Game.stage >= 3 || !Streaming.visible[2]) { S.unveil = damp(S.unveil, 0, 4, dt); S.hum = 0; if (Game.stage >= 3) S.active = false; return; }
-    S.timer += dt;
+    if (Game.stage >= 3) { S.active = false; return; }
+    if (!Streaming.visible[2]) return;
+    S.timer += dt; S.cool = Math.max(0, S.cool - dt);
     const dx = b[0] - S.pos[0], dz = b[2] - S.pos[2], d = Math.hypot(dx, dz);
+    // its face and red camera-eye (local up 2.25)
+    Cast.pt(S.face, S.pos, S.yaw, 0, 2.25, -0.05);
+    Cast.pt(S.eye, S.pos, S.yaw, 0.048, 2.27, -0.2);
     const glide = (tx, tz, sp) => {
       const gx = tx - S.pos[0], gz = tz - S.pos[2], gd = Math.hypot(gx, gz);
-      if (gd > 0.05) { const st = Math.min(gd, sp * dt); S.pos[0] += gx / gd * st; S.pos[2] += gz / gd * st; S.yaw = S.yaw + wrapAngle(Math.atan2(-gx, -gz) - S.yaw) * Math.min(1, dt * 3); }
+      if (gd > 0.05) {
+        const st = Math.min(gd, sp * dt); S.pos[0] += gx / gd * st; S.pos[2] += gz / gd * st; S.wheel += st / 0.26;
+        S.yaw = S.yaw + wrapAngle(Math.atan2(-gx, -gz) - S.yaw) * Math.min(1, dt * 4);
+      }
       return gd;
     };
-    S.pos[1] = 0.35 + Math.sin(S.timer * 1.3) * 0.08;
     switch (S.state) {
-      case 'PATROL': case 'RECOVER': {
-        S.unveil = damp(S.unveil, 0, 5, dt);
+      case 'PROWL': {
+        // creeping along the rafters by its wings, tracking your light
+        S.wing = damp(S.wing, 0, 3, dt); S.eyeGlow = damp(S.eyeGlow, 0.45, 2, dt);
+        S.pos[1] = SERAPH_PROWL_Y + Math.sin(S.timer * 0.9) * 0.06;
         const w = SERAPH_PATH[S.wp];
-        if (glide(w[0], w[1], S.state === 'RECOVER' ? 2.2 : 1.2) < 0.4) S.wp = (S.wp + 1) % SERAPH_PATH.length;
-        S.nextUnveil -= dt;
-        if (S.state === 'RECOVER' && S.timer > 3) S.state = 'PATROL';
-        if (S.state === 'PATROL' && S.nextUnveil <= 0) { S.state = 'WARN'; S.timer = 0; sfx('seraphHum', S.pos); }
+        if (glide(w[0], w[1], 0.9) < 0.4) S.wp = (S.wp + 1) % SERAPH_PATH.length;
+        S.scrapeT -= dt;
+        if (S.scrapeT <= 0 && d < 18) { S.scrapeT = 3 + gameRng() * 3; sfx('ceilingScrape', S.pos); }
+        // hold your light on its face for 2 s and it comes down
+        const lit = this.inBeam(S.face) && d < 14 && this.clearLine(eye, S.face);
+        S.litT = lit ? S.litT + dt : Math.max(0, S.litT - dt * 0.5);
+        if (S.litT > 2 && S.cool <= 0) this.drop();
         break;
       }
-      case 'WARN':
-        // the face wings tremble and start to part: get out of sight!
-        S.unveil = 0.15 + Math.abs(Math.sin(S.timer * 18)) * 0.12;
-        S.hum = S.timer / 1.4;
-        if (S.timer > 1.4) { S.state = 'UNVEIL'; S.timer = 0; }
+      case 'DROP':
+        S.wing = damp(S.wing, 1, 8, dt); S.eyeGlow = 1.4;
+        S.pos[1] = Math.max(0, S.pos[1] - (2 + S.timer * 14) * dt);
+        if (S.pos[1] <= 0) {
+          S.pos[1] = 0; S.state = 'CHASE'; S.timer = 0; S.lostT = 0; S.lineT = 4;
+          sfx('seraphLand', S.pos); Particles.burst(S.pos, 30, 'debris'); Player.addTrauma(0.6);
+          Dialogue.clear(); Dialogue.say('SERAPH', SERAPH_LINES.spot);
+          GrabPack.showHint('IT DROPPED! Sprint, break its line of sight or get into a locker');
+        }
         break;
-      case 'UNVEIL': {
-        S.unveil = damp(S.unveil, 1, 8, dt);
-        S.yaw += dt * 0.9;   // its gaze sweeps the room
-        V3.set(this.tmp2, S.pos[0], S.pos[1] + 2.0, S.pos[2]);
-        S.sees = !Player.hidden && d < 18 && this.clearLine(this.tmp2, eye);
-        if (S.sees && S.timer > 0.35) {
-          S.state = 'SWOOP'; S.timer = 0; V3.copy(S.swoopFrom, S.pos);
-          sfx('seraphShriek', S.pos); Player.addTrauma(0.4);
-          GrabPack.showHint('IT SEES YOU - break line of sight or get into a locker!');
-        } else if (S.timer > 3) { S.state = 'PATROL'; S.nextUnveil = 5.5 + gameRng() * 3; S.sees = false; }
-        break;
-      }
-      case 'SWOOP': {
-        S.unveil = 1;
-        const lost = Player.hidden || S.timer > 3.2;
-        if (lost) { S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 7; break; }
-        glide(b[0], b[2], 6.8);
-        if (d < 1.15) {
-          this.hurt(30, S.pos, 'TAKEN BY THE SERAPH');
-          sfx('seraphShriek', S.pos);
-          S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 8;
+      case 'CHASE': {
+        S.wing = 1; S.eyeGlow = 1.4;
+        const sees = !Player.hidden && this.clearLine(S.face, eye);
+        S.lostT = sees ? 0 : S.lostT + dt;
+        if (S.lostT > 4) { S.state = 'CLIMB'; S.timer = 0; S.cool = 6; break; }
+        if (!Player.hidden) glide(b[0], b[2], 4.3);
+        S.lineT -= dt;
+        if (S.lineT <= 0 && !Dialogue.busy()) { S.lineT = 9; Dialogue.say('SERAPH', SERAPH_LINES.chase); }
+        if (d < 1.3 && !Player.hidden) {
+          // the harvest strike: a blast of speaker static and grinding gears
+          this.hurt(35, S.pos, 'HARVESTED BY SERAPHIM SAM');
+          sfx('seraphStrike', S.pos);
+          const P = Renderer.post; P.fear = 1; P.redWave = 0.5;
+          S.state = 'CLIMB'; S.timer = 0; S.cool = 8;
         }
         break;
       }
-      case 'RECOIL':
-        S.unveil = damp(S.unveil, 0, 10, dt);
-        S.pos[0] -= dx / (d || 1) * 1.5 * dt; S.pos[2] -= dz / (d || 1) * 1.5 * dt;
-        if (S.timer > 4.5) { S.state = 'PATROL'; S.nextUnveil = 6; }
+      case 'STUNNED':
+        S.stun -= dt; S.wing = damp(S.wing, 0.3, 4, dt); S.eyeGlow = 0.2 + Math.abs(Math.sin(S.timer * 23)) * 0.8;
+        if (S.stun <= 0) { S.state = 'CLIMB'; S.timer = 0; S.cool = 6; }
+        break;
+      case 'CLIMB':
+        S.wing = damp(S.wing, 0, 3, dt); S.eyeGlow = damp(S.eyeGlow, 0.45, 2, dt);
+        S.pos[1] = Math.min(SERAPH_PROWL_Y, S.pos[1] + 1.8 * dt);
+        if (S.pos[1] >= SERAPH_PROWL_Y) { S.state = 'PROWL'; S.timer = 0; }
         break;
     }
     const s = Level.sectors[2];
-    if (s) { S.pos[0] = clamp(S.pos[0], s.min[0] + 0.8, s.max[0] - 0.8); S.pos[2] = clamp(S.pos[2], s.min[2] + 0.8, s.max[2] - 0.8); }
+    if (s) { S.pos[0] = clamp(S.pos[0], s.min[0] + 0.9, s.max[0] - 0.9); S.pos[2] = clamp(S.pos[2], s.min[2] + 0.9, s.max[2] - 0.9); }
+  },
+
+  // stun the seraph by hand type (charged = other hand tethered to a live node)
+  stunSeraph(seconds) {
+    const S = this.seraph;
+    if (S.state === 'PROWL' || S.state === 'CLIMB') { this.drop(); return; }   // knocked off the rafters
+    S.state = 'STUNNED'; S.stun = seconds; S.timer = 0;
+  },
+  // the LANTERN hand's burst
+  burst(pos) {
+    const S = this.seraph;
+    if (S.active && (S.state === 'CHASE' || S.state === 'DROP') && V3.dist(S.pos, pos) < 9) this.stunSeraph(3);
+    for (const c of this.cherubs) if (!c.dead && (c.state === 'SIT' || c.state === 'ALERT') && V3.dist(c.pos, pos) < 7) { c.state = 'FLEE'; c.timer = 0; }
   },
 
   // ---------- hand hits ----------
-  // returns true if the flying hand struck an enemy (o = segment start, d = unit dir, len = length)
   handHit(h, o, d, len) {
     if (this.disabled) return false;
     const test = (c, r) => {
@@ -11475,48 +11610,36 @@ const Enemies = {
       const qx = px - d[0] * t, qy = py - d[1] * t, qz = pz - d[2] * t;
       return qx * qx + qy * qy + qz * qz < r * r;
     };
+    const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE';
     for (const c of this.cherubs) {
-      if (c.dead || c.state === 'ROOST' && !Streaming.visible[c.sector]) continue;
-      V3.set(this.tmp, c.pos[0], c.pos[1] + 0.28, c.pos[2]);
-      if (test(this.tmp, 0.34)) {
+      if (c.dead || c.state === 'GONE' || !Streaming.visible[c.sector]) continue;
+      V3.set(this.tmp, c.pos[0], 0.45, c.pos[2]);
+      if (test(this.tmp, 0.32)) {
         V3.copy(h.pos, this.tmp);
-        const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE';
-        if (type === 'STITCHER') { c.state = 'PINNED'; c.timer = 6; sfx('pin', this.tmp); Particles.burst(this.tmp, 10, 'spark'); return true; }
-        if (type === 'THUMPER') for (const o of this.cherubs) if (!o.dead && o !== c && V3.dist(o.pos, c.pos) < 1.8) { o.dead = true; Particles.burst(o.pos, 16, 'debris'); }
-        c.dead = true;
-        Particles.burst(this.tmp, 22, 'debris'); Particles.burst(this.tmp, 8, 'spark');
-        sfx('shatter', this.tmp);
-        Pip.react('happy', 1.5);
+        if (type === 'THUMPER') { c.dead = true; Particles.burst(this.tmp, 24, 'debris'); sfx('shatter', this.tmp); }
+        else { c.state = 'FLEE'; c.timer = 0; sfx('handHit', this.tmp, SURFACE.METAL); sfx('cherubFlee', this.tmp); }
         return true;
       }
     }
     const S = this.seraph;
     if (S.active && S.state !== 'DORMANT') {
-      for (const hy of [0.9, 1.7, 2.3]) {
+      for (const hy of [1.4, 1.9, 2.25]) {
         V3.set(this.tmp, S.pos[0], S.pos[1] + hy, S.pos[2]);
-        if (!test(this.tmp, 0.45)) continue;
+        if (!test(this.tmp, 0.4)) continue;
         V3.copy(h.pos, this.tmp);
         const t = GrabPack.tetheredHand();
         if (t && t !== h) {
           GrabPack.release(t, false);
-          S.state = 'RECOIL'; S.timer = 0; S.unveil = 0;
-          sfx('shock', this.tmp); sfx('seraphShriek', this.tmp);
-          Particles.burst(this.tmp, 36, 'spark');
+          this.stunSeraph(5.5);
+          sfx('shock', this.tmp); Particles.burst(this.tmp, 36, 'spark');
           Lights.pulse(this.tmp, 0.45, 0.85, 1.0, 6, 3.5, 0.5);
-          GrabPack.showHint('SHOCKED - it hides behind its wings for a while');
+          GrabPack.showHint('SHOCKED - it is stunned for a long while');
         } else {
-          const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE';
-          sfx('handHitFlesh', this.tmp);
+          const st = Gear.stunFor(h.side);
+          this.stunSeraph(type === 'STITCHER' ? 5 : type === 'THUMPER' ? 3.5 : type === 'LANTERN' ? 3 : st);
+          sfx(type === 'STITCHER' ? 'pin' : type === 'THUMPER' ? 'thump' : 'handHitFlesh', this.tmp);
           Particles.burst(this.tmp, 10, 'debris');
-          if (type === 'THUMPER' || type === 'STITCHER') {
-            // the heavy hands drive it back behind its wings (pinned in place for the Stitcher)
-            S.state = 'RECOIL'; S.timer = type === 'STITCHER' ? -0.5 : 0.5; S.unveil = 0;
-            sfx(type === 'STITCHER' ? 'pin' : 'thump', this.tmp);
-            GrabPack.showHint(type + ': it hides behind its wings');
-          } else {
-            if (S.state === 'SWOOP' || S.state === 'UNVEIL') { S.state = 'RECOVER'; S.timer = 0; S.nextUnveil = 5; }
-            GrabPack.showHint('It flinched - a charged or heavier hand drives it back for longer');
-          }
+          GrabPack.showHint(type + ': it reels' + (type === 'ROSE' ? ' - a charged or heavier hand stuns it for longer' : ''));
         }
         return true;
       }
@@ -11524,71 +11647,167 @@ const Enemies = {
     return false;
   },
 
-  // ---------- threat level for Thimble / the director ----------
   danger() {
     const S = this.seraph, b = Player.body.pos;
-    if (S.active && (S.state === 'WARN' || S.state === 'UNVEIL' || S.state === 'SWOOP') && Math.hypot(S.pos[0] - b[0], S.pos[2] - b[2]) < 16) return true;
-    for (const c of this.cherubs) if (!c.dead && c.state === 'CREEP' && Math.hypot(c.pos[0] - b[0], c.pos[2] - b[2]) < 6) return true;
+    if (S.active && (S.state === 'DROP' || S.state === 'CHASE') && Math.hypot(S.pos[0] - b[0], S.pos[2] - b[2]) < 16) return true;
+    for (const c of this.cherubs) if (!c.dead && c.state === 'ALERT' && Math.hypot(c.pos[0] - b[0], c.pos[2] - b[2]) < 9) return true;
     return false;
   },
 
   // ---------- rendering ----------
   submit(vis) {
     if (this.disabled) return;
-    const R = RenderQueue, A = this.tmp, B = this.tmp2;
+    const R = RenderQueue, A = this.tmp, B = this.tmp2, X = this.tmp3, t = Game.time;
+    // acid-tear puddles on the floor under the vents the cherubs use
     for (const c of this.cherubs) {
-      if (c.dead || !vis[c.sector]) continue;
-      if (Sculpt.ready('cherub_body')) {
-        const it = R.push('cherub_body', MAT.porcelain);
-        if (it) { M4.compose(it.model, c.pos[0], c.pos[1], c.pos[2], c.yaw, c.state === 'CREEP' ? 0.3 : 0, Math.sin(c.flap * 0.5) * 0.08, 1, 1, 1); it.tint[0] = 0.85; it.tint[1] = 0.8; it.tint[2] = 0.72; }
-      }
-      // downy wings flutter (each wing is the same sculpt turned to face the other way)
-      if (Sculpt.ready('cherub_wing')) for (const side of [-1, 1]) {
-        Cast.pt(A, c.pos, c.yaw, side * 0.07, 0.3, 0.07);
-        const flap = Math.sin(c.flap) * 0.7;
-        const it = R.push('cherub_wing', MAT.furLight);
-        if (it) M4.compose(it.model, A[0], A[1], A[2], c.yaw + (side < 0 ? Math.PI : 0) + 0.35 * side, 0, side * flap + 0.25, 1, 1, 1);
-      }
-      // a crooked, rusted halo with a faint glow
-      Cast.pt(A, c.pos, c.yaw, 0.02, 0.62, 0.01);
-      const h = R.trs('torus', MAT.copper, A[0], A[1], A[2], c.yaw, 0.25, 0.2, 0.09, 0.09, 0.09, false);
-      if (h) { h.emis[0] = 0.35; h.emis[1] = 0.25; h.emis[2] = 0.08; }
-      // hollow eyes with pinpricks of light when they hunt
-      if (c.state === 'CREEP') for (const side of [-1, 1]) {
-        Cast.pt(A, c.pos, c.yaw, side * 0.045, 0.44, -0.11);
-        const e = R.trs('sphereLow', MAT.screen, A[0], A[1], A[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
-        if (e) { e.emis[0] = 2.0; e.emis[1] = 1.6; e.emis[2] = 0.6; }
-      }
+      if (!vis[c.sector]) continue;
+      const p = R.trs('cylLow', MAT.screen, c.flee[0] * 0.98, 0.005, c.flee[2], 0, 0, 0, 0.28, 0.008, 0.2, false);
+      if (p) { p.tint[0] = 0.55; p.tint[1] = 0.7; p.tint[2] = 0.15; p.emis[0] = 0.16; p.emis[1] = 0.24; p.emis[2] = 0.03; }
     }
+    for (const c of this.cherubs) {
+      if (c.dead || c.state === 'GONE' || !vis[c.sector]) continue;
+      const belly = c.state === 'FLEE';
+      // body + sailor outfit (flat on its belly when it flees, limbs juddering)
+      const pitch = belly ? 1.35 : 0, roll = belly ? Math.sin(c.timer * 30) * 0.3 : 0;
+      const by = belly ? 0.14 : 0;
+      for (const [mesh, mat, tint] of [['cherub_body', MAT.porcelain, true], ['cherub_outfit', MAT.furLight, false]]) {
+        if (!Sculpt.ready(mesh)) continue;
+        const it = R.push(mesh, mat);
+        if (it) { M4.compose(it.model, c.pos[0], by, c.pos[2], c.yaw, pitch, roll, 1.35, 1.35, 1.35); if (tint) { it.tint[0] = 1.0; it.tint[1] = 0.8; it.tint[2] = 0.68; } }
+      }
+      // the head: big vinyl sphere, snapped round to face you when it screams
+      const hy = c.yaw + c.head;
+      if (belly) Cast.pt(A, V3.set(B, c.pos[0], 0, c.pos[2]), c.yaw, 0, 0.24, -0.72); else Cast.pt(A, c.pos, c.yaw, 0, 0.84, 0);
+      const hp = belly ? -0.6 : 0;
+      M4.compose(this.m, A[0], A[1], A[2], hy, hp, 0, 1.35, 1.35, 1.35);
+      let it = Sculpt.ready('cherub_head') ? R.push('cherub_head', MAT.porcelain) : null;
+      if (it) { it.model.set(this.m); it.tint[0] = 1.0; it.tint[1] = 0.8; it.tint[2] = 0.68; }
+      const L = (x, y, z) => { V3.set(_en.l, x, y, z); return M4.transformPoint(_en.o, this.m, _en.l); };
+      // glassy blue eyes with a hard specular glint
+      for (const sx of [-1, 1]) {
+        const e = L(sx * 0.075, 0.035, -0.165);
+        it = R.trs('sphere', MAT.porcelain, e[0], e[1], e[2], hy, hp, 0, 0.074, 0.074, 0.05);
+        const ir = L(sx * 0.075, 0.032, -0.205);
+        it = R.trs('sphere', MAT.screen, ir[0], ir[1], ir[2], hy, hp, 0, 0.044, 0.044, 0.016);
+        if (it) { it.tint[0] = 0.12; it.tint[1] = 0.35; it.tint[2] = 0.9; it.emis[0] = 0.04; it.emis[1] = 0.14; it.emis[2] = 0.4; }
+        const pu = L(sx * 0.075, 0.032, -0.215);
+        R.trs('sphereLow', MAT.rubber, pu[0], pu[1], pu[2], hy, hp, 0, 0.018, 0.018, 0.006, false);
+        const gl = L(sx * 0.075 - 0.012, 0.05, -0.222);
+        it = R.trs('sphereLow', MAT.screen, gl[0], gl[1], gl[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
+        if (it) { it.emis[0] = 1.8; it.emis[1] = 1.8; it.emis[2] = 1.8; }
+        // acid resin tears from the inner corners down to the jaw
+        V3.copy(_en.a, L(sx * 0.045, 0.0, -0.205)); V3.copy(_en.b, L(sx * 0.06, -0.08, -0.19)); V3.copy(_en.c, L(sx * 0.065, -0.17, -0.13));
+        for (const [p0, p1] of [[_en.a, _en.b], [_en.b, _en.c]]) {
+          it = R.seg('cylLow', MAT.screen, p0, p1, 0.011, false);
+          if (it) { it.tint[0] = 0.6; it.tint[1] = 0.8; it.tint[2] = 0.15; it.emis[0] = 0.32; it.emis[1] = 0.5; it.emis[2] = 0.06; }
+        }
+      }
+      // the round mouth: split wider when it screams, copper grinder teeth spiralling inside
+      const mo = L(0, -0.098, -0.2);
+      it = R.trs('sphereLow', MAT.rubber, mo[0], mo[1], mo[2], hy, hp, 0, 0.036 + c.split * 0.025, 0.036 + c.split * 0.03, 0.01, false);
+      for (let k = 0; k < 8; k++) {
+        const a = k / 8 * Math.PI * 2 + c.gears;
+        V3.copy(_en.a, L(Math.cos(a) * 0.03, -0.098 + Math.sin(a) * 0.03, -0.17)); V3.copy(_en.b, L(Math.cos(a) * 0.008, -0.098 + Math.sin(a) * 0.008, -0.18));
+        R.seg('cone', MAT.copper, _en.a, _en.b, 0.008, false);
+      }
+      if (c.split > 0.05) {
+        // the face cracking open like an eggshell
+        V3.copy(_en.a, L(0, 0.19, -0.08)); V3.copy(_en.b, L(0, -0.06, -0.205));
+        it = R.seg('cylLow', MAT.rubber, _en.a, _en.b, 0.004 + c.split * 0.006, false);
+      }
+      // sailor cap and the poppy on its pulsing, fleshy stem
+      if (Sculpt.ready('cherub_hat')) {
+        const hp2 = L(-0.07, 0.15, 0.02);
+        it = R.push('cherub_hat', MAT.furLight);
+        if (it) M4.compose(it.model, hp2[0], hp2[1], hp2[2], hy, hp, 0.35, 1.35, 1.35, 1.35);
+      }
+      const pulse = 1 + 0.25 * Math.sin(t * 5 + c.home[0]);
+      let prev = V3.copy(_en.a, L(0, 0.19, 0));
+      const pts = [[0.02, 0.29, 0.01], [0.05, 0.38, 0.0], [0.04, 0.47, -0.02], [0.06, 0.53, -0.03]];
+      for (const q of pts) {
+        V3.copy(_en.b, L(q[0], q[1], q[2]));
+        it = R.seg('cylLow', MAT.handTeal, prev, _en.b, 0.012 * pulse, false);
+        if (it) { it.tint[0] = 0.35; it.tint[1] = 1.0; it.tint[2] = 0.3; }
+        V3.copy(prev, _en.b);
+      }
+      for (let k = 0; k < 5; k++) {
+        const a = k / 5 * Math.PI * 2;
+        const pp = L(0.06 + Math.cos(a) * 0.07, 0.56 + Math.sin(a) * 0.012, -0.03 + Math.sin(a) * 0.07);
+        it = R.trs('sphere', MAT.lining, pp[0], pp[1], pp[2], hy + a, 0.3, 0, 0.085, 0.026, 0.065);
+        if (it) { it.tint[0] = 2.6; it.tint[1] = 0.45; it.tint[2] = 0.45; it.emis[0] = 0.22; it.emis[1] = 0.01; it.emis[2] = 0.01; }
+      }
+      const pc = L(0.06, 0.575, -0.03);
+      R.trs('sphereLow', MAT.rubber, pc[0], pc[1], pc[2], 0, 0, 0, 0.018, 0.012, 0.018);
+    }
+    // ---- Seraphim Sam ----
     const S = this.seraph;
-    if (!S.active || !vis[2] || !Sculpt.ready('seraph_body')) return;
-    let it = R.push('seraph_body', MAT.canvas);
-    if (it) { M4.compose(it.model, S.pos[0], S.pos[1], S.pos[2], S.yaw, 0, Math.sin(S.timer * 0.9) * 0.03, 1, 1, 1); it.tint[0] = 3.4; it.tint[1] = 3.1; it.tint[2] = 2.7; }
-    // the halo-face: dark while veiled, blazing when the wings part
-    const u = S.unveil;
-    Cast.pt(A, S.pos, S.yaw, 0, 2.05, -0.12);
-    it = R.trs('torus', MAT.screen, A[0], A[1], A[2], S.yaw, Math.PI / 2, 0, 0.2, 0.2, 0.2, false);
-    if (it) { it.tint[0] = 1; it.tint[1] = 0.85; it.tint[2] = 0.5; it.emis[0] = 0.2 + u * 4.5; it.emis[1] = 0.15 + u * 3.8; it.emis[2] = 0.05 + u * 2.0; }
-    it = R.trs('sphere', MAT.screen, A[0], A[1], A[2], 0, 0, 0, 0.07, 0.07, 0.07, false);
-    if (it) { it.emis[0] = u * 6; it.emis[1] = u * 5.2; it.emis[2] = u * 3.0; }
-    if (!Sculpt.ready('seraph_wing')) return;
-    // six wings: the face pair folds across the face and opens when it unveils; the flight pair beats
-    // slowly; the lowest pair hangs folded over its feet
-    const wings = [
-      [0.12, 2.05, -0.05, 0.25 + u * 1.25, 1.35 - u * 0.95, 0.9],   // face pair
-      [0.16, 1.6, 0.12, 0.3, 0.2 + Math.sin(S.flap) * 0.35, 1.15],     // flight pair
-      [0.12, 0.9, 0.05, 0.35, -1.1, 0.8]                                 // feet pair
-    ];
-    for (const [ox, oy, oz, yawOut, roll, sc] of wings) for (const side of [-1, 1]) {
-      Cast.pt(A, S.pos, S.yaw, side * ox, oy, oz);
-      it = R.push('seraph_wing', MAT.canvas);
-      if (it) {
-        M4.compose(it.model, A[0], A[1], A[2], S.yaw + (side < 0 ? Math.PI : 0) - side * yawOut + (side < 0 ? 0 : 0), 0, roll, sc, sc, sc);
-        it.tint[0] = 3.0; it.tint[1] = 2.8; it.tint[2] = 2.5;
+    if (!S.active || !vis[2]) return;
+    const p = S.pos, yaw = S.yaw;
+    const P = (x, y, z, out) => Cast.pt(out || A, p, yaw, x, y, z);
+    // two-wheel rig and axle box
+    P(0, 0.26, 0, A);
+    R.trs('box', MAT.rustIron, A[0], A[1], A[2], yaw, 0, 0, 0.5, 0.18, 0.24);
+    for (const sx of [-1, 1]) {
+      P(sx * 0.33, 0.26, 0, A);
+      R.trs('cyl', MAT.rustIron, A[0], A[1] , A[2], yaw, S.wheel, Math.PI / 2, 0.26, 0.08, 0.26);
+      R.trs('cyl', MAT.steel, A[0], A[1], A[2], yaw, S.wheel, Math.PI / 2, 0.09, 0.11, 0.09);
+    }
+    // the cable bundle dragging down from the tunic to the rig
+    for (let k = 0; k < 7; k++) {
+      const a = k / 7 * Math.PI * 2, r = 0.12;
+      P(Math.cos(a) * 0.15, 0.32, Math.sin(a) * 0.1, A);
+      P(Math.cos(a) * r + Math.sin(t * 2 + k) * 0.04, 0.7, Math.sin(a) * r, B);
+      P(Math.cos(a) * 0.16, 1.05, Math.sin(a) * 0.16, X);
+      R.seg('cylLow', k % 2 ? MAT.cable : MAT.rubber, A, B, 0.02);
+      R.seg('cylLow', k % 2 ? MAT.cable : MAT.rubber, B, X, 0.02);
+    }
+    // jester tunic, arms and hands
+    if (Sculpt.ready('seraph_tunic')) {
+      P(0, 1.0, 0, A);
+      const it = R.push('seraph_tunic', MAT.furViolet);
+      if (it) M4.compose(it.model, A[0], A[1], A[2], yaw, 0, Math.sin(t * 0.8) * 0.03, 1, 1, 1);
+    }
+    // cracked porcelain angel face in its hood, the red camera-eye in the right socket
+    if (Sculpt.ready('seraph_face')) {
+      P(0, 2.25, -0.02, A);
+      const it = R.push('seraph_face', MAT.porcelain);
+      if (it) M4.compose(it.model, A[0], A[1], A[2], yaw, S.state === 'PROWL' ? 0.25 : -0.05, Math.sin(t * 0.6) * 0.06, 1, 1, 1);
+    }
+    let it = R.trs('sphereLow', MAT.screen, S.eye[0], S.eye[1], S.eye[2], 0, 0, 0, 0.016, 0.016, 0.016, false);
+    if (it) { it.tint[0] = 1; it.tint[1] = 0.1; it.tint[2] = 0.08; it.emis[0] = 3.5 * S.eyeGlow; it.emis[1] = 0.25 * S.eyeGlow; it.emis[2] = 0.15 * S.eyeGlow; }
+    // six mechanical wings: rusted rod trusses with hydraulic lines, joints, and a tool at each tip;
+    // reaching up to the rafters while it prowls, spread wide when it hunts
+    const w = S.wing;
+    for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) {
+      const ax = sx * (0.14 + i * 0.04), ay = 1.95 - i * 0.17, az = 0.14;
+      const ex = ax + sx * (0.45 + 0.3 * w), ey = ay + 0.8 - (0.35 + i * 0.35) * w, ez = az + 0.15 + 0.1 * w;
+      const tx = ex + sx * (0.3 + 0.45 * w), ty = ey + 1.0 - (0.65 + i * 0.45) * w + Math.sin(t * 1.5 + i + sx) * 0.05 * w, tz = ez - 0.05 * w;
+      P(ax, ay, az, A); P(ex, ey, ez, B); P(tx, ty, tz, X);
+      for (const off of [-0.035, 0.035]) {
+        P(ax, ay + off, az + off, _en.a); P(ex, ey + off, ez + off, _en.b); P(tx, ty + off, tz, _en.c);
+        R.seg('cylLow', MAT.rustIron, _en.a, _en.b, 0.022); R.seg('cylLow', MAT.rustIron, _en.b, _en.c, 0.018);
+      }
+      it = R.seg('cylLow', MAT.rubber, A, B, 0.009); if (it) { it.tint[0] = 3.6; it.tint[1] = 0.5; it.tint[2] = 0.45; }
+      for (let k = 1; k < 4; k++) { V3.lerp(_en.a, B, X, k / 4); R.trs('box', MAT.rustIron, _en.a[0], _en.a[1], _en.a[2], yaw, 0, 0, 0.1, 0.02, 0.02); }
+      R.trs('sphereLow', MAT.copper, B[0], B[1], B[2], 0, 0, 0, 0.05, 0.05, 0.05);
+      // the tool: a long needle, snapping scissors, or a spinning saw blade
+      V3.sub(_en.d, X, B); V3.normalize(_en.d, _en.d);
+      if (i === 0) {
+        V3.addScaled(_en.a, X, _en.d, 0.22); R.seg('cyl', MAT.lens, X, _en.a, 0.035);
+        V3.addScaled(_en.b, _en.a, _en.d, 0.4); R.seg('cone', MAT.steel, _en.a, _en.b, 0.012);
+      } else if (i === 1) {
+        const open = (S.state === 'CHASE' ? Math.abs(Math.sin(t * 7)) : 0.2) * 0.5;
+        for (const sgn of [-1, 1]) {
+          V3.copy(_en.a, X); V3.addScaled(_en.a, _en.a, _en.d, 0.25); _en.a[1] += sgn * open * 0.2;
+          it = R.seg('cylLow', MAT.steel, X, _en.a, 0.03); if (it) { it.model[8] *= 0.25; it.model[9] *= 0.25; it.model[10] *= 0.25; }
+        }
+      } else {
+        it = R.trs('cyl', MAT.steel, X[0], X[1], X[2], yaw + t * 9, Math.PI / 2, 0, 0.17, 0.012, 0.17);
       }
     }
   }
 };
+const _en = { l: V3.create(), o: V3.create(), a: V3.create(), b: V3.create(), c: V3.create(), d: V3.create() };
 
 // ===== module: 23_gear.js =====
 // =====================================================================================
@@ -11834,9 +12053,7 @@ const Gear = {
     const P = Renderer.post; P.flash = 0.25; P.flashTint[0] = 0.8; P.flashTint[1] = 0.65; P.flashTint[2] = 1.0;
     if (Monster.active && Monster.visible && V3.dist(Monster.pos, pos) < 7 && !Boss.active) { Monster.stunTimer = Math.max(Monster.stunTimer, 2.6); Monster.setState(MSTATE.STUNNED); }
     else if (Boss.active && V3.dist(Monster.pos, pos) < 7) Monster.stunTimer = Math.max(Monster.stunTimer, 1.2);
-    const S = Enemies.seraph;
-    if (S.active && V3.dist(S.pos, pos) < 9) { S.state = 'RECOIL'; S.timer = -1.5; S.unveil = 0; }
-    for (const c of Enemies.cherubs) if (!c.dead && V3.dist(c.pos, pos) < 7) { c.state = 'SCARED'; c.timer = 5; }
+    Enemies.burst(pos);
   },
 
   // ---------- rendering ----------
