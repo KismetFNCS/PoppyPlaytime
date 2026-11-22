@@ -23,6 +23,17 @@ const CAST_COLORS = {
 // Mister Thimble is a small plush: about a metre tall
 const PLUSH_SCALE = 0.62;
 
+// The Usher's opening briefing on the monitor above the intake gate
+const USHER_MONITOR_LINES = [
+  'Ah. You\'re awake. Good. Don\'t touch anything yet - the floor down here remembers fingerprints.',
+  'Welcome to Sector Six. Reclamation. Everything that broke in this factory was brought down here to stay broken.',
+  'You\'re wearing the LIFELINE pack. Teal on the left, rose on the right. Look at something, squeeze, and the hand goes there.',
+  'There\'s a hand scanner beside the gate. Press a palm to it. It is the only thing in this building that still says hello.',
+  'The little light strapped to your wrist is PIP. It sees in the dark better than you do. Listen to it.',
+  'And if you hear bells... keep walking. Whatever you do, don\'t go looking for them.',
+  'I\'ll be watching. I\'m always watching. Every toy returns to the line.'
+];
+
 const Cast = {
   usher: {
     pos: V3.create(0, -50, 0), yaw: 0, headYaw: 0, state: 'HIDDEN', timer: 0, stareTime: 0, used: new Uint8Array(4),
@@ -37,6 +48,8 @@ const Cast = {
   // broken power socket on the shutter wall that Mister Thimble jams his needle staff into
   plushSocket: V3.create(-2.75, 0.62, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
+  // the big flickering monitor above the intake gate: the Usher's opening briefing
+  monitor: { active: true, said: false, t: 0, flick: 0 }, monM: M4.create(),
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
   // Usher vantage points per stage: [x, z, facing yaw]
@@ -101,6 +114,7 @@ const Cast = {
     if (Enemies.cherubs.length) Enemies.reset();
     Dialogue.clear();
     Pip.reset();
+    this.monitor.active = Game.stage === 0; this.monitor.said = false; this.monitor.t = 0;
   },
 
   update(dt) {
@@ -109,9 +123,10 @@ const Cast = {
     this.updatePlush(dt);
     Companion.update(dt);
     Enemies.update(dt);
+    this.updateMonitor(dt);
     // CRT face animation at ~15 fps
     this.screenTimer -= dt;
-    if (this.screenTimer <= 0 && this.usher.state !== 'HIDDEN') {
+    if (this.screenTimer <= 0 && (this.usher.state !== 'HIDDEN' || this.monitor.active)) {
       this.screenTimer = 1 / 15;
       this.drawScreen(Game.time);
       const gl = Renderer.gl;
@@ -336,6 +351,38 @@ const Cast = {
     return P.groundIdle > 0.9;
   },
 
+  // ---------- the opening monitor ----------
+  updateMonitor(dt) {
+    const M = this.monitor, U = this.usher;
+    if (!M.active) return;
+    if (Game.stage >= 1) { M.active = false; return; }
+    M.t += dt;
+    if (!M.said && M.t > 1.2 && Game.isGameplay()) {
+      M.said = true;
+      for (const line of USHER_MONITOR_LINES) Dialogue.say('USHER', line);
+    }
+    // its eye follows you around the lift; the picture tears now and then
+    if (U.state === 'HIDDEN') {
+      const e = Player.eyePos;
+      U.eyeX = damp(U.eyeX, clamp(e[0] / 3, -1, 1), 5, dt);
+      U.eyeY = damp(U.eyeY, clamp((e[1] - 3.0) / 3, -1, 1), 5, dt);
+      M.flick -= dt;
+      if (M.flick <= 0) { M.flick = 1.5 + gameRng() * 3; U.glitch = 0.25; }
+      U.glitch = Math.max(0, U.glitch - dt);
+      U.blink = Math.max(0, U.blink - dt * 5); if (gameRng() < dt * 0.25) U.blink = 1;
+    }
+  },
+  submitMonitor() {
+    const R = RenderQueue;
+    const y = 3.42, z = 0.45;
+    R.trs('box', MAT.steel, 0, y, z, 0, -0.12, 0, 2.0, 1.25, 0.26, false);
+    R.trs('box', MAT.rubber, 0, y, z + 0.12, 0, -0.12, 0, 1.84, 1.1, 0.04, false);
+    R.trs('cylLow', MAT.cable, -0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
+    R.trs('cylLow', MAT.cable, 0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
+    M4.compose(this.monM, 0, y - 0.02, z + 0.145, Math.PI, 0.12, 0, 1.7, 1.0, 1);
+    AssetQueue.push(this.screen, this.monM, false);
+  },
+
   // ---------- CRT face ----------
   drawScreen(t) {
     const c = this.screenCtx, W = 128, H = 96, U = this.usher, C = CAST_COLORS;
@@ -379,6 +426,7 @@ const Cast = {
   submit(vis) {
     if (this.usher.state !== 'HIDDEN' && vis[Level.sectorAt(this.usher.pos[0], this.usher.pos[2])]) this.submitUsher();
     if (vis[this.doll.sector]) this.submitDoll();
+    if (this.monitor.active && vis[0] && this.screen) this.submitMonitor();
     if (vis[3]) this.submitSocket();
     if (!this.plush.hidden && vis[this.plush.sector]) this.submitPlush();
     Enemies.submit(vis);
@@ -675,7 +723,7 @@ const Pip = {
     this.canvas = document.getElementById('pipCanvas');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
     // the LED face shown on PIP's device on the teal glove: just the round screen, transparent outside
-    this.faceCanvas = document.createElement('canvas'); this.faceCanvas.width = 128; this.faceCanvas.height = 128;
+    this.faceCanvas = document.createElement('canvas'); this.faceCanvas.width = 128; this.faceCanvas.height = 96;
     this.faceCtx = this.faceCanvas.getContext('2d');
     EventBus.on(EV.POWER_ON, () => this.react('happy', 3));
     EventBus.on(EV.DENY, () => this.react('sad', 2));
@@ -767,10 +815,9 @@ const Pip = {
   },
   drawFace(color, jitter) {
     const c = this.faceCtx; if (!c) return;
-    c.clearRect(0, 0, 128, 128);
-    c.fillStyle = 'rgba(14,16,18,1)'; c.beginPath(); c.arc(64, 64, 60, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = 'rgba(60,64,66,1)'; c.lineWidth = 4; c.beginPath(); c.arc(64, 64, 58, 0, Math.PI * 2); c.stroke();
-    const sx = 96 / PIP_W, sy = 76 / PIP_H, ox = 64 - (PIP_W - 1) * sx / 2, oy = 62 - (PIP_H - 1) * sy / 2;
+    // an opaque dark glass screen (fills the whole texture)
+    c.fillStyle = 'rgba(10,12,14,1)'; c.fillRect(0, 0, 128, 96);
+    const sx = 108 / PIP_W, sy = 80 / PIP_H, ox = 64 - (PIP_W - 1) * sx / 2, oy = 48 - (PIP_H - 1) * sy / 2;
     for (let y = 0; y < PIP_H; y++) for (let x = 0; x < PIP_W; x++) {
       const on = this.grid[y * PIP_W + x];
       if (!on) continue;
@@ -778,6 +825,6 @@ const Pip = {
       c.beginPath(); c.arc(ox + x * sx + jitter, oy + y * sy, sx * 0.38, 0, Math.PI * 2); c.fill();
     }
     // a soft glare across the glass
-    c.fillStyle = 'rgba(255,255,255,0.07)'; c.beginPath(); c.ellipse(48, 40, 30, 14, -0.5, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.06)'; c.beginPath(); c.ellipse(40, 22, 34, 10, -0.3, 0, Math.PI * 2); c.fill();
   }
 };

@@ -42,7 +42,7 @@ drag your view **down** (or back away) to wrench the handle over; let go too ear
   everything within 7 m) and **STITCHER** (steel needle fingers, found in the Spool Foundry: pins whatever it
   hits for 4.5 s). Gloves are worn and grimy; launches puff and spin, the winch spins up to reel them in, and
   they dock with a clunk.
-- **PIP** rides on the back of the teal glove. Its LED face warns you (worried when something is close,
+- **PIP** is a chunky orange wrist device on the teal glove, with a black glass LED screen, an antenna and a lamp. Its LED face warns you (worried when something is close,
   starry-eyed for finds), its front lamp is your flashlight, and **[B]** switches it to a blacklight that reveals
   three messages painted in invisible ink.
 - **Gas mask.** Take it from the intake-lift desk and put it on or off with **[G]**: you see through two lens
@@ -53,6 +53,9 @@ drag your view **down** (or back away) to wrench the handle over; let go too ear
 **Fighting back:** you can't kill the Spoolwright until the Loom, but you can stop it. A plain hand hit
 staggers it for a moment; a *charged* hit (your other hand tethered to a live node) shocks it for a long stun,
 and a stalker then slinks back into the vents. Only in the Loom boss fight can it actually be beaten.
+
+You wake in the intake lift under a big flickering monitor: the Usher's eye watches you from it while it gives
+the opening briefing (the LIFELINE hands, the hand scanner, PIP, and a warning about the bells).
 
 Route: Intake Lift → Reclamation Hall (circuit puzzle 1, a found tape) → Pressure Gallery (you meet Mister
 Thimble, who comes along; something only rattles through the ducts overhead and taunts you over the PA; a
