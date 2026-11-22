@@ -472,7 +472,7 @@ const Monster = {
   },
   updateCreep(dt) {
     const eye = Player.cam.eye;
-    this.bodyPoint(this.head, Math.sin(this.headTilt) * 0.15, 3.08, -0.74);
+    this.bodyPoint(this.head, Math.sin(this.headTilt) * 0.15, 3.33, -0.74);
     V3.sub(this.tmp, this.head, eye);
     const l = V3.len(this.tmp) || 1;
     const seen = V3.dot(this.tmp, Renderer.camFwd) / l > 0.6 && Enemies.clearLine(eye, this.head);
@@ -648,8 +648,13 @@ const Monster = {
     }
     // ---- upper torso: a tattered tailor's coat over a skeletal frame ----
     this.bodyPoint(B, 0, 1.75, -0.38);
-    this.bodyPoint(this.chest, 0, 2.0, -0.48);
-    R.seg('cyl', MAT.steel, B, this.chest, 0.06);
+    this.bodyPoint(this.chest, 0, 2.25, -0.48);
+    R.seg('cyl', MAT.steel, B, this.chest, 0.045);
+    // a thin segmented spine of vertebrae and gold brackets holding the torso up high over the base
+    for (let k = 1; k < 6; k++) {
+      V3.lerp(X, B, this.chest, k / 6);
+      R.trs('box', k % 2 ? MAT.porcelain : MAT.paint, X[0], X[1], X[2], yaw, lean, 0, k % 2 ? 0.13 : 0.18, 0.05, k % 2 ? 0.1 : 0.05);
+    }
     if (Sculpt.ready('sp_coat')) {
       it = R.push('sp_coat', MAT.clothWine);
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
@@ -682,13 +687,13 @@ const Monster = {
       }
     }
     // ---- neck: segmented cable bundle up to the mask ----
-    this.bodyPoint(B, 0, 2.24, -0.5);
+    this.bodyPoint(B, 0, 2.49, -0.5);
     const hx = Math.sin(this.headTilt) * 0.15;
-    this.bodyPoint(this.head, hx, 3.08 + this.flinchAmt * 0.2, -0.74);
+    this.bodyPoint(this.head, hx, 3.33 + this.flinchAmt * 0.2, -0.74);
     for (let k = 1; k < 4; k++) { V3.lerp(X, B, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
     R.seg('cyl', MAT.rubber, B, this.head, 0.05);
     for (const off of [-0.05, 0.05]) {
-      this.bodyPoint(X, off, 2.2, -0.45);
+      this.bodyPoint(X, off, 2.45, -0.45);
       it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
       if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
     }
@@ -696,22 +701,17 @@ const Monster = {
     // ---- arms: long thin machine arms ending in needle fingers ----
     if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
     for (const side of [-1, 1]) {
-      this.bodyPoint(B, side * 0.3, 2.14, -0.47);
+      this.bodyPoint(B, side * 0.3, 2.39, -0.47);
       const reach = this.armReach;
-      this.bodyPoint(H, side * (0.95 - reach * 0.35), 1.75 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
+      this.bodyPoint(H, side * (0.95 - reach * 0.35), 2.0 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
       R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
       R.seg('cyl', MAT.steel, B, H, 0.045);
-      // ragged motley sleeve over the upper arm (teal on one arm, ruby on the other) with an orange cuff
-      V3.lerp(X, B, H, 0.72);
-      R.seg('cyl', side < 0 ? MAT.handTeal : MAT.clothWine, B, X, 0.08);
-      R.seg('cone', side < 0 ? MAT.clothWine : MAT.handTeal, X, H, 0.085);
-      const cuff = R.push('torus', MAT.copper);
-      if (cuff) { V3.sub(_mh.dir, H, B); V3.normalize(_mh.dir, _mh.dir); ringMatrix(cuff.model, X, _mh.dir, 0.085); }
-      this.bodyPoint(X, side * (0.75 - reach * 0.4), 1.2 + reach * 0.9, -1.55 - reach * 0.9);
-      R.seg('cyl', MAT.steel, H, X, 0.035);
+      this.puffSleeve(B, H, side);
+      this.bodyPoint(X, side * (0.75 - reach * 0.4), 1.45 + reach * 0.9, -1.55 - reach * 0.9);
+      this.boneForearm(H, X);
       R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
       R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.055, 0.055, 0.055);
-      const hlx = side * (0.75 - reach * 0.4), hly = 1.2 + reach * 0.9, hlz = -1.55 - reach * 0.9;
+      const hlx = side * (0.75 - reach * 0.4), hly = 1.45 + reach * 0.9, hlz = -1.55 - reach * 0.9;
       for (let f = -2; f <= 2; f++) {
         // two-joint needle fingers, longest in the middle
         this.bodyPoint(B, hlx + f * 0.09, hly - 0.22 + Math.abs(f) * 0.04, hlz - 0.18 - reach * 0.1);
@@ -738,16 +738,42 @@ const Monster = {
     const gx = -0.8 + 0.42 * K.grab, gy = cy - 0.5 + 0.68 * K.grab, gz = cz + 1.0 - 0.52 * K.grab;
     this.drawKillArm(-1, gx, gy, gz, 0, cy, cz, 0, true, K.grab);
   },
+  // three puffed, segmented motley sleeve pieces down the upper arm, each with an orange cuff ring
+  puffSleeve(B, H, side) {
+    const R = RenderQueue, d = _mh.dir, r = _mh.sr, f = _mh.sf, c = _mh.sc;
+    V3.sub(d, H, B); const len = V3.len(d) || 1; V3.scale(d, d, 1 / len);
+    V3.set(r, -d[2], 0, d[0]); if (V3.len(r) < 1e-3) V3.set(r, 1, 0, 0); V3.normalize(r, r);
+    V3.cross(f, r, d);
+    const mats = side < 0 ? [MAT.handTeal, MAT.clothWine, MAT.copper] : [MAT.clothWine, MAT.handTeal, MAT.copper];
+    for (let k = 0; k < 3; k++) {
+      V3.lerp(c, B, H, 0.17 + k * 0.3);
+      const it = R.push('sphere', mats[k]);
+      if (it) basisMatrix(it.model, c, r, d, f, 0.095 - k * 0.008, len * 0.15, 0.095 - k * 0.008);
+      V3.lerp(c, B, H, 0.32 + k * 0.3);
+      const ring = R.push('torus', MAT.copper);
+      if (ring) ringMatrix(ring.model, c, d, 0.07 - k * 0.006);
+    }
+  },
+  // a bone-white forearm wrapped in red cables
+  boneForearm(H, X) {
+    const R = RenderQueue, L = _mh.kl;
+    R.seg('cyl', MAT.porcelain, H, X, 0.035);
+    for (let k = 0; k < 3; k++) {
+      const ph = k * 2.1;
+      V3.lerp(L.b, H, X, 0.1); L.b[1] += Math.cos(ph) * 0.04; L.b[0] += Math.sin(ph) * 0.04;
+      V3.lerp(L.c, H, X, 0.92); L.c[1] += Math.cos(ph + 1.5) * 0.035; L.c[0] += Math.sin(ph + 1.5) * 0.035;
+      const cb = R.seg('cylLow', MAT.rubber, L.b, L.c, 0.009);
+      if (cb) { cb.tint[0] = 4.2; cb.tint[1] = 0.55; cb.tint[2] = 0.5; }
+    }
+  },
   drawKillArm(side, hx, hy, hz, cx, cy, cz, join, bony, grab) {
     const R = RenderQueue, B = this.tmp, H = this.tmp2, X = this.tmp3, L = _mh.kl;
-    this.bodyPoint(B, side * 0.3, 2.14, -0.47);
+    this.bodyPoint(B, side * 0.3, 2.39, -0.47);
     this.bodyPoint(X, hx, hy, hz);
-    this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.3, (2.14 + hy) * 0.5 - 0.12, (-0.47 + hz) * 0.5 + 0.08);
+    this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.3, (2.39 + hy) * 0.5 - 0.12, (-0.47 + hz) * 0.5 + 0.08);
     R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
     R.seg('cyl', MAT.steel, B, H, 0.045);
-    V3.lerp(L.a, B, H, 0.72);
-    R.seg('cyl', side < 0 ? MAT.handTeal : MAT.clothWine, B, L.a, 0.08);
-    R.seg('cone', side < 0 ? MAT.clothWine : MAT.handTeal, L.a, H, 0.085);
+    this.puffSleeve(B, H, side);
     R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
     if (bony) {
       // bone-white forearm wrapped in red cables
@@ -759,7 +785,7 @@ const Monster = {
         const c = R.seg('cylLow', MAT.rubber, L.b, L.c, 0.011);
         if (c) { c.tint[0] = 4.2; c.tint[1] = 0.55; c.tint[2] = 0.5; }
       }
-    } else R.seg('cyl', MAT.steel, H, X, 0.038);
+    } else this.boneForearm(H, X);
     // palm plate and knuckles, oriented toward your face
     let dx = cx - hx, dy = cy - hy, dz = cz - hz;
     const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
@@ -814,16 +840,17 @@ const Monster = {
       const hip = this.hipW, knee = this.kneeW, foot = l.foot;
       R.trs('sphere', MAT.steel, hip[0], hip[1], hip[2], 0, 0, 0, 0.13, 0.13, 0.13);
       it = R.push(Sculpt.ready('sp_femur') ? 'sp_femur' : 'cyl', MAT.steel);
-      if (it) { M4.segment(it.model, hip, knee, Sculpt.ready('sp_femur') ? 1 : 0.08); }
+      if (it) { M4.segment(it.model, hip, knee, Sculpt.ready('sp_femur') ? 1.3 : 0.1); }
       // piston riding along the femur
       V3.lerp(B, hip, knee, 0.15); V3.lerp(H, hip, knee, 0.8); B[1] += 0.09; H[1] += 0.09;
       R.seg('cylLow', MAT.copper, B, H, 0.03);
       // knee: joint drum + bolt
-      R.trs('sphere', MAT.steel, knee[0], knee[1], knee[2], 0, 0, 0, 0.12, 0.12, 0.12);
+      R.trs('sphere', MAT.steel, knee[0], knee[1], knee[2], 0, 0, 0, 0.15, 0.15, 0.15);
+      R.trs('cyl', MAT.rustIron, knee[0], knee[1] - 0.06, knee[2], this.yaw, 0, Math.PI / 2, 0.11, 0.34, 0.11);
       R.trs('cyl', MAT.copper, knee[0], knee[1] - 0.04, knee[2], this.yaw, 0, Math.PI / 2, 0.06, 0.28, 0.06);
       // tibia: ribbed shaft flaring into a hooked blade
       it = R.push(Sculpt.ready('sp_tibia') ? 'sp_tibia' : 'cyl', MAT.steel);
-      if (it) M4.segment(it.model, knee, foot, Sculpt.ready('sp_tibia') ? 1 : 0.06);
+      if (it) M4.segment(it.model, knee, foot, Sculpt.ready('sp_tibia') ? 1.25 : 0.075);
       // red tendon cables spanning hip -> shin
       for (const off of [-0.07, 0.07]) {
         V3.set(B, hip[0] + off * side, hip[1] - 0.05, hip[2] + off);
@@ -891,7 +918,7 @@ const Monster = {
   }
 };
 const _mh = {
-  dir: V3.create(),
+  dir: V3.create(), sr: V3.create(), sf: V3.create(), sc: V3.create(),
   kl: { a: V3.create(), b: V3.create(), c: V3.create() },
   tapePrev: V3.create(),
   boxUp: (() => { const m = M4.create(); m[13] = 0.5; return m; })(),

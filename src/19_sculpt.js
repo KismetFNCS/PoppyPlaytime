@@ -568,7 +568,22 @@ const SCULPTS = {
     n.push({ t: 'cap', a: [0, -0.45, -0.42], b: [0, -0.45, 0.42], r: 0.04, m: MAT.porcelain, k: 0.03 });
     for (let k = 0; k < 8; k++) n.push({ t: 'ell', c: [0, 0.6 - k * 0.02, 0.4 + k * 0.2], r: [0.08, 0.065, 0.075], m: MAT.porcelain, k: 0.04 });
     n.push({ t: 'cyl', c: [0, 0.27, -0.5], r: 0.17, h: 0.06, rr: 0.02, rot: [0, Math.PI / 2, 0], m: MAT.steel, k: 0.03 });
-    return SDF.mesh(n, [-0.9, -0.75, -0.75], [0.9, 0.95, 2.25], 80);
+    // a long, ribbed mechanical abdomen stretching out behind, ending in a big rear drum and a needle
+    n.push({ t: 'cap', a: [0, 0.02, 0.7], b: [0, -0.04, 2.35], r: 0.42, r2: 0.33, m: MAT.rustIron, k: 0.1, n: [0.006, 20] });
+    for (let k = 0; k < 6; k++) {
+      const z = 1.0 + k * 0.24, r = 0.43 - k * 0.016;
+      n.push({ t: 'tor', c: [0, 0.01 - k * 0.008, z], R: r, r: 0.035, rot: [0, Math.PI / 2, 0], m: MAT.steel, k: 0.015 });
+    }
+    n.push({ t: 'cyl', c: [0, -0.04, 2.42], r: 0.36, h: 0.08, rr: 0.03, rot: [0, Math.PI / 2, 0], m: MAT.steel, k: 0.03 });
+    n.push({ t: 'cyl', c: [0, -0.04, 2.5], r: 0.2, h: 0.04, rr: 0.02, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.02 });
+    n.push({ t: 'cap', a: [0, -0.04, 2.5], b: [0, 0.02, 2.95], r: 0.035, r2: 0.004, m: MAT.steel, k: 0.02 });
+    for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.4, 0.05, 1.55], r: 0.12, h: 0.05, rr: 0.02, rot: [0, 0, Math.PI / 2], m: MAT.copper, k: 0.02 });
+    // the violet fur draped down over the top of the abdomen
+    for (let i = 0; i < 12; i++) {
+      const z = 1.7 + i * 0.05, sx = Math.sin(i * 2.1) * 0.25;
+      n.push({ t: 'ell', c: [sx, 0.3 - i * 0.012, z], r: [0.24, 0.12, 0.18], m: V, k: 0.08, n: [0.03, 25] });
+    }
+    return SDF.mesh(n, [-0.9, -0.75, -0.75], [0.9, 0.95, 3.0], 88);
   },
   // Marigold seated body: dusty wine dress with a torn hem, grimy pinafore, cracked porcelain limbs
   mg_body: () => {

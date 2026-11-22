@@ -633,7 +633,7 @@ const Game = {
     Monster.pos[0] = Player.eyePos[0] + fx * (dist + 0.8);
     Monster.pos[2] = Player.eyePos[2] + fz * (dist + 0.8);
     Monster.pos[1] = Math.max(0, Player.eyePos[1] - (Monster.kill.on ? 2.6 : 2.35));
-    Monster.bodyPoint(Monster.head, 0, 2.93, -0.8);
+    Monster.bodyPoint(Monster.head, 0, 3.18, -0.8);
   },
   updateJumpscare(dt) {
     this.jumpTimer += dt;
@@ -670,7 +670,7 @@ const Game = {
     }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     // it lifts you off your feet, up to its face
-    Player.cam.eye[1] += 0.5 * smoothstep(0.9, 1.3, t);
+    Player.cam.eye[1] += 0.8 * smoothstep(0.9, 1.3, t);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
     Renderer.post.redWave = t < 2.92 ? 0.12 + 0.08 * Math.sin(t * 13) : 1;
