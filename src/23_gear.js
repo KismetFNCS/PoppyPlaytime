@@ -42,8 +42,7 @@ const Gear = {
     this.pickups = PICKUP_SPOTS.map(p => ({ kind: p.kind, type: p.type || 0, sector: p.sector, pos: V3.create(p.pos[0], p.pos[1], p.pos[2]), taken: false }));
     this.secrets = UV_SECRETS.map(s => ({ s, asset: this.textQuad(s.lines), reveal: 0 }));
     // PIP's face on the teal glove uses the HUD companion canvas as a live texture
-    const cv = document.getElementById('pipCanvas');
-    if (cv) this.pipAsset = this.canvasQuad(cv, 'pip-face', 2.2, false);
+    if (Pip.faceCanvas) this.pipAsset = this.canvasQuad(Pip.faceCanvas, 'pip-face', 2.4, true);
     this.overlay = document.getElementById('maskOverlay');
     this.gasOverlay = document.getElementById('gasOverlay');
     this.reset();
@@ -285,16 +284,19 @@ const Gear = {
   submitPip(pos, up, toCam, right) {
     const R = RenderQueue;
     V3.scale(this.tmp, toCam, -1);   // quad normal (-z) must face the camera
-    // cog-shaped brass casing
-    V3.addScaled(_gear.a, pos, toCam, -0.012); V3.addScaled(_gear.b, pos, toCam, 0.01);
+    // a rounded orange casing: a thick disc with a dark bezel round the screen and eight soft rounded lobes
+    V3.addScaled(_gear.a, pos, toCam, -0.014); V3.addScaled(_gear.b, pos, toCam, 0.008);
     let it = R.seg('cyl', MAT.paint, _gear.a, _gear.b, 0.05, false);
-    if (it) { it.tint[0] = 1.3; it.tint[1] = 0.85; it.tint[2] = 0.45; it.tint[3] = 0.1; }
-    for (let k = 0; k < 10; k++) {
-      const a = k / 10 * Math.PI * 2;
-      V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, right, Math.cos(a) * 0.055); V3.addScaled(_gear.c, _gear.c, up, Math.sin(a) * 0.055);
-      it = R.push('box', MAT.paint, false);
-      if (it) { basisMatrix(it.model, _gear.c, right, up, this.tmp, 0.015, 0.015, 0.02); it.tint[0] = 1.3; it.tint[1] = 0.85; it.tint[2] = 0.45; it.tint[3] = 0.1; }
+    if (it) { it.tint[0] = 1.35; it.tint[1] = 0.78; it.tint[2] = 0.32; it.tint[3] = 0.08; }
+    for (let k = 0; k < 8; k++) {
+      const a = k / 8 * Math.PI * 2 + Math.PI / 8;
+      V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, right, Math.cos(a) * 0.05); V3.addScaled(_gear.c, _gear.c, up, Math.sin(a) * 0.05); V3.addScaled(_gear.c, _gear.c, toCam, -0.003);
+      it = R.trs('sphereLow', MAT.paint, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.014, 0.014, 0.014, false);
+      if (it) { it.tint[0] = 1.35; it.tint[1] = 0.78; it.tint[2] = 0.32; it.tint[3] = 0.08; }
     }
+    V3.addScaled(_gear.c, pos, toCam, 0.009);
+    it = R.push('torus', MAT.rubber, false);
+    if (it) { ringMatrix(it.model, _gear.c, toCam, 0.04); it.model[4] *= 0.5; it.model[5] *= 0.5; it.model[6] *= 0.5; }
     // antenna and the front LED that is your flashlight
     V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, 0.05); V3.addScaled(_gear.c, _gear.c, right, 0.025);
     V3.copy(_gear.d, _gear.c); V3.addScaled(_gear.d, _gear.d, up, 0.04);
@@ -302,12 +304,12 @@ const Gear = {
     it = R.trs('sphereLow', MAT.screen, _gear.d[0], _gear.d[1], _gear.d[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
     if (it) { it.emis[0] = 2.5; it.emis[1] = 0.3; it.emis[2] = 0.2; }
     V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, -0.042); V3.addScaled(_gear.c, _gear.c, toCam, 0.012);
-    it = R.trs('sphereLow', MAT.screen, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.012, 0.012, 0.012, false);
-    if (it) { const on = Player.flashOn ? 1 : 0.05; if (this.blacklight) { it.emis[0] = 1.2 * on; it.emis[1] = 0.3 * on; it.emis[2] = 2.6 * on; } else { it.emis[0] = 2.6 * on; it.emis[1] = 2.4 * on; it.emis[2] = 2.0 * on; } }
+    it = R.trs('sphereLow', MAT.screen, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
+    if (it) { const on = (Player.flashOn ? 1 : 0.05) * 0.6; if (this.blacklight) { it.emis[0] = 1.2 * on; it.emis[1] = 0.3 * on; it.emis[2] = 2.6 * on; } else { it.emis[0] = 2.6 * on; it.emis[1] = 2.4 * on; it.emis[2] = 2.0 * on; } }
     // the LED face
     if (this.pipAsset) {
-      V3.addScaled(_gear.c, pos, toCam, 0.012);
-      basisMatrix(this.m, _gear.c, right, up, this.tmp, 0.078, 0.078, 1);
+      V3.addScaled(_gear.c, pos, toCam, 0.0105);
+      basisMatrix(this.m, _gear.c, right, up, this.tmp, 0.074, 0.074, 1);
       const q = AssetQueue.push(this.pipAsset, this.m, false);
       if (q) q.tint[3] = 0.1;
     }

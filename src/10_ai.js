@@ -472,7 +472,7 @@ const Monster = {
   },
   updateCreep(dt) {
     const eye = Player.cam.eye;
-    this.bodyPoint(this.head, Math.sin(this.headTilt) * 0.15, 3.33, -0.74);
+    this.bodyPoint(this.head, 0, 3.33, -0.74);
     V3.sub(this.tmp, this.head, eye);
     const l = V3.len(this.tmp) || 1;
     const seen = V3.dot(this.tmp, Renderer.camFwd) / l > 0.6 && Enemies.clearLine(eye, this.head);
@@ -688,7 +688,7 @@ const Monster = {
     }
     // ---- neck: segmented cable bundle up to the mask ----
     this.bodyPoint(B, 0, 2.49, -0.5);
-    const hx = Math.sin(this.headTilt) * 0.15;
+    const hx = 0;   // the neck holds still; only the mask moves
     this.bodyPoint(this.head, hx, 3.33 + this.flinchAmt * 0.2, -0.74);
     for (let k = 1; k < 4; k++) { V3.lerp(X, B, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
     R.seg('cyl', MAT.rubber, B, this.head, 0.05);
@@ -697,7 +697,12 @@ const Monster = {
       it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
       if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
     }
-    this.submitHead(this.head, yaw + this.lookYaw + this.headTilt * 0.1, -0.15 + lean * 0.5 - this.lookPitch, this.lookRoll + this.headTilt * 0.15, 1.15);
+    {
+      // the mask turns up to ~30 degrees inside the hood and rolls freely; anything past that, the hood snaps too
+      const my = clamp(this.lookYaw, -0.55, 0.55), mp = clamp(this.lookPitch, -0.35, 0.35);
+      const hoodYaw = yaw + (this.lookYaw - my), hoodPitch = -0.15 + lean * 0.5 - (this.lookPitch - mp);
+      this.submitHead(this.head, hoodYaw, hoodPitch, 0, 1.15, hoodYaw + my, hoodPitch - mp, this.lookRoll);
+    }
     // ---- arms: long thin machine arms ending in needle fingers ----
     if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
     for (const side of [-1, 1]) {
@@ -867,16 +872,20 @@ const Monster = {
     }
   },
 
-  submitHead(p, yaw, pitch, roll, scale) {
+  // the hood, hat and neck stay with the body; only the porcelain mask turns and snaps inside the hood
+  // (if it has to look further than the mask can turn, the hood snaps round too)
+  submitHead(p, yaw, pitch, roll, scale, maskYaw, maskPitch, maskRoll) {
     const R = RenderQueue, s = scale;
+    if (maskYaw === undefined) { maskYaw = yaw; maskPitch = pitch; maskRoll = roll; }
     const customHead = Assets.slot('monsterHead');
     if (customHead) {
       M4.compose(this.m, p[0], p[1], p[2], yaw, pitch, roll, 1, 1, 1);
       AssetQueue.push(customHead, this.m, true);
       return;
     }
-    const m = this.m;
-    M4.compose(m, p[0], p[1], p[2], yaw, pitch, roll, s, s, s);
+    const m = this.m, mh = _mh.hoodM;
+    M4.compose(mh, p[0], p[1], p[2], yaw, pitch, roll, s, s, s);
+    M4.compose(m, p[0], p[1], p[2], maskYaw, maskPitch, maskRoll, s, s, s);
     let it;
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
@@ -894,7 +903,7 @@ const Monster = {
     this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
     R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.07 * s, 0.07 * s, 0.035 * s, false);
     // the hood and its hat as one piece: rose / teal / gold patchwork with the battered harlequin top hat sewn on
-    if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(m); it.tint[0] = 0.95; it.tint[1] = 0.88; it.tint[2] = 0.82; } }
+    if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(mh); it.tint[0] = 0.95; it.tint[1] = 0.88; it.tint[2] = 0.82; } }
   },
   headLocal(m, x, y, z, out) { V3.set(_mh.local, x, y, z); return M4.transformPoint(out, m, _mh.local); },
 
@@ -918,6 +927,7 @@ const Monster = {
   }
 };
 const _mh = {
+  hoodM: M4.create(),
   dir: V3.create(), sr: V3.create(), sf: V3.create(), sc: V3.create(),
   kl: { a: V3.create(), b: V3.create(), c: V3.create() },
   tapePrev: V3.create(),

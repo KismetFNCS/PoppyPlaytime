@@ -825,7 +825,7 @@ const Game = {
         this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 0.86, false, h, true);
         if (s === 0) {
           // PIP strapped to the wrist, facing you
-          V3.addScaled(_g.p2, _g.hp, _g.hf, 0.02); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.06); V3.addScaled(_g.p2, _g.p2, right, 0.01);
+          V3.addScaled(_g.p2, _g.hp, _g.hf, 0.075); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.06); V3.addScaled(_g.p2, _g.p2, right, 0.015);
           V3.cross(_g.d, _g.hf, _g.hu); V3.normalize(_g.d, _g.d);
           Gear.submitPip(_g.p2, _g.hf, _g.hu, _g.d);
         }

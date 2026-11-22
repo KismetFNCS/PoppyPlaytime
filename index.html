@@ -4777,7 +4777,7 @@ const Monster = {
   },
   updateCreep(dt) {
     const eye = Player.cam.eye;
-    this.bodyPoint(this.head, Math.sin(this.headTilt) * 0.15, 3.33, -0.74);
+    this.bodyPoint(this.head, 0, 3.33, -0.74);
     V3.sub(this.tmp, this.head, eye);
     const l = V3.len(this.tmp) || 1;
     const seen = V3.dot(this.tmp, Renderer.camFwd) / l > 0.6 && Enemies.clearLine(eye, this.head);
@@ -4993,7 +4993,7 @@ const Monster = {
     }
     // ---- neck: segmented cable bundle up to the mask ----
     this.bodyPoint(B, 0, 2.49, -0.5);
-    const hx = Math.sin(this.headTilt) * 0.15;
+    const hx = 0;   // the neck holds still; only the mask moves
     this.bodyPoint(this.head, hx, 3.33 + this.flinchAmt * 0.2, -0.74);
     for (let k = 1; k < 4; k++) { V3.lerp(X, B, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
     R.seg('cyl', MAT.rubber, B, this.head, 0.05);
@@ -5002,7 +5002,12 @@ const Monster = {
       it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
       if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
     }
-    this.submitHead(this.head, yaw + this.lookYaw + this.headTilt * 0.1, -0.15 + lean * 0.5 - this.lookPitch, this.lookRoll + this.headTilt * 0.15, 1.15);
+    {
+      // the mask turns up to ~30 degrees inside the hood and rolls freely; anything past that, the hood snaps too
+      const my = clamp(this.lookYaw, -0.55, 0.55), mp = clamp(this.lookPitch, -0.35, 0.35);
+      const hoodYaw = yaw + (this.lookYaw - my), hoodPitch = -0.15 + lean * 0.5 - (this.lookPitch - mp);
+      this.submitHead(this.head, hoodYaw, hoodPitch, 0, 1.15, hoodYaw + my, hoodPitch - mp, this.lookRoll);
+    }
     // ---- arms: long thin machine arms ending in needle fingers ----
     if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
     for (const side of [-1, 1]) {
@@ -5172,16 +5177,20 @@ const Monster = {
     }
   },
 
-  submitHead(p, yaw, pitch, roll, scale) {
+  // the hood, hat and neck stay with the body; only the porcelain mask turns and snaps inside the hood
+  // (if it has to look further than the mask can turn, the hood snaps round too)
+  submitHead(p, yaw, pitch, roll, scale, maskYaw, maskPitch, maskRoll) {
     const R = RenderQueue, s = scale;
+    if (maskYaw === undefined) { maskYaw = yaw; maskPitch = pitch; maskRoll = roll; }
     const customHead = Assets.slot('monsterHead');
     if (customHead) {
       M4.compose(this.m, p[0], p[1], p[2], yaw, pitch, roll, 1, 1, 1);
       AssetQueue.push(customHead, this.m, true);
       return;
     }
-    const m = this.m;
-    M4.compose(m, p[0], p[1], p[2], yaw, pitch, roll, s, s, s);
+    const m = this.m, mh = _mh.hoodM;
+    M4.compose(mh, p[0], p[1], p[2], yaw, pitch, roll, s, s, s);
+    M4.compose(m, p[0], p[1], p[2], maskYaw, maskPitch, maskRoll, s, s, s);
     let it;
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
@@ -5199,7 +5208,7 @@ const Monster = {
     this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
     R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.07 * s, 0.07 * s, 0.035 * s, false);
     // the hood and its hat as one piece: rose / teal / gold patchwork with the battered harlequin top hat sewn on
-    if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(m); it.tint[0] = 0.95; it.tint[1] = 0.88; it.tint[2] = 0.82; } }
+    if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(mh); it.tint[0] = 0.95; it.tint[1] = 0.88; it.tint[2] = 0.82; } }
   },
   headLocal(m, x, y, z, out) { V3.set(_mh.local, x, y, z); return M4.transformPoint(out, m, _mh.local); },
 
@@ -5223,6 +5232,7 @@ const Monster = {
   }
 };
 const _mh = {
+  hoodM: M4.create(),
   dir: V3.create(), sr: V3.create(), sf: V3.create(), sc: V3.create(),
   kl: { a: V3.create(), b: V3.create(), c: V3.create() },
   tapePrev: V3.create(),
@@ -7609,7 +7619,7 @@ const Game = {
         this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 0.86, false, h, true);
         if (s === 0) {
           // PIP strapped to the wrist, facing you
-          V3.addScaled(_g.p2, _g.hp, _g.hf, 0.02); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.06); V3.addScaled(_g.p2, _g.p2, right, 0.01);
+          V3.addScaled(_g.p2, _g.hp, _g.hf, 0.075); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.06); V3.addScaled(_g.p2, _g.p2, right, 0.015);
           V3.cross(_g.d, _g.hf, _g.hu); V3.normalize(_g.d, _g.d);
           Gear.submitPip(_g.p2, _g.hf, _g.hu, _g.d);
         }
@@ -10000,6 +10010,9 @@ const Pip = {
   init() {
     this.canvas = document.getElementById('pipCanvas');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
+    // the LED face shown on PIP's device on the teal glove: just the round screen, transparent outside
+    this.faceCanvas = document.createElement('canvas'); this.faceCanvas.width = 128; this.faceCanvas.height = 128;
+    this.faceCtx = this.faceCanvas.getContext('2d');
     EventBus.on(EV.POWER_ON, () => this.react('happy', 3));
     EventBus.on(EV.DENY, () => this.react('sad', 2));
     EventBus.on(EV.RELAY_LINK, () => this.react('wink', 1.2));
@@ -10086,6 +10099,22 @@ const Pip = {
       c.fillStyle = on ? color : 'rgba(255,255,255,0.05)';
       c.fillRect(ox + x * sx - 1.2 + jitter, oy + y * sy - 1.2, on ? 2.6 : 1.6, on ? 2.6 : 1.6);
     }
+    this.drawFace(color, jitter);
+  },
+  drawFace(color, jitter) {
+    const c = this.faceCtx; if (!c) return;
+    c.clearRect(0, 0, 128, 128);
+    c.fillStyle = 'rgba(14,16,18,1)'; c.beginPath(); c.arc(64, 64, 60, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = 'rgba(60,64,66,1)'; c.lineWidth = 4; c.beginPath(); c.arc(64, 64, 58, 0, Math.PI * 2); c.stroke();
+    const sx = 96 / PIP_W, sy = 76 / PIP_H, ox = 64 - (PIP_W - 1) * sx / 2, oy = 62 - (PIP_H - 1) * sy / 2;
+    for (let y = 0; y < PIP_H; y++) for (let x = 0; x < PIP_W; x++) {
+      const on = this.grid[y * PIP_W + x];
+      if (!on) continue;
+      c.fillStyle = color;
+      c.beginPath(); c.arc(ox + x * sx + jitter, oy + y * sy, sx * 0.38, 0, Math.PI * 2); c.fill();
+    }
+    // a soft glare across the glass
+    c.fillStyle = 'rgba(255,255,255,0.07)'; c.beginPath(); c.ellipse(48, 40, 30, 14, -0.5, 0, Math.PI * 2); c.fill();
   }
 };
 
@@ -11954,8 +11983,7 @@ const Gear = {
     this.pickups = PICKUP_SPOTS.map(p => ({ kind: p.kind, type: p.type || 0, sector: p.sector, pos: V3.create(p.pos[0], p.pos[1], p.pos[2]), taken: false }));
     this.secrets = UV_SECRETS.map(s => ({ s, asset: this.textQuad(s.lines), reveal: 0 }));
     // PIP's face on the teal glove uses the HUD companion canvas as a live texture
-    const cv = document.getElementById('pipCanvas');
-    if (cv) this.pipAsset = this.canvasQuad(cv, 'pip-face', 2.2, false);
+    if (Pip.faceCanvas) this.pipAsset = this.canvasQuad(Pip.faceCanvas, 'pip-face', 2.4, true);
     this.overlay = document.getElementById('maskOverlay');
     this.gasOverlay = document.getElementById('gasOverlay');
     this.reset();
@@ -12197,16 +12225,19 @@ const Gear = {
   submitPip(pos, up, toCam, right) {
     const R = RenderQueue;
     V3.scale(this.tmp, toCam, -1);   // quad normal (-z) must face the camera
-    // cog-shaped brass casing
-    V3.addScaled(_gear.a, pos, toCam, -0.012); V3.addScaled(_gear.b, pos, toCam, 0.01);
+    // a rounded orange casing: a thick disc with a dark bezel round the screen and eight soft rounded lobes
+    V3.addScaled(_gear.a, pos, toCam, -0.014); V3.addScaled(_gear.b, pos, toCam, 0.008);
     let it = R.seg('cyl', MAT.paint, _gear.a, _gear.b, 0.05, false);
-    if (it) { it.tint[0] = 1.3; it.tint[1] = 0.85; it.tint[2] = 0.45; it.tint[3] = 0.1; }
-    for (let k = 0; k < 10; k++) {
-      const a = k / 10 * Math.PI * 2;
-      V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, right, Math.cos(a) * 0.055); V3.addScaled(_gear.c, _gear.c, up, Math.sin(a) * 0.055);
-      it = R.push('box', MAT.paint, false);
-      if (it) { basisMatrix(it.model, _gear.c, right, up, this.tmp, 0.015, 0.015, 0.02); it.tint[0] = 1.3; it.tint[1] = 0.85; it.tint[2] = 0.45; it.tint[3] = 0.1; }
+    if (it) { it.tint[0] = 1.35; it.tint[1] = 0.78; it.tint[2] = 0.32; it.tint[3] = 0.08; }
+    for (let k = 0; k < 8; k++) {
+      const a = k / 8 * Math.PI * 2 + Math.PI / 8;
+      V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, right, Math.cos(a) * 0.05); V3.addScaled(_gear.c, _gear.c, up, Math.sin(a) * 0.05); V3.addScaled(_gear.c, _gear.c, toCam, -0.003);
+      it = R.trs('sphereLow', MAT.paint, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.014, 0.014, 0.014, false);
+      if (it) { it.tint[0] = 1.35; it.tint[1] = 0.78; it.tint[2] = 0.32; it.tint[3] = 0.08; }
     }
+    V3.addScaled(_gear.c, pos, toCam, 0.009);
+    it = R.push('torus', MAT.rubber, false);
+    if (it) { ringMatrix(it.model, _gear.c, toCam, 0.04); it.model[4] *= 0.5; it.model[5] *= 0.5; it.model[6] *= 0.5; }
     // antenna and the front LED that is your flashlight
     V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, 0.05); V3.addScaled(_gear.c, _gear.c, right, 0.025);
     V3.copy(_gear.d, _gear.c); V3.addScaled(_gear.d, _gear.d, up, 0.04);
@@ -12214,12 +12245,12 @@ const Gear = {
     it = R.trs('sphereLow', MAT.screen, _gear.d[0], _gear.d[1], _gear.d[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
     if (it) { it.emis[0] = 2.5; it.emis[1] = 0.3; it.emis[2] = 0.2; }
     V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, -0.042); V3.addScaled(_gear.c, _gear.c, toCam, 0.012);
-    it = R.trs('sphereLow', MAT.screen, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.012, 0.012, 0.012, false);
-    if (it) { const on = Player.flashOn ? 1 : 0.05; if (this.blacklight) { it.emis[0] = 1.2 * on; it.emis[1] = 0.3 * on; it.emis[2] = 2.6 * on; } else { it.emis[0] = 2.6 * on; it.emis[1] = 2.4 * on; it.emis[2] = 2.0 * on; } }
+    it = R.trs('sphereLow', MAT.screen, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
+    if (it) { const on = (Player.flashOn ? 1 : 0.05) * 0.6; if (this.blacklight) { it.emis[0] = 1.2 * on; it.emis[1] = 0.3 * on; it.emis[2] = 2.6 * on; } else { it.emis[0] = 2.6 * on; it.emis[1] = 2.4 * on; it.emis[2] = 2.0 * on; } }
     // the LED face
     if (this.pipAsset) {
-      V3.addScaled(_gear.c, pos, toCam, 0.012);
-      basisMatrix(this.m, _gear.c, right, up, this.tmp, 0.078, 0.078, 1);
+      V3.addScaled(_gear.c, pos, toCam, 0.0105);
+      basisMatrix(this.m, _gear.c, right, up, this.tmp, 0.074, 0.074, 1);
       const q = AssetQueue.push(this.pipAsset, this.m, false);
       if (q) q.tint[3] = 0.1;
     }

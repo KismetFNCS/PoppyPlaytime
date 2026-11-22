@@ -674,6 +674,9 @@ const Pip = {
   init() {
     this.canvas = document.getElementById('pipCanvas');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
+    // the LED face shown on PIP's device on the teal glove: just the round screen, transparent outside
+    this.faceCanvas = document.createElement('canvas'); this.faceCanvas.width = 128; this.faceCanvas.height = 128;
+    this.faceCtx = this.faceCanvas.getContext('2d');
     EventBus.on(EV.POWER_ON, () => this.react('happy', 3));
     EventBus.on(EV.DENY, () => this.react('sad', 2));
     EventBus.on(EV.RELAY_LINK, () => this.react('wink', 1.2));
@@ -760,5 +763,21 @@ const Pip = {
       c.fillStyle = on ? color : 'rgba(255,255,255,0.05)';
       c.fillRect(ox + x * sx - 1.2 + jitter, oy + y * sy - 1.2, on ? 2.6 : 1.6, on ? 2.6 : 1.6);
     }
+    this.drawFace(color, jitter);
+  },
+  drawFace(color, jitter) {
+    const c = this.faceCtx; if (!c) return;
+    c.clearRect(0, 0, 128, 128);
+    c.fillStyle = 'rgba(14,16,18,1)'; c.beginPath(); c.arc(64, 64, 60, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = 'rgba(60,64,66,1)'; c.lineWidth = 4; c.beginPath(); c.arc(64, 64, 58, 0, Math.PI * 2); c.stroke();
+    const sx = 96 / PIP_W, sy = 76 / PIP_H, ox = 64 - (PIP_W - 1) * sx / 2, oy = 62 - (PIP_H - 1) * sy / 2;
+    for (let y = 0; y < PIP_H; y++) for (let x = 0; x < PIP_W; x++) {
+      const on = this.grid[y * PIP_W + x];
+      if (!on) continue;
+      c.fillStyle = color;
+      c.beginPath(); c.arc(ox + x * sx + jitter, oy + y * sy, sx * 0.38, 0, Math.PI * 2); c.fill();
+    }
+    // a soft glare across the glass
+    c.fillStyle = 'rgba(255,255,255,0.07)'; c.beginPath(); c.ellipse(48, 40, 30, 14, -0.5, 0, Math.PI * 2); c.fill();
   }
 };
