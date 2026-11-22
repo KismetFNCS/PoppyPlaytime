@@ -281,40 +281,44 @@ const Gear = {
     }
   },
   // PIP strapped to the back of the teal glove's wrist, facing you (called from Game.submitHands)
-  submitPip(pos, up, toCam, right) {
+  submitPip(pos, up0, toCam0, right0) {
     const R = RenderQueue, O = [1.35, 0.78, 0.32];
-    const box = (mat, off, sx, sy, sz, tint, du, dr) => {
-      V3.addScaled(_gear.c, pos, toCam, off); if (du) V3.addScaled(_gear.c, _gear.c, up, du); if (dr) V3.addScaled(_gear.c, _gear.c, right, dr);
-      const it = R.push('box', mat, false);
-      if (it) { basisMatrix(it.model, _gear.c, right, up, toCam, sx, sy, sz); if (tint) { it.tint[0] = tint[0]; it.tint[1] = tint[1]; it.tint[2] = tint[2]; } it.tint[3] = 0.06; }
-      return it;
-    };
-    // a chunky, rounded orange wrist device: casing, a dark bezel and a speaker grille
-    box(MAT.paint, -0.004, 0.115, 0.098, 0.026, O);
-    for (const [du, dr] of [[0.049, 0.057], [0.049, -0.057], [-0.049, 0.057], [-0.049, -0.057]]) {
-      V3.addScaled(_gear.c, pos, toCam, -0.004); V3.addScaled(_gear.c, _gear.c, up, du); V3.addScaled(_gear.c, _gear.c, right, dr);
-      const it = R.trs('sphereLow', MAT.paint, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.016, 0.016, 0.014, false);
-      if (it) { it.tint[0] = O[0]; it.tint[1] = O[1]; it.tint[2] = O[2]; }
+    // the hand's axes are not exactly perpendicular; build a clean orthonormal frame so the screen sits flat
+    // against the casing instead of slicing through it
+    const toCam = V3.normalize(_gear.n, toCam0), right = _gear.r;
+    V3.addScaled(right, right0, toCam, -V3.dot(right0, toCam)); V3.normalize(right, right);
+    const up = V3.cross(_gear.u, toCam, right);
+    // the round orange casing: a thick disc with eight soft rounded lobes
+    V3.addScaled(_gear.a, pos, toCam, -0.014); V3.addScaled(_gear.b, pos, toCam, 0.006);
+    let it = R.seg('cyl', MAT.paint, _gear.a, _gear.b, 0.05, false);
+    if (it) { it.tint[0] = O[0]; it.tint[1] = O[1]; it.tint[2] = O[2]; it.tint[3] = 0.08; }
+    for (let k = 0; k < 8; k++) {
+      const a = k / 8 * Math.PI * 2 + Math.PI / 8;
+      V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, right, Math.cos(a) * 0.05); V3.addScaled(_gear.c, _gear.c, up, Math.sin(a) * 0.05); V3.addScaled(_gear.c, _gear.c, toCam, -0.003);
+      it = R.trs('sphereLow', MAT.paint, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.014, 0.014, 0.014, false);
+      if (it) { it.tint[0] = O[0]; it.tint[1] = O[1]; it.tint[2] = O[2]; it.tint[3] = 0.08; }
     }
-    box(MAT.rubber, 0.006, 0.092, 0.074, 0.012, null, 0.004);
-    for (let k = 0; k < 3; k++) box(MAT.rubber, 0.01, 0.012, 0.004, 0.006, null, -0.042, -0.035 + k * 0.012);
-    // antenna, and the front lamp that is your flashlight
-    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, 0.05); V3.addScaled(_gear.c, _gear.c, right, 0.04);
-    V3.copy(_gear.d, _gear.c); V3.addScaled(_gear.d, _gear.d, up, 0.035);
-    R.seg('cylLow', MAT.rubber, _gear.c, _gear.d, 0.004, false);
-    let it = R.trs('sphereLow', MAT.screen, _gear.d[0], _gear.d[1], _gear.d[2], 0, 0, 0, 0.007, 0.007, 0.007, false);
-    if (it) { it.emis[0] = 2.5; it.emis[1] = 0.3; it.emis[2] = 0.2; }
-    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, -0.042); V3.addScaled(_gear.c, _gear.c, right, 0.04); V3.addScaled(_gear.c, _gear.c, toCam, 0.012);
-    it = R.trs('sphereLow', MAT.screen, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.007, 0.007, 0.005, false);
-    if (it) { const on = (Player.flashOn ? 1 : 0.05) * 0.6; if (this.blacklight) { it.emis[0] = 1.2 * on; it.emis[1] = 0.3 * on; it.emis[2] = 2.6 * on; } else { it.emis[0] = 2.6 * on; it.emis[1] = 2.4 * on; it.emis[2] = 2.0 * on; } }
-    // the LED face, opaque, sitting clearly in front of the bezel
+    // the screen: an opaque glass panel just in front of the casing, its corners hidden behind a thick dark
+    // bezel ring, so it always reads as a clean round screen
     if (this.pipAsset) {
-      V3.addScaled(_gear.c, pos, toCam, 0.0135); V3.addScaled(_gear.c, _gear.c, up, 0.004);
-      V3.scale(_gear.d, right, -1); V3.scale(this.tmp, toCam, -1);   // right-handed basis with the quad (-z) facing you
-      basisMatrix(this.m, _gear.c, _gear.d, up, this.tmp, 0.084, 0.064, 1);
+      V3.addScaled(_gear.c, pos, toCam, 0.0095);
+      V3.scale(_gear.d, right, -1); V3.scale(this.tmp, toCam, -1);   // right-handed basis, quad (-z) facing you
+      basisMatrix(this.m, _gear.c, _gear.d, up, this.tmp, 0.066, 0.066, 1);
       const q = AssetQueue.push(this.pipAsset, this.m, false);
       if (q) q.tint[3] = 0.1;
     }
+    V3.addScaled(_gear.c, pos, toCam, 0.0115);
+    it = R.push('torus', MAT.rubber, false);
+    if (it) { ringMatrix(it.model, _gear.c, toCam, 0.04); it.model[4] *= 0.5; it.model[5] *= 0.5; it.model[6] *= 0.5; }
+    // antenna, and the front lamp that is your flashlight
+    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, 0.05); V3.addScaled(_gear.c, _gear.c, right, 0.025);
+    V3.copy(_gear.d, _gear.c); V3.addScaled(_gear.d, _gear.d, up, 0.04);
+    R.seg('cylLow', MAT.rubber, _gear.c, _gear.d, 0.004, false);
+    it = R.trs('sphereLow', MAT.screen, _gear.d[0], _gear.d[1], _gear.d[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
+    if (it) { it.emis[0] = 2.5; it.emis[1] = 0.3; it.emis[2] = 0.2; }
+    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, -0.046); V3.addScaled(_gear.c, _gear.c, toCam, 0.008);
+    it = R.trs('sphereLow', MAT.screen, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.007, 0.007, 0.005, false);
+    if (it) { const on = (Player.flashOn ? 1 : 0.05) * 0.6; if (this.blacklight) { it.emis[0] = 1.2 * on; it.emis[1] = 0.3 * on; it.emis[2] = 2.6 * on; } else { it.emis[0] = 2.6 * on; it.emis[1] = 2.4 * on; it.emis[2] = 2.0 * on; } }
   }
 };
-const _gear = { a: V3.create(), b: V3.create(), c: V3.create(), d: V3.create() };
+const _gear = { n: V3.create(), r: V3.create(), u: V3.create(), a: V3.create(), b: V3.create(), c: V3.create(), d: V3.create() };
