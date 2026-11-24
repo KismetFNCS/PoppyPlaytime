@@ -242,7 +242,7 @@ async function runAll() {
     check('boot: no runtime error', T.getLastError() === null, T.getLastError());
     check('boot: WebGL2 deferred pipeline online', Renderer.ok && !!Renderer.targets, 'hdr ' + (Renderer.hdrFloat ? 'float' : 'rgba8'));
     check('boot: BVH built over static colliders', Physics.bvh && Physics.bvh.nodeCount > 10, Physics.bvh && Physics.bvh.nodeCount);
-    check('boot: 6 streaming sectors', Level.sectors.length === 6, Level.sectors.length);
+    check('boot: 11 streaming sectors (Act I + the Deep Works)', Level.sectors.length === 11, Level.sectors.length);
     T.setAutoRun(true);
     const f0 = T.getFrameCount();
     await sleep(300);
@@ -558,6 +558,165 @@ async function runAll() {
     Boss.mode = 'FIGHT'; Monster.bossHold = false; Monster.airborne = false;
     Boss.debugShock(); T.step(DT, 30); Boss.debugShock();
     check('boss: final shock defeats it', Boss.hp === 0 && Boss.mode === 'DEFEATED', 'hp ' + Boss.hp + ' ' + Boss.mode);
+
+    await breathe();
+    // ---------------- ACT II: the Deep Works ----------------
+    const DWk = DeepWorks, V = DWk.vault;
+    let arrived = false;
+    for (let i = 0; i < 1000 && !arrived; i++) { T.step(DT, 1); arrived = Game.stage === 5; }
+    T.step(DT, 2);
+    check('act2: the Loom is not the end - the freight lift drops into the station yard', arrived && Streaming.current === 6, 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    check('act2: checkpoint saved in the yard', Game.checkpoint.stage === 5, Game.checkpoint.stage);
+    check('act2: the right hand was torn off in the fall', Gear.rightLost, '');
+    Game.invulnerable = true;
+    T.step(DT, 120);
+    check('act2: the Usher speaks from the yard monitor', Cast.monitor.active && Cast.monitor.stage === 5 && Cast.monitor.said, JSON.stringify(Cast.monitor));
+    click(1); T.step(DT, 10);
+    check('act2: right trigger does nothing while the hand is missing', GrabPack.hands[1].state === HAND.DOCKED && /torn off/.test(GrabPack.hint), GrabPack.hint);
+    T.setPlayerPose(-4.2, 0, -145.3, 0, 0); T.aimAt(-4.2, 0.98, -146.5); T.step(DT, 2); tap('KeyE'); T.step(DT, 20);
+    check('act2: right hand found by the tracks and reattached', !Gear.rightLost && Gear.pickups.find(p => p.restore).taken, GrabPack.hint);
+    const shX0 = DWk.shunter.x; T.step(DT, 60);
+    check('act2: the shunter car patrols the second line', DWk.shunter.x !== shX0 || DWk.shunter.wait > 0, shX0 + ' -> ' + DWk.shunter.x);
+    T.setPlayerPose(3.5, 0, -169.5, -Math.PI / 2, 0); T.step(DT, 6);
+    check('act2: rendezvous - Thimble joins you on the platform', DWk.met && Cast.plush.mode === 'FOLLOW', Cast.plush.mode);
+    // yard gate circuit
+    T.setPlayerPose(-10, 0, -165, Math.PI / 2, 0); T.step(DT, 2);
+    T.aimAt(-12.45, 1.5, -165); click(0); T.step(DT, 20);
+    check('yard: hand latches the signal-box node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
+    for (const wp of [[-5, -164.5], [-3, -168.5], [5.5, -168], [7.5, -172.5], [6.5, -173.6]]) T.walkTo(wp[0], wp[1]);
+    T.aimAt(6.5, 1.6, -175.85); click(1); T.step(DT, 25);
+    check('yard: looped circuit powers the gate', DWk.receptacleBy('Y_GATE').powered && Level.doorById('D6').target === 1, GrabPack.hint + ' ' + JSON.stringify(T.hands()[0].wraps));
+    check('yard: stage 6 checkpoint', Game.stage === 6 && Game.checkpoint.stage === 6, Game.stage);
+    GrabPack.reset(); T.step(DT, 300);
+
+    await breathe();
+    // fabrication line: belts carry you, the cable crosses them
+    T.setPlayerPose(0, 0.25, -182.5, 0, 0); T.step(DT, 4);
+    const bx0 = Player.body.pos[0]; T.step(DT, 30);
+    check('fab: standing on a belt carries you along the line', Player.body.pos[0] - bx0 > 0.6, (Player.body.pos[0] - bx0).toFixed(2));
+    T.setPlayerPose(-12, 0, -179.5, Math.PI / 2, 0); T.step(DT, 2);
+    T.aimAt(-13.85, 1.5, -179.5); click(0); T.step(DT, 20);
+    check('fab: hand latches the line node', GrabPack.hands[0].tethered, '');
+    for (const wp of [[-4, -183.6], [-1.5, -188.5], [4, -188.6], [6.5, -193.0], [10, -195.2]]) T.walkTo(wp[0], wp[1]);
+    T.aimAt(10, 1.6, -196.05); click(1); T.step(DT, 25);
+    check('fab: circuit across the moving lines opens the piston hall', DWk.receptacleBy('F_CIRCUIT').powered && Level.doorById('DF').target === 1, GrabPack.hint + ' ' + JSON.stringify(T.hands()[0].wraps));
+    GrabPack.reset(); T.step(DT, 300);
+    let slam = false; for (let i = 0; i < 200 && !slam; i++) { T.step(DT, 1); slam = DWk.pistons.some(p => p.down); }
+    check('fab: the pistons slam down in turn', slam && T.getSfxLog().includes('piston'), '');
+    Game.invulnerable = false; Player.health = 100;
+    T.setPlayerPose(0, 0, FAB_PISTONS[1], 0, 0);
+    for (let i = 0; i < 200 && T.getState() !== 'FAILURE_STATE'; i++) T.step(DT, 1);
+    check('fab: standing under a piston crushes you', T.getState() === 'FAILURE_STATE' && Game.failReason === 'CRUSHED', T.getState() + ' ' + Game.failReason);
+    setState(STATE.GAMEPLAY_ACTIVE); Game.invulnerable = true; Player.health = 100;
+    T.setPlayerPose(0, 0, -199.0, Math.PI / 2, 0); T.step(DT, 2);
+    T.aimAt(-2.35, 1.6, -199.6); click(0); T.step(DT, 10);
+    check('fab: piston override sends Thimble into the machinery', DWk.thimbleTask && DWk.thimbleTask.kind === 'JAM', '');
+    let jammed = false; for (let i = 0; i < 700 && !jammed; i++) { T.step(DT, 1); jammed = DWk.jam.on; }
+    T.step(DT, 90);
+    check('fab: Thimble jams the pistons (raised) and the exit opens', jammed && DWk.pistons.every(p => p.y > 3) && Level.doorById('D7').target === 1, DWk.pistons.map(p => p.y.toFixed(1)).join(','));
+    check('fab: stage 7 checkpoint', Game.checkpoint.stage === 7, Game.checkpoint.stage);
+    T.step(DT, 250);
+    check('fab: Thimble climbs back out and follows', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
+    // checkpoint restore keeps Act II progress
+    Game.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); Game.invulnerable = true; T.step(DT, 4);
+    check('checkpoint: restoring in the catacombs keeps the pistons jammed and Thimble with you', Game.stage === 7 && Streaming.current === 8 && DWk.jam.on && Level.doorById('D7').open === 1 && Cast.plush.mode === 'FOLLOW', 'stage ' + Game.stage + ' sector ' + Streaming.current);
+
+    await breathe();
+    // drainage catacombs
+    T.setPlayerPose(0, 0, -220, 0, 0); T.step(DT, 2);
+    check('catacombs: the gel floor has almost no traction', Player.traction < 0.2, Player.traction);
+    Game.invulnerable = false; Player.health = 100;
+    T.setPlayerPose(5.5, 0, -221, 0, 0); T.step(DT, 10);
+    check('catacombs: the live cables shock you', Player.health < 90 && T.getSfxLog().includes('shock'), Player.health.toFixed(0));
+    Game.invulnerable = true; Player.health = 100;
+    T.setPlayerPose(3, 0, -223.5, 0, 0); T.step(DT, 2); T.aimAt(3, 1.6, -225.85); click(0); T.step(DT, 10);
+    check('catacombs: terminal hands the lock to Marigold', DWk.overrides.length === 1, '');
+    T.step(DT, 300);
+    check('catacombs: Marigold overrides the lock', Level.doorById('DC1').target === 1, '');
+    T.step(DT, 300);
+    for (const wp of [[0, -228.8], [-8.8, -228.8], [-8.8, -234.8], [0, -234.8]]) T.walkTo(wp[0], wp[1]);
+    T.step(DT, 60);
+    check('catacombs: a pipe collapses behind you and blocks the way back', DWk.pipe.fallen && DWk.pipe.c.enabled, '');
+    T.setPlayerPose(7.8, 0.37, -239.0, 0, 0); T.step(DT, 2);
+    T.simulateKey('KeyW', true); for (let i = 0; i < 240 && Player.body.pos[2] > -245.2; i++) T.step(DT, 1); T.step(DT, 30); T.simulateKey('KeyW', false);
+    check('catacombs: the shaky catwalk drops once you are across', DWk.catwalk.fallen && !DWk.catwalk.c.enabled && Player.body.pos[2] < -244, Player.body.pos[2].toFixed(2));
+    T.setPlayerPose(4, 0, -246.4, 0, 0); T.step(DT, 2); T.aimAt(4, 2.4, -247.72);
+    const lad = DWk.leverBy('C_LADDER');
+    T.simulateMouse(0, true); for (let i = 0; i < 120 && !lad.pulled; i++) { T.step(DT, 1); if (lad.grab) Player.pitch -= 0.02; } T.simulateMouse(0, false);
+    T.step(DT, 60);
+    check('catacombs: latch the ring and drag - the exit ladder comes down', lad.pulled && DWk.ladder.down > 0.9, 'wrench ' + lad.wrench.toFixed(2));
+    GrabPack.reset();
+    T.setPlayerPose(4, 0, -247.5, 0, 0); T.step(DT, 2);
+    T.simulateKey('KeyW', true); for (let i = 0; i < 200 && Player.body.pos[2] > -248.3; i++) T.step(DT, 1); T.simulateKey('KeyW', false); T.step(DT, 40);
+    check('catacombs: climb the ladder over the retaining wall', Player.body.pos[2] < -248.2, Player.body.pos[1].toFixed(2) + ' ' + Player.body.pos[2].toFixed(2));
+    T.setPlayerPose(-4, 0, -251, Math.PI, 0); T.step(DT, 2); T.aimAt(-4, 1.6, -249.15); click(0); T.step(DT, 320);
+    check('catacombs: the last terminal opens the drain gate (stage 8)', Level.doorById('D8').target === 1 && Game.stage === 8 && Game.checkpoint.stage === 8, Game.stage);
+    T.step(DT, 300);
+
+    await breathe();
+    // sorting hub
+    T.setPlayerPose(0, 0, -258, 0, 0); T.step(DT, 2);
+    const bandOk = () => HUB_BANDS.every((b, bi) => DWk.containers.some(ct => ct.band === bi && Math.abs(ct.x - ct.xPocket) < 0.05));
+    check('hub: every band starts with an open gap', bandOk(), '');
+    T.clearSfxLog();
+    const before = Array.from(DWk.colorState).join('');
+    for (let i = 0; i < HUB_CYCLE * 60 + 100; i++) T.step(DT, 1);
+    check('hub: the intercom calls a colour (klaxon) and those containers shift', Array.from(DWk.colorState).join('') !== before && T.getSfxLog().includes('klaxon'), before + ' -> ' + Array.from(DWk.colorState).join(''));
+    let alwaysOpen = true;
+    for (let k = 0; k < 4; k++) { for (let i = 0; i < HUB_CYCLE * 60; i++) T.step(DT, 1); alwaysOpen = alwaysOpen && bandOk(); }
+    check('hub: after every shuffle each band still has a way through', alwaysOpen, Array.from(DWk.colorState).join(''));
+    // stand in a gap that is about to close: you are shoved out of it
+    const nextCol = DWk.hub.next % 4;
+    const ct = DWk.containers.find(c => c.g.c === nextCol && Math.abs(c.x - c.xPocket) < 0.05);
+    if (ct) {
+      T.setPlayerPose(ct.xGap, 0, ct.z, 0, 0); for (let i = 0; i < HUB_CYCLE * 60 && !(ct.t >= 1 && Math.abs(ct.x - ct.xGap) < 0.05); i++) T.step(DT, 1); T.step(DT, 5);
+      check('hub: a closing container shoves you out of its gap', Math.abs(Player.body.pos[2] - ct.z) >= HUB_DEPTH / 2, (Player.body.pos[2] - ct.z).toFixed(2));
+    } else check('hub: a closing container shoves you out of its gap', false, 'no container to test');
+    Game.invulnerable = false; Player.health = 100;
+    const CR = DWk.crushers[0];
+    T.setPlayerPose(clamp(CR.x + CR.dir * 1.6, -13, 13), 0, -285.2, 0, 0);
+    for (let i = 0; i < 120 && T.getState() !== 'FAILURE_STATE'; i++) T.step(DT, 1);
+    check('hub: the sweeping wall crushes you', T.getState() === 'FAILURE_STATE' && /CRUSHED/.test(Game.failReason), T.getState() + ' ' + Game.failReason);
+    setState(STATE.GAMEPLAY_ACTIVE); Game.invulnerable = true; Player.health = 100;
+    T.setPlayerPose(0, 0, -289.5, 0, 0); T.step(DT, 4);
+    check('hub: reaching the exit opens the vault gate (stage 9)', Level.doorById('D9').target === 1 && Game.checkpoint.stage === 9, Game.stage);
+    T.step(DT, 300);
+
+    await breathe();
+    // the core vault
+    T.setPlayerPose(0, 0, -297.8, 0, 0); T.step(DT, 4);
+    check('vault: entering wakes the fight', V.active && Game.chaseActive, V.mode);
+    for (let i = 0; i < 400 && V.mode !== 'P1'; i++) T.step(DT, 1);
+    T.step(DT, 120);
+    check('vault: the Spoolwright descends (phase 1)', V.mode === 'P1' && Monster.active && Monster.boss, V.mode + ' ' + Monster.state);
+    check('ui: boss bar shows the vault health', document.getElementById('hudBoss').style.display === 'block', '');
+    V.trainCd = 0; let trainSeen = false;
+    for (let i = 0; i < 200 && !trainSeen; i++) { T.step(DT, 1); trainSeen = DWk.trains.length > 0; }
+    check('vault: automated trains run through the vault', trainSeen && T.getSfxLog().includes('klaxon'), '');
+    for (let i = 0; i < 400 && DWk.trains.length; i++) T.step(DT, 1);
+    const pad = DWk.pads[0]; let rose = false; for (let i = 0; i < 700 && !rose; i++) { T.step(DT, 1); rose = pad.y > 1.2; }
+    check('vault: the shifting platforms rise and sink', rose, pad.y.toFixed(2));
+    // lure it onto the near line and throw the switch
+    Monster.bossHold = true; V3.set(Monster.pos, 4, 0, VAULT_TRACKS[0]); Monster.stunTimer = 0; Monster.inVent = false;
+    T.setPlayerPose(-13.6, 0, -310, Math.PI / 2, 0); T.step(DT, 2);
+    T.aimAt(-15.25, 1.6, -310); click(0);
+    for (let i = 0; i < 400 && V.hp === 6; i++) T.step(DT, 1);
+    Monster.bossHold = false;
+    check('vault: Thimble throws the switch - the train hits the Spoolwright', V.hp === 5 && Monster.stunTimer > 0, 'hp ' + V.hp);
+    GrabPack.reset();
+    DWk.trainHit({ z: VAULT_TRACKS[0], dir: 1 }); DWk.trainHit({ z: VAULT_TRACKS[0], dir: 1 }); T.step(DT, 30);
+    check('vault: three hits - Marigold overloads the generators (phase 2)', V.mode === 'P2' && DWk.cores.every(c => c.collider.enabled), V.mode);
+    T.step(DT, 120);
+    const core = DWk.cores[1];
+    T.setPlayerPose(0, 0, -325.6, 0, 0); T.step(DT, 2); T.aimAt(0, 1.5, -327.75);
+    T.simulateMouse(0, true); for (let i = 0; i < 120 && !core.pulled; i++) { T.step(DT, 1); if (core.grab) Player.pitch -= 0.02; } T.simulateMouse(0, false);
+    T.step(DT, 10);
+    check('vault: latch a core and drag it out', core.pulled && V.coreN === 1, 'wrench ' + core.wrench.toFixed(2));
+    GrabPack.reset();
+    DWk.coreOut(); DWk.coreOut();
+    check('vault: three cores out - containment begins', V.mode === 'CONTAIN', V.mode);
+    for (let i = 0; i < 400 && V.mode !== 'DONE'; i++) T.step(DT, 1);
+    check('vault: the Spoolwright is contained (stage 10)', V.mode === 'DONE' && Game.stage === 10, V.mode + ' ' + Game.stage);
     check('victory: ending tape plays', untilState('CINEMATIC_VHS', 500) && VHS.tapeId === 2, T.getState());
     tap('Escape');
     check('victory: VICTORY screen', T.getState() === 'VICTORY', T.getState());

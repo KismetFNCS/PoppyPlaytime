@@ -17,10 +17,17 @@ const OBJECTIVES = [
   'Cross the Pressure Gallery quietly. Shut the steam (high lever, east wall) and power the gallery gate (west wall).',
   'RUN. Reach the freight lift at the end of the Spool Foundry.',
   'Defeat the Spoolwright: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
-  'Sector 06 sealed.'
+  // ---- Act II: the Deep Works ----
+  'STATION YARD. Reattach your right hand (crate by the tracks). Find Thimble and Marigold on the platform, then power the yard gate: latch the node in the signal box, loop both relay poles and plug the gate. Mind the shunter.',
+  'FABRICATION LINE. Carry the cable across the moving belts (stay clear of the end stampers): node on the west wall, loop both relays, plug LINE POWER. Then hit the piston override in the hall.',
+  'DRAINAGE CATACOMBS. Watch your footing on the gel. Fire a hand at each lock terminal so Marigold can override it, then wrench the exit ladder down (latch the ring, drag your view down) and climb.',
+  'SORTING HUB. When the intercom calls a colour, every container of that colour moves. Find the open gaps through the three bands, then time your run past the crushing walls.',
+  'CORE VAULT. Phase 1: lure the Spoolwright onto a track, then hit the TRACK SWITCH (west wall) - Thimble sends the next train down that line. Dodge the trains. Phase 2: latch each exposed core and drag it out.',
+  'The Spoolwright is contained. The Deep Works are quiet.'
 ];
 const CHECKPOINT_POSES = [
-  { pos: [0, 0, 5.5], yaw: 0 }, { pos: [0, 0, -1.6], yaw: 0 }, { pos: [0, 0, -22.2], yaw: 0 }, { pos: [0, 0, -46.2], yaw: 0 }, { pos: [0, 0, -108.4], yaw: 0 }
+  { pos: [0, 0, 5.5], yaw: 0 }, { pos: [0, 0, -1.6], yaw: 0 }, { pos: [0, 0, -22.2], yaw: 0 }, { pos: [0, 0, -46.2], yaw: 0 }, { pos: [0, 0, -108.4], yaw: 0 },
+  { pos: [0, 0, -142.6], yaw: 0 }, { pos: [0, 0, -177.6], yaw: 0 }, { pos: [0, 0, -217.6], yaw: 0 }, { pos: [0, 0, -257.6], yaw: 0 }, { pos: [0, 0, -293.8], yaw: 0 }
 ];
 
 let state = null;
@@ -102,9 +109,9 @@ const Game = {
   fracture: new Float32Array([0, -100, 0, 0]), fractureAmt: 0,
   scene: null, aimHit: makeHit(), menuEye: V3.create(),
   checkpoint: {
-    valid: false, stage: 0, pos: V3.create(0, 0, 5.5), yaw: 0, doors: new Float32Array(8), doorLocked: new Uint8Array(8),
-    receptacles: new Uint8Array(16), levers: new Uint8Array(8), pegsLocked: new Uint8Array(32), tapes: new Uint8Array(8), pickups: new Uint8Array(8),
-    triggers: new Uint8Array(16), steamActive: 1, monsterMode: 0
+    valid: false, stage: 0, pos: V3.create(0, 0, 5.5), yaw: 0, doors: new Float32Array(24), doorLocked: new Uint8Array(24),
+    receptacles: new Uint8Array(32), levers: new Uint8Array(16), pegsLocked: new Uint8Array(32), tapes: new Uint8Array(8), pickups: new Uint8Array(12),
+    triggers: new Uint8Array(32), steamActive: 1, monsterMode: 0
   },
 
   init() {
@@ -123,7 +130,7 @@ const Game = {
 
   refreshContinue() {
     const cp = loadJSON('checkpoint');
-    this.hasSave = !!(cp && typeof cp.stage === 'number' && cp.stage >= 0 && cp.stage < 5);
+    this.hasSave = !!(cp && typeof cp.stage === 'number' && cp.stage >= 0 && cp.stage < 10);
     UI.el.btnContinue.disabled = !this.hasSave;
   },
 
@@ -189,6 +196,7 @@ const Game = {
     this.hidTip = false;
     Steam.setAll(true);
     Gear.reset();
+    DeepWorks.reset();
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) { L.pulse = 0; L.enabled = true; }
     GrabPack.reset();
@@ -238,7 +246,7 @@ const Game = {
     const cp = this.checkpoint;
     const num = (v, lo, hi, d) => (typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : d);
     const arr = (src, dst, n, hi) => { for (let i = 0; i < n; i++) dst[i] = Array.isArray(src) ? num(src[i], 0, hi, 0) : 0; };
-    cp.stage = Math.round(num(o.stage, 0, 4, 0));
+    cp.stage = Math.round(num(o.stage, 0, 9, 0));
     const pose = CHECKPOINT_POSES[cp.stage];
     V3.set(cp.pos, pose.pos[0], pose.pos[1], pose.pos[2]); cp.yaw = pose.yaw;
     arr(o.doors, cp.doors, Level.doors.length, 1); arr(o.doorLocked, cp.doorLocked, Level.doors.length, 1);
@@ -285,6 +293,7 @@ const Game = {
     Renderer.post.redWave = 0; Renderer.post.fear = 0; Renderer.post.flash = 0;
     this.fadeIn = 1;
     this.fractureAmt = 0;
+    DeepWorks.restore();
     sfxLog.push('restore');
   },
 
@@ -353,6 +362,8 @@ const Game = {
         this.liftTimer = 3.2;
         sfx('doorSlam', Player.body.pos);
         break;
+      default:
+        DeepWorks.action(id);
     }
   },
 
@@ -413,7 +424,7 @@ const Game = {
     Player.updateFlashlight(dt);
     if (!Player.hidden && !wasHidden && !Ambush.active) {
       if (Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4)) GrabPack.fire(0, Player.cam);
-      if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) GrabPack.fire(1, Player.cam);
+      if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) { if (Gear.rightLost) GrabPack.showHint('Your right hand is gone - it was torn off in the fall. It is somewhere by the tracks.'); else GrabPack.fire(1, Player.cam); }
       const locker = Player.findLocker();
       const tape = locker ? null : Player.findInteract();
       if (locker && usePressed) this.enterLocker(locker);
@@ -430,6 +441,7 @@ const Game = {
     if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
     Cast.update(dt);
     Boss.update(dt);
+    DeepWorks.update(dt);
     if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
     Streaming.update(Player.body.pos);
     Lights.update(dt, this.time, Streaming.visible);
@@ -531,11 +543,10 @@ const Game = {
     Dialogue.say('PIP', 'The wall nodes are live! Grab one, then zap it with your other hand!');
   },
   onBossDefeated() {
-    this.stage = 5; UI.setObjective(OBJECTIVES[5]);
     this.invulnerable = true;
     this.chaseActive = false;
-    save('checkpoint', '');
-    this.victoryTimer = 3.6;
+    // not over: it drags itself down the drain, and the freight lift follows it into the Deep Works
+    DeepWorks.beginDescent();
   },
 
   playTape(tape) {
@@ -700,6 +711,7 @@ const Game = {
     Monster.submit();
     Cast.submit(vis);
     Gear.submit(vis);
+    DeepWorks.submit(vis);
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
@@ -768,7 +780,7 @@ const Game = {
       }
     }
     for (const l of Level.levers) {
-      if (!vis[l.sector]) continue;
+      if (!vis[l.sector] || l.style) continue;   // ladders and cores draw themselves (DeepWorks)
       const p = l.pos, n = l.n, yaw = Math.atan2(n[0], n[2]);
       // while a hand is clamped on it the handle follows the wrench; otherwise it springs back or stays thrown
       l.angle = l.grab ? 0.9 - 1.8 * l.wrench : damp(l.angle, l.pulled ? -0.9 : 0.9 - 1.8 * l.wrench, 6, 1 / 60);
@@ -801,6 +813,7 @@ const Game = {
   submitHands() {
     const cam = Player.cam, right = Renderer.camRight, up = Renderer.camUp, fwd = Renderer.camFwd;
     for (let s = 0; s < 2; s++) {
+      if (s === 1 && Gear.rightLost) continue;   // torn off in the fall
       const h = GrabPack.hands[s];
       const m = GrabPack.muzzle[s];
       const side = s === 0 ? -1 : 1;

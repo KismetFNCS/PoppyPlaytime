@@ -327,7 +327,7 @@ const Triggers = {
 
 // ---------- sector streaming: portal visibility through open doors ----------
 const Streaming = {
-  visible: new Uint8Array(8), current: 0,
+  visible: new Uint8Array(16), current: 0,
   update(pos) {
     const s = Level.sectorAt(pos[0], pos[2]);
     if (s >= 0) this.current = s;

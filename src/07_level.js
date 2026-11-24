@@ -6,7 +6,8 @@
 // are ECS entities.
 // =====================================================================================
 
-const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SPOOL FOUNDRY', 'FREIGHT LIFT', 'THE LOOM'];
+const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SPOOL FOUNDRY', 'FREIGHT LIFT', 'THE LOOM',
+  'STATION YARD', 'FABRICATION LINE', 'DRAINAGE CATACOMBS', 'SORTING HUB', 'CORE VAULT'];
 
 const Level = {
   sectors: [], doors: [], batches: [], builders: [], portals: [],
@@ -432,6 +433,9 @@ const Level = {
     this.trigger(-6, -62, 6, -58.5, 'startChase');
     this.trigger(-2.4, -97.5, 2.4, -93.2, 'reachLift');
 
+    // ---------- ACT II: the Deep Works (sectors 6-10) ----------
+    DeepWorks.build(this);
+
     this.finishBatches();
     Physics.buildBVH();
     this.nav = NavGrid.build();
@@ -454,10 +458,10 @@ const Level = {
 // NAVIGATION GRID + A* (allocation-free search over typed arrays)
 // =====================================================================================
 const NavGrid = {
-  x0: -14, z0: -134, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
+  x0: -17, z0: -332, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
   searchId: 0,
   build() {
-    this.w = Math.ceil(28 / this.cell); this.h = Math.ceil(146 / this.cell);
+    this.w = Math.ceil(34 / this.cell); this.h = Math.ceil(344 / this.cell);
     const n = this.w * this.h;
     this.blocked = new Uint8Array(n);
     this.g = new Float32Array(n); this.f = new Float32Array(n); this.parent = new Int32Array(n);
@@ -468,6 +472,7 @@ const NavGrid = {
       const cx = this.x0 + (i + 0.5) * this.cell, cz = this.z0 + (j + 0.5) * this.cell;
       const idx = j * this.w + i;
       if (Level.sectorAt(cx, cz) < 0) { this.blocked[idx] = 1; continue; }
+      if (Level.navBlocks && Level.navBlocks.some(r => cx > r[0] && cx < r[2] && cz > r[1] && cz < r[3])) { this.blocked[idx] = 1; continue; }
       const hc = this.cell / 2 + pad;
       const cnt = Physics.queryBox(cx - hc, 0.25, cz - hc, cx + hc, 1.9, cz + hc, LAYER.WORLD_STATIC | LAYER.INTERACTIVE_PUZZLE);
       if (cnt > 0) this.blocked[idx] = 1;

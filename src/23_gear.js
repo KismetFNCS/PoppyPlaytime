@@ -22,7 +22,9 @@ const PICKUP_SPOTS = [
   { kind: 'mask', sector: 0, pos: [-2.6, 0.86, 2.2] },
   { kind: 'hand', type: 1, sector: 1, pos: [-3.5, 1.08, -14.5] },
   { kind: 'hand', type: 3, sector: 2, pos: [-6.5, 1.08, -33] },
-  { kind: 'hand', type: 2, sector: 3, pos: [4.6, 1.18, -56] }
+  { kind: 'hand', type: 2, sector: 3, pos: [4.6, 1.18, -56] },
+  // Act II: your own right hand, torn off in the drop to the station yard
+  { kind: 'hand', type: 0, restore: true, sector: 6, pos: [-4.2, 0.98, -146.5] }
 ];
 const GAS_ZONES = [{ sector: 2, x0: -10, z0: -48, x1: -4.6, z1: -39.2 }];
 const UV_SECRETS = [
@@ -32,14 +34,14 @@ const UV_SECRETS = [
 ];
 
 const Gear = {
-  owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0,
+  owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, rightLost: false,
   hasMask: false, maskOn: false, maskT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
   blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
   pickups: [], secrets: [], pipAsset: null, pipTimer: 0, overlay: null, gasOverlay: null,
   tmp: V3.create(), m: M4.create(),
 
   init() {
-    this.pickups = PICKUP_SPOTS.map(p => ({ kind: p.kind, type: p.type || 0, sector: p.sector, pos: V3.create(p.pos[0], p.pos[1], p.pos[2]), taken: false }));
+    this.pickups = PICKUP_SPOTS.map(p => ({ kind: p.kind, type: p.type || 0, restore: !!p.restore, sector: p.sector, pos: V3.create(p.pos[0], p.pos[1], p.pos[2]), taken: false }));
     this.secrets = UV_SECRETS.map(s => ({ s, asset: this.textQuad(s.lines), reveal: 0 }));
     // PIP's face on the teal glove uses the HUD companion canvas as a live texture
     if (Pip.faceCanvas) this.pipAsset = this.canvasQuad(Pip.faceCanvas, 'pip-face', 2.4, false);
@@ -50,7 +52,7 @@ const Gear = {
   reset() {
     this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0;
     this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
-    this.blacklight = false; this.secretsFound.fill(0);
+    this.blacklight = false; this.secretsFound.fill(0); this.rightLost = false;
     for (const p of this.pickups) p.taken = false;
   },
   // after a checkpoint restore: what you own follows from which pickups are gone
@@ -149,11 +151,16 @@ const Gear = {
     }
     return best;
   },
-  promptFor(p) { return p.kind === 'mask' ? '[E] TAKE GAS MASK' : '[E] TAKE ' + HAND_TYPES[p.type].id + ' HAND'; },
+  promptFor(p) { return p.kind === 'mask' ? '[E] TAKE GAS MASK' : p.restore ? '[E] REATTACH YOUR RIGHT HAND' : '[E] TAKE ' + HAND_TYPES[p.type].id + ' HAND'; },
   take(p) {
     p.taken = true;
     sfx('pickup');
-    if (p.kind === 'mask') {
+    if (p.restore) {
+      this.rightLost = false;
+      sfx('dock', Player.body.pos);
+      GrabPack.showHint('RIGHT HAND REATTACHED - both hands work again');
+      Dialogue.say('PIP', 'Click! Good as new. Well... good as old.');
+    } else if (p.kind === 'mask') {
       this.hasMask = true;
       GrabPack.showHint('GAS MASK - press [G] to put it on or take it off');
     } else {

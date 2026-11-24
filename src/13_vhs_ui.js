@@ -374,7 +374,7 @@ const UI = {
     const sub = Settings.values.subtitles && GrabPack.hintTimer > 0 ? GrabPack.hint : '';
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
     Renderer.post.slats = Player.hidden ? 1 : 0;
-    const bossKey = Boss.active && Boss.mode !== 'DEFEATED' ? Boss.hp : -1;
+    const bossKey = Boss.active && Boss.mode !== 'DEFEATED' ? Boss.hp : DeepWorks.vault.active && DeepWorks.vault.mode !== 'DONE' ? DeepWorks.vault.hp : -1;
     if (H.boss !== bossKey) {
       H.boss = bossKey;
       document.getElementById('hudBoss').style.display = bossKey >= 0 ? 'block' : 'none';

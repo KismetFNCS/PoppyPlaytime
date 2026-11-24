@@ -119,7 +119,7 @@ const Player = {
   yaw: 0, pitch: 0, roll: 0, crouch: 0, crouching: false, sprinting: false, flashOn: true,
   eyePos: V3.create(), cam: { eye: V3.create(), yaw: 0, pitch: 0, roll: 0 },
   bobPhase: 0, bobAmp: 0, breath: 0, landDip: 0, landVel: 0, trauma: 0, chaseShake: 0, recoilPitch: 0, recoilRoll: 0,
-  coyote: 0, jumpBuffer: 0, wasGrounded: true, airTime: 0, lastStepPhase: 0, health: 100, hurtTimer: 0, scaldCool: 0,
+  coyote: 0, jumpBuffer: 0, wasGrounded: true, airTime: 0, lastStepPhase: 0, health: 100, hurtTimer: 0, scaldCool: 0, traction: 1, speedMul: 1, climb: 0,
   flashDir: V3.create(0, 0, -1), flashPos: V3.create(), swayX: 0, swayY: 0, lockTarget: null, lockAmt: 0,
   acc: 0, wish: V3.create(), tmp: V3.create(), interactTarget: null,
 
@@ -128,7 +128,7 @@ const Player = {
     this.yaw = yaw; this.pitch = 0; this.roll = 0; this.crouch = 0; this.crouching = false; this.sprinting = false;
     this.bobPhase = 0; this.bobAmp = 0; this.landDip = 0; this.landVel = 0; this.trauma = 0; this.chaseShake = 0;
     this.recoilPitch = 0; this.recoilRoll = 0; this.coyote = 0; this.jumpBuffer = 0; this.wasGrounded = true; this.airTime = 0;
-    this.health = 100; this.hurtTimer = 0; this.scaldCool = 0; this.lockAmt = 0; this.lockTarget = null; this.acc = 0;
+    this.health = 100; this.hurtTimer = 0; this.scaldCool = 0; this.traction = 1; this.speedMul = 1; this.climb = 0; this.lockAmt = 0; this.lockTarget = null; this.acc = 0;
     if (this.hidden) this.hidden.occupied = false;
     this.hidden = null; this.lockerTarget = null;
     this.body.grounded = true;
@@ -180,7 +180,7 @@ const Player = {
     this.crouching = !!(K.KeyC || K.ControlLeft || P.buttons[1]);
     const wantSprint = !this.crouching && (K.ShiftLeft || K.ShiftRight || P.buttons[10] || Input.touchRun) && fz < -0.3;
     this.sprinting = wantSprint && il > 0.1;
-    const speed = this.crouching ? FEEL.crouchSpeed : this.sprinting ? FEEL.sprintSpeed : FEEL.walkSpeed;
+    const speed = (this.crouching ? FEEL.crouchSpeed : this.sprinting ? FEEL.sprintSpeed : FEEL.walkSpeed) * this.speedMul;
     // world wish velocity
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
     const wx = fx * c + fz * s, wz = -fx * s + fz * c;
@@ -206,7 +206,7 @@ const Player = {
   fixedStep(h, tx, tz) {
     const b = this.body;
     const grounded = b.grounded;
-    const control = grounded ? 1 : FEEL.airControl;
+    const control = grounded ? this.traction : FEEL.airControl;
     const accRate = FEEL.sprintSpeed / FEEL.accelTime * control, decRate = FEEL.sprintSpeed / FEEL.decelTime * control;
     for (let ax = 0; ax <= 2; ax += 2) {
       const target = ax === 0 ? tx : tz;
@@ -223,7 +223,8 @@ const Player = {
       EventBus.emit(EV.NOISE, b.pos[0], b.pos[1], b.pos[2], 4, 0);
     }
     const g = FEEL.gravity * (b.vel[1] < 0 ? FEEL.fallMult : 1);
-    if (!b.grounded || b.vel[1] > 0) b.vel[1] -= g * h;
+    if (this.climb > 0) { b.vel[1] = this.climb; b.grounded = false; }   // on a ladder
+    else if (!b.grounded || b.vel[1] > 0) b.vel[1] -= g * h;
     const vyBefore = b.vel[1];
     CharacterController.move(b, h);
     if (!b.grounded) this.airTime += h;

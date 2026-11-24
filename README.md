@@ -64,6 +64,29 @@ you look away it jerks closer into a new, twisted pose, its hat bells jingling s
 confronts you both, then the chase: Thimble's overloaded socket or the high shutter lever) → Freight Lift → the Loom (boss
 fight). It is not in the menu or the early levels: it is the chapter's later boss.
 
+**Act II: the Deep Works.** Beating the Spoolwright in the Loom doesn't end it: it drags itself down the drain
+shaft and the freight lift follows it into five more levels (sectors 6-10, each with its own checkpoint):
+
+1. **Station Yard.** The Usher speaks from a monitor on a pole. The landing tore your right hand off the pack
+   (the right trigger does nothing): reattach it from the crate by the tracks. Thimble and Marigold wait on the
+   platform. Loop the yard-gate circuit across the tracks while a shunter car patrols the second line (it
+   knocks you flying).
+2. **Fabrication Line.** Three conveyor belts carry you sideways toward the end stampers, and a heavy carrier
+   rides the middle line. Route the cable across them, then hit the piston override: Thimble crawls into the
+   machinery and jams the four crushing pistons (stand under one before that and you're crushed). Marigold
+   watches from the overhead walkway.
+3. **Drainage Catacombs.** A tunnel maze: a gel floor with almost no traction between live cables, lock
+   terminals Marigold overrides through the wiring, a pipe that collapses behind you, a sludge channel with a
+   shaky catwalk that drops once you're across, and an exit ladder you wrench down (latch the ring, drag your
+   view down) and climb with W.
+4. **Sorting Hub.** Three bands of colour-coded containers. When the intercom calls a colour, every
+   container of that colour slides between its gap and its pocket (each band always keeps one way through; a
+   closing container shoves you out). Then time a run past two crushing walls.
+5. **Core Vault.** The Spoolwright descends. Phase 1: trains cross the vault on two lines and lift pads rise
+   and sink. Lure it onto a line and fire a hand at the track switch on the west wall: Thimble throws it and
+   the next train runs down that line. Three hits, then phase 2: Marigold overloads the generators, and you
+   latch each exposed core and drag it out. Three cores start the containment cinematic and the ending.
+
 ## Enemies before the Spoolwright
 
 - **Cherub Cheeks** (sold in 1974 as the doll that "cries real tears when it misses you"): a 3-ft vinyl baby

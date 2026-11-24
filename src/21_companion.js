@@ -117,7 +117,7 @@ const Companion = {
     for (const k in this.lineCool) this.lineCool[k] -= dt;
     this.record(false);
     // below in the Loom he waits by Marigold
-    if (Game.stage >= 4 && P.mode !== 'LOOM' && !Ambush.active) {
+    if (Game.stage === 4 && P.mode !== 'LOOM' && !Ambush.active) {
       const s = Cast.PLUSH_LOOM; P.mode = 'LOOM'; P.hidden = false; V3.set(P.pos, s[0], 0, s[1]); P.yaw = s[2];
     }
     if (P.mode === 'LOOM') { this.updateLoom(); return; }
@@ -199,7 +199,7 @@ const Companion = {
       this.loomGreeted = true;
       Dialogue.say('THIMBLE', 'We made it down! I\'ll keep out from under its feet - you show it what those gauntlets can do!');
     }
-    if (Game.stage >= 5 && !this.banterDone && d < 7 && !Dialogue.busy()) {
+    if (Game.stage === 4 && Boss.mode === 'DEFEATED' && !this.banterDone && d < 7 && !Dialogue.busy()) {
       this.banterDone = true;
       for (const [who, line] of COMPANION_LINES.banter) Dialogue.say(who, line);
     }

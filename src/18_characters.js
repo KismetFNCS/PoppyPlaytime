@@ -49,7 +49,7 @@ const Cast = {
   plushSocket: V3.create(-2.75, 0.62, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   // the big flickering monitor above the intake gate: the Usher's opening briefing
-  monitor: { active: true, said: false, t: 0, flick: 0 }, monM: M4.create(),
+  monitor: { active: true, said: false, t: 0, flick: 0, stage: 0, x: 0, y: 3.42, z: 0.45, sector: 0 }, monM: M4.create(),
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
   // Usher vantage points per stage: [x, z, facing yaw]
@@ -92,6 +92,7 @@ const Cast = {
     T.cheered = false; T.talking = false; T.hidden = false; T.walk = 0; T.ground = 0; T.groundIdle = 0; T.overload = 0;
     // where he is depends on how far the story has got (checkpoint restarts)
     const st = Game.stage;
+    if (st >= 5) { T.mode = 'FOLLOW'; V3.copy(T.pos, Player.body.pos); T.sector = Level.sectorAt(T.pos[0], T.pos[2]); if (this.plushCollider) this.plushCollider.enabled = false; if (typeof Companion !== 'undefined') Companion.reset(); return; }
     const spot = st >= 4 ? this.PLUSH_LOOM : st === 3 ? null : this.PLUSH_WAIT;
     T.mode = st >= 4 ? 'LOOM' : st === 3 ? 'FOLLOW' : 'WAIT';
     if (spot) { V3.set(T.pos, spot[0], 0, spot[1]); T.yaw = spot[2]; }
@@ -114,7 +115,10 @@ const Cast = {
     if (Enemies.cherubs.length) Enemies.reset();
     Dialogue.clear();
     Pip.reset();
-    this.monitor.active = Game.stage === 0; this.monitor.said = false; this.monitor.t = 0;
+    // the Usher's monitor: above the intake gate at the start, on a pole in the station yard in Act II
+    const MO = this.monitor, yard = Game.stage === 5;
+    MO.active = Game.stage === 0 || yard; MO.said = false; MO.t = 0; MO.stage = Game.stage;
+    MO.x = 0; MO.y = yard ? 3.95 : 3.42; MO.z = yard ? -147.5 : 0.45; MO.sector = yard ? 6 : 0;
   },
 
   update(dt) {
@@ -355,17 +359,17 @@ const Cast = {
   updateMonitor(dt) {
     const M = this.monitor, U = this.usher;
     if (!M.active) return;
-    if (Game.stage >= 1) { M.active = false; return; }
+    if (Game.stage !== M.stage) { M.active = false; return; }
     M.t += dt;
     if (!M.said && M.t > 1.2 && Game.isGameplay()) {
       M.said = true;
-      for (const line of USHER_MONITOR_LINES) Dialogue.say('USHER', line);
+      for (const line of M.stage === 5 ? USHER_YARD_LINES : USHER_MONITOR_LINES) Dialogue.say('USHER', line);
     }
     // its eye follows you around the lift; the picture tears now and then
     if (U.state === 'HIDDEN') {
       const e = Player.eyePos;
-      U.eyeX = damp(U.eyeX, clamp(e[0] / 3, -1, 1), 5, dt);
-      U.eyeY = damp(U.eyeY, clamp((e[1] - 3.0) / 3, -1, 1), 5, dt);
+      U.eyeX = damp(U.eyeX, clamp((e[0] - M.x) / 3, -1, 1), 5, dt);
+      U.eyeY = damp(U.eyeY, clamp((e[1] - M.y + 0.42) / 3, -1, 1), 5, dt);
       M.flick -= dt;
       if (M.flick <= 0) { M.flick = 1.5 + gameRng() * 3; U.glitch = 0.25; }
       U.glitch = Math.max(0, U.glitch - dt);
@@ -373,13 +377,13 @@ const Cast = {
     }
   },
   submitMonitor() {
-    const R = RenderQueue;
-    const y = 3.42, z = 0.45;
-    R.trs('box', MAT.steel, 0, y, z, 0, -0.12, 0, 2.0, 1.25, 0.26, false);
-    R.trs('box', MAT.rubber, 0, y, z + 0.12, 0, -0.12, 0, 1.84, 1.1, 0.04, false);
-    R.trs('cylLow', MAT.cable, -0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
-    R.trs('cylLow', MAT.cable, 0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
-    M4.compose(this.monM, 0, y - 0.02, z + 0.145, Math.PI, 0.12, 0, 1.7, 1.0, 1);
+    const R = RenderQueue, MO = this.monitor;
+    const x = MO.x, y = MO.y, z = MO.z;
+    R.trs('box', MAT.steel, x, y, z, 0, -0.12, 0, 2.0, 1.25, 0.26, false);
+    R.trs('box', MAT.rubber, x, y, z + 0.12, 0, -0.12, 0, 1.84, 1.1, 0.04, false);
+    R.trs('cylLow', MAT.cable, x - 0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
+    R.trs('cylLow', MAT.cable, x + 0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
+    M4.compose(this.monM, x, y - 0.02, z + 0.145, Math.PI, 0.12, 0, 1.7, 1.0, 1);
     AssetQueue.push(this.screen, this.monM, false);
   },
 
@@ -426,7 +430,7 @@ const Cast = {
   submit(vis) {
     if (this.usher.state !== 'HIDDEN' && vis[Level.sectorAt(this.usher.pos[0], this.usher.pos[2])]) this.submitUsher();
     if (vis[this.doll.sector]) this.submitDoll();
-    if (this.monitor.active && vis[0] && this.screen) this.submitMonitor();
+    if (this.monitor.active && vis[this.monitor.sector] && this.screen) this.submitMonitor();
     if (vis[3]) this.submitSocket();
     if (!this.plush.hidden && vis[this.plush.sector]) this.submitPlush();
     Enemies.submit(vis);
@@ -706,7 +710,9 @@ const Dialogue = {
 };
 
 // Marigold's seat per story stage (she is moved only while out of sight)
-const MARIGOLD_SEATS = [[10.6, 1.0, -6.6, Math.PI / 2], [10.6, 1.0, -6.6, Math.PI / 2], [5.0, 2.4, -44.0, Math.PI / 2], [1.7, 0, -96.9, 0.3], [1.7, 0, -107.0, 0.2], [1.7, 0, -107.0, 0.2]];
+const MARIGOLD_SEATS = [[10.6, 1.0, -6.6, Math.PI / 2], [10.6, 1.0, -6.6, Math.PI / 2], [5.0, 2.4, -44.0, Math.PI / 2], [1.7, 0, -96.9, 0.3], [1.7, 0, -107.0, 0.2],
+  // Act II: yard bench, fabrication walkway, catacomb console, sorting-hub booth, vault console
+  [10.4, 0.9, -173.6, Math.PI / 2], [12.6, 4.5, -187.0, Math.PI / 2], [-11.0, 0.9, -253.0, -Math.PI / 2], [8.0, 3.0, -288.8, Math.PI], [12.8, 1.0, -296.5, Math.PI / 2], [12.8, 1.0, -296.5, Math.PI / 2]];
 const USHER_LINES = [
   'You were not scheduled for this floor.',
   'Every toy returns to the line. Eventually.',

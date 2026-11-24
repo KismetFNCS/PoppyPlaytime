@@ -120,7 +120,7 @@ const Audio = {
   updateChase(on) {
     if (!this.ctx) return;
     const ctx = this.ctx, S = this.score, k = 1 / 60;
-    const boss = Boss.active, puzzle = !on && state === STATE.INTERACTIVE_PUZZLE, end = Game.stage >= 5 && !boss;
+    const boss = Boss.active, puzzle = !on && state === STATE.INTERACTIVE_PUZZLE, end = Game.stage >= 10 && !boss;
     const calm = !on && !boss && !puzzle && !end && Game.isGameplay();
     this.chaseOn = damp(this.chaseOn, on && !boss ? 1 : 0, on ? 6 : 1.5, k);
     S.calm = damp(S.calm, calm ? 1 : 0, 0.7, k); S.puzzle = damp(S.puzzle, puzzle ? 1 : 0, 1.2, k);
@@ -475,6 +475,21 @@ const SFX = {
   },
   scanner(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.7); for (let i = 0; i < 3; i++) Audio.tone(t + i * 0.09, 'sine', 1200 + i * 300, 1200 + i * 300, 0.08, 0.12, out); },
   snap(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.7); Audio.noise(t, 0.2, 0.5, 4000, 'highpass', out); Audio.tone(t, 'sawtooth', 1800, 200, 0.25, 0.15, out); },
+  // ---- Act II machinery ----
+  trainHorn(t, pos) { const out = Audio.dest(pos, 'sfx', 8, 0.3); for (const f of [233, 294, 349]) Audio.tone(t, 'sawtooth', f, f * 0.985, 1.3, 0.12, out, 0.05); },
+  trainRush(t, pos) {
+    const out = Audio.dest(pos, 'sfx', 7, 0.35);
+    Audio.noise(t, 1.6, 0.8, 500, 'lowpass', out);
+    for (let i = 0; i < 8; i++) Audio.noise(t + i * 0.16, 0.06, 0.5, 1800, 'bandpass', out, 2);
+    Audio.tone(t, 'sine', 48, 36, 1.5, 0.6, out);
+  },
+  piston(t, pos) { const out = Audio.dest(pos, 'sfx', 5, 0.45); Audio.noise(t, 0.25, 0.8, 700, 'lowpass', out); Audio.tone(t, 'sine', 90, 35, 0.4, 0.7, out); Audio.noise(t + 0.05, 0.5, 0.25, 3000, 'bandpass', out); },
+  klaxon(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.3); for (let i = 0; i < 3; i++) { Audio.tone(t + i * 0.55, 'square', 440, 380, 0.42, 0.08, out, 0.02); } },
+  grind(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.5); Audio.tone(t, 'sawtooth', 62, 58, 0.9, 0.09, out, 0.1); Audio.noise(t, 0.9, 0.12, 380, 'bandpass', out, 4); },
+  creak(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.6); Audio.tone(t, 'sawtooth', 180 + (t * 997 % 80), 120, 0.5, 0.05, out, 0.08); Audio.noise(t, 0.4, 0.06, 900, 'bandpass', out, 8); },
+  collapse(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.35); Audio.noise(t, 1.2, 0.9, 600, 'lowpass', out); Audio.tone(t, 'sine', 60, 25, 1.0, 0.8, out); for (let i = 0; i < 5; i++) Audio.ring(t + 0.1 + i * 0.13, [300 + i * 70, 820 + i * 50], 0.3, 0.06, out); },
+  overload(t, pos) { const out = Audio.dest(pos, 'sfx', 8, 0.3); Audio.tone(t, 'sawtooth', 80, 640, 1.2, 0.18, out, 0.3); for (let i = 0; i < 10; i++) Audio.noise(t + 0.6 + i * 0.05, 0.05, 0.4, 7000, 'highpass', out); Audio.tone(t + 1.1, 'sine', 70, 30, 0.9, 0.6, out); },
+  override(t, pos) { for (let i = 0; i < 6; i++) Audio.tone(t + i * 0.09, 'square', 900 + (i % 3) * 300, 900 + (i % 3) * 300, 0.06, 0.04, Audio.buses.ui); },
   lever(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.7); Audio.ring(t, [180, 410, 980], 0.6, 0.25, out); Audio.noise(t, 0.3, 0.3, 900, 'lowpass', out); },
   doorStart(t, pos) {
     const out = Audio.dest(pos, 'sfx', 4, 0.6);
@@ -723,7 +738,7 @@ const SFX = {
   tapeGlitch(t) { Audio.noise(t, 0.12, 0.2, 2500, 'bandpass', Audio.buses.voice, 0.8); }
 };
 // Minimum re-trigger interval per sound (seconds) to avoid voice pile-ups.
-const SFX_MIN_INTERVAL = { footstep: 0.08, click: 0.05, ventClick: 0.1, monsterStep: 0.04, wrap: 0.1, uiHover: 0.04, voiceBlip: 0.03, steamBurst: 0.3 };
+const SFX_MIN_INTERVAL = { grind: 0.6, creak: 0.4, klaxon: 1.5, piston: 0.12, trainRush: 1.0, trainHorn: 1.0, footstep: 0.08, click: 0.05, ventClick: 0.1, monsterStep: 0.04, wrap: 0.1, uiHover: 0.04, voiceBlip: 0.03, steamBurst: 0.3 };
 
 function sfx(name, pos, extra) {
   if (sfxLog.length >= 96) sfxLog.shift();
