@@ -12,6 +12,7 @@
 //             breathing rasp and breath fog. The back corner of the gallery is full of toxic lint smog.
 //   BLACKLIGHT [B] switches PIP's lamp to ultraviolet: it reveals messages painted in invisible ink.
 // =====================================================================================
+const SWAP_TIME = 0.6;
 const HAND_TYPES = [
   { id: 'ROSE', mat: MAT.handRose, tint: [0.7, 0.6, 0.6], glow: null, stun: 1.3, cool: 0.18, desc: 'your old hand - a solid slap that staggers' },
   { id: 'THUMPER', mat: MAT.copper, tint: [0.95, 0.8, 0.6], glow: null, stun: 3.2, cool: 0.9, desc: 'heavy brass punch - long stun, knock-back, smashes cherubs' },
@@ -35,6 +36,7 @@ const UV_SECRETS = [
 
 const Gear = {
   owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, rightLost: false,
+  wheelOpen: false, wheelSel: 0, wheelV: new Float32Array(2), holdT: 0, wheelDom: -2,
   hasMask: false, maskOn: false, maskT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
   blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
   pickups: [], secrets: [], pipAsset: null, pipTimer: 0, overlay: null, gasOverlay: null,
@@ -50,7 +52,7 @@ const Gear = {
     this.reset();
   },
   reset() {
-    this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0;
+    this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0;
     this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
     this.blacklight = false; this.secretsFound.fill(0); this.rightLost = false;
     for (const p of this.pickups) p.taken = false;
@@ -100,12 +102,24 @@ const Gear = {
     const J = Input.justPressed;
     // swap the right hand (the teal hand never swaps)
     let dir = 0;
-    if (J.has('KeyX') || Input.padJust(3)) dir = 1;
+    // HAND WHEEL: hold [Tab] (or hold [X] / pad Y) to open it, aim with the mouse or stick, release to equip.
+    // A quick tap of [X] still cycles to the next hand.
+    const K = Input.keys, held = !!(K.Tab || K.KeyX || Input.pad.buttons[3]);
+    if (held) {
+      this.holdT += dt;
+      if (!this.wheelOpen && !this.rightLost && (K.Tab || this.holdT > 0.22)) this.openWheel();
+      if (this.wheelOpen) for (let k = 0; k < 4; k++) if (J.has('Digit' + (k + 1)) && this.owned[k]) this.wheelSel = k;
+    } else if (this.holdT > 0) {
+      if (this.wheelOpen) this.closeWheel(true);
+      else if (!this.rightLost) dir = 1;
+      this.holdT = 0;
+    }
     if (Input.wheel) { dir = Input.wheel > 0 ? 1 : -1; Input.wheel = 0; }
     if (dir) this.cycle(dir);
     if (this.swapT > 0) {
       this.swapT -= dt;
-      if (this.swapT < 0.2 && this.cur !== this.swapTo) { this.cur = this.swapTo; sfx('handSwap'); }
+      // the old hand spins as it drops out of view; at the bottom the new one is fitted and rises
+      if (this.swapT < SWAP_TIME / 2 && this.cur !== this.swapTo) { this.cur = this.swapTo; sfx('dock', Player.body.pos); }
     }
     if (J.has('KeyG') && this.hasMask) this.toggleMask();
     if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'PIP: BLACKLIGHT ON - hidden ink glows in the beam' : 'PIP: FLASHLIGHT'); }
@@ -113,6 +127,7 @@ const Gear = {
     this.updateGas(dt);
     this.updateSecrets(dt);
     this.updateOverlays(dt);
+    this.updateWheelDom();
     // PIP's face texture on the glove
     this.pipTimer -= dt;
     if (this.pipAsset && this.pipTimer <= 0) {
@@ -122,14 +137,51 @@ const Gear = {
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.pipAsset.canvas);
     }
   },
+  openWheel() {
+    this.wheelOpen = true; this.wheelV[0] = 0; this.wheelV[1] = 0;
+    this.wheelSel = this.swapT > 0 ? this.swapTo : this.cur;
+    sfx('uiHover');
+  },
+  closeWheel(equip) {
+    this.wheelOpen = false;
+    if (equip && this.owned[this.wheelSel] && this.wheelSel !== (this.swapT > 0 ? this.swapTo : this.cur)) this.equip(this.wheelSel);
+  },
+  // the look input steers the wheel while it is open (the camera holds still)
+  wheelAim(dx, dy) {
+    const v = this.wheelV;
+    v[0] = clamp(v[0] + dx, -120, 120); v[1] = clamp(v[1] + dy, -120, 120);
+    const l = Math.hypot(v[0], v[1]);
+    if (l < 30) return;
+    // slots: ROSE up, THUMPER right, STITCHER down, LANTERN left
+    const k = ((Math.round(Math.atan2(v[0], -v[1]) / (Math.PI / 2)) % 4) + 4) % 4;
+    if (this.owned[k] && k !== this.wheelSel) { this.wheelSel = k; sfx('uiHover'); }
+  },
+  updateWheelDom() {
+    const key = this.wheelOpen ? this.wheelSel * 16 + this.owned[0] + this.owned[1] * 2 + this.owned[2] * 4 + this.owned[3] * 8 : -1;
+    if (key === this.wheelDom) return;
+    this.wheelDom = key;
+    const w = document.getElementById('handWheel'); if (!w) return;
+    w.style.display = this.wheelOpen ? 'block' : 'none';
+    const slots = w.querySelectorAll('.slot');
+    for (let i = 0; i < slots.length; i++) {
+      slots[i].classList.toggle('sel', i === this.wheelSel);
+      slots[i].classList.toggle('locked', !this.owned[i]);
+      slots[i].querySelector('span').textContent = this.owned[i] ? HAND_TYPES[i].id : '? ? ?';
+    }
+    const c = w.querySelector('.desc'); if (c) c.textContent = this.owned[this.wheelSel] ? HAND_TYPES[this.wheelSel].desc : '';
+  },
+  equip(n) {
+    const h = GrabPack.hands[1];
+    if (h.state !== HAND.DOCKED) GrabPack.release(h, false);
+    this.swapTo = n; this.swapT = SWAP_TIME;
+    sfx('handSwap');
+    GrabPack.showHint('R HAND: ' + HAND_TYPES[n].id + ' - ' + HAND_TYPES[n].desc);
+  },
   cycle(dir) {
     let n = (this.swapT > 0 ? this.swapTo : this.cur);
     for (let k = 0; k < 4; k++) { n = (n + dir + 4) % 4; if (this.owned[n]) break; }
     if (n === (this.swapT > 0 ? this.swapTo : this.cur)) { if (this.ownedCount() < 2) GrabPack.showHint('Only the ROSE hand so far - find more hands'); return; }
-    const h = GrabPack.hands[1];
-    if (h.state !== HAND.DOCKED) GrabPack.release(h, false);
-    this.swapTo = n; this.swapT = 0.4;
-    GrabPack.showHint('R HAND: ' + HAND_TYPES[n].id + ' - ' + HAND_TYPES[n].desc);
+    this.equip(n);
   },
   ownedCount() { let c = 0; for (const o of this.owned) c += o; return c; },
   toggleMask() {
@@ -165,7 +217,7 @@ const Gear = {
       GrabPack.showHint('GAS MASK - press [G] to put it on or take it off');
     } else {
       this.owned[p.type] = 1;
-      this.swapTo = p.type; this.swapT = 0.4;
+      this.swapTo = p.type; this.swapT = SWAP_TIME;
       GrabPack.showHint('NEW HAND: ' + HAND_TYPES[p.type].id + ' - ' + HAND_TYPES[p.type].desc + '  ([X] / wheel to swap)');
     }
     Pip.react('stars', 2.5);

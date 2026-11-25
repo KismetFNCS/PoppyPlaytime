@@ -156,6 +156,7 @@ const Player = {
     const S = Settings.values;
     let dx = Input.lookDX, dy = Input.lookDY;
     dx += Input.pad.rx * 900 * dt; dy += Input.pad.ry * 650 * dt;
+    if (Gear.wheelOpen) { Gear.wheelAim(dx, dy); return; }   // the hand wheel takes the look input
     // keyboard look fallback (arrow keys) when no mouse lock
     if (Input.keys.ArrowLeft) dx -= 520 * dt;
     if (Input.keys.ArrowRight) dx += 520 * dt;

@@ -868,7 +868,14 @@ const Game = {
         this.drawHose(_g.a, _g.b, up, h);
         V3.scale(_g.hu, fwd, -1);
         // swapping the right hand: it drops out of view and comes back as the new one
-        if (s === 1 && Gear.swapT > 0) V3.addScaled(_g.hp, _g.hp, up, -Math.sin(Math.min(1, (0.4 - Gear.swapT) / 0.4) * Math.PI) * 0.45);
+        if (s === 1 && Gear.swapT > 0) {
+          // swap: the old hand spins like a wheel as it drops, then the new one rises back into place
+          const k = clamp(1 - Gear.swapT / SWAP_TIME, 0, 1);
+          V3.addScaled(_g.hp, _g.hp, up, -Math.sin(k * Math.PI) * 0.5);
+          const spin = k < 0.5 ? smoothstep(0, 0.5, k) * Math.PI * 2 : (1 - smoothstep(0.5, 1, k)) * -0.6;
+          V3.cross(_g.e, fwd, _g.hf);
+          V3.scale(_g.hf, _g.hf, Math.cos(spin)); V3.addScaled(_g.hf, _g.hf, _g.e, Math.sin(spin)); V3.normalize(_g.hf, _g.hf);
+        }
         this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 0.86, false, h, true);
         if (s === 0) {
           // PIP strapped to the wrist, facing you

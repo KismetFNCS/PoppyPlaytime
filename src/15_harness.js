@@ -962,7 +962,16 @@ async function runAll() {
       check('gear: picking up a hand equips it on the right', Gear.owned[1] && Gear.cur === 1 && /THUMPER/.test(document.getElementById('hudHandR').textContent), document.getElementById('hudHandR').textContent);
       tap('KeyX'); T.step(DT, 30);
       check('gear: [X] swaps back to ROSE (the teal hand never swaps)', Gear.cur === 0, Gear.cur);
-      tap('KeyX'); T.step(DT, 30);
+      T.simulateKey('Tab', true); T.step(DT, 3);
+      check('gear: holding [Tab] opens the hand wheel (camera holds still)', Gear.wheelOpen && document.getElementById('handWheel').style.display === 'block', '');
+      const yaw0 = Player.yaw; Input.lookDX = 80; T.step(DT, 1); Input.lookDX = 0;
+      check('gear: aiming the wheel right selects the THUMPER slot', Gear.wheelSel === 1 && Player.yaw === yaw0, 'sel ' + Gear.wheelSel);
+      T.simulateKey('Tab', false); T.step(DT, 2);
+      check('gear: releasing the wheel starts the spin-swap', !Gear.wheelOpen && Gear.swapT > 0 && Gear.swapTo === 1, Gear.swapT.toFixed(2));
+      T.step(DT, 50);
+      check('gear: the new hand rises into place', Gear.cur === 1 && Gear.swapT <= 0, Gear.cur);
+      tap('KeyX'); T.step(DT, 50);
+      tap('KeyX'); T.step(DT, 50);
       // the THUMPER stuns the Spoolwright far longer than the ROSE hand
       Game.invulnerable = true; Game.stage = 1;
       T.setPlayerPose(0, 0, -13.5, 0, 0); T.spawnMonsterNear(5); Monster.targetSpeed = 0; Monster.stunImmune = 0; T.step(DT, 2);

@@ -159,6 +159,17 @@
   #pause .prule { width: 100%; height: 3px; background: linear-gradient(90deg, rgb(60,200,200), rgba(60,200,200,0)); margin: 0.6vh 0 32vh; }
   #pause .mbtn { margin: 0.4vh 0 0 12vw; width: 60%; background: none; border: 1.5px solid transparent; color: rgb(210,214,220); }
   #pause .mbtn.sel, #pause .mbtn:hover { border-color: rgb(236,236,236); background: rgba(255,255,255,0.04); box-shadow: -1.2vw 0 0 -0.85vw rgb(60,200,200); }
+  /* ---- hand wheel ---- */
+  #handWheel { display: none; position: absolute; left: 50%; top: 50%; width: 46vh; height: 46vh; transform: translate(-50%, -50%); pointer-events: none; }
+  #handWheel .ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(10,10,12,0.15) 30%, rgba(10,10,12,0.78) 31%, rgba(10,10,12,0.78) 70%, rgba(10,10,12,0) 71%); border: 2px solid rgba(236,236,236,0.35); }
+  #handWheel .slot { position: absolute; width: 13vh; height: 13vh; margin: -6.5vh 0 0 -6.5vh; text-align: center; color: rgb(236,236,236); font-size: clamp(12px, 1.9vh, 20px); letter-spacing: 0.08em; transition: transform 120ms; }
+  #handWheel .slot i { display: block; width: 7vh; height: 8vh; margin: 0 auto 0.6vh; border-radius: 3vh 3vh 1.4vh 1.4vh; border: 2px solid rgb(30,30,30); }
+  #handWheel .s0 { left: 50%; top: 18%; } #handWheel .s1 { left: 82%; top: 50%; } #handWheel .s2 { left: 50%; top: 82%; } #handWheel .s3 { left: 18%; top: 50%; }
+  #handWheel .s0 i { background: rgb(232,150,160); } #handWheel .s1 i { background: rgb(190,130,60); } #handWheel .s2 i { background: rgb(160,166,176); } #handWheel .s3 i { background: rgb(150,110,230); }
+  #handWheel .slot.sel { transform: scale(1.2); color: rgb(255,214,120); }
+  #handWheel .slot.sel i { box-shadow: 0 0 2vh rgb(255,214,120); border-color: rgb(255,214,120); }
+  #handWheel .slot.locked { opacity: 0.3; } #handWheel .slot.locked i { background: rgb(60,60,60); }
+  #handWheel .desc { position: absolute; left: -20%; right: -20%; top: 104%; text-align: center; color: rgb(236,222,200); font-size: clamp(12px, 1.8vh, 18px); }
   /* ---- death screen ---- */
   #fail .who { position: absolute; left: 50%; top: 67%; transform: translateX(-50%); font-size: clamp(14px, 2.6vh, 28px); color: rgb(236,222,200); width: 80vw; text-align: center; font-style: italic; }
   #fail .who b { color: rgb(255,214,120); font-style: normal; letter-spacing: 0.1em; }
@@ -257,6 +268,10 @@
     <div class="boss" id="hudBoss"><b>THE SPOOLWRIGHT</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
     <div class="dialog" id="hudDialog"><b id="hudDialogName"></b><span id="hudDialogText"></span></div>
+    <div id="handWheel"><div class="ring"></div>
+      <div class="slot s0"><i></i><span>ROSE</span></div><div class="slot s1"><i></i><span>THUMPER</span></div>
+      <div class="slot s2"><i></i><span>STITCHER</span></div><div class="slot s3"><i></i><span>LANTERN</span></div>
+      <div class="desc"></div></div>
     <div class="hand l" id="hudHandL">L &middot; TEAL</div>
     <div class="hand r" id="hudHandR">R &middot; ROSE</div>
     <canvas id="pipCanvas" width="128" height="128" aria-label="PIP companion"></canvas>
@@ -6240,6 +6255,7 @@ const Player = {
     const S = Settings.values;
     let dx = Input.lookDX, dy = Input.lookDY;
     dx += Input.pad.rx * 900 * dt; dy += Input.pad.ry * 650 * dt;
+    if (Gear.wheelOpen) { Gear.wheelAim(dx, dy); return; }   // the hand wheel takes the look input
     // keyboard look fallback (arrow keys) when no mouse lock
     if (Input.keys.ArrowLeft) dx -= 520 * dt;
     if (Input.keys.ArrowRight) dx += 520 * dt;
@@ -7769,7 +7785,14 @@ const Game = {
         this.drawHose(_g.a, _g.b, up, h);
         V3.scale(_g.hu, fwd, -1);
         // swapping the right hand: it drops out of view and comes back as the new one
-        if (s === 1 && Gear.swapT > 0) V3.addScaled(_g.hp, _g.hp, up, -Math.sin(Math.min(1, (0.4 - Gear.swapT) / 0.4) * Math.PI) * 0.45);
+        if (s === 1 && Gear.swapT > 0) {
+          // swap: the old hand spins like a wheel as it drops, then the new one rises back into place
+          const k = clamp(1 - Gear.swapT / SWAP_TIME, 0, 1);
+          V3.addScaled(_g.hp, _g.hp, up, -Math.sin(k * Math.PI) * 0.5);
+          const spin = k < 0.5 ? smoothstep(0, 0.5, k) * Math.PI * 2 : (1 - smoothstep(0.5, 1, k)) * -0.6;
+          V3.cross(_g.e, fwd, _g.hf);
+          V3.scale(_g.hf, _g.hf, Math.cos(spin)); V3.addScaled(_g.hf, _g.hf, _g.e, Math.sin(spin)); V3.normalize(_g.hf, _g.hf);
+        }
         this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 0.86, false, h, true);
         if (s === 0) {
           // PIP strapped to the wrist, facing you
@@ -8953,7 +8976,16 @@ async function runAll() {
       check('gear: picking up a hand equips it on the right', Gear.owned[1] && Gear.cur === 1 && /THUMPER/.test(document.getElementById('hudHandR').textContent), document.getElementById('hudHandR').textContent);
       tap('KeyX'); T.step(DT, 30);
       check('gear: [X] swaps back to ROSE (the teal hand never swaps)', Gear.cur === 0, Gear.cur);
-      tap('KeyX'); T.step(DT, 30);
+      T.simulateKey('Tab', true); T.step(DT, 3);
+      check('gear: holding [Tab] opens the hand wheel (camera holds still)', Gear.wheelOpen && document.getElementById('handWheel').style.display === 'block', '');
+      const yaw0 = Player.yaw; Input.lookDX = 80; T.step(DT, 1); Input.lookDX = 0;
+      check('gear: aiming the wheel right selects the THUMPER slot', Gear.wheelSel === 1 && Player.yaw === yaw0, 'sel ' + Gear.wheelSel);
+      T.simulateKey('Tab', false); T.step(DT, 2);
+      check('gear: releasing the wheel starts the spin-swap', !Gear.wheelOpen && Gear.swapT > 0 && Gear.swapTo === 1, Gear.swapT.toFixed(2));
+      T.step(DT, 50);
+      check('gear: the new hand rises into place', Gear.cur === 1 && Gear.swapT <= 0, Gear.cur);
+      tap('KeyX'); T.step(DT, 50);
+      tap('KeyX'); T.step(DT, 50);
       // the THUMPER stuns the Spoolwright far longer than the ROSE hand
       Game.invulnerable = true; Game.stage = 1;
       T.setPlayerPose(0, 0, -13.5, 0, 0); T.spawnMonsterNear(5); Monster.targetSpeed = 0; Monster.stunImmune = 0; T.step(DT, 2);
@@ -12330,6 +12362,7 @@ const _en = { l: V3.create(), o: V3.create(), a: V3.create(), b: V3.create(), c:
 //             breathing rasp and breath fog. The back corner of the gallery is full of toxic lint smog.
 //   BLACKLIGHT [B] switches PIP's lamp to ultraviolet: it reveals messages painted in invisible ink.
 // =====================================================================================
+const SWAP_TIME = 0.6;
 const HAND_TYPES = [
   { id: 'ROSE', mat: MAT.handRose, tint: [0.7, 0.6, 0.6], glow: null, stun: 1.3, cool: 0.18, desc: 'your old hand - a solid slap that staggers' },
   { id: 'THUMPER', mat: MAT.copper, tint: [0.95, 0.8, 0.6], glow: null, stun: 3.2, cool: 0.9, desc: 'heavy brass punch - long stun, knock-back, smashes cherubs' },
@@ -12353,6 +12386,7 @@ const UV_SECRETS = [
 
 const Gear = {
   owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, rightLost: false,
+  wheelOpen: false, wheelSel: 0, wheelV: new Float32Array(2), holdT: 0, wheelDom: -2,
   hasMask: false, maskOn: false, maskT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
   blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
   pickups: [], secrets: [], pipAsset: null, pipTimer: 0, overlay: null, gasOverlay: null,
@@ -12368,7 +12402,7 @@ const Gear = {
     this.reset();
   },
   reset() {
-    this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0;
+    this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0;
     this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
     this.blacklight = false; this.secretsFound.fill(0); this.rightLost = false;
     for (const p of this.pickups) p.taken = false;
@@ -12418,12 +12452,24 @@ const Gear = {
     const J = Input.justPressed;
     // swap the right hand (the teal hand never swaps)
     let dir = 0;
-    if (J.has('KeyX') || Input.padJust(3)) dir = 1;
+    // HAND WHEEL: hold [Tab] (or hold [X] / pad Y) to open it, aim with the mouse or stick, release to equip.
+    // A quick tap of [X] still cycles to the next hand.
+    const K = Input.keys, held = !!(K.Tab || K.KeyX || Input.pad.buttons[3]);
+    if (held) {
+      this.holdT += dt;
+      if (!this.wheelOpen && !this.rightLost && (K.Tab || this.holdT > 0.22)) this.openWheel();
+      if (this.wheelOpen) for (let k = 0; k < 4; k++) if (J.has('Digit' + (k + 1)) && this.owned[k]) this.wheelSel = k;
+    } else if (this.holdT > 0) {
+      if (this.wheelOpen) this.closeWheel(true);
+      else if (!this.rightLost) dir = 1;
+      this.holdT = 0;
+    }
     if (Input.wheel) { dir = Input.wheel > 0 ? 1 : -1; Input.wheel = 0; }
     if (dir) this.cycle(dir);
     if (this.swapT > 0) {
       this.swapT -= dt;
-      if (this.swapT < 0.2 && this.cur !== this.swapTo) { this.cur = this.swapTo; sfx('handSwap'); }
+      // the old hand spins as it drops out of view; at the bottom the new one is fitted and rises
+      if (this.swapT < SWAP_TIME / 2 && this.cur !== this.swapTo) { this.cur = this.swapTo; sfx('dock', Player.body.pos); }
     }
     if (J.has('KeyG') && this.hasMask) this.toggleMask();
     if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'PIP: BLACKLIGHT ON - hidden ink glows in the beam' : 'PIP: FLASHLIGHT'); }
@@ -12431,6 +12477,7 @@ const Gear = {
     this.updateGas(dt);
     this.updateSecrets(dt);
     this.updateOverlays(dt);
+    this.updateWheelDom();
     // PIP's face texture on the glove
     this.pipTimer -= dt;
     if (this.pipAsset && this.pipTimer <= 0) {
@@ -12440,14 +12487,51 @@ const Gear = {
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.pipAsset.canvas);
     }
   },
+  openWheel() {
+    this.wheelOpen = true; this.wheelV[0] = 0; this.wheelV[1] = 0;
+    this.wheelSel = this.swapT > 0 ? this.swapTo : this.cur;
+    sfx('uiHover');
+  },
+  closeWheel(equip) {
+    this.wheelOpen = false;
+    if (equip && this.owned[this.wheelSel] && this.wheelSel !== (this.swapT > 0 ? this.swapTo : this.cur)) this.equip(this.wheelSel);
+  },
+  // the look input steers the wheel while it is open (the camera holds still)
+  wheelAim(dx, dy) {
+    const v = this.wheelV;
+    v[0] = clamp(v[0] + dx, -120, 120); v[1] = clamp(v[1] + dy, -120, 120);
+    const l = Math.hypot(v[0], v[1]);
+    if (l < 30) return;
+    // slots: ROSE up, THUMPER right, STITCHER down, LANTERN left
+    const k = ((Math.round(Math.atan2(v[0], -v[1]) / (Math.PI / 2)) % 4) + 4) % 4;
+    if (this.owned[k] && k !== this.wheelSel) { this.wheelSel = k; sfx('uiHover'); }
+  },
+  updateWheelDom() {
+    const key = this.wheelOpen ? this.wheelSel * 16 + this.owned[0] + this.owned[1] * 2 + this.owned[2] * 4 + this.owned[3] * 8 : -1;
+    if (key === this.wheelDom) return;
+    this.wheelDom = key;
+    const w = document.getElementById('handWheel'); if (!w) return;
+    w.style.display = this.wheelOpen ? 'block' : 'none';
+    const slots = w.querySelectorAll('.slot');
+    for (let i = 0; i < slots.length; i++) {
+      slots[i].classList.toggle('sel', i === this.wheelSel);
+      slots[i].classList.toggle('locked', !this.owned[i]);
+      slots[i].querySelector('span').textContent = this.owned[i] ? HAND_TYPES[i].id : '? ? ?';
+    }
+    const c = w.querySelector('.desc'); if (c) c.textContent = this.owned[this.wheelSel] ? HAND_TYPES[this.wheelSel].desc : '';
+  },
+  equip(n) {
+    const h = GrabPack.hands[1];
+    if (h.state !== HAND.DOCKED) GrabPack.release(h, false);
+    this.swapTo = n; this.swapT = SWAP_TIME;
+    sfx('handSwap');
+    GrabPack.showHint('R HAND: ' + HAND_TYPES[n].id + ' - ' + HAND_TYPES[n].desc);
+  },
   cycle(dir) {
     let n = (this.swapT > 0 ? this.swapTo : this.cur);
     for (let k = 0; k < 4; k++) { n = (n + dir + 4) % 4; if (this.owned[n]) break; }
     if (n === (this.swapT > 0 ? this.swapTo : this.cur)) { if (this.ownedCount() < 2) GrabPack.showHint('Only the ROSE hand so far - find more hands'); return; }
-    const h = GrabPack.hands[1];
-    if (h.state !== HAND.DOCKED) GrabPack.release(h, false);
-    this.swapTo = n; this.swapT = 0.4;
-    GrabPack.showHint('R HAND: ' + HAND_TYPES[n].id + ' - ' + HAND_TYPES[n].desc);
+    this.equip(n);
   },
   ownedCount() { let c = 0; for (const o of this.owned) c += o; return c; },
   toggleMask() {
@@ -12483,7 +12567,7 @@ const Gear = {
       GrabPack.showHint('GAS MASK - press [G] to put it on or take it off');
     } else {
       this.owned[p.type] = 1;
-      this.swapTo = p.type; this.swapT = 0.4;
+      this.swapTo = p.type; this.swapT = SWAP_TIME;
       GrabPack.showHint('NEW HAND: ' + HAND_TYPES[p.type].id + ' - ' + HAND_TYPES[p.type].desc + '  ([X] / wheel to swap)');
     }
     Pip.react('stars', 2.5);

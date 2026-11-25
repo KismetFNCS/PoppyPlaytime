@@ -159,6 +159,17 @@
   #pause .prule { width: 100%; height: 3px; background: linear-gradient(90deg, rgb(60,200,200), rgba(60,200,200,0)); margin: 0.6vh 0 32vh; }
   #pause .mbtn { margin: 0.4vh 0 0 12vw; width: 60%; background: none; border: 1.5px solid transparent; color: rgb(210,214,220); }
   #pause .mbtn.sel, #pause .mbtn:hover { border-color: rgb(236,236,236); background: rgba(255,255,255,0.04); box-shadow: -1.2vw 0 0 -0.85vw rgb(60,200,200); }
+  /* ---- hand wheel ---- */
+  #handWheel { display: none; position: absolute; left: 50%; top: 50%; width: 46vh; height: 46vh; transform: translate(-50%, -50%); pointer-events: none; }
+  #handWheel .ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(10,10,12,0.15) 30%, rgba(10,10,12,0.78) 31%, rgba(10,10,12,0.78) 70%, rgba(10,10,12,0) 71%); border: 2px solid rgba(236,236,236,0.35); }
+  #handWheel .slot { position: absolute; width: 13vh; height: 13vh; margin: -6.5vh 0 0 -6.5vh; text-align: center; color: rgb(236,236,236); font-size: clamp(12px, 1.9vh, 20px); letter-spacing: 0.08em; transition: transform 120ms; }
+  #handWheel .slot i { display: block; width: 7vh; height: 8vh; margin: 0 auto 0.6vh; border-radius: 3vh 3vh 1.4vh 1.4vh; border: 2px solid rgb(30,30,30); }
+  #handWheel .s0 { left: 50%; top: 18%; } #handWheel .s1 { left: 82%; top: 50%; } #handWheel .s2 { left: 50%; top: 82%; } #handWheel .s3 { left: 18%; top: 50%; }
+  #handWheel .s0 i { background: rgb(232,150,160); } #handWheel .s1 i { background: rgb(190,130,60); } #handWheel .s2 i { background: rgb(160,166,176); } #handWheel .s3 i { background: rgb(150,110,230); }
+  #handWheel .slot.sel { transform: scale(1.2); color: rgb(255,214,120); }
+  #handWheel .slot.sel i { box-shadow: 0 0 2vh rgb(255,214,120); border-color: rgb(255,214,120); }
+  #handWheel .slot.locked { opacity: 0.3; } #handWheel .slot.locked i { background: rgb(60,60,60); }
+  #handWheel .desc { position: absolute; left: -20%; right: -20%; top: 104%; text-align: center; color: rgb(236,222,200); font-size: clamp(12px, 1.8vh, 18px); }
   /* ---- death screen ---- */
   #fail .who { position: absolute; left: 50%; top: 67%; transform: translateX(-50%); font-size: clamp(14px, 2.6vh, 28px); color: rgb(236,222,200); width: 80vw; text-align: center; font-style: italic; }
   #fail .who b { color: rgb(255,214,120); font-style: normal; letter-spacing: 0.1em; }
@@ -257,6 +268,10 @@
     <div class="boss" id="hudBoss"><b>THE SPOOLWRIGHT</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
     <div class="dialog" id="hudDialog"><b id="hudDialogName"></b><span id="hudDialogText"></span></div>
+    <div id="handWheel"><div class="ring"></div>
+      <div class="slot s0"><i></i><span>ROSE</span></div><div class="slot s1"><i></i><span>THUMPER</span></div>
+      <div class="slot s2"><i></i><span>STITCHER</span></div><div class="slot s3"><i></i><span>LANTERN</span></div>
+      <div class="desc"></div></div>
     <div class="hand l" id="hudHandL">L &middot; TEAL</div>
     <div class="hand r" id="hudHandR">R &middot; ROSE</div>
     <canvas id="pipCanvas" width="128" height="128" aria-label="PIP companion"></canvas>

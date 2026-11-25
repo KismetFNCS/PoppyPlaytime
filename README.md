@@ -42,6 +42,9 @@ drag your view **down** (or back away) to wrench the handle over; let go too ear
   everything within 7 m) and **STITCHER** (steel needle fingers, found in the Spool Foundry: pins whatever it
   hits for 4.5 s). Gloves are worn and grimy; launches puff and spin, the winch spins up to reel them in, and
   they dock with a clunk.
+- **Hand wheel.** Hold **[Tab]** (or hold [X] / pad Y) to open a wheel of your hands; the camera holds still
+  while you aim at a slot with the mouse or stick (or press 1-4), and releasing equips it. The old hand spins
+  like a wheel as it drops out of view, then the new one rises into place. A quick tap of [X] still cycles.
 - **PIP** is a chunky orange wrist device on the teal glove, with a black glass LED screen, an antenna and a lamp. Its LED face warns you (worried when something is close,
   starry-eyed for finds), its front lamp is your flashlight, and **[B]** switches it to a blacklight that reveals
   three messages painted in invisible ink.
