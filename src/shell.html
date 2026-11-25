@@ -126,6 +126,42 @@
     .row { grid-template-columns: 1fr 1.2fr 3.5em; }
     #menu .ver { display: none; }
   }
+
+  /* ---- title page (factory) and chapter select ---- */
+  #titlePage, #chapterPage { position: absolute; inset: 0; display: none; z-index: 5; }
+  #titlePage.on, #chapterPage.on { display: block; animation: fadein 420ms ease-out; }
+  #titlePage { background: linear-gradient(180deg, rgb(226,160,62) 0%, rgb(214,120,70) 38%, rgb(150,52,70) 72%, rgb(40,14,22) 100%); overflow: hidden; }
+  #titlePage svg.sky { position: absolute; left: 0; bottom: 0; width: 100%; height: 62%; }
+  #titlePage .logo { position: absolute; left: 50%; top: 7vh; transform: translateX(-50%) rotate(-2deg); text-align: center; white-space: nowrap; }
+  #titlePage .logo b { display: block; font-size: clamp(34px, 11vh, 140px); font-weight: 900; letter-spacing: 0.02em; color: rgb(246,240,232); text-shadow: 0.5vh 0.5vh 0 rgb(170,40,72), -0.3vh -0.2vh 0 rgb(30,140,140); font-style: italic; }
+  #titlePage .logo i { display: block; font-size: clamp(18px, 5vh, 64px); font-weight: 900; letter-spacing: 0.24em; color: rgb(190,46,82); text-shadow: 0.3vh 0.3vh 0 rgb(246,240,232); font-style: normal; margin-top: -1vh; }
+  #titlePage .tbtns { position: absolute; left: 0; right: 0; bottom: 6vh; display: flex; justify-content: center; gap: 7vw; }
+  #titlePage .mbtn { width: auto; height: auto; min-height: 44px; padding: 0.6vh 1.2vw; background: none; border: 0; text-align: center; color: rgb(246,240,232); font-size: clamp(16px, 4.4vh, 52px); letter-spacing: 0.1em; text-shadow: 0 0.4vh 0 rgb(40,14,22); }
+  #titlePage .mbtn.sel, #titlePage .mbtn:hover { color: rgb(255,214,120); background: none; transform: scale(1.06); }
+  #chapterPage { background: radial-gradient(ellipse at 50% 40%, rgb(26,24,28), rgb(6,6,8) 80%); }
+  #chapterPage h1 { position: absolute; left: 50%; top: 9vh; transform: translateX(-50%); margin: 0; font-size: clamp(22px, 6vh, 64px); font-weight: 600; letter-spacing: 0.14em; color: rgb(236,236,236); white-space: nowrap; }
+  #chapterPage .cards { position: absolute; left: 50%; top: 22vh; transform: translateX(-50%); display: flex; gap: 0.6vw; }
+  #chapterPage .mbtn.card { position: relative; width: 14.4vw; min-width: 96px; height: 60vh; padding: 0; border: 1.5px solid rgb(210,210,210); text-align: center; overflow: hidden; background: linear-gradient(180deg, rgb(40,36,40), rgb(12,10,12)); }
+  #chapterPage .card svg { position: absolute; left: 50%; top: 14%; width: 74%; transform: translateX(-50%); opacity: 0.9; }
+  #chapterPage .card .cn { position: absolute; left: 0; right: 0; bottom: 19%; font-size: clamp(12px, 2.2vh, 24px); letter-spacing: 0.08em; color: rgb(236,236,236); }
+  #chapterPage .card .ct { position: absolute; left: 4%; right: 4%; bottom: 9%; font-size: clamp(11px, 2.1vh, 22px); color: rgb(236,236,236); white-space: normal; line-height: 1.15; }
+  #chapterPage .card.locked { filter: grayscale(1) brightness(0.45); }
+  #chapterPage .card.locked::after { content: 'SEALED'; position: absolute; left: 0; right: 0; top: 46%; font-size: clamp(12px, 2vh, 20px); letter-spacing: 0.3em; color: rgb(200,200,200); }
+  #chapterPage .card.live { background: linear-gradient(180deg, rgb(110,30,52), rgb(18,60,64)); box-shadow: 0 0 2.4vh rgb(190,46,82); }
+  #chapterPage .card.sel { border-color: rgb(255,214,120); transform: translateY(-1vh); }
+  #chapterPage .card.shake { animation: shake 300ms; }
+  @keyframes shake { 25% { transform: translateX(-0.6vw); } 75% { transform: translateX(0.6vw); } }
+  #chapterPage .exit { position: absolute; left: 50%; bottom: 5vh; transform: translateX(-50%); width: auto; padding: 0 2vw; background: none; border: 0; text-align: center; color: rgb(200,200,200); }
+  /* ---- pause menu: header + left-aligned list over the frozen game ---- */
+  #pause { background: linear-gradient(90deg, rgba(6,8,10,0.86), rgba(6,8,10,0.35) 60%, rgba(6,8,10,0)); }
+  #pause .panel { left: 0; top: 0; transform: none; width: min(46vw, 620px); max-height: none; height: 100vh; padding: 9vh 0 0 0; background: none; border: 0; }
+  #pause .panel h2 { margin: 0 0 0 9vw; font-size: clamp(26px, 7.5vh, 84px); color: rgb(60,200,200); letter-spacing: 0.04em; }
+  #pause .prule { width: 100%; height: 3px; background: linear-gradient(90deg, rgb(60,200,200), rgba(60,200,200,0)); margin: 0.6vh 0 32vh; }
+  #pause .mbtn { margin: 0.4vh 0 0 12vw; width: 60%; background: none; border: 1.5px solid transparent; color: rgb(210,214,220); }
+  #pause .mbtn.sel, #pause .mbtn:hover { border-color: rgb(236,236,236); background: rgba(255,255,255,0.04); box-shadow: -1.2vw 0 0 -0.85vw rgb(60,200,200); }
+  /* ---- death screen ---- */
+  #fail .who { position: absolute; left: 50%; top: 67%; transform: translateX(-50%); font-size: clamp(14px, 2.6vh, 28px); color: rgb(236,222,200); width: 80vw; text-align: center; font-style: italic; }
+  #fail .who b { color: rgb(255,214,120); font-style: normal; letter-spacing: 0.1em; }
   @media (prefers-reduced-motion: reduce) { .screen.on { animation: none; } }
 </style>
 </head>
@@ -151,6 +187,41 @@
     </div>
     <div class="ver">fan-made engine slice &middot; F9 self-test</div>
   </div>
+  <div id="titlePage">
+    <svg class="sky" viewBox="0 0 1600 620" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <g fill="rgb(70,26,36)">
+        <rect x="60" y="210" width="60" height="410"/><rect x="190" y="150" width="46" height="470"/><rect x="1330" y="170" width="54" height="450"/><rect x="1460" y="230" width="40" height="390"/>
+        <rect x="740" y="60" width="90" height="560"/><rect x="900" y="200" width="44" height="420"/><rect x="560" y="240" width="40" height="380"/>
+      </g>
+      <g fill="rgb(150,44,70)"><rect x="740" y="120" width="90" height="34"/><rect x="740" y="220" width="90" height="34"/><rect x="740" y="320" width="90" height="34"/></g>
+      <g fill="rgb(28,96,100)"><rect x="60" y="250" width="60" height="18"/><rect x="1330" y="210" width="54" height="18"/><rect x="190" y="190" width="46" height="16"/></g>
+      <path fill="rgb(54,20,30)" d="M0 620V400l90-60v60l90-60v60l90-60v60l90-60v60l90-60v260zM1000 620V380l110-70v70l110-70v70l110-70v70l110-70v70l70-40v270z"/>
+      <path fill="rgb(40,14,22)" d="M0 620V470h1600v150z"/>
+      <path fill="rgb(28,96,100)" d="M640 470a160 120 0 0 1 320 0z"/>
+      <circle cx="800" cy="410" r="34" fill="rgb(226,160,62)"/>
+      <g fill="rgb(226,160,62)" opacity="0.8"><rect x="30" y="500" width="22" height="16"/><rect x="120" y="500" width="22" height="16"/><rect x="210" y="500" width="22" height="16"/><rect x="1060" y="500" width="22" height="16"/><rect x="1180" y="500" width="22" height="16"/><rect x="1300" y="500" width="22" height="16"/><rect x="1420" y="500" width="22" height="16"/></g>
+      <path stroke="rgb(226,160,62)" stroke-width="6" stroke-dasharray="30 26" d="M800 620V560"/>
+    </svg>
+    <div class="logo"><b>MERRIWEATHER</b><i>TOY WORKS</i></div>
+    <div class="tbtns">
+      <button class="mbtn" data-act="play">PLAY</button>
+      <button class="mbtn" data-act="load">LOAD</button>
+      <button class="mbtn" data-act="settings">SETTINGS</button>
+      <button class="mbtn" data-act="quit">QUIT</button>
+    </div>
+  </div>
+  <div id="chapterPage">
+    <h1>[ SELECT CHAPTER ]</h1>
+    <div class="cards">
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="34" fill="none" stroke="rgb(200,200,200)" stroke-width="6"/><path d="M30 60q20 18 40 0" stroke="rgb(200,200,200)" stroke-width="6" fill="none"/></svg><span class="cn">CHAPTER 1</span><span class="ct">&lsquo;THE NIGHT SHIFT&rsquo;</span></button>
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><rect x="26" y="18" width="48" height="64" rx="8" fill="none" stroke="rgb(200,200,200)" stroke-width="6"/><path d="M26 40h48M26 60h48" stroke="rgb(200,200,200)" stroke-width="6"/></svg><span class="cn">CHAPTER 2</span><span class="ct">&lsquo;PAPER SMILES&rsquo;</span></button>
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><path d="M50 14l10 30h30l-24 18 9 30-25-18-25 18 9-30-24-18h30z" fill="none" stroke="rgb(200,200,200)" stroke-width="5"/></svg><span class="cn">CHAPTER 3</span><span class="ct">&lsquo;LIGHTS OUT&rsquo;</span></button>
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><path d="M20 80L80 20M28 72l-8 8M70 24a8 8 0 1 1 6 6" stroke="rgb(200,200,200)" stroke-width="6" fill="none"/></svg><span class="cn">CHAPTER 4</span><span class="ct">&lsquo;THE STITCHING ROOM&rsquo;</span></button>
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="18" fill="none" stroke="rgb(200,200,200)" stroke-width="6"/><path d="M50 14v14M50 72v14M14 50h14M72 50h14M25 25l10 10M65 65l10 10M75 25L65 35M35 65L25 75" stroke="rgb(200,200,200)" stroke-width="6"/></svg><span class="cn">CHAPTER 5</span><span class="ct">&lsquo;SPARE PARTS&rsquo;</span></button>
+      <button class="mbtn card live" data-act="chapter6"><svg viewBox="0 0 100 100"><path d="M18 34q4-24 32-24t32 24q-14-8-16 2-8-14-16-14t-16 14q-2-10-16-2z" fill="rgb(30,140,140)"/><circle cx="18" cy="34" r="5" fill="rgb(226,160,62)"/><circle cx="82" cy="34" r="5" fill="rgb(226,160,62)"/><circle cx="50" cy="60" r="26" fill="rgb(236,230,220)"/><circle cx="40" cy="54" r="7" fill="rgb(12,10,12)"/><circle cx="60" cy="54" r="7" fill="rgb(12,10,12)"/><circle cx="40" cy="54" r="2" fill="rgb(255,200,60)"/><path d="M30 66q20 16 40 0z" fill="rgb(12,10,12)"/><path d="M34 67h32M38 67v6M44 67v8M50 67v8M56 67v8M62 67v6" stroke="rgb(236,230,220)" stroke-width="2"/></svg><span class="cn">CHAPTER 6</span><span class="ct">&lsquo;RESURRECTION&rsquo;</span></button>
+    </div>
+    <button class="mbtn exit" data-act="exitChapters">EXIT</button>
+  </div>
   <div id="settings" class="screen">
     <div class="panel">
       <h2>SETTINGS</h2>
@@ -170,10 +241,11 @@
   </div>
   <div id="pause" class="screen">
     <div class="panel">
-      <h2>PAUSED</h2>
+      <h2>PAUSED</h2><div class="prule"></div>
       <button class="mbtn" id="btnResume" data-act="resume">RESUME</button>
+      <button class="mbtn" id="btnCheckpoint" data-act="checkpoint">RESTART CHECKPOINT</button>
+      <button class="mbtn" id="btnLoadGame" data-act="loadGame">LOAD GAME</button>
       <button class="mbtn" id="btnPauseSettings" data-act="settings">SETTINGS</button>
-      <button class="mbtn" id="btnCheckpoint" data-act="checkpoint">RELOAD CHECKPOINT</button>
       <button class="mbtn" id="btnMainMenu" data-act="mainmenu">MAIN MENU</button>
     </div>
   </div>
@@ -201,8 +273,9 @@
     </div>
   </div>
   <div id="fail" class="screen">
-    <div class="big">SIGNAL LOST</div>
-    <div class="small">REWINDING TAPE TO LAST CHECKPOINT&hellip;<br>(press Enter or tap to rewind now)</div>
+    <div class="big" id="failBig">GET BACK UP</div>
+    <div class="small" id="failSmall">REWINDING TO YOUR LAST CHECKPOINT&hellip;<br>(press Enter or tap to get up now)</div>
+    <div class="who" id="failWho"></div>
   </div>
   <div id="win" class="screen">
     <div class="big">END OF TRANSMISSION</div>

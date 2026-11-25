@@ -126,6 +126,42 @@
     .row { grid-template-columns: 1fr 1.2fr 3.5em; }
     #menu .ver { display: none; }
   }
+
+  /* ---- title page (factory) and chapter select ---- */
+  #titlePage, #chapterPage { position: absolute; inset: 0; display: none; z-index: 5; }
+  #titlePage.on, #chapterPage.on { display: block; animation: fadein 420ms ease-out; }
+  #titlePage { background: linear-gradient(180deg, rgb(226,160,62) 0%, rgb(214,120,70) 38%, rgb(150,52,70) 72%, rgb(40,14,22) 100%); overflow: hidden; }
+  #titlePage svg.sky { position: absolute; left: 0; bottom: 0; width: 100%; height: 62%; }
+  #titlePage .logo { position: absolute; left: 50%; top: 7vh; transform: translateX(-50%) rotate(-2deg); text-align: center; white-space: nowrap; }
+  #titlePage .logo b { display: block; font-size: clamp(34px, 11vh, 140px); font-weight: 900; letter-spacing: 0.02em; color: rgb(246,240,232); text-shadow: 0.5vh 0.5vh 0 rgb(170,40,72), -0.3vh -0.2vh 0 rgb(30,140,140); font-style: italic; }
+  #titlePage .logo i { display: block; font-size: clamp(18px, 5vh, 64px); font-weight: 900; letter-spacing: 0.24em; color: rgb(190,46,82); text-shadow: 0.3vh 0.3vh 0 rgb(246,240,232); font-style: normal; margin-top: -1vh; }
+  #titlePage .tbtns { position: absolute; left: 0; right: 0; bottom: 6vh; display: flex; justify-content: center; gap: 7vw; }
+  #titlePage .mbtn { width: auto; height: auto; min-height: 44px; padding: 0.6vh 1.2vw; background: none; border: 0; text-align: center; color: rgb(246,240,232); font-size: clamp(16px, 4.4vh, 52px); letter-spacing: 0.1em; text-shadow: 0 0.4vh 0 rgb(40,14,22); }
+  #titlePage .mbtn.sel, #titlePage .mbtn:hover { color: rgb(255,214,120); background: none; transform: scale(1.06); }
+  #chapterPage { background: radial-gradient(ellipse at 50% 40%, rgb(26,24,28), rgb(6,6,8) 80%); }
+  #chapterPage h1 { position: absolute; left: 50%; top: 9vh; transform: translateX(-50%); margin: 0; font-size: clamp(22px, 6vh, 64px); font-weight: 600; letter-spacing: 0.14em; color: rgb(236,236,236); white-space: nowrap; }
+  #chapterPage .cards { position: absolute; left: 50%; top: 22vh; transform: translateX(-50%); display: flex; gap: 0.6vw; }
+  #chapterPage .mbtn.card { position: relative; width: 14.4vw; min-width: 96px; height: 60vh; padding: 0; border: 1.5px solid rgb(210,210,210); text-align: center; overflow: hidden; background: linear-gradient(180deg, rgb(40,36,40), rgb(12,10,12)); }
+  #chapterPage .card svg { position: absolute; left: 50%; top: 14%; width: 74%; transform: translateX(-50%); opacity: 0.9; }
+  #chapterPage .card .cn { position: absolute; left: 0; right: 0; bottom: 19%; font-size: clamp(12px, 2.2vh, 24px); letter-spacing: 0.08em; color: rgb(236,236,236); }
+  #chapterPage .card .ct { position: absolute; left: 4%; right: 4%; bottom: 9%; font-size: clamp(11px, 2.1vh, 22px); color: rgb(236,236,236); white-space: normal; line-height: 1.15; }
+  #chapterPage .card.locked { filter: grayscale(1) brightness(0.45); }
+  #chapterPage .card.locked::after { content: 'SEALED'; position: absolute; left: 0; right: 0; top: 46%; font-size: clamp(12px, 2vh, 20px); letter-spacing: 0.3em; color: rgb(200,200,200); }
+  #chapterPage .card.live { background: linear-gradient(180deg, rgb(110,30,52), rgb(18,60,64)); box-shadow: 0 0 2.4vh rgb(190,46,82); }
+  #chapterPage .card.sel { border-color: rgb(255,214,120); transform: translateY(-1vh); }
+  #chapterPage .card.shake { animation: shake 300ms; }
+  @keyframes shake { 25% { transform: translateX(-0.6vw); } 75% { transform: translateX(0.6vw); } }
+  #chapterPage .exit { position: absolute; left: 50%; bottom: 5vh; transform: translateX(-50%); width: auto; padding: 0 2vw; background: none; border: 0; text-align: center; color: rgb(200,200,200); }
+  /* ---- pause menu: header + left-aligned list over the frozen game ---- */
+  #pause { background: linear-gradient(90deg, rgba(6,8,10,0.86), rgba(6,8,10,0.35) 60%, rgba(6,8,10,0)); }
+  #pause .panel { left: 0; top: 0; transform: none; width: min(46vw, 620px); max-height: none; height: 100vh; padding: 9vh 0 0 0; background: none; border: 0; }
+  #pause .panel h2 { margin: 0 0 0 9vw; font-size: clamp(26px, 7.5vh, 84px); color: rgb(60,200,200); letter-spacing: 0.04em; }
+  #pause .prule { width: 100%; height: 3px; background: linear-gradient(90deg, rgb(60,200,200), rgba(60,200,200,0)); margin: 0.6vh 0 32vh; }
+  #pause .mbtn { margin: 0.4vh 0 0 12vw; width: 60%; background: none; border: 1.5px solid transparent; color: rgb(210,214,220); }
+  #pause .mbtn.sel, #pause .mbtn:hover { border-color: rgb(236,236,236); background: rgba(255,255,255,0.04); box-shadow: -1.2vw 0 0 -0.85vw rgb(60,200,200); }
+  /* ---- death screen ---- */
+  #fail .who { position: absolute; left: 50%; top: 67%; transform: translateX(-50%); font-size: clamp(14px, 2.6vh, 28px); color: rgb(236,222,200); width: 80vw; text-align: center; font-style: italic; }
+  #fail .who b { color: rgb(255,214,120); font-style: normal; letter-spacing: 0.1em; }
   @media (prefers-reduced-motion: reduce) { .screen.on { animation: none; } }
 </style>
 </head>
@@ -151,6 +187,41 @@
     </div>
     <div class="ver">fan-made engine slice &middot; F9 self-test</div>
   </div>
+  <div id="titlePage">
+    <svg class="sky" viewBox="0 0 1600 620" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <g fill="rgb(70,26,36)">
+        <rect x="60" y="210" width="60" height="410"/><rect x="190" y="150" width="46" height="470"/><rect x="1330" y="170" width="54" height="450"/><rect x="1460" y="230" width="40" height="390"/>
+        <rect x="740" y="60" width="90" height="560"/><rect x="900" y="200" width="44" height="420"/><rect x="560" y="240" width="40" height="380"/>
+      </g>
+      <g fill="rgb(150,44,70)"><rect x="740" y="120" width="90" height="34"/><rect x="740" y="220" width="90" height="34"/><rect x="740" y="320" width="90" height="34"/></g>
+      <g fill="rgb(28,96,100)"><rect x="60" y="250" width="60" height="18"/><rect x="1330" y="210" width="54" height="18"/><rect x="190" y="190" width="46" height="16"/></g>
+      <path fill="rgb(54,20,30)" d="M0 620V400l90-60v60l90-60v60l90-60v60l90-60v60l90-60v260zM1000 620V380l110-70v70l110-70v70l110-70v70l110-70v70l70-40v270z"/>
+      <path fill="rgb(40,14,22)" d="M0 620V470h1600v150z"/>
+      <path fill="rgb(28,96,100)" d="M640 470a160 120 0 0 1 320 0z"/>
+      <circle cx="800" cy="410" r="34" fill="rgb(226,160,62)"/>
+      <g fill="rgb(226,160,62)" opacity="0.8"><rect x="30" y="500" width="22" height="16"/><rect x="120" y="500" width="22" height="16"/><rect x="210" y="500" width="22" height="16"/><rect x="1060" y="500" width="22" height="16"/><rect x="1180" y="500" width="22" height="16"/><rect x="1300" y="500" width="22" height="16"/><rect x="1420" y="500" width="22" height="16"/></g>
+      <path stroke="rgb(226,160,62)" stroke-width="6" stroke-dasharray="30 26" d="M800 620V560"/>
+    </svg>
+    <div class="logo"><b>MERRIWEATHER</b><i>TOY WORKS</i></div>
+    <div class="tbtns">
+      <button class="mbtn" data-act="play">PLAY</button>
+      <button class="mbtn" data-act="load">LOAD</button>
+      <button class="mbtn" data-act="settings">SETTINGS</button>
+      <button class="mbtn" data-act="quit">QUIT</button>
+    </div>
+  </div>
+  <div id="chapterPage">
+    <h1>[ SELECT CHAPTER ]</h1>
+    <div class="cards">
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="34" fill="none" stroke="rgb(200,200,200)" stroke-width="6"/><path d="M30 60q20 18 40 0" stroke="rgb(200,200,200)" stroke-width="6" fill="none"/></svg><span class="cn">CHAPTER 1</span><span class="ct">&lsquo;THE NIGHT SHIFT&rsquo;</span></button>
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><rect x="26" y="18" width="48" height="64" rx="8" fill="none" stroke="rgb(200,200,200)" stroke-width="6"/><path d="M26 40h48M26 60h48" stroke="rgb(200,200,200)" stroke-width="6"/></svg><span class="cn">CHAPTER 2</span><span class="ct">&lsquo;PAPER SMILES&rsquo;</span></button>
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><path d="M50 14l10 30h30l-24 18 9 30-25-18-25 18 9-30-24-18h30z" fill="none" stroke="rgb(200,200,200)" stroke-width="5"/></svg><span class="cn">CHAPTER 3</span><span class="ct">&lsquo;LIGHTS OUT&rsquo;</span></button>
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><path d="M20 80L80 20M28 72l-8 8M70 24a8 8 0 1 1 6 6" stroke="rgb(200,200,200)" stroke-width="6" fill="none"/></svg><span class="cn">CHAPTER 4</span><span class="ct">&lsquo;THE STITCHING ROOM&rsquo;</span></button>
+      <button class="mbtn card locked" data-act="lockedChapter"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="18" fill="none" stroke="rgb(200,200,200)" stroke-width="6"/><path d="M50 14v14M50 72v14M14 50h14M72 50h14M25 25l10 10M65 65l10 10M75 25L65 35M35 65L25 75" stroke="rgb(200,200,200)" stroke-width="6"/></svg><span class="cn">CHAPTER 5</span><span class="ct">&lsquo;SPARE PARTS&rsquo;</span></button>
+      <button class="mbtn card live" data-act="chapter6"><svg viewBox="0 0 100 100"><path d="M18 34q4-24 32-24t32 24q-14-8-16 2-8-14-16-14t-16 14q-2-10-16-2z" fill="rgb(30,140,140)"/><circle cx="18" cy="34" r="5" fill="rgb(226,160,62)"/><circle cx="82" cy="34" r="5" fill="rgb(226,160,62)"/><circle cx="50" cy="60" r="26" fill="rgb(236,230,220)"/><circle cx="40" cy="54" r="7" fill="rgb(12,10,12)"/><circle cx="60" cy="54" r="7" fill="rgb(12,10,12)"/><circle cx="40" cy="54" r="2" fill="rgb(255,200,60)"/><path d="M30 66q20 16 40 0z" fill="rgb(12,10,12)"/><path d="M34 67h32M38 67v6M44 67v8M50 67v8M56 67v8M62 67v6" stroke="rgb(236,230,220)" stroke-width="2"/></svg><span class="cn">CHAPTER 6</span><span class="ct">&lsquo;RESURRECTION&rsquo;</span></button>
+    </div>
+    <button class="mbtn exit" data-act="exitChapters">EXIT</button>
+  </div>
   <div id="settings" class="screen">
     <div class="panel">
       <h2>SETTINGS</h2>
@@ -170,10 +241,11 @@
   </div>
   <div id="pause" class="screen">
     <div class="panel">
-      <h2>PAUSED</h2>
+      <h2>PAUSED</h2><div class="prule"></div>
       <button class="mbtn" id="btnResume" data-act="resume">RESUME</button>
+      <button class="mbtn" id="btnCheckpoint" data-act="checkpoint">RESTART CHECKPOINT</button>
+      <button class="mbtn" id="btnLoadGame" data-act="loadGame">LOAD GAME</button>
       <button class="mbtn" id="btnPauseSettings" data-act="settings">SETTINGS</button>
-      <button class="mbtn" id="btnCheckpoint" data-act="checkpoint">RELOAD CHECKPOINT</button>
       <button class="mbtn" id="btnMainMenu" data-act="mainmenu">MAIN MENU</button>
     </div>
   </div>
@@ -201,8 +273,9 @@
     </div>
   </div>
   <div id="fail" class="screen">
-    <div class="big">SIGNAL LOST</div>
-    <div class="small">REWINDING TAPE TO LAST CHECKPOINT&hellip;<br>(press Enter or tap to rewind now)</div>
+    <div class="big" id="failBig">GET BACK UP</div>
+    <div class="small" id="failSmall">REWINDING TO YOUR LAST CHECKPOINT&hellip;<br>(press Enter or tap to get up now)</div>
+    <div class="who" id="failWho"></div>
   </div>
   <div id="win" class="screen">
     <div class="big">END OF TRANSMISSION</div>
@@ -6646,6 +6719,7 @@ const UI = {
       Game.uiAction(b.getAttribute('data-act'));
     });
     for (const b of document.querySelectorAll('#menu .mbtn')) b.addEventListener('pointerenter', () => { sfx('uiHover'); this.selectMenu(Array.prototype.indexOf.call(b.parentNode.children, b)); });
+    for (const sel of ['#titlePage .mbtn', '#chapterPage .mbtn']) for (const b of document.querySelectorAll(sel)) b.addEventListener('pointerenter', () => { sfx('uiHover'); this.selectMenu(Array.prototype.indexOf.call(this.menuButtons(), b)); });
     for (const id of ['touchL', 'touchR', 'touchJ', 'touchE', 'touchS']) {
       const el = document.getElementById(id);
       el.addEventListener('pointerdown', e => { e.preventDefault(); Input.touchButton(id, true); });
@@ -6670,20 +6744,30 @@ const UI = {
   },
   show(name) { const e = this.el[name]; if (e) e.classList.add('on'); },
   hide(name) { const e = this.el[name]; if (e) e.classList.remove('on'); },
+  // the main menu has three pages: the factory title, the chapter select, and the Chapter 6 screen
+  menuPage: 'title', menuBooted: false,
+  menuButtons() { return document.querySelectorAll(this.menuPage === 'title' ? '#titlePage .mbtn' : this.menuPage === 'chapters' ? '#chapterPage .mbtn' : '#menu .mbtn'); },
+  setMenuPage(p) {
+    this.menuPage = p;
+    document.getElementById('titlePage').classList.toggle('on', p === 'title');
+    document.getElementById('chapterPage').classList.toggle('on', p === 'chapters');
+    this.selectMenu(p === 'chapters' ? 5 : p === 'ch6' ? (Game.hasSave ? 0 : 1) : 0);
+  },
+  hideMenuPages() { document.getElementById('titlePage').classList.remove('on'); document.getElementById('chapterPage').classList.remove('on'); },
   selectMenu(i) {
-    const btns = document.querySelectorAll('#menu .mbtn');
+    const btns = this.menuButtons();
     this.menuIndex = clamp(i, 0, btns.length - 1);
     for (let k = 0; k < btns.length; k++) btns[k].classList.toggle('sel', k === this.menuIndex);
   },
   menuNav(dir) {
-    const btns = document.querySelectorAll('#menu .mbtn');
+    const btns = this.menuButtons();
     let i = this.menuIndex;
     for (let k = 0; k < btns.length; k++) { i = (i + dir + btns.length) % btns.length; if (!btns[i].disabled) break; }
     this.selectMenu(i);
     sfx('uiHover');
   },
   menuActivate() {
-    const btns = document.querySelectorAll('#menu .mbtn');
+    const btns = this.menuButtons();
     const b = btns[this.menuIndex];
     if (b && !b.disabled) { sfx('uiClick'); Game.uiAction(b.getAttribute('data-act')); }
   },
@@ -6842,6 +6926,18 @@ const OBJECTIVES = [
   'CORE VAULT. Phase 1: lure the Spoolwright onto a track, then hit the TRACK SWITCH (west wall) - Thimble sends the next train down that line. Dodge the trains. Phase 2: latch each exposed core and drag it out.',
   'The Spoolwright is contained. The Deep Works are quiet.'
 ];
+// [headline, speaker, line] shown on the death screen
+const DEATH_LINES = {
+  DEFAULT: [
+    ['GET BACK UP', 'THIMBLE', 'Hey! HEY! Get up - we need you! I can\'t do this part alone!'],
+    ['KEEP GOING', 'MARIGOLD', 'Not here. Not like this. Open your eyes... please.'],
+    ['WE NEED YOU', 'PIP', 'Vitals... beeping! Beeping is good! Get UP!'],
+    ['GET BACK UP', 'THIMBLE', 'You\'re not allowed to break. I already lost enough friends down here.']
+  ],
+  CRUSHED: [['GET BACK UP', 'THIMBLE', 'Ow ow OW. Okay - timing. It\'s all timing. Try again!']],
+  'HIT BY A TRAIN': [['KEEP GOING', 'PIP', 'New rule: we do not stand on the tracks!']],
+  SCALDED: [['GET BACK UP', 'MARIGOLD', 'The steam comes in rhythm. Listen for it this time.']]
+};
 const CHECKPOINT_POSES = [
   { pos: [0, 0, 5.5], yaw: 0 }, { pos: [0, 0, -1.6], yaw: 0 }, { pos: [0, 0, -22.2], yaw: 0 }, { pos: [0, 0, -46.2], yaw: 0 }, { pos: [0, 0, -108.4], yaw: 0 },
   { pos: [0, 0, -142.6], yaw: 0 }, { pos: [0, 0, -177.6], yaw: 0 }, { pos: [0, 0, -217.6], yaw: 0 }, { pos: [0, 0, -257.6], yaw: 0 }, { pos: [0, 0, -293.8], yaw: 0 }
@@ -6851,11 +6947,12 @@ let state = null;
 const HANDLERS = {
   BOOT_LOADING: { enter() { UI.show('loading'); }, exit() { UI.hide('loading'); }, update(dt) { Loader.step(); } },
   MAIN_MENU: {
-    enter() { UI.show('menu'); Input.exitLock(); Monster.setMenuPose(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
-    exit() { UI.hide('menu'); },
+    enter() { UI.show('menu'); Input.exitLock(); Monster.setMenuPose(); Game.menuTime = 0; Game.refreshContinue(); UI.setMenuPage(UI.menuBooted ? UI.menuPage : 'title'); UI.menuBooted = true; Renderer.post.fade = 0; },
+    exit() { UI.hide('menu'); UI.hideMenuPages(); },
     update(dt) {
-      if (Input.justPressed.has('ArrowDown') || Input.justPressed.has('KeyS')) UI.menuNav(1);
-      if (Input.justPressed.has('ArrowUp') || Input.justPressed.has('KeyW')) UI.menuNav(-1);
+      if (Input.justPressed.has('ArrowDown') || Input.justPressed.has('KeyS') || Input.justPressed.has('ArrowRight') || Input.justPressed.has('KeyD')) UI.menuNav(1);
+      if (Input.justPressed.has('ArrowUp') || Input.justPressed.has('KeyW') || Input.justPressed.has('ArrowLeft') || Input.justPressed.has('KeyA')) UI.menuNav(-1);
+      if (Input.justPressed.has('Escape') || Input.justPressed.has('Backspace')) { if (UI.menuPage === 'ch6') { sfx('uiBack'); UI.setMenuPage('chapters'); } else if (UI.menuPage === 'chapters') { sfx('uiBack'); UI.setMenuPage('title'); } }
       if (Input.justPressed.has('Enter') || Input.justPressed.has('Space') || Input.padJust(0)) UI.menuActivate();
       Game.menuUpdate(dt);
     }
@@ -6893,7 +6990,7 @@ const HANDLERS = {
     }
   },
   FAILURE_STATE: {
-    enter() { UI.show('fail'); sfx('gameover'); Game.failTimer = 0; Input.exitLock(); },
+    enter() { UI.show('fail'); sfx('gameover'); Game.failTimer = 0; Input.exitLock(); Game.showGetUp(); },
     exit() { UI.hide('fail'); },
     update(dt) {
       Game.failTimer += dt;
@@ -6964,12 +7061,32 @@ const Game = {
       case 'resume': if (state === STATE.PAUSED) { setState(this.resumeState); Input.requestLock(); } break;
       case 'pause': if (this.isGameplay()) { this.resumeState = state; setState(STATE.PAUSED); } break;
       case 'checkpoint': if (state === STATE.PAUSED) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
-      case 'mainmenu': setState(STATE.MAIN_MENU); break;
+      case 'mainmenu': UI.menuPage = 'ch6'; setState(STATE.MAIN_MENU); break;
+      case 'play': sfx('uiClick'); UI.setMenuPage('chapters'); break;
+      case 'load': this.refreshContinue(); if (this.hasSave) this.continueGame(); else UI.setMenuPage('chapters'); break;
+      case 'exitChapters': sfx('uiBack'); UI.setMenuPage('title'); break;
+      case 'chapter6': sfx('tapeInsert'); UI.setMenuPage('ch6'); break;
+      case 'lockedChapter': {
+        sfx('deny');
+        const b = UI.menuButtons()[UI.menuIndex];
+        if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); }
+        break;
+      }
+      case 'loadGame': if (state === STATE.PAUSED) { this.refreshContinue(); if (this.hasSave) this.continueGame(); } break;
       case 'mute': this.toggleMute(); break;
       case 'skipTape': VHS.finish(); break;
       case 'rewind': if (state === STATE.FAILURE_STATE) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
       case 'winDone': if (state === STATE.VICTORY) setState(STATE.MAIN_MENU); break;
     }
+  },
+  // death screen: your allies shout you back onto your feet, then the checkpoint reloads
+  showGetUp() {
+    const lines = DEATH_LINES[this.failReason] || DEATH_LINES.DEFAULT;
+    const pick = lines[(Math.random() * lines.length) | 0];
+    document.getElementById('failBig').textContent = pick[0];
+    document.getElementById('failWho').innerHTML = '';
+    const b = document.createElement('b'); b.textContent = pick[1] + ': ';
+    document.getElementById('failWho').append(b, document.createTextNode('\u201c' + pick[2] + '\u201d'));
   },
   quit() {
     save('checkpoint', '');
@@ -7952,7 +8069,7 @@ window.__TEST__ = {
   setStepRender: on => { window.__TEST__.stepRender = !!on; },
   step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); if (window.__TEST__.stepRender) render(); },
   renderNow: () => render(),
-  gotoMenu: () => setState(STATE.MAIN_MENU),
+  gotoMenu: () => { setState(STATE.MAIN_MENU); UI.setMenuPage('ch6'); },
   forceGameOver: () => { if (!Game.isGameplay()) { Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE); } Game.onPlayerDied('TEST'); },
   setPlayerPose: (x, y, z, yaw, pitch) => {
     V3.set(Player.body.pos, x, y, z); V3.set(Player.body.vel, 0, 0, 0);
@@ -8125,6 +8242,15 @@ async function runAll() {
 
     await breathe();
     // ---------------- menu ----------------
+    setState(STATE.MAIN_MENU); UI.menuPage = 'title'; UI.setMenuPage('title'); T.step(DT, 2);
+    check('menu: boots to the factory title page', UI.menuPage === 'title' && document.getElementById('titlePage').classList.contains('on'), UI.menuPage);
+    Game.uiAction('play'); T.step(DT, 1);
+    check('menu: PLAY opens the six-chapter select', UI.menuPage === 'chapters' && document.querySelectorAll('#chapterPage .card').length === 6, UI.menuPage);
+    check('menu: only chapter 6 is playable', document.querySelectorAll('#chapterPage .card.locked').length === 5 && document.querySelector('#chapterPage .card.live').dataset.act === 'chapter6');
+    UI.selectMenu(0); T.clearSfxLog(); UI.menuActivate(); T.step(DT, 1);
+    check('menu: a sealed chapter refuses (deny)', UI.menuPage === 'chapters' && T.getSfxLog().includes('deny'), UI.menuPage);
+    Game.uiAction('chapter6'); T.step(DT, 1);
+    check('menu: chapter 6 opens its screen with the Spoolwright behind it', UI.menuPage === 'ch6' && !document.getElementById('chapterPage').classList.contains('on'), UI.menuPage);
     T.gotoMenu();
     T.step(DT, 2);
     check('menu: state is MAIN_MENU', T.getState() === 'MAIN_MENU', T.getState());
@@ -8602,6 +8728,7 @@ async function runAll() {
     T.clearSfxLog();
     T.forceGameOver(); T.step(DT, 1);
     check('over: forceGameOver reaches FAILURE_STATE', T.getState() === 'FAILURE_STATE', T.getState());
+    check('death screen: an ally tells you to get back up', /GET BACK UP|KEEP GOING|WE NEED YOU/.test(document.getElementById('failBig').textContent) && document.getElementById('failWho').textContent.length > 10, document.getElementById('failWho').textContent);
     T.step(DT, 30);
     tap('Enter');
     check('restart: Enter rewinds to gameplay', Game.isGameplay(), T.getState());

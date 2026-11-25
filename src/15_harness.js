@@ -78,7 +78,7 @@ window.__TEST__ = {
   setStepRender: on => { window.__TEST__.stepRender = !!on; },
   step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); if (window.__TEST__.stepRender) render(); },
   renderNow: () => render(),
-  gotoMenu: () => setState(STATE.MAIN_MENU),
+  gotoMenu: () => { setState(STATE.MAIN_MENU); UI.setMenuPage('ch6'); },
   forceGameOver: () => { if (!Game.isGameplay()) { Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE); } Game.onPlayerDied('TEST'); },
   setPlayerPose: (x, y, z, yaw, pitch) => {
     V3.set(Player.body.pos, x, y, z); V3.set(Player.body.vel, 0, 0, 0);
@@ -251,6 +251,15 @@ async function runAll() {
 
     await breathe();
     // ---------------- menu ----------------
+    setState(STATE.MAIN_MENU); UI.menuPage = 'title'; UI.setMenuPage('title'); T.step(DT, 2);
+    check('menu: boots to the factory title page', UI.menuPage === 'title' && document.getElementById('titlePage').classList.contains('on'), UI.menuPage);
+    Game.uiAction('play'); T.step(DT, 1);
+    check('menu: PLAY opens the six-chapter select', UI.menuPage === 'chapters' && document.querySelectorAll('#chapterPage .card').length === 6, UI.menuPage);
+    check('menu: only chapter 6 is playable', document.querySelectorAll('#chapterPage .card.locked').length === 5 && document.querySelector('#chapterPage .card.live').dataset.act === 'chapter6');
+    UI.selectMenu(0); T.clearSfxLog(); UI.menuActivate(); T.step(DT, 1);
+    check('menu: a sealed chapter refuses (deny)', UI.menuPage === 'chapters' && T.getSfxLog().includes('deny'), UI.menuPage);
+    Game.uiAction('chapter6'); T.step(DT, 1);
+    check('menu: chapter 6 opens its screen with the Spoolwright behind it', UI.menuPage === 'ch6' && !document.getElementById('chapterPage').classList.contains('on'), UI.menuPage);
     T.gotoMenu();
     T.step(DT, 2);
     check('menu: state is MAIN_MENU', T.getState() === 'MAIN_MENU', T.getState());
@@ -728,6 +737,7 @@ async function runAll() {
     T.clearSfxLog();
     T.forceGameOver(); T.step(DT, 1);
     check('over: forceGameOver reaches FAILURE_STATE', T.getState() === 'FAILURE_STATE', T.getState());
+    check('death screen: an ally tells you to get back up', /GET BACK UP|KEEP GOING|WE NEED YOU/.test(document.getElementById('failBig').textContent) && document.getElementById('failWho').textContent.length > 10, document.getElementById('failWho').textContent);
     T.step(DT, 30);
     tap('Enter');
     check('restart: Enter rewinds to gameplay', Game.isGameplay(), T.getState());

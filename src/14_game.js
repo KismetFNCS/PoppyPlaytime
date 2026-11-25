@@ -25,6 +25,18 @@ const OBJECTIVES = [
   'CORE VAULT. Phase 1: lure the Spoolwright onto a track, then hit the TRACK SWITCH (west wall) - Thimble sends the next train down that line. Dodge the trains. Phase 2: latch each exposed core and drag it out.',
   'The Spoolwright is contained. The Deep Works are quiet.'
 ];
+// [headline, speaker, line] shown on the death screen
+const DEATH_LINES = {
+  DEFAULT: [
+    ['GET BACK UP', 'THIMBLE', 'Hey! HEY! Get up - we need you! I can\'t do this part alone!'],
+    ['KEEP GOING', 'MARIGOLD', 'Not here. Not like this. Open your eyes... please.'],
+    ['WE NEED YOU', 'PIP', 'Vitals... beeping! Beeping is good! Get UP!'],
+    ['GET BACK UP', 'THIMBLE', 'You\'re not allowed to break. I already lost enough friends down here.']
+  ],
+  CRUSHED: [['GET BACK UP', 'THIMBLE', 'Ow ow OW. Okay - timing. It\'s all timing. Try again!']],
+  'HIT BY A TRAIN': [['KEEP GOING', 'PIP', 'New rule: we do not stand on the tracks!']],
+  SCALDED: [['GET BACK UP', 'MARIGOLD', 'The steam comes in rhythm. Listen for it this time.']]
+};
 const CHECKPOINT_POSES = [
   { pos: [0, 0, 5.5], yaw: 0 }, { pos: [0, 0, -1.6], yaw: 0 }, { pos: [0, 0, -22.2], yaw: 0 }, { pos: [0, 0, -46.2], yaw: 0 }, { pos: [0, 0, -108.4], yaw: 0 },
   { pos: [0, 0, -142.6], yaw: 0 }, { pos: [0, 0, -177.6], yaw: 0 }, { pos: [0, 0, -217.6], yaw: 0 }, { pos: [0, 0, -257.6], yaw: 0 }, { pos: [0, 0, -293.8], yaw: 0 }
@@ -34,11 +46,12 @@ let state = null;
 const HANDLERS = {
   BOOT_LOADING: { enter() { UI.show('loading'); }, exit() { UI.hide('loading'); }, update(dt) { Loader.step(); } },
   MAIN_MENU: {
-    enter() { UI.show('menu'); Input.exitLock(); Monster.setMenuPose(); Game.menuTime = 0; Game.refreshContinue(); UI.selectMenu(Game.hasSave ? 0 : 1); Renderer.post.fade = 0; },
-    exit() { UI.hide('menu'); },
+    enter() { UI.show('menu'); Input.exitLock(); Monster.setMenuPose(); Game.menuTime = 0; Game.refreshContinue(); UI.setMenuPage(UI.menuBooted ? UI.menuPage : 'title'); UI.menuBooted = true; Renderer.post.fade = 0; },
+    exit() { UI.hide('menu'); UI.hideMenuPages(); },
     update(dt) {
-      if (Input.justPressed.has('ArrowDown') || Input.justPressed.has('KeyS')) UI.menuNav(1);
-      if (Input.justPressed.has('ArrowUp') || Input.justPressed.has('KeyW')) UI.menuNav(-1);
+      if (Input.justPressed.has('ArrowDown') || Input.justPressed.has('KeyS') || Input.justPressed.has('ArrowRight') || Input.justPressed.has('KeyD')) UI.menuNav(1);
+      if (Input.justPressed.has('ArrowUp') || Input.justPressed.has('KeyW') || Input.justPressed.has('ArrowLeft') || Input.justPressed.has('KeyA')) UI.menuNav(-1);
+      if (Input.justPressed.has('Escape') || Input.justPressed.has('Backspace')) { if (UI.menuPage === 'ch6') { sfx('uiBack'); UI.setMenuPage('chapters'); } else if (UI.menuPage === 'chapters') { sfx('uiBack'); UI.setMenuPage('title'); } }
       if (Input.justPressed.has('Enter') || Input.justPressed.has('Space') || Input.padJust(0)) UI.menuActivate();
       Game.menuUpdate(dt);
     }
@@ -76,7 +89,7 @@ const HANDLERS = {
     }
   },
   FAILURE_STATE: {
-    enter() { UI.show('fail'); sfx('gameover'); Game.failTimer = 0; Input.exitLock(); },
+    enter() { UI.show('fail'); sfx('gameover'); Game.failTimer = 0; Input.exitLock(); Game.showGetUp(); },
     exit() { UI.hide('fail'); },
     update(dt) {
       Game.failTimer += dt;
@@ -147,12 +160,32 @@ const Game = {
       case 'resume': if (state === STATE.PAUSED) { setState(this.resumeState); Input.requestLock(); } break;
       case 'pause': if (this.isGameplay()) { this.resumeState = state; setState(STATE.PAUSED); } break;
       case 'checkpoint': if (state === STATE.PAUSED) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
-      case 'mainmenu': setState(STATE.MAIN_MENU); break;
+      case 'mainmenu': UI.menuPage = 'ch6'; setState(STATE.MAIN_MENU); break;
+      case 'play': sfx('uiClick'); UI.setMenuPage('chapters'); break;
+      case 'load': this.refreshContinue(); if (this.hasSave) this.continueGame(); else UI.setMenuPage('chapters'); break;
+      case 'exitChapters': sfx('uiBack'); UI.setMenuPage('title'); break;
+      case 'chapter6': sfx('tapeInsert'); UI.setMenuPage('ch6'); break;
+      case 'lockedChapter': {
+        sfx('deny');
+        const b = UI.menuButtons()[UI.menuIndex];
+        if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); }
+        break;
+      }
+      case 'loadGame': if (state === STATE.PAUSED) { this.refreshContinue(); if (this.hasSave) this.continueGame(); } break;
       case 'mute': this.toggleMute(); break;
       case 'skipTape': VHS.finish(); break;
       case 'rewind': if (state === STATE.FAILURE_STATE) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
       case 'winDone': if (state === STATE.VICTORY) setState(STATE.MAIN_MENU); break;
     }
+  },
+  // death screen: your allies shout you back onto your feet, then the checkpoint reloads
+  showGetUp() {
+    const lines = DEATH_LINES[this.failReason] || DEATH_LINES.DEFAULT;
+    const pick = lines[(Math.random() * lines.length) | 0];
+    document.getElementById('failBig').textContent = pick[0];
+    document.getElementById('failWho').innerHTML = '';
+    const b = document.createElement('b'); b.textContent = pick[1] + ': ';
+    document.getElementById('failWho').append(b, document.createTextNode('\u201c' + pick[2] + '\u201d'));
   },
   quit() {
     save('checkpoint', '');

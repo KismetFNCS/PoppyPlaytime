@@ -292,6 +292,7 @@ const UI = {
       Game.uiAction(b.getAttribute('data-act'));
     });
     for (const b of document.querySelectorAll('#menu .mbtn')) b.addEventListener('pointerenter', () => { sfx('uiHover'); this.selectMenu(Array.prototype.indexOf.call(b.parentNode.children, b)); });
+    for (const sel of ['#titlePage .mbtn', '#chapterPage .mbtn']) for (const b of document.querySelectorAll(sel)) b.addEventListener('pointerenter', () => { sfx('uiHover'); this.selectMenu(Array.prototype.indexOf.call(this.menuButtons(), b)); });
     for (const id of ['touchL', 'touchR', 'touchJ', 'touchE', 'touchS']) {
       const el = document.getElementById(id);
       el.addEventListener('pointerdown', e => { e.preventDefault(); Input.touchButton(id, true); });
@@ -316,20 +317,30 @@ const UI = {
   },
   show(name) { const e = this.el[name]; if (e) e.classList.add('on'); },
   hide(name) { const e = this.el[name]; if (e) e.classList.remove('on'); },
+  // the main menu has three pages: the factory title, the chapter select, and the Chapter 6 screen
+  menuPage: 'title', menuBooted: false,
+  menuButtons() { return document.querySelectorAll(this.menuPage === 'title' ? '#titlePage .mbtn' : this.menuPage === 'chapters' ? '#chapterPage .mbtn' : '#menu .mbtn'); },
+  setMenuPage(p) {
+    this.menuPage = p;
+    document.getElementById('titlePage').classList.toggle('on', p === 'title');
+    document.getElementById('chapterPage').classList.toggle('on', p === 'chapters');
+    this.selectMenu(p === 'chapters' ? 5 : p === 'ch6' ? (Game.hasSave ? 0 : 1) : 0);
+  },
+  hideMenuPages() { document.getElementById('titlePage').classList.remove('on'); document.getElementById('chapterPage').classList.remove('on'); },
   selectMenu(i) {
-    const btns = document.querySelectorAll('#menu .mbtn');
+    const btns = this.menuButtons();
     this.menuIndex = clamp(i, 0, btns.length - 1);
     for (let k = 0; k < btns.length; k++) btns[k].classList.toggle('sel', k === this.menuIndex);
   },
   menuNav(dir) {
-    const btns = document.querySelectorAll('#menu .mbtn');
+    const btns = this.menuButtons();
     let i = this.menuIndex;
     for (let k = 0; k < btns.length; k++) { i = (i + dir + btns.length) % btns.length; if (!btns[i].disabled) break; }
     this.selectMenu(i);
     sfx('uiHover');
   },
   menuActivate() {
-    const btns = document.querySelectorAll('#menu .mbtn');
+    const btns = this.menuButtons();
     const b = btns[this.menuIndex];
     if (b && !b.disabled) { sfx('uiClick'); Game.uiAction(b.getAttribute('data-act')); }
   },
