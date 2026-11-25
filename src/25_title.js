@@ -118,11 +118,11 @@ const CARD_SHOTS = [
   // each chapter has its own colour mood (key-light tint): blue, pink, crimson-violet, teal-lime, deep red, white
   // chapters 1-5: original toys on the gallery stages (teal wind-up rabbit, lanky pink marionette, violet owl,
   // bread-dough baker, the needle claw); chapter 6: the Epxirtype himself
-  { eye: [-12, 1.05, 132.4], yaw: Math.PI, pitch: 0.02, sec: [11], at: [-12, 1.0, 135.6], tint: [0.75, 1.05, 1.45] },
-  { eye: [-6, 1.9, 131.4], yaw: Math.PI, pitch: 0.06, sec: [11], at: [-6, 2.0, 135.6], tint: [1.7, 0.6, 1.15] },
-  { eye: [0, 1.0, 132.6], yaw: Math.PI, pitch: 0.0, sec: [11], at: [0, 1.0, 135.6], tint: [1.15, 0.6, 1.7] },
-  { eye: [6, 1.05, 132.6], yaw: Math.PI, pitch: 0.0, sec: [11], at: [6, 1.0, 135.6], tint: [1.35, 1.15, 0.95] },
-  { eye: [12, 1.45, 134.3], yaw: Math.PI, pitch: 0.05, sec: [11], at: [12, 1.4, 135.6], tint: [1.6, 0.25, 0.2] },
+  { eye: [-12, 1.15, 133.4], yaw: Math.PI, pitch: 0.02, sec: [11], at: [-12, 1.0, 135.6], tint: [0.75, 1.05, 1.45] },
+  { eye: [-6, 1.75, 132.3], yaw: Math.PI, pitch: 0.06, sec: [11], at: [-6, 2.0, 135.6], tint: [1.7, 0.6, 1.15] },
+  { eye: [0, 1.05, 133.5], yaw: Math.PI, pitch: 0.0, sec: [11], at: [0, 1.0, 135.6], tint: [1.15, 0.6, 1.7] },
+  { eye: [6, 1.05, 133.5], yaw: Math.PI, pitch: 0.0, sec: [11], at: [6, 1.0, 135.6], tint: [1.2, 1.1, 1.0] },
+  { eye: [12, 1.35, 134.1], yaw: Math.PI, pitch: 0.05, sec: [11], at: [12, 1.4, 135.6], tint: [1.6, 0.25, 0.2] },
   { eye: [-0.2, 1.8, -79.9], yaw: 0, pitch: 0.12, sec: [3, 4], at: [0.9, 2.6, -84.6], tint: [1, 1, 1] }
 ];
 const ChapterCards = {
@@ -150,76 +150,40 @@ const ChapterCards = {
   },
   // the gallery toys (drawn only while the chapter select is open)
   submitActors() {
-    const R = RenderQueue, t = Game.menuTime, z = 135.6;
-    const col = (it, r, g, b, e) => { if (it) { it.tint[0] = r; it.tint[1] = g; it.tint[2] = b; if (e) { it.emis[0] = e[0]; it.emis[1] = e[1]; it.emis[2] = e[2]; } } return it; };
-    const sph = (m, x, y, zz, sx, sy, sz, r, g, b, e) => col(R.trs('sphere', m, x, y, zz, 0, 0, 0, sx, sy, sz), r, g, b, e);
-    // 1: TINKER TOM - a chipped teal tin wind-up rabbit with a brass key in its back
+    const R = RenderQueue, t = Game.menuTime, z = 135.6, base = 0.35;
+    const put = (name, x, y, yaw, sc, tr, tg, tb) => {
+      if (!Sculpt.ready(name)) return null;
+      const it = R.push(name, MAT.paint);
+      if (it) { M4.compose(it.model, x, y, z, yaw, 0, 0, sc, sc, sc); if (tr) { it.tint[0] = tr; it.tint[1] = tg; it.tint[2] = tb; } }
+      return it;
+    };
+    // 1: Tinker Tom bobs on his spring as the key in his back turns
     let x = CARD_ACTOR_X[0], bob = Math.abs(Math.sin(t * 5)) * 0.03;
-    sph(MAT.paint, x, 0.85 + bob, z, 0.32, 0.4, 0.28, 0.18, 0.72, 0.85);
-    sph(MAT.paint, x, 1.42 + bob, z - 0.02, 0.27, 0.25, 0.25, 0.2, 0.75, 0.9);
+    put('card_rabbit', x, base + bob, Math.sin(t * 0.6) * 0.15, 0.82);
+    for (const s of [-1, 1]) { const k = R.trs('torus', MAT.copper, x + s * 0.06, base + bob + 0.86 * 0.82, z + 0.36, t * 3, 0, Math.PI / 2, 0.06, 0.25, 0.06, false); if (k) { k.tint[0] = 1.3; k.tint[1] = 1.0; k.tint[2] = 0.45; } }
+    // 2: Stilts Sally sways on her strings under the crossbar
+    x = CARD_ACTOR_X[1]; const sw = Math.sin(t * 1.4) * 0.04;
+    put('card_sally', x, base, sw, 0.78);
+    const bar = R.trs('box', MAT.wood, x, base + 3.4 * 0.78, z, sw, 0, 0, 1.4, 0.05, 0.05); if (bar) bar.castShadow = false;
+    for (const p of [[-0.6 * 0.78, 1.5 * 0.78], [0.6 * 0.78, 1.5 * 0.78], [0, 3.1 * 0.78], [-0.08, 1.2 * 0.78], [0.08, 1.2 * 0.78]]) {
+      R.seg('cylLow', MAT.cable, V3.set(this.tmp, x + p[0], base + p[1], z), V3.create(x + p[0] * 0.9, base + 3.4 * 0.78, z), 0.003, false);
+    }
+    // 3: Hootsworth's lantern eyes glow and his head tilts
+    x = CARD_ACTOR_X[2]; const tilt = Math.sin(t * 0.7) * 0.12;
+    put('card_owl', x, base, tilt, 0.85);
     for (const s of [-1, 1]) {
-      col(R.trs('sphere', MAT.paint, x + s * 0.12, 1.86 + bob, z + 0.02, 0, 0, s * 0.2, 0.07, 0.3, 0.05), 0.2, 0.75, 0.9);
-      col(R.trs('sphere', MAT.handRose, x + s * 0.12, 1.86 + bob, z - 0.025, 0, 0, s * 0.2, 0.04, 0.22, 0.02), 1, 0.7, 0.7);
-      sph(MAT.screen, x + s * 0.1, 1.46 + bob, z - 0.23, 0.065, 0.075, 0.03, 1, 1, 1);
-      sph(MAT.screen, x + s * 0.1 - 0.02, 1.49 + bob, z - 0.255, 0.015, 0.015, 0.01, 1, 1, 1, [2, 2, 2]);
-      sph(MAT.paint, x + s * 0.28, 0.95 + bob, z - 0.05, 0.08, 0.2, 0.08, 0.18, 0.72, 0.85);
-      sph(MAT.paint, x + s * 0.15, 0.42, z - 0.08, 0.1, 0.08, 0.16, 0.18, 0.72, 0.85);
+      const e = R.trs('sphere', MAT.screen, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.39 * 0.85, 0, 0, 0, 0.08, 0.08, 0.04, false);
+      if (e) { e.emis[0] = 2.6; e.emis[1] = 1.5; e.emis[2] = 0.3; }
+      const pu = R.trs('sphere', MAT.rubber, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.42 * 0.85, 0, 0, 0, 0.03, 0.055 * (0.6 + 0.4 * Math.abs(Math.sin(t * 0.5))), 0.015, false);
     }
-    sph(MAT.handRose, x, 1.36 + bob, z - 0.25, 0.035, 0.03, 0.03, 1, 0.6, 0.6);
-    col(R.trs('box', MAT.rubber, x, 1.27 + bob, z - 0.24, 0, 0, 0, 0.12, 0.012, 0.01, false), 1, 1, 1);
-    col(R.trs('cylLow', MAT.copper, x, 0.9 + bob, z + 0.26, 0, Math.PI / 2, 0, 0.025, 0.14, 0.025), 1.3, 1, 0.45);
-    for (const s of [-1, 1]) col(R.trs('torus', MAT.copper, x + s * 0.07, 0.9 + bob, z + 0.42, t * 3, 0, Math.PI / 2, 0.06, 0.25, 0.06), 1.3, 1, 0.45);
-    // 2: STILTS SALLY - a lanky pink marionette on stilts, hanging from her crossbar strings
-    x = CARD_ACTOR_X[1]; const sw = Math.sin(t * 1.4) * 0.06;
-    sph(MAT.handRose, x + sw, 2.75, z, 0.2, 0.22, 0.19, 1.25, 0.55, 0.8);
-    sph(MAT.screen, x + sw - 0.07, 2.78, z - 0.18, 0.04, 0.05, 0.02, 1, 1, 1, [0.3, 0.3, 0.3]);
-    sph(MAT.screen, x + sw + 0.07, 2.78, z - 0.18, 0.04, 0.05, 0.02, 1, 1, 1, [0.3, 0.3, 0.3]);
-    for (const s of [-1, 1]) sph(MAT.handRose, x + sw + s * 0.13, 2.66, z - 0.15, 0.05, 0.035, 0.02, 1.5, 0.35, 0.5);
-    col(R.trs('box', MAT.rubber, x + sw, 2.6, z - 0.17, 0, 0, 0, 0.14, 0.02, 0.01, false), 1, 1, 1);
-    col(R.trs('cyl', MAT.handRose, x + sw, 1.75, z, 0, 0, 0, 0.11, 0.8, 0.09), 1.2, 0.5, 0.78);
-    for (const s of [-1, 1]) {
-      const a = V3.set(this.tmp, x + sw + s * 0.12, 2.45, z), b = V3.create(x + s * (0.75 + sw), 1.4, z - 0.1);
-      col(R.seg('cylLow', MAT.handRose, a, b, 0.035), 1.2, 0.5, 0.78);
-      col(R.seg('cylLow', MAT.wood, V3.create(x + s * 0.08, 1.75, z), V3.create(x + s * 0.12, 0.35, z), 0.04), 1, 1, 1);
-      col(R.seg('cylLow', MAT.cable, b, V3.create(x + s * 0.7, 4.2, z - 0.1), 0.004, false), 1, 1, 1);
-    }
-    col(R.trs('box', MAT.wood, x, 4.2, z - 0.1, 0, 0, 0, 1.6, 0.06, 0.06), 1, 1, 1);
-    // 3: HOOTSWORTH - a fat violet owl plush whose amber lantern eyes never close
-    x = CARD_ACTOR_X[2]; const tilt = Math.sin(t * 0.7) * 0.25;
-    sph(MAT.furViolet, x, 0.95, z, 0.48, 0.58, 0.44, 1.5, 0.9, 1.7);
-    for (const s of [-1, 1]) {
-      sph(MAT.furLight, x + s * 0.17, 1.15, z - 0.36, 0.17, 0.17, 0.08, 1.1, 0.95, 1.1);
-      sph(MAT.screen, x + s * 0.17, 1.15, z - 0.42, 0.1, 0.1, 0.04, 1, 1, 1, [2.6, 1.5, 0.3]);
-      sph(MAT.screen, x + s * 0.17, 1.15, z - 0.45, 0.035, 0.05, 0.02, 1, 1, 1);
-      col(R.trs('sphere', MAT.furViolet, x + s * 0.27, 1.55, z, 0, tilt, s * 0.5, 0.07, 0.2, 0.06), 1.5, 0.9, 1.7);
-      sph(MAT.furViolet, x + s * 0.42, 0.95, z + 0.05, 0.1, 0.32, 0.25, 1.2, 0.7, 1.4);
-    }
-    col(R.trs('sphere', MAT.copper, x, 1.0, z - 0.43, 0, 0.3, 0, 0.05, 0.08, 0.05), 1.3, 0.9, 0.4);
-    // 4: DOUGHBERT - a lumpy bread-dough baker with raisin eyes, a cookie-cutter grin and a rolling pin
-    x = CARD_ACTOR_X[3]; const sq = 1 + Math.sin(t * 3) * 0.03;
-    sph(MAT.paint, x, 0.78, z, 0.42 * sq, 0.45 / sq, 0.38, 1.15, 0.9, 0.7);
-    sph(MAT.paint, x + 0.05, 1.32, z - 0.02, 0.3, 0.27, 0.27, 1.2, 0.95, 0.72);
-    sph(MAT.paint, x - 0.2, 1.05, z - 0.1, 0.15, 0.13, 0.13, 1.1, 0.85, 0.62);
-    for (const s of [-1, 1]) {
-      sph(MAT.burnt, x + 0.05 + s * 0.1, 1.38, z - 0.27, 0.035, 0.045, 0.02, 0.6, 0.4, 0.4);
-      sph(MAT.paint, x + s * 0.4, 0.85, z - 0.12, 0.11, 0.2, 0.11, 1.15, 0.9, 0.7);
-    }
-    for (let i = 0; i < 5; i++) sph(MAT.burnt, x + 0.05 + (i - 2) * 0.05, 1.24 - Math.abs(i - 2) * -0.012, z - 0.27, 0.016, 0.02, 0.01, 0.4, 0.3, 0.3);
-    col(R.trs('cyl', MAT.wood, x - 0.42, 0.85, z - 0.3, 0, 0, Math.PI / 2, 0.06, 0.84, 0.06), 1, 1, 1);
-    sph(MAT.paint, x - 0.15, 1.62, z, 0.24, 0.12, 0.22, 1.5, 1.5, 1.45);
-    // 5: the needle claw - a scorched skeletal hand whose fingers end in long sewing needles
-    x = CARD_ACTOR_X[4]; const cl = 0.3 + 0.25 * Math.sin(t * 1.2);
-    col(R.trs('box', MAT.steel, x, 1.0, z, 0, 0.2, 0, 0.26, 0.3, 0.08), 0.7, 0.6, 0.6);
-    col(R.seg('cyl', MAT.steel, V3.create(x, 0.3, z + 0.1), V3.create(x, 0.85, z + 0.02), 0.05), 0.6, 0.5, 0.5);
-    for (let f = 0; f < 4; f++) {
-      const fx = x + (f - 1.5) * 0.075, k1 = V3.create(fx, 1.15, z - 0.02), k2 = V3.create(fx + (f - 1.5) * 0.03, 1.38, z - 0.08 - cl * 0.1);
-      const tip = V3.create(fx + (f - 1.5) * 0.12, 2.0, z - 0.2 - cl * 0.35);
-      col(R.seg('cylLow', MAT.steel, k1, k2, 0.016), 0.7, 0.6, 0.6);
-      sph(MAT.copper, k2[0], k2[1], k2[2], 0.022, 0.022, 0.022, 1, 0.6, 0.4);
-      col(R.seg('cylLow', MAT.steel, k2, tip, 0.006), 1.3, 1.3, 1.4);
-    }
-    col(R.seg('cylLow', MAT.steel, V3.create(x - 0.13, 1.0, z), V3.create(x - 0.35, 1.5, z - 0.3), 0.012), 0.7, 0.6, 0.6);
-    const ge = R.trs('sphereLow', MAT.screen, x, 0.95, z - 0.05, 0, 0, 0, 0.05, 0.05, 0.02, false); if (ge) { ge.emis[0] = 2.5; ge.emis[1] = 0.2; ge.emis[2] = 0.1; }
+    // 4: Doughbert squishes as he breathes
+    x = CARD_ACTOR_X[3]; const sq = 1 + Math.sin(t * 3) * 0.025;
+    const d = put('card_dough', x, base, -0.15, 0.85, 1.45, 1.2, 0.95);
+    if (d) { d.model[0] *= sq; d.model[5] /= sq; d.model[10] *= sq; }
+    // 5: the needle claw flexes; a red ember glows in the palm
+    x = CARD_ACTOR_X[4];
+    put('card_claw', x + 0.1, base, Math.sin(t * 0.8) * 0.2, 0.9);
+    const ge = R.trs('sphereLow', MAT.screen, x + 0.1, base + 0.95 * 0.9, z - 0.06, 0, 0, 0, 0.04, 0.04, 0.02, false); if (ge) { ge.emis[0] = 2.5 * (0.7 + 0.3 * Math.sin(t * 4)); ge.emis[1] = 0.2; ge.emis[2] = 0.1; }
   },
   // a key light from the upper left onto the actor
   light(sc) {
