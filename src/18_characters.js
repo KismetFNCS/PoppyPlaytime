@@ -25,13 +25,9 @@ const PLUSH_SCALE = 0.62;
 
 // The Usher's opening briefing on the monitor above the intake gate
 const USHER_MONITOR_LINES = [
-  'Ah. You\'re awake. Good. Don\'t touch anything yet - the floor down here remembers fingerprints.',
-  'Welcome to Sector Six. Reclamation. Everything that broke in this factory was brought down here to stay broken.',
-  'You\'re wearing the LIFELINE pack. Teal on the left, rose on the right. Look at something, squeeze, and the hand goes there.',
+  'Down you came. Welcome to Sector Six. Reclamation. Everything that broke in this factory was brought here to stay broken.',
   'There\'s a hand scanner beside the gate. Press a palm to it. It is the only thing in this building that still says hello.',
-  'The little light strapped to your wrist is PIP. It sees in the dark better than you do. Listen to it.',
-  'And if you hear bells... keep walking. Whatever you do, don\'t go looking for them.',
-  'I\'ll be watching. I\'m always watching. Every toy returns to the line.'
+  'And if you hear bells... keep walking. Whatever you do, don\'t go looking for them. I\'ll be watching. I\'m always watching.'
 ];
 
 const Cast = {
@@ -49,7 +45,7 @@ const Cast = {
   plushSocket: V3.create(-2.75, 0.62, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   // the big flickering monitor above the intake gate: the Usher's opening briefing
-  monitor: { active: true, said: false, t: 0, flick: 0, stage: 0, x: 0, y: 3.42, z: 0.45, sector: 0 }, monM: M4.create(),
+  monitor: { active: true, said: false, t: 0, flick: 0, stage: 0, x: 0, y: 3.42, z: 0.45, sector: 0, sc: 1, computer: false }, monM: M4.create(),
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
   // Usher vantage points per stage: [x, z, facing yaw]
@@ -119,7 +115,7 @@ const Cast = {
     // the Usher's monitor: above the intake gate at the start, on a pole in the station yard in Act II
     const MO = this.monitor, yard = Game.stage === 5;
     MO.active = Game.stage === 0 || yard; MO.said = false; MO.t = 0; MO.stage = Game.stage;
-    MO.x = 0; MO.y = yard ? 3.95 : 3.42; MO.z = yard ? -147.5 : 0.45; MO.sector = yard ? 6 : 0;
+    MO.x = 0; MO.y = yard ? 1.36 : 3.42; MO.z = yard ? -145.62 : 0.45; MO.sector = yard ? 6 : 0; MO.sc = yard ? 0.42 : 1; MO.computer = yard;
   },
 
   update(dt) {
@@ -378,12 +374,36 @@ const Cast = {
   },
   submitMonitor() {
     const R = RenderQueue, MO = this.monitor;
-    const x = MO.x, y = MO.y, z = MO.z;
+    const x = MO.x, y = MO.y, z = MO.z, s = MO.sc;
+    if (MO.computer) {
+      // a chunky old office computer: deep CRT in a lavender-grey shell, a desktop case under it, keyboard
+      // and mouse - the Usher lives in the screen
+      const shell = (mesh, px, py, pz, sx, sy, sz, k) => { const it = R.trs(mesh, MAT.paint, px, py, pz, 0, 0, 0, sx, sy, sz); if (it) { it.tint[0] = 0.62 * k; it.tint[1] = 0.6 * k; it.tint[2] = 0.86 * k; } return it; };
+      shell('box', x, y + 0.02, z - 0.05, 0.9, 0.78, 0.5, 1);            // the CRT shell
+      shell('box', x, y + 0.02, z - 0.38, 0.62, 0.56, 0.3, 0.85);        // the tube's back
+      shell('box', x, y - 0.42, z - 0.05, 0.42, 0.1, 0.28, 0.9);         // the neck stand
+      shell('box', x, 0.86 + 0.13, z - 0.05, 1.05, 0.26, 0.62, 0.95);    // the desktop case
+      R.trs('box', MAT.rubber, x + 0.22, 0.99, z + 0.265, 0, 0, 0, 0.34, 0.03, 0.01, false);   // drive slots
+      R.trs('box', MAT.rubber, x + 0.22, 0.94, z + 0.265, 0, 0, 0, 0.34, 0.03, 0.01, false);
+      for (const bx of [0.33, 0.39]) { const b = R.trs('sphereLow', MAT.paint, x + bx, y - 0.28, z + 0.205, 0, 0, 0, 0.02, 0.02, 0.01, false); if (b) { b.tint[0] = 0.8; b.tint[1] = 0.78; b.tint[2] = 0.9; } }
+      const kb = shell('box', x, 0.885, z + 0.52, 0.84, 0.035, 0.26, 1);
+      if (kb) M4.compose(kb.model, x, 0.885, z + 0.52, 0, 0.08, 0, 0.84, 0.035, 0.26);
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 14; c++) {
+        const k = R.trs('box', MAT.paint, x - 0.36 + c * 0.055, 0.91 - r * 0.004, z + 0.44 + r * 0.05, 0, 0.08, 0, 0.042, 0.015, 0.038, false);
+        if (k) { const red = c > 10 && r > 0, blue = (c < 2 && r > 1) || (c === 13 && r === 3); k.tint[0] = red ? 1.1 : blue ? 0.3 : 0.86; k.tint[1] = red ? 0.25 : blue ? 0.55 : 0.85; k.tint[2] = red ? 0.3 : blue ? 1.1 : 0.9; }
+      }
+      const sp = R.trs('box', MAT.wood, x - 0.03, 0.9, z + 0.62, 0, 0.08, 0, 0.36, 0.016, 0.04, false);
+      shell('sphereLow', x + 0.62, 0.885, z + 0.5, 0.06, 0.03, 0.09, 1);  // mouse
+      R.trs('cylLow', MAT.cable, x + 0.62, 0.88, z + 0.3, Math.PI / 2, 0, 0, 0.006, 0.2, 0.006, false);
+      M4.compose(this.monM, x, y + 0.02, z + 0.205, Math.PI, 0, 0, 0.7, 0.55, 1);
+      AssetQueue.push(this.screen, this.monM, false);
+      return;
+    }
     R.trs('box', MAT.steel, x, y, z, 0, -0.12, 0, 2.0, 1.25, 0.26, false);
     R.trs('box', MAT.rubber, x, y, z + 0.12, 0, -0.12, 0, 1.84, 1.1, 0.04, false);
     R.trs('cylLow', MAT.cable, x - 0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
     R.trs('cylLow', MAT.cable, x + 0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
-    M4.compose(this.monM, x, y - 0.02, z + 0.145, Math.PI, 0.12, 0, 1.7, 1.0, 1);
+    M4.compose(this.monM, x, y - 0.02, z + 0.145 * s, Math.PI, 0.12, 0, 1.7 * s, 1.0 * s, 1);
     AssetQueue.push(this.screen, this.monM, false);
   },
 

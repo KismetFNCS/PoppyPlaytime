@@ -128,10 +128,11 @@
   }
 
   /* ---- title page (factory) and chapter select ---- */
+  #menu.titleMode > * { visibility: hidden; }
   #titlePage, #chapterPage { position: absolute; inset: 0; display: none; z-index: 5; }
   #titlePage.on, #chapterPage.on { display: block; animation: fadein 420ms ease-out; }
-  #titlePage { background: linear-gradient(180deg, rgb(226,160,62) 0%, rgb(214,120,70) 38%, rgb(150,52,70) 72%, rgb(40,14,22) 100%); overflow: hidden; }
-  #titlePage svg.sky { position: absolute; left: 0; bottom: 0; width: 100%; height: 62%; }
+  #titlePage { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 72%, rgba(20,8,12,0.75) 100%); overflow: hidden; }
+  #titlePage svg.sky { display: none; }
   #titlePage .logo { position: absolute; left: 50%; top: 7vh; transform: translateX(-50%) rotate(-2deg); text-align: center; white-space: nowrap; }
   #titlePage .logo b { display: block; font-size: clamp(34px, 11vh, 140px); font-weight: 900; letter-spacing: 0.02em; color: rgb(246,240,232); text-shadow: 0.5vh 0.5vh 0 rgb(170,40,72), -0.3vh -0.2vh 0 rgb(30,140,140); font-style: italic; }
   #titlePage .logo i { display: block; font-size: clamp(18px, 5vh, 64px); font-weight: 900; letter-spacing: 0.24em; color: rgb(190,46,82); text-shadow: 0.3vh 0.3vh 0 rgb(246,240,232); font-style: normal; margin-top: -1vh; }
@@ -163,7 +164,7 @@
   #handWheel { display: none; position: absolute; left: 50%; top: 50%; width: 46vh; height: 46vh; transform: translate(-50%, -50%); pointer-events: none; }
   #handWheel .ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(10,10,12,0.15) 30%, rgba(10,10,12,0.78) 31%, rgba(10,10,12,0.78) 70%, rgba(10,10,12,0) 71%); border: 2px solid rgba(236,236,236,0.35); }
   #handWheel .slot { position: absolute; width: 13vh; height: 13vh; margin: -6.5vh 0 0 -6.5vh; text-align: center; color: rgb(236,236,236); font-size: clamp(12px, 1.9vh, 20px); letter-spacing: 0.08em; transition: transform 120ms; }
-  #handWheel .slot i { display: block; width: 7vh; height: 8vh; margin: 0 auto 0.6vh; border-radius: 3vh 3vh 1.4vh 1.4vh; border: 2px solid rgb(30,30,30); }
+  #handWheel .slot i { visibility: hidden; display: block; width: 7vh; height: 8vh; margin: 0 auto 0.6vh; border-radius: 3vh 3vh 1.4vh 1.4vh; border: 2px solid rgb(30,30,30); }
   #handWheel .s0 { left: 50%; top: 18%; } #handWheel .s1 { left: 82%; top: 50%; } #handWheel .s2 { left: 50%; top: 82%; } #handWheel .s3 { left: 18%; top: 50%; }
   #handWheel .s0 i { background: rgb(232,150,160); } #handWheel .s1 i { background: rgb(190,130,60); } #handWheel .s2 i { background: rgb(160,166,176); } #handWheel .s3 i { background: rgb(150,110,230); }
   #handWheel .slot.sel { transform: scale(1.2); color: rgb(255,214,120); }
@@ -3381,6 +3382,8 @@ const Level = {
 
     // ---------- ACT II: the Deep Works (sectors 6-10) ----------
     DeepWorks.build(this);
+    // the factory exterior for the title screen (sector 11)
+    TitleScene.build(this);
 
     this.finishBatches();
     Physics.buildBVH();
@@ -6772,9 +6775,10 @@ const UI = {
     this.menuPage = p;
     document.getElementById('titlePage').classList.toggle('on', p === 'title');
     document.getElementById('chapterPage').classList.toggle('on', p === 'chapters');
+    document.getElementById('menu').classList.toggle('titleMode', p !== 'ch6');
     this.selectMenu(p === 'chapters' ? 5 : p === 'ch6' ? (Game.hasSave ? 0 : 1) : 0);
   },
-  hideMenuPages() { document.getElementById('titlePage').classList.remove('on'); document.getElementById('chapterPage').classList.remove('on'); },
+  hideMenuPages() { document.getElementById('titlePage').classList.remove('on'); document.getElementById('chapterPage').classList.remove('on'); document.getElementById('menu').classList.remove('titleMode'); Game.scene.fogDensity = LIGHTING.fogDensity; },
   selectMenu(i) {
     const btns = this.menuButtons();
     this.menuIndex = clamp(i, 0, btns.length - 1);
@@ -6940,7 +6944,7 @@ const OBJECTIVES = [
   'RUN. Reach the freight lift at the end of the Spool Foundry.',
   'Defeat the Spoolwright: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
   // ---- Act II: the Deep Works ----
-  'STATION YARD. Reattach your right hand (crate by the tracks). Find Thimble and Marigold on the platform, then power the yard gate: latch the node in the signal box, loop both relay poles and plug the gate. Mind the shunter.',
+  'STATION YARD. Take your hands from the crate by the tracks, meet Marigold on the platform, then power the yard gate. Mind the shunter.',
   'FABRICATION LINE. Carry the cable across the moving belts (stay clear of the end stampers): node on the west wall, loop both relays, plug LINE POWER. Then hit the piston override in the hall.',
   'DRAINAGE CATACOMBS. Watch your footing on the gel. Fire a hand at each lock terminal so Marigold can override it, then wrench the exit ladder down (latch the ring, drag your view down) and climb.',
   'SORTING HUB. When the intercom calls a colour, every container of that colour moves. Find the open gaps through the three bands, then time your run past the crushing walls.',
@@ -7123,7 +7127,7 @@ const Game = {
 
   startNewGame() {
     this.resetGame();
-    this.saveCheckpoint(0);
+    DeepWorks.startOpening();   // the story opens in the station yard, facing the Usher's computer
     VHS.play(0, () => { setState(STATE.GAMEPLAY_ACTIVE); });
     setState(STATE.CINEMATIC_VHS);
   },
@@ -7359,8 +7363,16 @@ const Game = {
     if (Input.justPressed.has('KeyF') || Input.padJust(3)) { Player.flashOn = !Player.flashOn; sfx('flashlight'); }
     const usePressed = Input.justPressed.has('KeyE') || Input.padJust(2);
     const wasHidden = !!Player.hidden;
-    Player.handleLook(dt);
-    if (Player.hidden) {
+    const broadcast = DeepWorks.broadcastLocked();
+    if (broadcast) {
+      // the Usher's broadcast: you can't move, look away or skip it; the view settles on his screen
+      Player.yaw = Player.yaw + wrapAngle(0 - Player.yaw) * Math.min(1, dt * 2);
+      Player.pitch = damp(Player.pitch, -0.08, 2, dt);
+      V3.set(Player.body.vel, 0, 0, 0);
+    } else Player.handleLook(dt);
+    if (broadcast) {
+      // held in place
+    } else if (Player.hidden) {
       // inside a locker: no movement, view limited to the slats
       const L = Player.hidden;
       Player.yaw = L.yaw + clamp(wrapAngle(Player.yaw - L.yaw), -0.65, 0.65);
@@ -7377,9 +7389,11 @@ const Game = {
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    if (!Player.hidden && !wasHidden && !Ambush.active) {
-      if (Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4)) GrabPack.fire(0, Player.cam);
-      if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) { if (Gear.rightLost) GrabPack.showHint('Your right hand is gone - it was torn off in the fall. It is somewhere by the tracks.'); else GrabPack.fire(1, Player.cam); }
+    if (!Player.hidden && !wasHidden && !Ambush.active && !broadcast) {
+      const f0 = Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4);
+      const f1 = Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5);
+      if ((f0 || f1) && Gear.handsLost) GrabPack.showHint('No hands on the pack yet - they are in the crate by the tracks.');
+      else { if (f0) GrabPack.fire(0, Player.cam); if (f1) GrabPack.fire(1, Player.cam); }
       const locker = Player.findLocker();
       const tape = locker ? null : Player.findInteract();
       if (locker && usePressed) this.enterLocker(locker);
@@ -7563,6 +7577,15 @@ const Game = {
   menuUpdate(dt) {
     this.menuTime += dt;
     const C = Level.menuCam, t = this.menuTime;
+    // the factory title page shows the 3D factory exterior; the chapter screens show the Spoolwright
+    if (UI.menuPage === 'title') {
+      this.scene.fogDensity = 0.0035;
+      TitleScene.update(dt, t);
+      Audio.updateDrone(0.15, true); Audio.updateChase(false); Audio.updateEmitters(false, false);
+      Audio.updateListener(TitleScene.tmp, Renderer.camFwd, Renderer.camUp);
+      return;
+    }
+    this.scene.fogDensity = LIGHTING.fogDensity;
     V3.set(this.menuEye, C.pos[0] + Math.sin(t * 0.21) * 0.08, C.pos[1] + Math.sin(t * 0.33) * 0.04, C.pos[2]);
     this.applyCamera(this.menuEye, C.yaw + Math.sin(t * 0.17) * 0.02, C.pitch + Math.sin(t * 0.23) * 0.01, 0);
     Monster.update(dt);
@@ -7662,6 +7685,7 @@ const Game = {
     Cast.submit(vis);
     Gear.submit(vis);
     DeepWorks.submit(vis);
+    if (state === STATE.MAIN_MENU && UI.menuPage === 'title') TitleScene.submit();
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
@@ -7764,7 +7788,7 @@ const Game = {
   submitHands() {
     const cam = Player.cam, right = Renderer.camRight, up = Renderer.camUp, fwd = Renderer.camFwd;
     for (let s = 0; s < 2; s++) {
-      if (s === 1 && Gear.rightLost) continue;   // torn off in the fall
+      if (Gear.handsLost) continue;   // no hands on the pack yet (the opening)
       const h = GrabPack.hands[s];
       const m = GrabPack.muzzle[s];
       const side = s === 0 ? -1 : 1;
@@ -7828,6 +7852,20 @@ const Game = {
           this.drawHand(h.pos, _g.e, _g.c, s, h.state === HAND.FLYING ? 0.05 : 0.35, 1.15, true, h, false);
         }
       }
+    }
+    // the hand wheel: real hand models float in a ring in front of you, the chosen one larger
+    if (Gear.wheelOpen) {
+      const keep = Gear.cur;
+      for (let k = 0; k < 4; k++) {
+        if (!Gear.owned[k]) continue;
+        const ox = k === 1 ? 0.15 : k === 3 ? -0.15 : 0, oy = k === 0 ? 0.13 : k === 2 ? -0.15 : -0.01;
+        V3.copy(_g.hp, cam.eye); V3.addScaled(_g.hp, _g.hp, fwd, 0.72); V3.addScaled(_g.hp, _g.hp, right, ox); V3.addScaled(_g.hp, _g.hp, up, oy - 0.05);
+        V3.scale(_g.hf, up, 1); V3.addScaled(_g.hf, _g.hf, right, Math.sin(this.time * 2 + k) * 0.08); V3.normalize(_g.hf, _g.hf);
+        V3.scale(_g.hu, fwd, -1);
+        Gear.cur = k;
+        this.drawHand(_g.hp, _g.hf, _g.hu, 1, 0.08, k === Gear.wheelSel ? 0.34 : 0.26, false, GrabPack.hands[1], true);
+      }
+      Gear.cur = keep;
     }
   },
   // ribbed rubber hose with steel clamp rings, sagging slightly between its ends
@@ -8256,7 +8294,7 @@ async function runAll() {
     check('boot: no runtime error', T.getLastError() === null, T.getLastError());
     check('boot: WebGL2 deferred pipeline online', Renderer.ok && !!Renderer.targets, 'hdr ' + (Renderer.hdrFloat ? 'float' : 'rgba8'));
     check('boot: BVH built over static colliders', Physics.bvh && Physics.bvh.nodeCount > 10, Physics.bvh && Physics.bvh.nodeCount);
-    check('boot: 11 streaming sectors (Act I + the Deep Works)', Level.sectors.length === 11, Level.sectors.length);
+    check('boot: 12 streaming sectors (Act I + the Deep Works + the title factory)', Level.sectors.length === 12, Level.sectors.length);
     T.setAutoRun(true);
     const f0 = T.getFrameCount();
     await sleep(300);
@@ -8267,6 +8305,7 @@ async function runAll() {
     // ---------------- menu ----------------
     setState(STATE.MAIN_MENU); UI.menuPage = 'title'; UI.setMenuPage('title'); T.step(DT, 2);
     check('menu: boots to the factory title page', UI.menuPage === 'title' && document.getElementById('titlePage').classList.contains('on'), UI.menuPage);
+    check('menu: the title page shows the 3D factory (sector 11 in view)', Streaming.visible[TITLE_SECTOR] === 1 && Level.batches[TITLE_SECTOR].data.indices.length > 1000, Array.from(Streaming.visible).join(''));
     Game.uiAction('play'); T.step(DT, 1);
     check('menu: PLAY opens the six-chapter select', UI.menuPage === 'chapters' && document.querySelectorAll('#chapterPage .card').length === 6, UI.menuPage);
     check('menu: only chapter 6 is playable', document.querySelectorAll('#chapterPage .card.locked').length === 5 && document.querySelector('#chapterPage .card.live').dataset.act === 'chapter6');
@@ -8309,6 +8348,36 @@ async function runAll() {
     check('vhs: Space advances lines', VHS.line >= 1, 'line ' + VHS.line);
     tap('Escape');
     check('vhs: Escape skips to gameplay', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    // ---------------- the opening: station yard under the main office ----------------
+    const DWo = DeepWorks;
+    check('opening: a new game starts in the station yard, facing the Usher\'s computer (stage 5)', Game.stage === 5 && Streaming.current === 6 && Cast.monitor.computer && Cast.monitor.stage === 5, 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    check('opening: no hands on the pack yet', Gear.handsLost, '');
+    check('opening: Thimble is already with you (an old friend)', Cast.plush.mode === 'FOLLOW', Cast.plush.mode);
+    T.step(DT, 90);
+    check('opening: the Usher\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
+    const lockZ = Player.body.pos[2]; T.simulateKey('KeyW', true); T.step(DT, 30); T.simulateKey('KeyW', false);
+    check('opening: you cannot walk away while he speaks', Math.abs(Player.body.pos[2] - lockZ) < 0.01, (Player.body.pos[2] - lockZ).toFixed(3));
+    Dialogue.clear(); T.step(DT, 2);
+    check('opening: when he finishes you are free to move', !DWo.broadcastLocked(), '');
+    click(0); T.step(DT, 10);
+    check('opening: firing does nothing until you have your hands', GrabPack.hands[0].state === HAND.DOCKED && /crate/.test(GrabPack.hint), GrabPack.hint);
+    T.setPlayerPose(-4.2, 0, -145.3, 0, 0); T.aimAt(-4.2, 0.98, -146.5); T.step(DT, 2); tap('KeyE'); T.step(DT, 20);
+    check('opening: take your hands from the crate by the tracks', !Gear.handsLost && Gear.pickups.find(p => p.restore).taken, GrabPack.hint);
+    const shX0 = DWo.shunter.x; T.step(DT, 60);
+    check('opening: the shunter car patrols the second line', DWo.shunter.x !== shX0 || DWo.shunter.wait > 0, shX0 + ' -> ' + DWo.shunter.x);
+    T.setPlayerPose(8.6, 0, -170.6, -Math.PI / 2, 0); T.step(DT, 6);
+    check('opening: rendezvous with Marigold on the platform', DWo.met && Cast.plush.mode === 'FOLLOW', String(DWo.met));
+    Dialogue.clear();
+    T.setPlayerPose(-10, 0, -165, Math.PI / 2, 0); T.step(DT, 2);
+    T.aimAt(-12.45, 1.5, -165); click(0); T.step(DT, 20);
+    check('yard: hand latches the signal-box node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
+    for (const wp of [[-5, -164.5], [-3, -168.5], [5.5, -168], [7.5, -172.5], [6.5, -173.6]]) T.walkTo(wp[0], wp[1]);
+    T.aimAt(6.5, 1.6, -175.85); click(1); T.step(DT, 25);
+    check('yard: looped circuit powers the gate to the freight lift', DWo.receptacleBy('Y_GATE').powered && DWo.toIntake > 0, GrabPack.hint + ' ' + JSON.stringify(T.hands()[0].wraps));
+    for (let i = 0; i < 400 && Game.stage !== 0; i++) T.step(DT, 1);
+    T.step(DT, 4);
+    check('yard: the lift takes you down into the Intake (stage 0, hands on)', Game.stage === 0 && Streaming.current === 0 && !Gear.handsLost && Game.checkpoint.stage === 0, 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    Dialogue.clear();
     checkUI('GAMEPLAY_ACTIVE');
     check('start: stage 0', T.getScore() === 0, T.getScore());
     T.step(DT, 30);
@@ -8586,33 +8655,12 @@ async function runAll() {
     // ---------------- ACT II: the Deep Works ----------------
     const DWk = DeepWorks, V = DWk.vault;
     let arrived = false;
-    for (let i = 0; i < 1000 && !arrived; i++) { T.step(DT, 1); arrived = Game.stage === 5; }
+    for (let i = 0; i < 1000 && !arrived; i++) { T.step(DT, 1); arrived = Game.stage === 6; }
     T.step(DT, 2);
-    check('act2: the Loom is not the end - the freight lift drops into the station yard', arrived && Streaming.current === 6, 'stage ' + Game.stage + ' sector ' + Streaming.current);
-    check('act2: checkpoint saved in the yard', Game.checkpoint.stage === 5, Game.checkpoint.stage);
-    check('act2: the right hand was torn off in the fall', Gear.rightLost, '');
-    Game.invulnerable = true;
-    T.step(DT, 120);
-    check('act2: the Usher speaks from the yard monitor', Cast.monitor.active && Cast.monitor.stage === 5 && Cast.monitor.said, JSON.stringify(Cast.monitor));
-    click(1); T.step(DT, 10);
-    check('act2: right trigger does nothing while the hand is missing', GrabPack.hands[1].state === HAND.DOCKED && /torn off/.test(GrabPack.hint), GrabPack.hint);
-    T.setPlayerPose(-4.2, 0, -145.3, 0, 0); T.aimAt(-4.2, 0.98, -146.5); T.step(DT, 2); tap('KeyE'); T.step(DT, 20);
-    check('act2: right hand found by the tracks and reattached', !Gear.rightLost && Gear.pickups.find(p => p.restore).taken, GrabPack.hint);
-    const shX0 = DWk.shunter.x; T.step(DT, 60);
-    check('act2: the shunter car patrols the second line', DWk.shunter.x !== shX0 || DWk.shunter.wait > 0, shX0 + ' -> ' + DWk.shunter.x);
-    T.setPlayerPose(3.5, 0, -169.5, -Math.PI / 2, 0); T.step(DT, 6);
-    check('act2: rendezvous - Thimble joins you on the platform', DWk.met && Cast.plush.mode === 'FOLLOW', Cast.plush.mode);
-    // yard gate circuit
-    T.setPlayerPose(-10, 0, -165, Math.PI / 2, 0); T.step(DT, 2);
-    T.aimAt(-12.45, 1.5, -165); click(0); T.step(DT, 20);
-    check('yard: hand latches the signal-box node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
-    for (const wp of [[-5, -164.5], [-3, -168.5], [5.5, -168], [7.5, -172.5], [6.5, -173.6]]) T.walkTo(wp[0], wp[1]);
-    T.aimAt(6.5, 1.6, -175.85); click(1); T.step(DT, 25);
-    check('yard: looped circuit powers the gate', DWk.receptacleBy('Y_GATE').powered && Level.doorById('D6').target === 1, GrabPack.hint + ' ' + JSON.stringify(T.hands()[0].wraps));
-    check('yard: stage 6 checkpoint', Game.stage === 6 && Game.checkpoint.stage === 6, Game.stage);
-    GrabPack.reset(); T.step(DT, 300);
+    check('act2: the Loom is not the end - the freight lift drops into the fabrication line', arrived && Streaming.current === 7, 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    check('act2: checkpoint saved at the fabrication line', Game.checkpoint.stage === 6, Game.checkpoint.stage);
+    Game.invulnerable = true; T.step(DT, 60);
 
-    await breathe();
     // fabrication line: belts carry you, the cable crosses them
     T.setPlayerPose(0, 0.25, -182.5, 0, 0); T.step(DT, 4);
     const bx0 = Player.body.pos[0]; T.step(DT, 30);
@@ -9717,13 +9765,9 @@ const PLUSH_SCALE = 0.62;
 
 // The Usher's opening briefing on the monitor above the intake gate
 const USHER_MONITOR_LINES = [
-  'Ah. You\'re awake. Good. Don\'t touch anything yet - the floor down here remembers fingerprints.',
-  'Welcome to Sector Six. Reclamation. Everything that broke in this factory was brought down here to stay broken.',
-  'You\'re wearing the LIFELINE pack. Teal on the left, rose on the right. Look at something, squeeze, and the hand goes there.',
+  'Down you came. Welcome to Sector Six. Reclamation. Everything that broke in this factory was brought here to stay broken.',
   'There\'s a hand scanner beside the gate. Press a palm to it. It is the only thing in this building that still says hello.',
-  'The little light strapped to your wrist is PIP. It sees in the dark better than you do. Listen to it.',
-  'And if you hear bells... keep walking. Whatever you do, don\'t go looking for them.',
-  'I\'ll be watching. I\'m always watching. Every toy returns to the line.'
+  'And if you hear bells... keep walking. Whatever you do, don\'t go looking for them. I\'ll be watching. I\'m always watching.'
 ];
 
 const Cast = {
@@ -9741,7 +9785,7 @@ const Cast = {
   plushSocket: V3.create(-2.75, 0.62, -71.7), staff: { tip: V3.create(), top: V3.create(), paw: V3.create(), dir: V3.create() },
   screen: null, screenCanvas: null, screenCtx: null, screenTimer: 0,
   // the big flickering monitor above the intake gate: the Usher's opening briefing
-  monitor: { active: true, said: false, t: 0, flick: 0, stage: 0, x: 0, y: 3.42, z: 0.45, sector: 0 }, monM: M4.create(),
+  monitor: { active: true, said: false, t: 0, flick: 0, stage: 0, x: 0, y: 3.42, z: 0.45, sector: 0, sc: 1, computer: false }, monM: M4.create(),
   tmp: V3.create(), tmp2: V3.create(), m: M4.create(), m2: M4.create(), local: V3.create(),
 
   // Usher vantage points per stage: [x, z, facing yaw]
@@ -9811,7 +9855,7 @@ const Cast = {
     // the Usher's monitor: above the intake gate at the start, on a pole in the station yard in Act II
     const MO = this.monitor, yard = Game.stage === 5;
     MO.active = Game.stage === 0 || yard; MO.said = false; MO.t = 0; MO.stage = Game.stage;
-    MO.x = 0; MO.y = yard ? 3.95 : 3.42; MO.z = yard ? -147.5 : 0.45; MO.sector = yard ? 6 : 0;
+    MO.x = 0; MO.y = yard ? 1.36 : 3.42; MO.z = yard ? -145.62 : 0.45; MO.sector = yard ? 6 : 0; MO.sc = yard ? 0.42 : 1; MO.computer = yard;
   },
 
   update(dt) {
@@ -10070,12 +10114,36 @@ const Cast = {
   },
   submitMonitor() {
     const R = RenderQueue, MO = this.monitor;
-    const x = MO.x, y = MO.y, z = MO.z;
+    const x = MO.x, y = MO.y, z = MO.z, s = MO.sc;
+    if (MO.computer) {
+      // a chunky old office computer: deep CRT in a lavender-grey shell, a desktop case under it, keyboard
+      // and mouse - the Usher lives in the screen
+      const shell = (mesh, px, py, pz, sx, sy, sz, k) => { const it = R.trs(mesh, MAT.paint, px, py, pz, 0, 0, 0, sx, sy, sz); if (it) { it.tint[0] = 0.62 * k; it.tint[1] = 0.6 * k; it.tint[2] = 0.86 * k; } return it; };
+      shell('box', x, y + 0.02, z - 0.05, 0.9, 0.78, 0.5, 1);            // the CRT shell
+      shell('box', x, y + 0.02, z - 0.38, 0.62, 0.56, 0.3, 0.85);        // the tube's back
+      shell('box', x, y - 0.42, z - 0.05, 0.42, 0.1, 0.28, 0.9);         // the neck stand
+      shell('box', x, 0.86 + 0.13, z - 0.05, 1.05, 0.26, 0.62, 0.95);    // the desktop case
+      R.trs('box', MAT.rubber, x + 0.22, 0.99, z + 0.265, 0, 0, 0, 0.34, 0.03, 0.01, false);   // drive slots
+      R.trs('box', MAT.rubber, x + 0.22, 0.94, z + 0.265, 0, 0, 0, 0.34, 0.03, 0.01, false);
+      for (const bx of [0.33, 0.39]) { const b = R.trs('sphereLow', MAT.paint, x + bx, y - 0.28, z + 0.205, 0, 0, 0, 0.02, 0.02, 0.01, false); if (b) { b.tint[0] = 0.8; b.tint[1] = 0.78; b.tint[2] = 0.9; } }
+      const kb = shell('box', x, 0.885, z + 0.52, 0.84, 0.035, 0.26, 1);
+      if (kb) M4.compose(kb.model, x, 0.885, z + 0.52, 0, 0.08, 0, 0.84, 0.035, 0.26);
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 14; c++) {
+        const k = R.trs('box', MAT.paint, x - 0.36 + c * 0.055, 0.91 - r * 0.004, z + 0.44 + r * 0.05, 0, 0.08, 0, 0.042, 0.015, 0.038, false);
+        if (k) { const red = c > 10 && r > 0, blue = (c < 2 && r > 1) || (c === 13 && r === 3); k.tint[0] = red ? 1.1 : blue ? 0.3 : 0.86; k.tint[1] = red ? 0.25 : blue ? 0.55 : 0.85; k.tint[2] = red ? 0.3 : blue ? 1.1 : 0.9; }
+      }
+      const sp = R.trs('box', MAT.wood, x - 0.03, 0.9, z + 0.62, 0, 0.08, 0, 0.36, 0.016, 0.04, false);
+      shell('sphereLow', x + 0.62, 0.885, z + 0.5, 0.06, 0.03, 0.09, 1);  // mouse
+      R.trs('cylLow', MAT.cable, x + 0.62, 0.88, z + 0.3, Math.PI / 2, 0, 0, 0.006, 0.2, 0.006, false);
+      M4.compose(this.monM, x, y + 0.02, z + 0.205, Math.PI, 0, 0, 0.7, 0.55, 1);
+      AssetQueue.push(this.screen, this.monM, false);
+      return;
+    }
     R.trs('box', MAT.steel, x, y, z, 0, -0.12, 0, 2.0, 1.25, 0.26, false);
     R.trs('box', MAT.rubber, x, y, z + 0.12, 0, -0.12, 0, 1.84, 1.1, 0.04, false);
     R.trs('cylLow', MAT.cable, x - 0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
     R.trs('cylLow', MAT.cable, x + 0.8, y + 0.62, z - 0.05, 0, 0, 0, 0.02, 0.2, 0.02, false);
-    M4.compose(this.monM, x, y - 0.02, z + 0.145, Math.PI, 0.12, 0, 1.7, 1.0, 1);
+    M4.compose(this.monM, x, y - 0.02, z + 0.145 * s, Math.PI, 0.12, 0, 1.7 * s, 1.0 * s, 1);
     AssetQueue.push(this.screen, this.monM, false);
   },
 
@@ -12383,7 +12451,7 @@ const UV_SECRETS = [
 ];
 
 const Gear = {
-  owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, rightLost: false,
+  owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, handsLost: false,
   wheelOpen: false, wheelSel: 0, wheelV: new Float32Array(2), holdT: 0, wheelDom: -2,
   hasMask: false, maskOn: false, maskT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
   blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
@@ -12402,7 +12470,7 @@ const Gear = {
   reset() {
     this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0;
     this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
-    this.blacklight = false; this.secretsFound.fill(0); this.rightLost = false;
+    this.blacklight = false; this.secretsFound.fill(0); this.handsLost = false;
     for (const p of this.pickups) p.taken = false;
   },
   // after a checkpoint restore: what you own follows from which pickups are gone
@@ -12455,11 +12523,11 @@ const Gear = {
     const K = Input.keys, held = !!(K.Tab || K.KeyX || Input.pad.buttons[3]);
     if (held) {
       this.holdT += dt;
-      if (!this.wheelOpen && !this.rightLost && (K.Tab || this.holdT > 0.22)) this.openWheel();
+      if (!this.wheelOpen && !this.handsLost && (K.Tab || this.holdT > 0.22)) this.openWheel();
       if (this.wheelOpen) for (let k = 0; k < 4; k++) if (J.has('Digit' + (k + 1)) && this.owned[k]) this.wheelSel = k;
     } else if (this.holdT > 0) {
       if (this.wheelOpen) this.closeWheel(true);
-      else if (!this.rightLost) dir = 1;
+      else if (!this.handsLost) dir = 1;
       this.holdT = 0;
     }
     if (Input.wheel) { dir = Input.wheel > 0 ? 1 : -1; Input.wheel = 0; }
@@ -12551,15 +12619,15 @@ const Gear = {
     }
     return best;
   },
-  promptFor(p) { return p.kind === 'mask' ? '[E] TAKE GAS MASK' : p.restore ? '[E] REATTACH YOUR RIGHT HAND' : '[E] TAKE ' + HAND_TYPES[p.type].id + ' HAND'; },
+  promptFor(p) { return p.kind === 'mask' ? '[E] TAKE GAS MASK' : p.restore ? '[E] TAKE YOUR GRABPACK HANDS' : '[E] TAKE ' + HAND_TYPES[p.type].id + ' HAND'; },
   take(p) {
     p.taken = true;
     sfx('pickup');
     if (p.restore) {
-      this.rightLost = false;
+      this.handsLost = false;
       sfx('dock', Player.body.pos);
-      GrabPack.showHint('RIGHT HAND REATTACHED - both hands work again');
-      Dialogue.say('PIP', 'Click! Good as new. Well... good as old.');
+      GrabPack.showHint('HANDS ON - teal on the left, rose on the right. Look at something and fire');
+      Dialogue.say('PIP', 'Click! Click! Hello, hands! I missed you two.');
     } else if (p.kind === 'mask') {
       this.hasMask = true;
       GrabPack.showHint('GAS MASK - press [G] to put it on or take it off');
@@ -12625,7 +12693,9 @@ const Gear = {
       const show = v > 0.04 && (Game.isGameplay() || state === STATE.PAUSED);
       this.overlay.style.display = show ? 'block' : 'none';
       if (show) {
-        this.overlay.style.transform = 'translateY(' + ((1 - v) * -105).toFixed(1) + '%)';
+        // it drops down over your face: slides from above, settles with a slight tilt and a squash as the seal meets skin
+        const e = 1 - v, settle = Math.sin(Math.min(1, v * 1.15) * Math.PI) * 0.03;
+        this.overlay.style.transform = 'translateY(' + (e * -105).toFixed(1) + '%) rotate(' + (e * 3).toFixed(2) + 'deg) scale(' + (1 + e * 0.08 + settle).toFixed(3) + ')';
         const fog = this.overlay.querySelector('.fog');
         if (fog) fog.style.opacity = (Math.max(0, Math.sin(Game.time * (Player.sprinting ? 3.4 : 1.85))) * 0.35).toFixed(2);
       }
@@ -12760,13 +12830,17 @@ const DW_COLORS = [
   { name: 'YELLOW', hex: '#f2c230', rgb: [2.6, 2.0, 0.3], mat: [1.3, 1.05, 0.35] }
 ];
 const DW_SECTORS = [6, 7, 8, 9, 10];
+const OBJECTIVE_YARD_GATE = 'STATION YARD. Power the yard gate: latch the node in the signal box, loop the cable round both relay poles and plug the gate. Mind the shunter.';
+// The opening broadcast: you arrive in the freight yard under the main office, facing the Usher's computer.
+// Input stays locked until he has finished (he does not like being interrupted).
 const USHER_YARD_LINES = [
-  'Ah. You survived the fall. How inconvenient for the Loom.',
-  'Welcome to the Deep Works - the station where unfinished things were shipped to be... finished.',
-  'Your right hand did not survive the drop. It is lying by the tracks. Do fetch it.',
-  'The yard gate takes current. You know the routine: loop it, plug it, obey it.',
-  'Your little stitched friends are waiting on the platform. How touching.',
-  'The Spoolwright crawled down to the Core Vault to mend. When it is mended... it will come back up for you.'
+  'Ah. You came back. Of course you did. They always come back to the factory.',
+  'This is the old freight yard, under the main office. Pay attention. I do not repeat myself.',
+  'Your hands are in the crate beside the tracks. Teal on the left, rose on the right. Put them on.',
+  'Look at anything with a panel and fire a hand at it - it will listen. Latch a power node and the cable carries its current.',
+  'The yard gate takes current: latch the node in the signal box, loop the cable round both relay poles, then plug the gate.',
+  'Your little stitched friend came with you, I see. And the doll is waiting on the platform. How touching.',
+  'Below this yard the floors go deeper, and something down there has been sewing itself back together. Go and say hello.'
 ];
 // container bands in the sorting hub: each gap has a pocket beside it; a container sits in one or the other
 const HUB_BANDS = [
@@ -12788,7 +12862,7 @@ const DeepWorks = {
   colorState: new Uint8Array(4), hub: { t: 0, next: 0, moving: -1, announced: false, count: 0 },
   overrides: [], jam: { on: false, t: 0, pending: -1 }, thimbleTask: null,
   vault: { active: false, mode: 'IDLE', hp: 6, t: 0, trainCd: 6, armed: false, coreN: 0, startDelay: -1, ring: 0, cable: 0, hitFlash: 0 },
-  met: false, yardRightHand: null, tmp: V3.create(), tmp2: V3.create(), m: M4.create(),
+  met: false, toIntake: -1, tmp: V3.create(), tmp2: V3.create(), m: M4.create(),
   hurtCool: 0, creakT: 0, descent: -1,
 
   // ---------- helpers ----------
@@ -12904,8 +12978,12 @@ const DeepWorks = {
     L.geom(S, 10.75, 0.9, -175, 10.9, 1.5, -172, MAT.wood);
     for (const z of [-174.6, -172.4]) L.geom(S, 9.95, 0.35, z - 0.05, 10.85, 0.9, z + 0.05, MAT.steel);
     // the Usher's monitor on its pole
-    L.solid(S, -0.12, 0, -147.62, 0.12, 3.4, -147.38, MAT.steel, SURFACE.METAL);
-    L.geom(S, -0.5, 0, -148, 0.5, 0.12, -147, MAT.steel);
+    // the main-office terminal: a desk with the Usher's computer on it, right where you wake up
+    L.solid(S, -1.0, 0, -146.1, 1.0, 0.8, -145.0, MAT.wood, SURFACE.WOOD);
+    L.geom(S, -1.05, 0.8, -146.15, 1.05, 0.86, -144.95, MAT.wood);
+    L.geom(S, -1.6, 0, -146.6, 1.6, 2.7, -146.35, MAT.paint);
+    L.geom(S, -1.6, 2.7, -146.7, 1.6, 2.85, -145.6, MAT.steel);
+    L.geom(S, -1.3, 2.05, -146.36, 1.3, 2.45, -146.3, MAT.rubber);
     // crates, lamp posts, catenary pipes
     L.crate(S, -4.2, -146.5, 0.9, 1); L.crate(S, 11.5, -146, 1.2, 2); L.crate(S, 12.6, -153.5, 1.0, 1); L.crate(S, -11.5, -170.5, 1.1, 2);
     L.crate(S, 3.5, -165.5, 1.0, 1); L.tank(S, -11.8, -143.5, 1.0, 4.2);
@@ -12918,7 +12996,7 @@ const DeepWorks = {
     for (let z = -144; z >= -174; z -= 7.5) { L.tube(S, -6, 8.98, z, true, z === -151.5 ? 2 : 1); L.tube(S, 6, 8.98, z, true, 0); }
     L.emergency(S, -13.6, 5, -158); L.emergency(S, 13.6, 5, -150); L.emergency(S, 0, 4.4, -175.6);
     L.hazardLamp(S, -12.3, 2.9, -165); L.hazardLamp(S, 6.5, 2.4, -175.7); L.hazardLamp(S, 10.4, 2.3, -175.6);
-    L.light(S, 0, 3.6, -146.8, LIGHTING.fillColor, 2.2, 6, 1, 'none', 0.4);   // monitor spill
+    L.light(S, 0, 1.6, -144.6, LIGHTING.fillColor, 2.0, 5, 1, 'none', 0.4);   // the screen's glow
     L.trigger(-3, -146, 3, -141.5, 'Y_ARRIVE');
   },
 
@@ -13114,7 +13192,7 @@ const DeepWorks = {
     for (const c of this.cores) c.collider.enabled = false;
     for (const g of this.gens) g.open = 0;
     this.met = false; this.descent = -1; this.hurtCool = 0;
-    Gear.rightLost = false;
+    Gear.handsLost = false; this.toIntake = -1;
     for (const L of Level.lightEntities) if (L.sector >= 6 && L.colorHex === '#ff2a1a') L.base = 0;
   },
   // after a checkpoint restore, rebuild Act II state from the saved flags
@@ -13122,8 +13200,8 @@ const DeepWorks = {
     this.reset();
     const st = Game.stage;
     const rh = Gear.pickups.find(p => p.restore);
-    Gear.rightLost = st === 5 && rh && !rh.taken;
-    this.met = st >= 6;
+    Gear.handsLost = st === 5 && rh && !rh.taken;
+    this.met = st !== 5;
     const path = this.receptacleBy('F_PATH');
     if (path && path.powered) { this.jam.on = true; for (const p of this.pistons) { p.y = 3.6; this.setBox(p.c, 0, p.y, p.z, 2.45, 1.6, 1.2); } }
     const lad = this.leverBy('C_LADDER'); if (lad && lad.pulled) this.ladder.down = 1;
@@ -13133,8 +13211,8 @@ const DeepWorks = {
   placeThimble() {
     const P = Cast.plush, st = Game.stage, b = Player.body.pos;
     P.hidden = false; P.talked = true;
-    if (st === 5 && !this.met) { P.mode = 'DEEPWAIT'; V3.set(P.pos, 7.2, 0, -171.4); P.yaw = Math.PI / 2; }
-    else { P.mode = 'FOLLOW'; V3.set(P.pos, b[0] + 1.0, 0, b[2] + 1.4); P.yaw = Math.PI; }
+    // Thimble is an old friend: he is always right beside you
+    P.mode = 'FOLLOW'; V3.set(P.pos, b[0] + 1.0, 0, b[2] + 1.4); P.yaw = Math.PI;
     P.sector = Level.sectorAt(P.pos[0], P.pos[2]);
     Companion.head = 0; Companion.count = 0; Companion.record(true);
   },
@@ -13146,22 +13224,58 @@ const DeepWorks = {
     Dialogue.say('PIP', 'It fell through the drain! The freight lift goes deeper - the Deep Works!');
     Dialogue.say('THIMBLE', 'Oh no. Oh no no no. We\'re going after it, aren\'t we?');
   },
-  arriveAtYard() {
-    Monster.reset(); Boss.reset();
-    Game.chaseActive = false; Game.invulnerable = false;
+  // NEW GAME: the story opens in the station yard under the main office, facing the Usher's computer
+  startOpening() {
     Game.stage = 5; UI.setObjective(OBJECTIVES[5]);
     const pose = CHECKPOINT_POSES[5];
     V3.set(this.tmp, pose.pos[0], pose.pos[1], pose.pos[2]);
     Player.reset(this.tmp, pose.yaw);
-    Game.fadeIn = 1;
-    Gear.rightLost = true;
+    Gear.handsLost = true;
     GrabPack.reset();
-    Game.saveCheckpoint(5);
     Cast.reset();
     this.placeThimble();
+    Game.saveCheckpoint(5);
+  },
+  // the yard gate opens onto the freight lift: down into the factory (the Intake, stage 0)
+  leaveYard() {
+    this.toIntake = -1;
+    const rh = Gear.pickups.find(p => p.restore); if (rh) rh.taken = true;
+    Gear.handsLost = false;
+    GrabPack.reset();
+    Game.stage = 0;
+    const pose = CHECKPOINT_POSES[0];
+    V3.set(this.tmp, pose.pos[0], pose.pos[1], pose.pos[2]);
+    Player.reset(this.tmp, pose.yaw);
+    Game.fadeIn = 1;
+    Cast.reset();
+    this.placeThimble();
+    UI.setObjective(OBJECTIVES[0]);
+    Game.saveCheckpoint(0);
+  },
+  // after the Loom the freight lift keeps going down: into the fabrication line
+  arriveAtFab() {
+    Monster.reset(); Boss.reset();
+    Game.chaseActive = false; Game.invulnerable = false;
+    Game.stage = 6; UI.setObjective(OBJECTIVES[6]);
+    const pose = CHECKPOINT_POSES[6];
+    V3.set(this.tmp, pose.pos[0], pose.pos[1], pose.pos[2]);
+    Player.reset(this.tmp, pose.yaw);
+    Game.fadeIn = 1;
+    GrabPack.reset();
+    Cast.reset();
+    this.placeThimble();
+    Game.saveCheckpoint(6);
     Player.addTrauma(0.9);
     sfx('doorSlam', Player.body.pos);
-    GrabPack.showHint('The landing tore your right hand off the pack...');
+    Dialogue.say('MARIGOLD', 'The fabrication line. It went this way - I can hear it in the machines.');
+  },
+  // the opening broadcast holds you still until the Usher has finished
+  broadcastLocked() {
+    const M = Cast.monitor;
+    if (!M.active || M.stage !== 5 || Game.stage !== 5) return false;
+    if (!M.said) return true;
+    const c = Dialogue.current;
+    return !!((c && c.speaker === 'USHER') || Dialogue.queue.some(q => q.speaker === 'USHER'));
   },
 
   // ---------- level actions ----------
@@ -13169,9 +13283,10 @@ const DeepWorks = {
     switch (id) {
       case 'Y_ARRIVE': break;
       case 'Y_GATE':
-        Dialogue.say('MARIGOLD', 'The gate is listening. The line below leads to the fabrication floor.');
-        Doors.setOpen('D6', true);
-        Game.stage = 6; UI.setObjective(OBJECTIVES[6]); Game.saveCheckpoint(6);
+        Dialogue.say('MARIGOLD', 'The gate is listening. The freight lift goes down from here - into the factory.');
+        Dialogue.say('THIMBLE', 'Down. It\'s always down. Why is it never UP?');
+        sfx('doorStart', Player.body.pos);
+        this.toIntake = 4.5;
         return true;
       case 'F_CIRCUIT':
         Doors.setOpen('DF', true);
@@ -13235,8 +13350,13 @@ const DeepWorks = {
     if (this.descent > 0) {
       this.descent -= dt;
       if (this.descent < 1.6) Renderer.post.fade = Game.fadeIn = clamp(1 - this.descent / 1.6, 0, 1);
-      if (this.descent <= 0) { this.descent = -1; this.arriveAtYard(); }
+      if (this.descent <= 0) { this.descent = -1; this.arriveAtFab(); }
       return;
+    }
+    if (this.toIntake > 0) {
+      this.toIntake -= dt;
+      if (this.toIntake < 1.6) { Renderer.post.fade = Game.fadeIn = clamp(1 - this.toIntake / 1.6, 0, 1); Player.addTrauma(dt * 0.5); }
+      if (this.toIntake <= 0) { this.leaveYard(); return; }
     }
     if (Game.stage < 5) return;
     const sec = Streaming.current, b = Player.body.pos;
@@ -13260,16 +13380,14 @@ const DeepWorks = {
 
   updateThimble(dt) {
     const P = Cast.plush, b = Player.body.pos;
-    if (P.mode === 'DEEPWAIT') {
-      const d = Math.hypot(b[0] - P.pos[0], b[2] - P.pos[2]);
-      if (d < 6.5 && Streaming.visible[6] && !this.met) {
-        this.met = true; P.mode = 'FOLLOW'; P.wave = 1;
-        Companion.head = 0; Companion.count = 0; Companion.record(true);
-        Dialogue.say('THIMBLE', 'There you are! I landed on the platform - Marigold broke my fall. Mostly.');
-        Dialogue.say('MARIGOLD', 'We stay together this time. The gate needs current - the node is in the signal box.');
-        Pip.react('happy', 2);
-        UI.setObjective(OBJECTIVES[5].replace('Find Thimble and Marigold on the platform, then', 'Now'));
-      }
+    // rendezvous: Marigold waits on the platform bench
+    if (Game.stage === 5 && !this.met && Math.hypot(b[0] - 10.4, b[2] + 173.6) < 5.5) {
+      this.met = true; P.wave = 1;
+      Dialogue.say('MARIGOLD', 'You found me. ...And you brought Mister Thimble. Good. Nobody goes down alone this time.');
+      Dialogue.say('THIMBLE', 'Hi Marigold! We\'re here to un-break everything. Probably.');
+      Dialogue.say('MARIGOLD', 'The gate needs current. The node is in the signal box by the west wall.');
+      Pip.react('happy', 2);
+      UI.setObjective(OBJECTIVE_YARD_GATE);
     }
     const T = this.thimbleTask;
     if (T && T.kind === 'JAM') {
@@ -13748,8 +13866,138 @@ const DeepWorks = {
     }
   }
 };
+
+// ===== module: 25_title.js =====
+// =====================================================================================
+// TITLE SCENE: the Merriweather Toy Works seen from the road at dusk - a real 3D set (sector 11),
+// shown behind the factory title page before the chapter select.
+//   Long warehouse blocks with sawtooth roofs, striped chimneys, a domed entrance hall with a round
+//   window and arched doors, rows of porthole windows, a cracked road with a dashed line, and a glowing
+//   amber-to-rose sky with drifting chimney smoke.
+//   Sky colours (emissive bands): amber #e2a03e, orange #d6784a, rose #962e46, dusk #2a0e16
+// =====================================================================================
+const TITLE_SECTOR = 11;
+const TITLE_CAM = { pos: V3.create(0, 1.7, 118), yaw: 0, pitch: 0.16 };
+const TITLE_SKY = [[2.4, 1.45, 0.45], [2.1, 1.0, 0.5], [1.5, 0.55, 0.5], [0.8, 0.22, 0.3], [0.25, 0.07, 0.1]];
+
+const TitleScene = {
+  chimneys: [], smokeAcc: 0, tmp: V3.create(),
+
+  build(L) {
+    const S = TITLE_SECTOR;
+    L.sector(S, 'MERRIWEATHER TOY WORKS', -70, 20, 70, 140, 40);
+    const B = L.builders[S], g = (x0, y0, z0, x1, y1, z1, m) => L.geom(S, x0, y0, z0, x1, y1, z1, m);
+    // ground and the road leading to the gates
+    g(-70, -0.5, 20, 70, 0, 140, MAT.concrete);
+    g(-4, 0, 60, 4, 0.02, 140, MAT.rubber);
+    for (let z = 64; z < 140; z += 5) g(-0.12, 0.02, z, 0.12, 0.03, z + 2.4, MAT.hazard);
+    for (const x of [-4.2, 4.0]) g(x, 0, 60, x + 0.2, 0.15, 140, MAT.concrete);
+    // two long warehouse wings with sawtooth roofs and porthole windows
+    const wing = (x0, x1, dir) => {
+      g(x0, 0, 40, x1, 9, 56, MAT.paint);
+      g(x0, 0, 55.8, x1, 2.2, 56.3, MAT.rustIron);                       // a rose-red plinth
+      for (let x = Math.min(x0, x1) + 1.5; x < Math.max(x0, x1) - 1; x += 3.2) {
+        B.cylinder(x, 56.05, 4.2, 4.3, 0.75, 14, MAT.steel);              // porthole frame (disc)
+        g(x - 0.55, 3.65, 56.0, x + 0.55, 4.75, 56.12, MAT.rubber);       // dark glass
+        g(x - 0.6, 6.2, 56.0, x + 0.6, 7.6, 56.12, MAT.rubber);           // upper windows
+      }
+      // sawtooth roof: a run of stepped teeth, each with a glazed (dark) north face
+      for (let x = Math.min(x0, x1); x < Math.max(x0, x1) - 0.1; x += 4) {
+        for (let k = 0; k < 6; k++) g(x + k * 0.55, 9, 40, x + 4, 9 + 0.45 * (k + 1), 56, MAT.rustIron);
+        g(x + 3.9, 9, 40, x + 4.05, 11.7, 56, MAT.rubber);
+      }
+    };
+    wing(-62, -12, -1); wing(12, 62, 1);
+    // the domed entrance hall in the middle
+    g(-12, 0, 44, 12, 7, 58, MAT.paint);
+    B.cylinder(0, 52, 7, 11, 9.5, 28, MAT.handTeal);
+    B.cylinder(0, 52, 11, 13.5, 7.2, 24, MAT.handTeal);
+    B.cylinder(0, 52, 13.5, 15, 4.2, 20, MAT.handTeal);
+    B.cylinder(0, 52, 15, 15.6, 1.6, 12, MAT.copper);
+    B.cylinder(0, 57.9, 3.8, 6.2, 2.4, 22, MAT.steel);                     // the round window frame
+    g(-1.9, 4.1, 58.0, 1.9, 5.9, 58.2, MAT.rubber);
+    for (const x of [-7.5, 0, 7.5]) {                                       // three arched doorways
+      g(x - 1.8, 0, 57.95, x + 1.8, 3.2, 58.3, MAT.rubber);
+      B.cylinder(x, 58.1, 3.2, 3.3, 1.8, 16, MAT.steel);
+    }
+    g(-12.5, 7, 43.5, 12.5, 7.4, 58.5, MAT.rustIron);
+    // a tall striped smokestack behind the dome, and smaller stacks along the skyline
+    const stack = (x, z, r, h, stripes) => {
+      B.cylinder(x, z, 0, h, r, 18, MAT.paint);
+      if (stripes) for (let y = 2; y < h - 1; y += 4) B.cylinder(x, z, y, y + 2, r + 0.05, 18, MAT.rustIron);
+      B.cylinder(x, z, h, h + 0.6, r + 0.3, 18, MAT.steel);
+      this.chimneys.push([x, h + 0.8, z]);
+    };
+    stack(0, 34, 3.2, 38, true);
+    stack(-30, 30, 1.6, 26, false); stack(-46, 32, 1.4, 22, true); stack(-20, 28, 1.2, 20, false);
+    stack(28, 30, 1.7, 28, true); stack(44, 32, 1.3, 21, false); stack(56, 28, 1.5, 24, false);
+    // domed water towers on the wings
+    for (const x of [-52, -24, 24, 52]) { B.cylinder(x, 48, 9, 13, 2.6, 16, MAT.paint); B.cylinder(x, 48, 13, 14, 2.0, 16, MAT.handTeal); }
+    // fences and lamp posts by the road
+    for (let z = 64; z < 136; z += 8) for (const x of [-6, 6]) { g(x - 0.06, 0, z - 0.06, x + 0.06, 4.2, z + 0.06, MAT.steel); g(x - 0.4, 4.1, z - 0.1, x + 0.4, 4.25, z + 0.1, MAT.steel); }
+    for (const x of [-6, 6]) L.light(S, x, 4.0, 96, LIGHTING.hazardColor, 3.5, 14, 0, 'bulb', 0.3);
+    // the dusk light on the facade
+    L.light(S, 0, 16, 74, '#e2a03e', 26, 48, 0, 'none', 0);
+    L.light(S, -26, 10, 66, '#e2a03e', 14, 34, 0, 'none', 0); L.light(S, 26, 10, 66, '#e2a03e', 14, 34, 0, 'none', 0);
+    L.light(S, -46, 10, 64, '#d6784a', 12, 30, 0, 'none', 0);
+    L.light(S, 46, 10, 64, '#962e46', 12, 30, 0, 'none', 0);
+  },
+
+  // camera, lights and smoke while the title page is showing
+  update(dt, t) {
+    const C = TITLE_CAM;
+    V3.set(this.tmp, C.pos[0] + Math.sin(t * 0.13) * 0.6, C.pos[1] + Math.sin(t * 0.21) * 0.08, C.pos[2] - Math.min(6, t * 0.4));
+    Game.applyCamera(this.tmp, C.yaw + Math.sin(t * 0.11) * 0.015, C.pitch, 0);
+    Streaming.visible.fill(0); Streaming.visible[TITLE_SECTOR] = 1;
+    Lights.threatLevel = 0;
+    Lights.update(dt, t, Streaming.visible);
+    this.smokeAcc += dt * 14;
+    while (this.smokeAcc > 1) {
+      this.smokeAcc -= 1;
+      const c = this.chimneys[(gameRng() * this.chimneys.length) | 0];
+      const p = Particles.spawn(PKIND.STEAM, c[0] + (gameRng() - 0.5), c[1], c[2] + (gameRng() - 0.5));
+      if (p) { V3.set(p.vel, 0.8 + gameRng() * 0.6, 1.6 + gameRng(), 0); p.size = 1.4; p.grow = 2.4; p.max = 5; p.alpha = 0.3; V3.set(p.color, 0.3, 0.22, 0.22); }
+    }
+    Particles.update(dt, this.tmp);
+  },
+  // the sky: stacked glowing bands far behind the factory
+  submit() {
+    const R = RenderQueue;
+    for (let i = 0; i < TITLE_SKY.length; i++) {
+      const c = TITLE_SKY[i], y = 70 - i * 15;
+      const it = R.trs('box', MAT.screen, 0, y, 6, 0, 0, 0, 400, 15.5, 1, false);
+      if (it) { it.emis[0] = c[0]; it.emis[1] = c[1]; it.emis[2] = c[2]; }
+    }
+    // a low sun glow behind the big stack
+    const s = R.trs('sphereLow', MAT.screen, 6, 22, 8, 0, 0, 0, 7, 7, 1, false);
+    if (s) { s.emis[0] = 4; s.emis[1] = 2.6; s.emis[2] = 1.1; }
+  }
+};
 </script>
 <div id="gasOverlay"></div>
-<div id="maskOverlay"><svg viewBox="0 0 160 90" preserveAspectRatio="none"><defs><mask id="lensMask"><rect width="160" height="90" fill="white"/><ellipse cx="52" cy="42" rx="33" ry="30" fill="black"/><ellipse cx="108" cy="42" rx="33" ry="30" fill="black"/></mask><radialGradient id="lensEdge" cx="50%" cy="50%" r="50%"><stop offset="80%" stop-color="black" stop-opacity="0"/><stop offset="100%" stop-color="black" stop-opacity="0.85"/></radialGradient></defs><rect width="160" height="90" fill="rgb(5,5,5)" mask="url(#lensMask)"/><ellipse cx="52" cy="42" rx="33" ry="30" fill="url(#lensEdge)"/><ellipse cx="108" cy="42" rx="33" ry="30" fill="url(#lensEdge)"/><ellipse cx="52" cy="42" rx="33" ry="30" stroke="rgb(42,42,40)" stroke-width="2.4" fill="none"/><ellipse cx="108" cy="42" rx="33" ry="30" stroke="rgb(42,42,40)" stroke-width="2.4" fill="none"/><path d="M30 24 L44 31 M118 60 L128 52 M96 22 l6 4" stroke="rgba(255,255,255,0.18)" stroke-width="0.6"/></svg><div class="fog"></div></div>
+<div id="maskOverlay"><svg viewBox="0 0 1000 563" preserveAspectRatio="none" aria-hidden="true"><defs>
+<mask id="lensMask"><rect width="1000" height="563" fill="white"/><path d="M40 120C80 30 380 18 440 118C482 190 474 420 420 482C360 548 120 548 58 470C8 400 6 200 40 120Z" fill="black"/><path d="M 960 120 C 920 30 620 18 560 118 C 518 190 526 420 580 482 C 640 548 880 548 942 470 C 992 400 994 200 960 120 Z" fill="black"/></mask>
+<radialGradient id="lensEdge" cx="50%" cy="48%" r="58%"><stop offset="68%" stop-color="rgb(0,0,0)" stop-opacity="0"/><stop offset="100%" stop-color="rgb(0,0,0)" stop-opacity="0.9"/></radialGradient>
+<linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgb(255,255,255)" stop-opacity="0.07"/><stop offset="0.35" stop-color="rgb(255,255,255)" stop-opacity="0"/></linearGradient>
+</defs>
+<rect width="1000" height="563" fill="rgb(9,8,9)" mask="url(#lensMask)"/>
+<path d="M40 120C80 30 380 18 440 118C482 190 474 420 420 482C360 548 120 548 58 470C8 400 6 200 40 120Z" fill="url(#lensEdge)"/><path d="M 960 120 C 920 30 620 18 560 118 C 518 190 526 420 580 482 C 640 548 880 548 942 470 C 992 400 994 200 960 120 Z" fill="url(#lensEdge)"/>
+<path d="M40 120C80 30 380 18 440 118C482 190 474 420 420 482C360 548 120 548 58 470C8 400 6 200 40 120Z" fill="url(#sheen)"/><path d="M 960 120 C 920 30 620 18 560 118 C 518 190 526 420 580 482 C 640 548 880 548 942 470 C 992 400 994 200 960 120 Z" fill="url(#sheen)"/>
+<g fill="none" stroke-linejoin="round">
+<path d="M40 120C80 30 380 18 440 118C482 190 474 420 420 482C360 548 120 548 58 470C8 400 6 200 40 120Z" stroke="rgb(22,20,19)" stroke-width="26"/><path d="M 960 120 C 920 30 620 18 560 118 C 518 190 526 420 580 482 C 640 548 880 548 942 470 C 992 400 994 200 960 120 Z" stroke="rgb(22,20,19)" stroke-width="26"/>
+<path d="M40 120C80 30 380 18 440 118C482 190 474 420 420 482C360 548 120 548 58 470C8 400 6 200 40 120Z" stroke="rgb(58,54,50)" stroke-width="5" transform="translate(245 281) scale(0.955 0.95) translate(-245 -281)"/>
+<path d="M 960 120 C 920 30 620 18 560 118 C 518 190 526 420 580 482 C 640 548 880 548 942 470 C 992 400 994 200 960 120 Z" stroke="rgb(58,54,50)" stroke-width="5" transform="translate(755 281) scale(0.955 0.95) translate(-755 -281)"/>
+<path d="M40 120C80 30 380 18 440 118C482 190 474 420 420 482C360 548 120 548 58 470C8 400 6 200 40 120Z" stroke="rgb(150,140,128)" stroke-opacity="0.3" stroke-width="1.6" transform="translate(245 281) scale(0.93 0.92) translate(-245 -281)"/>
+<path d="M 960 120 C 920 30 620 18 560 118 C 518 190 526 420 580 482 C 640 548 880 548 942 470 C 992 400 994 200 960 120 Z" stroke="rgb(150,140,128)" stroke-opacity="0.3" stroke-width="1.6" transform="translate(755 281) scale(0.93 0.92) translate(-755 -281)"/>
+<path d="M40 120C80 30 380 18 440 118C482 190 474 420 420 482C360 548 120 548 58 470C8 400 6 200 40 120Z" stroke="rgb(90,84,78)" stroke-opacity="0.55" stroke-width="2" stroke-dasharray="3 9" transform="translate(245 281) scale(1.035 1.03) translate(-245 -281)"/>
+<path d="M 960 120 C 920 30 620 18 560 118 C 518 190 526 420 580 482 C 640 548 880 548 942 470 C 992 400 994 200 960 120 Z" stroke="rgb(90,84,78)" stroke-opacity="0.55" stroke-width="2" stroke-dasharray="3 9" transform="translate(755 281) scale(1.035 1.03) translate(-755 -281)"/>
+</g>
+<path d="M420 563L462 478Q500 438 538 478L580 563Z" fill="rgb(14,13,13)"/>
+<path d="M432 563L468 486Q500 456 532 486L568 563" fill="none" stroke="rgb(62,58,54)" stroke-width="3"/>
+<g fill="none" stroke="rgb(235,238,240)" stroke-opacity="0.42" stroke-width="1.4" stroke-linecap="round">
+<path d="M52 230l18 14 -6 22 14 18 -4 20"/><path d="M70 244l20 -6M64 266l-14 10M78 284l16 4"/><path d="M40 330l14 10 2 18"/>
+<path d="M948 210l-16 16 8 20 -14 16 6 18"/><path d="M932 226l-18 -4M940 246l14 8M926 262l-16 6"/><path d="M958 320l-12 12 0 16"/>
+<path d="M120 470l10 -10 16 2" stroke-opacity="0.28"/><path d="M880 466l-12 -8 -14 4" stroke-opacity="0.28"/>
+</g></svg><div class="fog"></div></div>
 </body>
 </html>

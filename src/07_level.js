@@ -437,6 +437,8 @@ const Level = {
 
     // ---------- ACT II: the Deep Works (sectors 6-10) ----------
     DeepWorks.build(this);
+    // the factory exterior for the title screen (sector 11)
+    TitleScene.build(this);
 
     this.finishBatches();
     Physics.buildBVH();

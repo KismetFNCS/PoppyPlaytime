@@ -35,7 +35,7 @@ const UV_SECRETS = [
 ];
 
 const Gear = {
-  owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, rightLost: false,
+  owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, handsLost: false,
   wheelOpen: false, wheelSel: 0, wheelV: new Float32Array(2), holdT: 0, wheelDom: -2,
   hasMask: false, maskOn: false, maskT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
   blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
@@ -54,7 +54,7 @@ const Gear = {
   reset() {
     this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0;
     this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
-    this.blacklight = false; this.secretsFound.fill(0); this.rightLost = false;
+    this.blacklight = false; this.secretsFound.fill(0); this.handsLost = false;
     for (const p of this.pickups) p.taken = false;
   },
   // after a checkpoint restore: what you own follows from which pickups are gone
@@ -107,11 +107,11 @@ const Gear = {
     const K = Input.keys, held = !!(K.Tab || K.KeyX || Input.pad.buttons[3]);
     if (held) {
       this.holdT += dt;
-      if (!this.wheelOpen && !this.rightLost && (K.Tab || this.holdT > 0.22)) this.openWheel();
+      if (!this.wheelOpen && !this.handsLost && (K.Tab || this.holdT > 0.22)) this.openWheel();
       if (this.wheelOpen) for (let k = 0; k < 4; k++) if (J.has('Digit' + (k + 1)) && this.owned[k]) this.wheelSel = k;
     } else if (this.holdT > 0) {
       if (this.wheelOpen) this.closeWheel(true);
-      else if (!this.rightLost) dir = 1;
+      else if (!this.handsLost) dir = 1;
       this.holdT = 0;
     }
     if (Input.wheel) { dir = Input.wheel > 0 ? 1 : -1; Input.wheel = 0; }
@@ -203,15 +203,15 @@ const Gear = {
     }
     return best;
   },
-  promptFor(p) { return p.kind === 'mask' ? '[E] TAKE GAS MASK' : p.restore ? '[E] REATTACH YOUR RIGHT HAND' : '[E] TAKE ' + HAND_TYPES[p.type].id + ' HAND'; },
+  promptFor(p) { return p.kind === 'mask' ? '[E] TAKE GAS MASK' : p.restore ? '[E] TAKE YOUR GRABPACK HANDS' : '[E] TAKE ' + HAND_TYPES[p.type].id + ' HAND'; },
   take(p) {
     p.taken = true;
     sfx('pickup');
     if (p.restore) {
-      this.rightLost = false;
+      this.handsLost = false;
       sfx('dock', Player.body.pos);
-      GrabPack.showHint('RIGHT HAND REATTACHED - both hands work again');
-      Dialogue.say('PIP', 'Click! Good as new. Well... good as old.');
+      GrabPack.showHint('HANDS ON - teal on the left, rose on the right. Look at something and fire');
+      Dialogue.say('PIP', 'Click! Click! Hello, hands! I missed you two.');
     } else if (p.kind === 'mask') {
       this.hasMask = true;
       GrabPack.showHint('GAS MASK - press [G] to put it on or take it off');
@@ -277,7 +277,9 @@ const Gear = {
       const show = v > 0.04 && (Game.isGameplay() || state === STATE.PAUSED);
       this.overlay.style.display = show ? 'block' : 'none';
       if (show) {
-        this.overlay.style.transform = 'translateY(' + ((1 - v) * -105).toFixed(1) + '%)';
+        // it drops down over your face: slides from above, settles with a slight tilt and a squash as the seal meets skin
+        const e = 1 - v, settle = Math.sin(Math.min(1, v * 1.15) * Math.PI) * 0.03;
+        this.overlay.style.transform = 'translateY(' + (e * -105).toFixed(1) + '%) rotate(' + (e * 3).toFixed(2) + 'deg) scale(' + (1 + e * 0.08 + settle).toFixed(3) + ')';
         const fog = this.overlay.querySelector('.fog');
         if (fog) fog.style.opacity = (Math.max(0, Math.sin(Game.time * (Player.sprinting ? 3.4 : 1.85))) * 0.35).toFixed(2);
       }

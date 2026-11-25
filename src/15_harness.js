@@ -242,7 +242,7 @@ async function runAll() {
     check('boot: no runtime error', T.getLastError() === null, T.getLastError());
     check('boot: WebGL2 deferred pipeline online', Renderer.ok && !!Renderer.targets, 'hdr ' + (Renderer.hdrFloat ? 'float' : 'rgba8'));
     check('boot: BVH built over static colliders', Physics.bvh && Physics.bvh.nodeCount > 10, Physics.bvh && Physics.bvh.nodeCount);
-    check('boot: 11 streaming sectors (Act I + the Deep Works)', Level.sectors.length === 11, Level.sectors.length);
+    check('boot: 12 streaming sectors (Act I + the Deep Works + the title factory)', Level.sectors.length === 12, Level.sectors.length);
     T.setAutoRun(true);
     const f0 = T.getFrameCount();
     await sleep(300);
@@ -253,6 +253,7 @@ async function runAll() {
     // ---------------- menu ----------------
     setState(STATE.MAIN_MENU); UI.menuPage = 'title'; UI.setMenuPage('title'); T.step(DT, 2);
     check('menu: boots to the factory title page', UI.menuPage === 'title' && document.getElementById('titlePage').classList.contains('on'), UI.menuPage);
+    check('menu: the title page shows the 3D factory (sector 11 in view)', Streaming.visible[TITLE_SECTOR] === 1 && Level.batches[TITLE_SECTOR].data.indices.length > 1000, Array.from(Streaming.visible).join(''));
     Game.uiAction('play'); T.step(DT, 1);
     check('menu: PLAY opens the six-chapter select', UI.menuPage === 'chapters' && document.querySelectorAll('#chapterPage .card').length === 6, UI.menuPage);
     check('menu: only chapter 6 is playable', document.querySelectorAll('#chapterPage .card.locked').length === 5 && document.querySelector('#chapterPage .card.live').dataset.act === 'chapter6');
@@ -295,6 +296,36 @@ async function runAll() {
     check('vhs: Space advances lines', VHS.line >= 1, 'line ' + VHS.line);
     tap('Escape');
     check('vhs: Escape skips to gameplay', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    // ---------------- the opening: station yard under the main office ----------------
+    const DWo = DeepWorks;
+    check('opening: a new game starts in the station yard, facing the Usher\'s computer (stage 5)', Game.stage === 5 && Streaming.current === 6 && Cast.monitor.computer && Cast.monitor.stage === 5, 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    check('opening: no hands on the pack yet', Gear.handsLost, '');
+    check('opening: Thimble is already with you (an old friend)', Cast.plush.mode === 'FOLLOW', Cast.plush.mode);
+    T.step(DT, 90);
+    check('opening: the Usher\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
+    const lockZ = Player.body.pos[2]; T.simulateKey('KeyW', true); T.step(DT, 30); T.simulateKey('KeyW', false);
+    check('opening: you cannot walk away while he speaks', Math.abs(Player.body.pos[2] - lockZ) < 0.01, (Player.body.pos[2] - lockZ).toFixed(3));
+    Dialogue.clear(); T.step(DT, 2);
+    check('opening: when he finishes you are free to move', !DWo.broadcastLocked(), '');
+    click(0); T.step(DT, 10);
+    check('opening: firing does nothing until you have your hands', GrabPack.hands[0].state === HAND.DOCKED && /crate/.test(GrabPack.hint), GrabPack.hint);
+    T.setPlayerPose(-4.2, 0, -145.3, 0, 0); T.aimAt(-4.2, 0.98, -146.5); T.step(DT, 2); tap('KeyE'); T.step(DT, 20);
+    check('opening: take your hands from the crate by the tracks', !Gear.handsLost && Gear.pickups.find(p => p.restore).taken, GrabPack.hint);
+    const shX0 = DWo.shunter.x; T.step(DT, 60);
+    check('opening: the shunter car patrols the second line', DWo.shunter.x !== shX0 || DWo.shunter.wait > 0, shX0 + ' -> ' + DWo.shunter.x);
+    T.setPlayerPose(8.6, 0, -170.6, -Math.PI / 2, 0); T.step(DT, 6);
+    check('opening: rendezvous with Marigold on the platform', DWo.met && Cast.plush.mode === 'FOLLOW', String(DWo.met));
+    Dialogue.clear();
+    T.setPlayerPose(-10, 0, -165, Math.PI / 2, 0); T.step(DT, 2);
+    T.aimAt(-12.45, 1.5, -165); click(0); T.step(DT, 20);
+    check('yard: hand latches the signal-box node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
+    for (const wp of [[-5, -164.5], [-3, -168.5], [5.5, -168], [7.5, -172.5], [6.5, -173.6]]) T.walkTo(wp[0], wp[1]);
+    T.aimAt(6.5, 1.6, -175.85); click(1); T.step(DT, 25);
+    check('yard: looped circuit powers the gate to the freight lift', DWo.receptacleBy('Y_GATE').powered && DWo.toIntake > 0, GrabPack.hint + ' ' + JSON.stringify(T.hands()[0].wraps));
+    for (let i = 0; i < 400 && Game.stage !== 0; i++) T.step(DT, 1);
+    T.step(DT, 4);
+    check('yard: the lift takes you down into the Intake (stage 0, hands on)', Game.stage === 0 && Streaming.current === 0 && !Gear.handsLost && Game.checkpoint.stage === 0, 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    Dialogue.clear();
     checkUI('GAMEPLAY_ACTIVE');
     check('start: stage 0', T.getScore() === 0, T.getScore());
     T.step(DT, 30);
@@ -572,33 +603,12 @@ async function runAll() {
     // ---------------- ACT II: the Deep Works ----------------
     const DWk = DeepWorks, V = DWk.vault;
     let arrived = false;
-    for (let i = 0; i < 1000 && !arrived; i++) { T.step(DT, 1); arrived = Game.stage === 5; }
+    for (let i = 0; i < 1000 && !arrived; i++) { T.step(DT, 1); arrived = Game.stage === 6; }
     T.step(DT, 2);
-    check('act2: the Loom is not the end - the freight lift drops into the station yard', arrived && Streaming.current === 6, 'stage ' + Game.stage + ' sector ' + Streaming.current);
-    check('act2: checkpoint saved in the yard', Game.checkpoint.stage === 5, Game.checkpoint.stage);
-    check('act2: the right hand was torn off in the fall', Gear.rightLost, '');
-    Game.invulnerable = true;
-    T.step(DT, 120);
-    check('act2: the Usher speaks from the yard monitor', Cast.monitor.active && Cast.monitor.stage === 5 && Cast.monitor.said, JSON.stringify(Cast.monitor));
-    click(1); T.step(DT, 10);
-    check('act2: right trigger does nothing while the hand is missing', GrabPack.hands[1].state === HAND.DOCKED && /torn off/.test(GrabPack.hint), GrabPack.hint);
-    T.setPlayerPose(-4.2, 0, -145.3, 0, 0); T.aimAt(-4.2, 0.98, -146.5); T.step(DT, 2); tap('KeyE'); T.step(DT, 20);
-    check('act2: right hand found by the tracks and reattached', !Gear.rightLost && Gear.pickups.find(p => p.restore).taken, GrabPack.hint);
-    const shX0 = DWk.shunter.x; T.step(DT, 60);
-    check('act2: the shunter car patrols the second line', DWk.shunter.x !== shX0 || DWk.shunter.wait > 0, shX0 + ' -> ' + DWk.shunter.x);
-    T.setPlayerPose(3.5, 0, -169.5, -Math.PI / 2, 0); T.step(DT, 6);
-    check('act2: rendezvous - Thimble joins you on the platform', DWk.met && Cast.plush.mode === 'FOLLOW', Cast.plush.mode);
-    // yard gate circuit
-    T.setPlayerPose(-10, 0, -165, Math.PI / 2, 0); T.step(DT, 2);
-    T.aimAt(-12.45, 1.5, -165); click(0); T.step(DT, 20);
-    check('yard: hand latches the signal-box node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
-    for (const wp of [[-5, -164.5], [-3, -168.5], [5.5, -168], [7.5, -172.5], [6.5, -173.6]]) T.walkTo(wp[0], wp[1]);
-    T.aimAt(6.5, 1.6, -175.85); click(1); T.step(DT, 25);
-    check('yard: looped circuit powers the gate', DWk.receptacleBy('Y_GATE').powered && Level.doorById('D6').target === 1, GrabPack.hint + ' ' + JSON.stringify(T.hands()[0].wraps));
-    check('yard: stage 6 checkpoint', Game.stage === 6 && Game.checkpoint.stage === 6, Game.stage);
-    GrabPack.reset(); T.step(DT, 300);
+    check('act2: the Loom is not the end - the freight lift drops into the fabrication line', arrived && Streaming.current === 7, 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    check('act2: checkpoint saved at the fabrication line', Game.checkpoint.stage === 6, Game.checkpoint.stage);
+    Game.invulnerable = true; T.step(DT, 60);
 
-    await breathe();
     // fabrication line: belts carry you, the cable crosses them
     T.setPlayerPose(0, 0.25, -182.5, 0, 0); T.step(DT, 4);
     const bx0 = Player.body.pos[0]; T.step(DT, 30);

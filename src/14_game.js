@@ -18,7 +18,7 @@ const OBJECTIVES = [
   'RUN. Reach the freight lift at the end of the Spool Foundry.',
   'Defeat the Spoolwright: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
   // ---- Act II: the Deep Works ----
-  'STATION YARD. Reattach your right hand (crate by the tracks). Find Thimble and Marigold on the platform, then power the yard gate: latch the node in the signal box, loop both relay poles and plug the gate. Mind the shunter.',
+  'STATION YARD. Take your hands from the crate by the tracks, meet Marigold on the platform, then power the yard gate. Mind the shunter.',
   'FABRICATION LINE. Carry the cable across the moving belts (stay clear of the end stampers): node on the west wall, loop both relays, plug LINE POWER. Then hit the piston override in the hall.',
   'DRAINAGE CATACOMBS. Watch your footing on the gel. Fire a hand at each lock terminal so Marigold can override it, then wrench the exit ladder down (latch the ring, drag your view down) and climb.',
   'SORTING HUB. When the intercom calls a colour, every container of that colour moves. Find the open gaps through the three bands, then time your run past the crushing walls.',
@@ -201,7 +201,7 @@ const Game = {
 
   startNewGame() {
     this.resetGame();
-    this.saveCheckpoint(0);
+    DeepWorks.startOpening();   // the story opens in the station yard, facing the Usher's computer
     VHS.play(0, () => { setState(STATE.GAMEPLAY_ACTIVE); });
     setState(STATE.CINEMATIC_VHS);
   },
@@ -437,8 +437,16 @@ const Game = {
     if (Input.justPressed.has('KeyF') || Input.padJust(3)) { Player.flashOn = !Player.flashOn; sfx('flashlight'); }
     const usePressed = Input.justPressed.has('KeyE') || Input.padJust(2);
     const wasHidden = !!Player.hidden;
-    Player.handleLook(dt);
-    if (Player.hidden) {
+    const broadcast = DeepWorks.broadcastLocked();
+    if (broadcast) {
+      // the Usher's broadcast: you can't move, look away or skip it; the view settles on his screen
+      Player.yaw = Player.yaw + wrapAngle(0 - Player.yaw) * Math.min(1, dt * 2);
+      Player.pitch = damp(Player.pitch, -0.08, 2, dt);
+      V3.set(Player.body.vel, 0, 0, 0);
+    } else Player.handleLook(dt);
+    if (broadcast) {
+      // held in place
+    } else if (Player.hidden) {
       // inside a locker: no movement, view limited to the slats
       const L = Player.hidden;
       Player.yaw = L.yaw + clamp(wrapAngle(Player.yaw - L.yaw), -0.65, 0.65);
@@ -455,9 +463,11 @@ const Game = {
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
-    if (!Player.hidden && !wasHidden && !Ambush.active) {
-      if (Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4)) GrabPack.fire(0, Player.cam);
-      if (Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5)) { if (Gear.rightLost) GrabPack.showHint('Your right hand is gone - it was torn off in the fall. It is somewhere by the tracks.'); else GrabPack.fire(1, Player.cam); }
+    if (!Player.hidden && !wasHidden && !Ambush.active && !broadcast) {
+      const f0 = Input.mouseJust[0] || Input.justPressed.has('KeyQ') || Input.padJust(6) || Input.padJust(4);
+      const f1 = Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5);
+      if ((f0 || f1) && Gear.handsLost) GrabPack.showHint('No hands on the pack yet - they are in the crate by the tracks.');
+      else { if (f0) GrabPack.fire(0, Player.cam); if (f1) GrabPack.fire(1, Player.cam); }
       const locker = Player.findLocker();
       const tape = locker ? null : Player.findInteract();
       if (locker && usePressed) this.enterLocker(locker);
@@ -641,6 +651,15 @@ const Game = {
   menuUpdate(dt) {
     this.menuTime += dt;
     const C = Level.menuCam, t = this.menuTime;
+    // the factory title page shows the 3D factory exterior; the chapter screens show the Spoolwright
+    if (UI.menuPage === 'title') {
+      this.scene.fogDensity = 0.0035;
+      TitleScene.update(dt, t);
+      Audio.updateDrone(0.15, true); Audio.updateChase(false); Audio.updateEmitters(false, false);
+      Audio.updateListener(TitleScene.tmp, Renderer.camFwd, Renderer.camUp);
+      return;
+    }
+    this.scene.fogDensity = LIGHTING.fogDensity;
     V3.set(this.menuEye, C.pos[0] + Math.sin(t * 0.21) * 0.08, C.pos[1] + Math.sin(t * 0.33) * 0.04, C.pos[2]);
     this.applyCamera(this.menuEye, C.yaw + Math.sin(t * 0.17) * 0.02, C.pitch + Math.sin(t * 0.23) * 0.01, 0);
     Monster.update(dt);
@@ -740,6 +759,7 @@ const Game = {
     Cast.submit(vis);
     Gear.submit(vis);
     DeepWorks.submit(vis);
+    if (state === STATE.MAIN_MENU && UI.menuPage === 'title') TitleScene.submit();
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
@@ -842,7 +862,7 @@ const Game = {
   submitHands() {
     const cam = Player.cam, right = Renderer.camRight, up = Renderer.camUp, fwd = Renderer.camFwd;
     for (let s = 0; s < 2; s++) {
-      if (s === 1 && Gear.rightLost) continue;   // torn off in the fall
+      if (Gear.handsLost) continue;   // no hands on the pack yet (the opening)
       const h = GrabPack.hands[s];
       const m = GrabPack.muzzle[s];
       const side = s === 0 ? -1 : 1;
@@ -906,6 +926,20 @@ const Game = {
           this.drawHand(h.pos, _g.e, _g.c, s, h.state === HAND.FLYING ? 0.05 : 0.35, 1.15, true, h, false);
         }
       }
+    }
+    // the hand wheel: real hand models float in a ring in front of you, the chosen one larger
+    if (Gear.wheelOpen) {
+      const keep = Gear.cur;
+      for (let k = 0; k < 4; k++) {
+        if (!Gear.owned[k]) continue;
+        const ox = k === 1 ? 0.15 : k === 3 ? -0.15 : 0, oy = k === 0 ? 0.13 : k === 2 ? -0.15 : -0.01;
+        V3.copy(_g.hp, cam.eye); V3.addScaled(_g.hp, _g.hp, fwd, 0.72); V3.addScaled(_g.hp, _g.hp, right, ox); V3.addScaled(_g.hp, _g.hp, up, oy - 0.05);
+        V3.scale(_g.hf, up, 1); V3.addScaled(_g.hf, _g.hf, right, Math.sin(this.time * 2 + k) * 0.08); V3.normalize(_g.hf, _g.hf);
+        V3.scale(_g.hu, fwd, -1);
+        Gear.cur = k;
+        this.drawHand(_g.hp, _g.hf, _g.hu, 1, 0.08, k === Gear.wheelSel ? 0.34 : 0.26, false, GrabPack.hands[1], true);
+      }
+      Gear.cur = keep;
     }
   },
   // ribbed rubber hose with steel clamp rings, sagging slightly between its ends

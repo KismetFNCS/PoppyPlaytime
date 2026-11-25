@@ -27,13 +27,17 @@ const DW_COLORS = [
   { name: 'YELLOW', hex: '#f2c230', rgb: [2.6, 2.0, 0.3], mat: [1.3, 1.05, 0.35] }
 ];
 const DW_SECTORS = [6, 7, 8, 9, 10];
+const OBJECTIVE_YARD_GATE = 'STATION YARD. Power the yard gate: latch the node in the signal box, loop the cable round both relay poles and plug the gate. Mind the shunter.';
+// The opening broadcast: you arrive in the freight yard under the main office, facing the Usher's computer.
+// Input stays locked until he has finished (he does not like being interrupted).
 const USHER_YARD_LINES = [
-  'Ah. You survived the fall. How inconvenient for the Loom.',
-  'Welcome to the Deep Works - the station where unfinished things were shipped to be... finished.',
-  'Your right hand did not survive the drop. It is lying by the tracks. Do fetch it.',
-  'The yard gate takes current. You know the routine: loop it, plug it, obey it.',
-  'Your little stitched friends are waiting on the platform. How touching.',
-  'The Spoolwright crawled down to the Core Vault to mend. When it is mended... it will come back up for you.'
+  'Ah. You came back. Of course you did. They always come back to the factory.',
+  'This is the old freight yard, under the main office. Pay attention. I do not repeat myself.',
+  'Your hands are in the crate beside the tracks. Teal on the left, rose on the right. Put them on.',
+  'Look at anything with a panel and fire a hand at it - it will listen. Latch a power node and the cable carries its current.',
+  'The yard gate takes current: latch the node in the signal box, loop the cable round both relay poles, then plug the gate.',
+  'Your little stitched friend came with you, I see. And the doll is waiting on the platform. How touching.',
+  'Below this yard the floors go deeper, and something down there has been sewing itself back together. Go and say hello.'
 ];
 // container bands in the sorting hub: each gap has a pocket beside it; a container sits in one or the other
 const HUB_BANDS = [
@@ -55,7 +59,7 @@ const DeepWorks = {
   colorState: new Uint8Array(4), hub: { t: 0, next: 0, moving: -1, announced: false, count: 0 },
   overrides: [], jam: { on: false, t: 0, pending: -1 }, thimbleTask: null,
   vault: { active: false, mode: 'IDLE', hp: 6, t: 0, trainCd: 6, armed: false, coreN: 0, startDelay: -1, ring: 0, cable: 0, hitFlash: 0 },
-  met: false, yardRightHand: null, tmp: V3.create(), tmp2: V3.create(), m: M4.create(),
+  met: false, toIntake: -1, tmp: V3.create(), tmp2: V3.create(), m: M4.create(),
   hurtCool: 0, creakT: 0, descent: -1,
 
   // ---------- helpers ----------
@@ -171,8 +175,12 @@ const DeepWorks = {
     L.geom(S, 10.75, 0.9, -175, 10.9, 1.5, -172, MAT.wood);
     for (const z of [-174.6, -172.4]) L.geom(S, 9.95, 0.35, z - 0.05, 10.85, 0.9, z + 0.05, MAT.steel);
     // the Usher's monitor on its pole
-    L.solid(S, -0.12, 0, -147.62, 0.12, 3.4, -147.38, MAT.steel, SURFACE.METAL);
-    L.geom(S, -0.5, 0, -148, 0.5, 0.12, -147, MAT.steel);
+    // the main-office terminal: a desk with the Usher's computer on it, right where you wake up
+    L.solid(S, -1.0, 0, -146.1, 1.0, 0.8, -145.0, MAT.wood, SURFACE.WOOD);
+    L.geom(S, -1.05, 0.8, -146.15, 1.05, 0.86, -144.95, MAT.wood);
+    L.geom(S, -1.6, 0, -146.6, 1.6, 2.7, -146.35, MAT.paint);
+    L.geom(S, -1.6, 2.7, -146.7, 1.6, 2.85, -145.6, MAT.steel);
+    L.geom(S, -1.3, 2.05, -146.36, 1.3, 2.45, -146.3, MAT.rubber);
     // crates, lamp posts, catenary pipes
     L.crate(S, -4.2, -146.5, 0.9, 1); L.crate(S, 11.5, -146, 1.2, 2); L.crate(S, 12.6, -153.5, 1.0, 1); L.crate(S, -11.5, -170.5, 1.1, 2);
     L.crate(S, 3.5, -165.5, 1.0, 1); L.tank(S, -11.8, -143.5, 1.0, 4.2);
@@ -185,7 +193,7 @@ const DeepWorks = {
     for (let z = -144; z >= -174; z -= 7.5) { L.tube(S, -6, 8.98, z, true, z === -151.5 ? 2 : 1); L.tube(S, 6, 8.98, z, true, 0); }
     L.emergency(S, -13.6, 5, -158); L.emergency(S, 13.6, 5, -150); L.emergency(S, 0, 4.4, -175.6);
     L.hazardLamp(S, -12.3, 2.9, -165); L.hazardLamp(S, 6.5, 2.4, -175.7); L.hazardLamp(S, 10.4, 2.3, -175.6);
-    L.light(S, 0, 3.6, -146.8, LIGHTING.fillColor, 2.2, 6, 1, 'none', 0.4);   // monitor spill
+    L.light(S, 0, 1.6, -144.6, LIGHTING.fillColor, 2.0, 5, 1, 'none', 0.4);   // the screen's glow
     L.trigger(-3, -146, 3, -141.5, 'Y_ARRIVE');
   },
 
@@ -381,7 +389,7 @@ const DeepWorks = {
     for (const c of this.cores) c.collider.enabled = false;
     for (const g of this.gens) g.open = 0;
     this.met = false; this.descent = -1; this.hurtCool = 0;
-    Gear.rightLost = false;
+    Gear.handsLost = false; this.toIntake = -1;
     for (const L of Level.lightEntities) if (L.sector >= 6 && L.colorHex === '#ff2a1a') L.base = 0;
   },
   // after a checkpoint restore, rebuild Act II state from the saved flags
@@ -389,8 +397,8 @@ const DeepWorks = {
     this.reset();
     const st = Game.stage;
     const rh = Gear.pickups.find(p => p.restore);
-    Gear.rightLost = st === 5 && rh && !rh.taken;
-    this.met = st >= 6;
+    Gear.handsLost = st === 5 && rh && !rh.taken;
+    this.met = st !== 5;
     const path = this.receptacleBy('F_PATH');
     if (path && path.powered) { this.jam.on = true; for (const p of this.pistons) { p.y = 3.6; this.setBox(p.c, 0, p.y, p.z, 2.45, 1.6, 1.2); } }
     const lad = this.leverBy('C_LADDER'); if (lad && lad.pulled) this.ladder.down = 1;
@@ -400,8 +408,8 @@ const DeepWorks = {
   placeThimble() {
     const P = Cast.plush, st = Game.stage, b = Player.body.pos;
     P.hidden = false; P.talked = true;
-    if (st === 5 && !this.met) { P.mode = 'DEEPWAIT'; V3.set(P.pos, 7.2, 0, -171.4); P.yaw = Math.PI / 2; }
-    else { P.mode = 'FOLLOW'; V3.set(P.pos, b[0] + 1.0, 0, b[2] + 1.4); P.yaw = Math.PI; }
+    // Thimble is an old friend: he is always right beside you
+    P.mode = 'FOLLOW'; V3.set(P.pos, b[0] + 1.0, 0, b[2] + 1.4); P.yaw = Math.PI;
     P.sector = Level.sectorAt(P.pos[0], P.pos[2]);
     Companion.head = 0; Companion.count = 0; Companion.record(true);
   },
@@ -413,22 +421,58 @@ const DeepWorks = {
     Dialogue.say('PIP', 'It fell through the drain! The freight lift goes deeper - the Deep Works!');
     Dialogue.say('THIMBLE', 'Oh no. Oh no no no. We\'re going after it, aren\'t we?');
   },
-  arriveAtYard() {
-    Monster.reset(); Boss.reset();
-    Game.chaseActive = false; Game.invulnerable = false;
+  // NEW GAME: the story opens in the station yard under the main office, facing the Usher's computer
+  startOpening() {
     Game.stage = 5; UI.setObjective(OBJECTIVES[5]);
     const pose = CHECKPOINT_POSES[5];
     V3.set(this.tmp, pose.pos[0], pose.pos[1], pose.pos[2]);
     Player.reset(this.tmp, pose.yaw);
-    Game.fadeIn = 1;
-    Gear.rightLost = true;
+    Gear.handsLost = true;
     GrabPack.reset();
-    Game.saveCheckpoint(5);
     Cast.reset();
     this.placeThimble();
+    Game.saveCheckpoint(5);
+  },
+  // the yard gate opens onto the freight lift: down into the factory (the Intake, stage 0)
+  leaveYard() {
+    this.toIntake = -1;
+    const rh = Gear.pickups.find(p => p.restore); if (rh) rh.taken = true;
+    Gear.handsLost = false;
+    GrabPack.reset();
+    Game.stage = 0;
+    const pose = CHECKPOINT_POSES[0];
+    V3.set(this.tmp, pose.pos[0], pose.pos[1], pose.pos[2]);
+    Player.reset(this.tmp, pose.yaw);
+    Game.fadeIn = 1;
+    Cast.reset();
+    this.placeThimble();
+    UI.setObjective(OBJECTIVES[0]);
+    Game.saveCheckpoint(0);
+  },
+  // after the Loom the freight lift keeps going down: into the fabrication line
+  arriveAtFab() {
+    Monster.reset(); Boss.reset();
+    Game.chaseActive = false; Game.invulnerable = false;
+    Game.stage = 6; UI.setObjective(OBJECTIVES[6]);
+    const pose = CHECKPOINT_POSES[6];
+    V3.set(this.tmp, pose.pos[0], pose.pos[1], pose.pos[2]);
+    Player.reset(this.tmp, pose.yaw);
+    Game.fadeIn = 1;
+    GrabPack.reset();
+    Cast.reset();
+    this.placeThimble();
+    Game.saveCheckpoint(6);
     Player.addTrauma(0.9);
     sfx('doorSlam', Player.body.pos);
-    GrabPack.showHint('The landing tore your right hand off the pack...');
+    Dialogue.say('MARIGOLD', 'The fabrication line. It went this way - I can hear it in the machines.');
+  },
+  // the opening broadcast holds you still until the Usher has finished
+  broadcastLocked() {
+    const M = Cast.monitor;
+    if (!M.active || M.stage !== 5 || Game.stage !== 5) return false;
+    if (!M.said) return true;
+    const c = Dialogue.current;
+    return !!((c && c.speaker === 'USHER') || Dialogue.queue.some(q => q.speaker === 'USHER'));
   },
 
   // ---------- level actions ----------
@@ -436,9 +480,10 @@ const DeepWorks = {
     switch (id) {
       case 'Y_ARRIVE': break;
       case 'Y_GATE':
-        Dialogue.say('MARIGOLD', 'The gate is listening. The line below leads to the fabrication floor.');
-        Doors.setOpen('D6', true);
-        Game.stage = 6; UI.setObjective(OBJECTIVES[6]); Game.saveCheckpoint(6);
+        Dialogue.say('MARIGOLD', 'The gate is listening. The freight lift goes down from here - into the factory.');
+        Dialogue.say('THIMBLE', 'Down. It\'s always down. Why is it never UP?');
+        sfx('doorStart', Player.body.pos);
+        this.toIntake = 4.5;
         return true;
       case 'F_CIRCUIT':
         Doors.setOpen('DF', true);
@@ -502,8 +547,13 @@ const DeepWorks = {
     if (this.descent > 0) {
       this.descent -= dt;
       if (this.descent < 1.6) Renderer.post.fade = Game.fadeIn = clamp(1 - this.descent / 1.6, 0, 1);
-      if (this.descent <= 0) { this.descent = -1; this.arriveAtYard(); }
+      if (this.descent <= 0) { this.descent = -1; this.arriveAtFab(); }
       return;
+    }
+    if (this.toIntake > 0) {
+      this.toIntake -= dt;
+      if (this.toIntake < 1.6) { Renderer.post.fade = Game.fadeIn = clamp(1 - this.toIntake / 1.6, 0, 1); Player.addTrauma(dt * 0.5); }
+      if (this.toIntake <= 0) { this.leaveYard(); return; }
     }
     if (Game.stage < 5) return;
     const sec = Streaming.current, b = Player.body.pos;
@@ -527,16 +577,14 @@ const DeepWorks = {
 
   updateThimble(dt) {
     const P = Cast.plush, b = Player.body.pos;
-    if (P.mode === 'DEEPWAIT') {
-      const d = Math.hypot(b[0] - P.pos[0], b[2] - P.pos[2]);
-      if (d < 6.5 && Streaming.visible[6] && !this.met) {
-        this.met = true; P.mode = 'FOLLOW'; P.wave = 1;
-        Companion.head = 0; Companion.count = 0; Companion.record(true);
-        Dialogue.say('THIMBLE', 'There you are! I landed on the platform - Marigold broke my fall. Mostly.');
-        Dialogue.say('MARIGOLD', 'We stay together this time. The gate needs current - the node is in the signal box.');
-        Pip.react('happy', 2);
-        UI.setObjective(OBJECTIVES[5].replace('Find Thimble and Marigold on the platform, then', 'Now'));
-      }
+    // rendezvous: Marigold waits on the platform bench
+    if (Game.stage === 5 && !this.met && Math.hypot(b[0] - 10.4, b[2] + 173.6) < 5.5) {
+      this.met = true; P.wave = 1;
+      Dialogue.say('MARIGOLD', 'You found me. ...And you brought Mister Thimble. Good. Nobody goes down alone this time.');
+      Dialogue.say('THIMBLE', 'Hi Marigold! We\'re here to un-break everything. Probably.');
+      Dialogue.say('MARIGOLD', 'The gate needs current. The node is in the signal box by the west wall.');
+      Pip.react('happy', 2);
+      UI.setObjective(OBJECTIVE_YARD_GATE);
     }
     const T = this.thimbleTask;
     if (T && T.kind === 'JAM') {
