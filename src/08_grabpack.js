@@ -268,10 +268,10 @@ const GrabPack = {
       if (h.wrenchIdle > 0.9) { this.release(h, true); this.showHint('GRIP LOST - hold the button while you pull'); return; }
     }
     if (Math.floor(before * 4) !== Math.floor(lv.wrench * 4)) sfx('wrap', lv.pos);
-    lv.angle = 0.9 - 1.8 * lv.wrench;
+    lv.angle = LEVER_UP + (LEVER_DOWN - LEVER_UP) * lv.wrench;
     Level.leverKnob(lv, h.pos);
     if (lv.wrench >= 1) {
-      lv.pulled = true; lv.grab = null; lv.angle = -0.9;
+      lv.pulled = true; lv.grab = null; lv.angle = LEVER_DOWN;
       Game.action(lv.action);
       sfx('lever', lv.pos);
       Particles.burst(lv.pos, 18, 'steam');
@@ -294,7 +294,7 @@ const GrabPack = {
   latched(h, dt) {
     h.latchTime += dt;
     this.arcCable(h, dt);
-    h.grip = damp(h.grip, 1, 24, dt);
+    h.grip = damp(h.grip, h.latchKind === 'receptacle' || h.latchKind === 'source' ? 0 : 1, 24, dt);   // palm lies flat on scanners and nodes
     if (h.latchKind === 'lever' && h.latchRef) { this.wrench(h, dt); return; }
     if (h.latchKind === 'staff') {
       const held = this.held(h.side);

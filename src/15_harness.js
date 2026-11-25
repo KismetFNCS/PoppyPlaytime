@@ -807,18 +807,19 @@ async function runAll() {
       check('pip: talks while a hint is shown', Pip.current === 'talk', Pip.current);
       check('pip: LED matrix lit', Pip.grid.some(v => v === 1));
       check('marigold: introduces herself when you approach', Cast.doll.met && (Dialogue.busy() || true) && T.getSfxLog().includes('voiceBlip') || Cast.doll.met, String(Cast.doll.met));
-      Dialogue.clear();
+      Dialogue.clear(); Companion.cool = 999; for (const k in Companion.lineCool) Companion.lineCool[k] = 999;
       Dialogue.say('MARIGOLD', 'Test line.'); T.step(DT, 20);
       check('dialogue: speaker label + typewriter text shown', document.getElementById('hudDialogName').textContent === 'MARIGOLD' && document.getElementById('hudDialogText').textContent.length > 0, document.getElementById('hudDialogText').textContent);
       T.step(DT, 300);
       check('dialogue: line clears after its hold time', !Dialogue.busy() && document.getElementById('hudDialog').style.display === 'none');
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
-      // Mister Thimble: meet him in the gallery; he follows and talks to you
+      // Mister Thimble: he arrives with you and follows from the start
       Dialogue.clear(); Game.stage = 2; Monster.reset(); Cast.resetPlush(); Steam.setAll(false); Player.health = 100;
       for (const tr of Level.triggers) if (tr.action === 'enterGallery') tr.fired = true;
       T.setPlayerPose(1.6, 0, -24.9, 0, 0); T.step(DT, 4);
-      check('thimble: greets you as a friend in the gallery', Cast.plush.mode === 'FOLLOW' && Dialogue.busy() && (Dialogue.current.speaker === 'THIMBLE' || Dialogue.queue.some(q => q.speaker === 'THIMBLE')), Cast.plush.mode + ' ' + (Dialogue.current ? Dialogue.current.speaker + ': ' + Dialogue.current.text : 'none'));
+      check('thimble: already with you - an old friend, no introduction', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
       while (Dialogue.current && Dialogue.current.speaker !== 'THIMBLE' && Dialogue.busy()) { Dialogue.current = null; T.step(DT, 1); }
+      Dialogue.clear(); Dialogue.say('THIMBLE', 'Stay close. I mean it this time - stay close.');
       check('thimble: no lunge / scare on meeting', Player.trauma < 0.3, String(Player.trauma));
       let opened = 0;
       for (let i = 0; i < 20; i++) { T.step(DT, 1); if (Cast.plush.talking) opened++; }

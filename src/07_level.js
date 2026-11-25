@@ -6,6 +6,8 @@
 // are ECS entities.
 // =====================================================================================
 
+// lever handle angles: 0 = straight up, positive tilts out toward the player (pulling it DOWN toward you)
+const LEVER_UP = -0.3, LEVER_DOWN = 2.3;
 const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SPOOL FOUNDRY', 'FREIGHT LIFT', 'THE LOOM',
   'STATION YARD', 'FABRICATION LINE', 'DRAINAGE CATACOMBS', 'SORTING HUB', 'CORE VAULT'];
 
@@ -169,7 +171,7 @@ const Level = {
   },
   lever(sector, x, y, z, nx, nz, action) {
     const e = World.create();
-    const l = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), pulled: false, angle: 0.9, action, wrench: 0, grab: null };
+    const l = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), pulled: false, angle: LEVER_UP, action, wrench: 0, grab: null };
     l.collider = Physics.addBox(x - 0.32 + nx * 0.3, y - 0.32, z - 0.32 + nz * 0.3, x + 0.32 + nx * 0.3, y + 0.42, z + 0.32 + nz * 0.3, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, e, false, sector);
     l.collider.kind = 'lever'; l.collider.ref = l;
     World.add(e, 'lever', l);

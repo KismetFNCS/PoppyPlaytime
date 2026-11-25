@@ -188,7 +188,7 @@ const Game = {
     this.failTimer = 0; this.jumpTimer = 0; this.fadeIn = 1;
     for (const d of Level.doors) { d.open = d.initialOpen; d.target = d.initialOpen; d.locked = false; d.slam = false; d.speed = 0.55; d.moving = false; d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height; }
     for (const r of Level.receptacles) { r.powered = false; r.denyFlash = 0; }
-    for (const l of Level.levers) { l.pulled = false; l.wrench = 0; l.grab = null; l.angle = 0.9; }
+    for (const l of Level.levers) { l.pulled = false; l.wrench = 0; l.grab = null; l.angle = LEVER_UP; }
     for (const p of Level.pegs) { p.linked = false; p.locked = false; }
     for (const t of Level.tapes) t.collected = false;
     for (const t of Level.triggers) t.fired = false;
@@ -274,7 +274,7 @@ const Game = {
       d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height;
     }
     for (let i = 0; i < Level.receptacles.length; i++) { Level.receptacles[i].powered = !!cp.receptacles[i]; Level.receptacles[i].denyFlash = 0; }
-    for (let i = 0; i < Level.levers.length; i++) { const l = Level.levers[i]; l.pulled = !!cp.levers[i]; l.wrench = l.pulled ? 1 : 0; l.grab = null; l.angle = l.pulled ? -0.9 : 0.9; }
+    for (let i = 0; i < Level.levers.length; i++) { const l = Level.levers[i]; l.pulled = !!cp.levers[i]; l.wrench = l.pulled ? 1 : 0; l.grab = null; l.angle = l.pulled ? LEVER_DOWN : LEVER_UP; }
     for (let i = 0; i < Level.pegs.length; i++) { Level.pegs[i].locked = !!cp.pegsLocked[i]; Level.pegs[i].linked = Level.pegs[i].locked; }
     for (let i = 0; i < Level.tapes.length; i++) Level.tapes[i].collected = !!cp.tapes[i];
     for (let i = 0; i < Level.triggers.length; i++) Level.triggers[i].fired = !!cp.triggers[i];
@@ -783,7 +783,8 @@ const Game = {
       if (!vis[l.sector] || l.style) continue;   // ladders and cores draw themselves (DeepWorks)
       const p = l.pos, n = l.n, yaw = Math.atan2(n[0], n[2]);
       // while a hand is clamped on it the handle follows the wrench; otherwise it springs back or stays thrown
-      l.angle = l.grab ? 0.9 - 1.8 * l.wrench : damp(l.angle, l.pulled ? -0.9 : 0.9 - 1.8 * l.wrench, 6, 1 / 60);
+      const target = LEVER_UP + (LEVER_DOWN - LEVER_UP) * (l.pulled ? 1 : l.wrench);
+      l.angle = l.grab ? target : damp(l.angle, target, 6, 1 / 60);
       R.trs('box', MAT.steel, p[0] - n[0] * 0.04, p[1], p[2] - n[2] * 0.04, yaw, 0, 0, 0.5, 0.7, 0.12);
       const it = R.push('cyl', MAT.hazard);
       if (it) { M4.compose(it.model, p[0] + n[0] * 0.1, p[1], p[2] + n[2] * 0.1, yaw, l.angle, 0, 0.05, 0.5, 0.05); }

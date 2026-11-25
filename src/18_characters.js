@@ -93,8 +93,9 @@ const Cast = {
     // where he is depends on how far the story has got (checkpoint restarts)
     const st = Game.stage;
     if (st >= 5) { T.mode = 'FOLLOW'; V3.copy(T.pos, Player.body.pos); T.sector = Level.sectorAt(T.pos[0], T.pos[2]); if (this.plushCollider) this.plushCollider.enabled = false; if (typeof Companion !== 'undefined') Companion.reset(); return; }
-    const spot = st >= 4 ? this.PLUSH_LOOM : st === 3 ? null : this.PLUSH_WAIT;
-    T.mode = st >= 4 ? 'LOOM' : st === 3 ? 'FOLLOW' : 'WAIT';
+    // he already knows you and rides down with you: following from the very start
+    const spot = st >= 4 ? this.PLUSH_LOOM : null;
+    T.mode = st >= 4 ? 'LOOM' : 'FOLLOW';
     if (spot) { V3.set(T.pos, spot[0], 0, spot[1]); T.yaw = spot[2]; }
     else { const b = Player.body.pos; V3.set(T.pos, b[0] + 1.2, 0, b[2] + 1.6); T.yaw = Math.PI; T.talked = true; }
     T.sector = Level.sectorAt(T.pos[0], T.pos[2]);
@@ -252,8 +253,7 @@ const Cast = {
     P.headYaw = damp(P.headYaw, d < 16 || P.plugState === 1 ? want : 0, 3, dt);
     if (P.mode === 'WAIT' && Game.stage >= 2 && d < 8 && Streaming.visible[P.sector]) {
       P.talked = true; P.wave = 1; P.mode = 'FOLLOW';
-      Dialogue.say('THIMBLE', 'Oh! A visitor! Hello there, friend - I\'m Mister Thimble.');
-      Dialogue.say('THIMBLE', 'You don\'t talk much, huh? That\'s okay. I\'ll tag along - it\'s safer in twos.');
+      Dialogue.say('THIMBLE', 'There you are! Don\'t wander off like that - this place eats people who wander.');
       Pip.react('happy', 2);
     }
     if (P.mode === 'SHUTTER') this.updateShutter(dt, d, ds);

@@ -2862,6 +2862,8 @@ const RenderQueue = {
 // are ECS entities.
 // =====================================================================================
 
+// lever handle angles: 0 = straight up, positive tilts out toward the player (pulling it DOWN toward you)
+const LEVER_UP = -0.3, LEVER_DOWN = 2.3;
 const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SPOOL FOUNDRY', 'FREIGHT LIFT', 'THE LOOM',
   'STATION YARD', 'FABRICATION LINE', 'DRAINAGE CATACOMBS', 'SORTING HUB', 'CORE VAULT'];
 
@@ -3025,7 +3027,7 @@ const Level = {
   },
   lever(sector, x, y, z, nx, nz, action) {
     const e = World.create();
-    const l = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), pulled: false, angle: 0.9, action, wrench: 0, grab: null };
+    const l = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), pulled: false, angle: LEVER_UP, action, wrench: 0, grab: null };
     l.collider = Physics.addBox(x - 0.32 + nx * 0.3, y - 0.32, z - 0.32 + nz * 0.3, x + 0.32 + nx * 0.3, y + 0.42, z + 0.32 + nz * 0.3, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, e, false, sector);
     l.collider.kind = 'lever'; l.collider.ref = l;
     World.add(e, 'lever', l);
@@ -3698,10 +3700,10 @@ const GrabPack = {
       if (h.wrenchIdle > 0.9) { this.release(h, true); this.showHint('GRIP LOST - hold the button while you pull'); return; }
     }
     if (Math.floor(before * 4) !== Math.floor(lv.wrench * 4)) sfx('wrap', lv.pos);
-    lv.angle = 0.9 - 1.8 * lv.wrench;
+    lv.angle = LEVER_UP + (LEVER_DOWN - LEVER_UP) * lv.wrench;
     Level.leverKnob(lv, h.pos);
     if (lv.wrench >= 1) {
-      lv.pulled = true; lv.grab = null; lv.angle = -0.9;
+      lv.pulled = true; lv.grab = null; lv.angle = LEVER_DOWN;
       Game.action(lv.action);
       sfx('lever', lv.pos);
       Particles.burst(lv.pos, 18, 'steam');
@@ -3724,7 +3726,7 @@ const GrabPack = {
   latched(h, dt) {
     h.latchTime += dt;
     this.arcCable(h, dt);
-    h.grip = damp(h.grip, 1, 24, dt);
+    h.grip = damp(h.grip, h.latchKind === 'receptacle' || h.latchKind === 'source' ? 0 : 1, 24, dt);   // palm lies flat on scanners and nodes
     if (h.latchKind === 'lever' && h.latchRef) { this.wrench(h, dt); return; }
     if (h.latchKind === 'staff') {
       const held = this.held(h.side);
@@ -7003,7 +7005,7 @@ const Game = {
     this.failTimer = 0; this.jumpTimer = 0; this.fadeIn = 1;
     for (const d of Level.doors) { d.open = d.initialOpen; d.target = d.initialOpen; d.locked = false; d.slam = false; d.speed = 0.55; d.moving = false; d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height; }
     for (const r of Level.receptacles) { r.powered = false; r.denyFlash = 0; }
-    for (const l of Level.levers) { l.pulled = false; l.wrench = 0; l.grab = null; l.angle = 0.9; }
+    for (const l of Level.levers) { l.pulled = false; l.wrench = 0; l.grab = null; l.angle = LEVER_UP; }
     for (const p of Level.pegs) { p.linked = false; p.locked = false; }
     for (const t of Level.tapes) t.collected = false;
     for (const t of Level.triggers) t.fired = false;
@@ -7089,7 +7091,7 @@ const Game = {
       d.collider.enabled = d.open < 0.97; d.collider.min[1] = d.open * d.height;
     }
     for (let i = 0; i < Level.receptacles.length; i++) { Level.receptacles[i].powered = !!cp.receptacles[i]; Level.receptacles[i].denyFlash = 0; }
-    for (let i = 0; i < Level.levers.length; i++) { const l = Level.levers[i]; l.pulled = !!cp.levers[i]; l.wrench = l.pulled ? 1 : 0; l.grab = null; l.angle = l.pulled ? -0.9 : 0.9; }
+    for (let i = 0; i < Level.levers.length; i++) { const l = Level.levers[i]; l.pulled = !!cp.levers[i]; l.wrench = l.pulled ? 1 : 0; l.grab = null; l.angle = l.pulled ? LEVER_DOWN : LEVER_UP; }
     for (let i = 0; i < Level.pegs.length; i++) { Level.pegs[i].locked = !!cp.pegsLocked[i]; Level.pegs[i].linked = Level.pegs[i].locked; }
     for (let i = 0; i < Level.tapes.length; i++) Level.tapes[i].collected = !!cp.tapes[i];
     for (let i = 0; i < Level.triggers.length; i++) Level.triggers[i].fired = !!cp.triggers[i];
@@ -7598,7 +7600,8 @@ const Game = {
       if (!vis[l.sector] || l.style) continue;   // ladders and cores draw themselves (DeepWorks)
       const p = l.pos, n = l.n, yaw = Math.atan2(n[0], n[2]);
       // while a hand is clamped on it the handle follows the wrench; otherwise it springs back or stays thrown
-      l.angle = l.grab ? 0.9 - 1.8 * l.wrench : damp(l.angle, l.pulled ? -0.9 : 0.9 - 1.8 * l.wrench, 6, 1 / 60);
+      const target = LEVER_UP + (LEVER_DOWN - LEVER_UP) * (l.pulled ? 1 : l.wrench);
+      l.angle = l.grab ? target : damp(l.angle, target, 6, 1 / 60);
       R.trs('box', MAT.steel, p[0] - n[0] * 0.04, p[1], p[2] - n[2] * 0.04, yaw, 0, 0, 0.5, 0.7, 0.12);
       const it = R.push('cyl', MAT.hazard);
       if (it) { M4.compose(it.model, p[0] + n[0] * 0.1, p[1], p[2] + n[2] * 0.1, yaw, l.angle, 0, 0.05, 0.5, 0.05); }
@@ -8678,18 +8681,19 @@ async function runAll() {
       check('pip: talks while a hint is shown', Pip.current === 'talk', Pip.current);
       check('pip: LED matrix lit', Pip.grid.some(v => v === 1));
       check('marigold: introduces herself when you approach', Cast.doll.met && (Dialogue.busy() || true) && T.getSfxLog().includes('voiceBlip') || Cast.doll.met, String(Cast.doll.met));
-      Dialogue.clear();
+      Dialogue.clear(); Companion.cool = 999; for (const k in Companion.lineCool) Companion.lineCool[k] = 999;
       Dialogue.say('MARIGOLD', 'Test line.'); T.step(DT, 20);
       check('dialogue: speaker label + typewriter text shown', document.getElementById('hudDialogName').textContent === 'MARIGOLD' && document.getElementById('hudDialogText').textContent.length > 0, document.getElementById('hudDialogText').textContent);
       T.step(DT, 300);
       check('dialogue: line clears after its hold time', !Dialogue.busy() && document.getElementById('hudDialog').style.display === 'none');
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
-      // Mister Thimble: meet him in the gallery; he follows and talks to you
+      // Mister Thimble: he arrives with you and follows from the start
       Dialogue.clear(); Game.stage = 2; Monster.reset(); Cast.resetPlush(); Steam.setAll(false); Player.health = 100;
       for (const tr of Level.triggers) if (tr.action === 'enterGallery') tr.fired = true;
       T.setPlayerPose(1.6, 0, -24.9, 0, 0); T.step(DT, 4);
-      check('thimble: greets you as a friend in the gallery', Cast.plush.mode === 'FOLLOW' && Dialogue.busy() && (Dialogue.current.speaker === 'THIMBLE' || Dialogue.queue.some(q => q.speaker === 'THIMBLE')), Cast.plush.mode + ' ' + (Dialogue.current ? Dialogue.current.speaker + ': ' + Dialogue.current.text : 'none'));
+      check('thimble: already with you - an old friend, no introduction', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
       while (Dialogue.current && Dialogue.current.speaker !== 'THIMBLE' && Dialogue.busy()) { Dialogue.current = null; T.step(DT, 1); }
+      Dialogue.clear(); Dialogue.say('THIMBLE', 'Stay close. I mean it this time - stay close.');
       check('thimble: no lunge / scare on meeting', Player.trauma < 0.3, String(Player.trauma));
       let opened = 0;
       for (let i = 0; i < 20; i++) { T.step(DT, 1); if (Cast.plush.talking) opened++; }
@@ -9622,8 +9626,9 @@ const Cast = {
     // where he is depends on how far the story has got (checkpoint restarts)
     const st = Game.stage;
     if (st >= 5) { T.mode = 'FOLLOW'; V3.copy(T.pos, Player.body.pos); T.sector = Level.sectorAt(T.pos[0], T.pos[2]); if (this.plushCollider) this.plushCollider.enabled = false; if (typeof Companion !== 'undefined') Companion.reset(); return; }
-    const spot = st >= 4 ? this.PLUSH_LOOM : st === 3 ? null : this.PLUSH_WAIT;
-    T.mode = st >= 4 ? 'LOOM' : st === 3 ? 'FOLLOW' : 'WAIT';
+    // he already knows you and rides down with you: following from the very start
+    const spot = st >= 4 ? this.PLUSH_LOOM : null;
+    T.mode = st >= 4 ? 'LOOM' : 'FOLLOW';
     if (spot) { V3.set(T.pos, spot[0], 0, spot[1]); T.yaw = spot[2]; }
     else { const b = Player.body.pos; V3.set(T.pos, b[0] + 1.2, 0, b[2] + 1.6); T.yaw = Math.PI; T.talked = true; }
     T.sector = Level.sectorAt(T.pos[0], T.pos[2]);
@@ -9781,8 +9786,7 @@ const Cast = {
     P.headYaw = damp(P.headYaw, d < 16 || P.plugState === 1 ? want : 0, 3, dt);
     if (P.mode === 'WAIT' && Game.stage >= 2 && d < 8 && Streaming.visible[P.sector]) {
       P.talked = true; P.wave = 1; P.mode = 'FOLLOW';
-      Dialogue.say('THIMBLE', 'Oh! A visitor! Hello there, friend - I\'m Mister Thimble.');
-      Dialogue.say('THIMBLE', 'You don\'t talk much, huh? That\'s okay. I\'ll tag along - it\'s safer in twos.');
+      Dialogue.say('THIMBLE', 'There you are! Don\'t wander off like that - this place eats people who wander.');
       Pip.react('happy', 2);
     }
     if (P.mode === 'SHUTTER') this.updateShutter(dt, d, ds);
