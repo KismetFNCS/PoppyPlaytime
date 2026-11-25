@@ -148,14 +148,15 @@ const ChapterCards = {
     V3.set(this.tmp, S.eye[0], S.eye[1], S.eye[2]);
     let yaw = S.yaw, pitch = S.pitch;
     if (S.aim) { const dx = S.at[0] - S.eye[0], dy = S.at[1] - S.eye[1], dz = S.at[2] - S.eye[2]; yaw = Math.atan2(-dx, -dz); pitch = Math.atan2(dy, Math.hypot(dx, dz)); }
-    Game.applyCamera(this.tmp, yaw + Math.sin(Game.menuTime * 0.4 + k) * 0.03, pitch, 0);
+    Game.applyCamera(this.tmp, yaw, pitch, 0);
     Streaming.visible.fill(0); for (const s of S.sec) Streaming.visible[s] = 1;
     Lights.update(0, Game.time + Game.menuTime, Streaming.visible);
     return true;
   },
   // the gallery toys (drawn only while the chapter select is open)
   submitActors() {
-    const R = RenderQueue, t = Game.menuTime, z = 135.6, base = 0.35;
+    // sealed chapters: the toys hold perfectly still (t is frozen)
+    const R = RenderQueue, t = 0, z = 135.6, base = 0.35;
     const put = (name, x, y, yaw, sc, tr, tg, tb, pitch, roll) => {
       if (!Sculpt.ready(name)) return null;
       const it = R.push(name, MAT.paint);

@@ -762,6 +762,7 @@ const Game = {
     if (state === STATE.MAIN_MENU && UI.menuPage === 'title') TitleScene.submit();
     if (state === STATE.MAIN_MENU && UI.menuPage === 'chapters') ChapterCards.submitActors();
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
+    if (this.isGameplay() || state === STATE.PAUSED) Gear.submitMaskView();
     CableMesh.build();
     const sc = this.scene;
     const menuLike = state === STATE.MAIN_MENU || state === STATE.SETTINGS_PANEL || state === STATE.CREDITS || state === STATE.VICTORY || state === STATE.BOOT_LOADING;

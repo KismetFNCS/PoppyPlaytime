@@ -538,22 +538,21 @@ const Cast = {
     M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1.24, 1.24, 1.24);
     it = R.push('mg_head', MAT.porcelain);
     if (it) it.model.set(this.m);
-    // her LEFT eye: polished glass with a glowing teal iris (it lights the things around her); the lid closes on blinks
-    V3.set(this.local, -0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.034, 0.034 * (1 - D.blink * 0.9), 0.016, false);
-    if (it) { it.tint[0] = 0.8; it.tint[1] = 0.9; it.tint[2] = 0.9; it.emis[0] = 0.25; it.emis[1] = 0.3; it.emis[2] = 0.3; }
-    V3.set(this.local, -0.05, 0.013, -0.125); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.016 * (1 - D.blink), 0.016 * (1 - D.blink), 0.005, false);
-    if (it) { it.emis[0] = 0.2; it.emis[1] = 2.6; it.emis[2] = 2.4; }
+    // her LEFT eye: a realistic glass doll eye - white, a teal iris that glows faintly, a dark pupil and a
+    // hard glint; the lid closes on blinks. The RIGHT socket stays an empty black void.
+    const bl = 1 - D.blink * 0.9;
+    const EL = (x, y, z) => { V3.set(this.local, x, y, z); return M4.transformPoint(b, this.m, this.local); };
+    EL(-0.05, 0.013, -0.108);
+    R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, hp, 0.08, 0.034, 0.034 * bl, 0.026, false);
+    EL(-0.05, 0.013, -0.132);
+    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.02, 0.02 * bl, 0.006, false);
+    if (it) { it.tint[0] = 0.15; it.tint[1] = 0.75; it.tint[2] = 0.7; it.emis[0] = 0.03; it.emis[1] = 0.45; it.emis[2] = 0.42; }
     V3.copy(D.eyePos, b);
-    // the RIGHT socket is an empty black void; inside the broken temple, rusted gold clockwork turns
-    V3.set(this.local, 0.085, 0.035, -0.04); M4.transformPoint(b, this.m, this.local);
-    for (let g = 0; g < 2; g++) {
-      const gi = R.trs('torus', MAT.copper, b[0] + g * 0.01, b[1] - g * 0.03, b[2] + g * 0.02, hy + Math.PI / 2, Game.time * (g ? -1.3 : 0.9), 0, 0.03 - g * 0.008, 0.25, 0.03 - g * 0.008, false);
-      if (gi) { gi.tint[0] = 1.25; gi.tint[1] = 0.85; gi.tint[2] = 0.4; }
-    }
-    const hub = R.trs('cylLow', MAT.copper, b[0], b[1], b[2], hy, 0, Math.PI / 2, 0.006, 0.05, 0.006, false);
-    if (hub) { hub.tint[0] = 1.1; hub.tint[1] = 0.8; hub.tint[2] = 0.4; }
+    EL(-0.05, 0.013, -0.137);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008 * bl, 0.003, false);
+    EL(-0.058, 0.022, -0.14);
+    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], 0, 0, 0, 0.004 * bl, 0.004 * bl, 0.004, false);
+    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.8; it.emis[2] = 1.8; }
   },
 
   // where the needle staff is this frame (also used by the socket check)
@@ -635,10 +634,19 @@ const Cast = {
     M4.compose(this.m, a[0], a[1], a[2], hy, 0.06, -0.14 + Math.sin(Game.time * 1.1) * 0.03, S * 1.08, S, S);
     it = Sculpt.ready(mesh) ? R.push(mesh, MAT.burnt) : null;
     if (it) it.model.set(this.m);
-    // soft violet glass eye; pulses while the staff feeds power into the socket
-    V3.set(this.local, 0.12, 0.06, -0.265); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.052, 0.052, 0.034, false);
-    if (it) { const g = P.eyeGlow; it.emis[0] = 0.55 * g; it.emis[1] = 0.1 * g; it.emis[2] = 1.05 * g; }
+    // a realistic glass eye: white ball, a violet iris (it glows a little in the dark and pulses while the
+    // staff feeds power into the socket), a dark pupil and a hard glint
+    const TL = (x, y, z) => { V3.set(this.local, x, y, z); return M4.transformPoint(b, this.m, this.local); };
+    TL(0.12, 0.06, -0.255);
+    R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.055, 0.055, 0.04, false);
+    TL(0.12, 0.06, -0.29);
+    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.032, 0.032, 0.01, false);
+    if (it) { const g = P.eyeGlow; it.tint[0] = 0.55; it.tint[1] = 0.2; it.tint[2] = 0.85; it.emis[0] = 0.3 * g; it.emis[1] = 0.05 * g; it.emis[2] = 0.6 * g; }
+    TL(0.12, 0.06, -0.297);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, 0, 0, 0.013, 0.013, 0.004, false);
+    TL(0.108, 0.075, -0.3);
+    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], 0, 0, 0, 0.006, 0.006, 0.006, false);
+    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.8; it.emis[2] = 1.8; }
   }
 };
 const _cast = {

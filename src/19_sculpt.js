@@ -237,15 +237,25 @@ function sculptThimbleHead(open) {
     { t: 'sph', c: [0.17, -0.06, -0.17], r: 0.11, m: F, k: 0.08 },
     { t: 'ell', c: [0, -0.1, -0.235], r: [0.2, 0.14, 0.13], m: W, k: 0.07, n: [0.006, 26] },
     { t: 'ell', c: [0, -0.02, -0.36], r: [0.055, 0.04, 0.034], m: D, k: 0.015 },
-    { t: 'cyl', c: [-0.12, 0.06, -0.27], r: 0.052, h: 0.014, rr: 0.006, rot: [0, Math.PI / 2, 0], m: D, k: 0.01 },
-    { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: F },
-    { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: F },
     { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.052, op: 's', k: 0.015, sm: D },
-    { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 }
+    // a thick pad of black bandage over the other eye
+    { t: 'ell', c: [-0.13, 0.075, -0.275], r: [0.085, 0.07, 0.035], rot: [0.35, 0, 0.3], m: D, k: 0.02, n: [0.004, 70] }
   ];
-  for (let i = 0; i < 8; i++) {
-    const a = i / 8 * Math.PI * 2;
-    n.push({ t: 'sph', c: [0.06 + Math.cos(a) * 0.112, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
+  // the bandage wraps diagonally round the whole head: low over the left eye, up over the top on the right
+  {
+    const pts = [];
+    for (let i = 0; i <= 18; i++) {
+      const a = -Math.PI + i / 18 * Math.PI * 2;
+      const y = 0.27 - 0.22 * Math.cos(a + 2.3), k = Math.sqrt(Math.max(0.04, 1 - (y / 0.31) ** 2));
+      pts.push([Math.cos(a) * 0.355 * k, y, Math.sin(a) * 0.315 * k]);
+    }
+    for (let i = 0; i < pts.length - 1; i++) n.push({ t: 'cap', a: pts[i], b: pts[i + 1], r: 0.032, m: D, k: 0.012, n: [0.003, 60] });
+    n.push({ t: 'cap', a: [-0.2, 0.1, 0.24], b: [-0.26, -0.12, 0.3], r: 0.022, r2: 0.012, m: D, k: 0.01 });
+  }
+  // a scruffy tuft of reddish hair sprouting from the top of the head
+  for (let i = 0; i < 9; i++) {
+    const a = i * 2.4, l = 0.13 + (i % 3) * 0.05;
+    n.push({ t: 'cap', a: [0.02 + Math.cos(a) * 0.03, 0.27, 0.03 + Math.sin(a) * 0.03], b: [0.02 + Math.cos(a) * 0.09, 0.27 + l, 0.06 + Math.sin(a) * 0.07], r: 0.026, r2: 0.006, m: MAT.lining, k: 0.012, n: [0.006, 60] });
   }
   // the smile follows the muzzle surface, corners lifting gently
   const arc = k => {
@@ -290,7 +300,7 @@ function sculptThimbleHead(open) {
     n.push({ t: 'cap', a: [cx - sz, cy + sz, cz], b: [cx + sz, cy - sz, cz], r: 0.0045, m, k: 0.002 });
   };
   for (let i = 0; i < 5; i++) X(-0.2 + i * 0.1, 0.27 - Math.abs(i - 2) * 0.03, -0.17 + Math.abs(i - 2) * 0.04, 0.012, i % 2 ? MAT.paint : R);
-  return SDF.mesh(n, [-0.52, -0.36, -0.42], [0.42, 0.5, 0.36], 76);
+  return SDF.mesh(n, [-0.52, -0.36, -0.42], [0.42, 0.62, 0.4], 80);
 }
 
 // Battered harlequin top hat nodes (base at y 0); sewn onto the crown of the Spoolwright's hood (sp_hood)
@@ -692,11 +702,19 @@ const SCULPTS = {
   th_arm: () => {
     const n = [
       { t: 'cap', a: [0, 0.04, 0], b: [0, 0.78, 0], r: 0.125, r2: 0.105, m: MAT.burnt, n: [0.012, 12] },
-      { t: 'ell', c: [0, 0.9, -0.01], r: [0.15, 0.14, 0.12], m: MAT.burnt, k: 0.06 },
-      { t: 'ell', c: [0, 0.94, -0.08], r: [0.09, 0.08, 0.04], m: MAT.furLight, k: 0.02 },
+      // a patched, mismatched work glove: grey-green palm, mustard, maroon and teal patches, stitched fingers
+      { t: 'ell', c: [0, 0.9, -0.01], r: [0.15, 0.14, 0.12], m: MAT.vest, k: 0.06, n: [0.004, 40] },
+      { t: 'tor', c: [0, 0.78, 0], R: 0.12, r: 0.03, m: MAT.paint, k: 0.02 },
+      { t: 'ell', c: [0.07, 0.93, -0.09], r: [0.06, 0.06, 0.03], m: MAT.paint, k: 0.01 },
+      { t: 'ell', c: [-0.08, 0.86, -0.08], r: [0.05, 0.05, 0.03], m: MAT.lining, k: 0.01 },
+      { t: 'ell', c: [-0.04, 0.96, 0.09], r: [0.06, 0.05, 0.03], m: MAT.handTeal, k: 0.01 },
+      { t: 'cap', a: [-0.07, 1.0, -0.03], b: [-0.09, 1.13, -0.05], r: 0.04, r2: 0.034, m: MAT.paint, k: 0.02 },
+      { t: 'cap', a: [0.0, 1.02, -0.03], b: [0.0, 1.16, -0.05], r: 0.04, r2: 0.034, m: MAT.vest, k: 0.02 },
+      { t: 'cap', a: [0.07, 1.0, -0.03], b: [0.09, 1.12, -0.05], r: 0.038, r2: 0.032, m: MAT.lining, k: 0.02 },
+      { t: 'cap', a: [0.13, 0.9, -0.04], b: [0.19, 0.98, -0.08], r: 0.036, r2: 0.03, m: MAT.vest, k: 0.02 },
       { t: 'cap', a: [0.11, 0.3, -0.05], b: [0.11, 0.6, -0.06], r: 0.004, m: MAT.paint, k: 0.002 }
     ];
-    return SDF.mesh(n, [-0.2, -0.08, -0.18], [0.2, 1.08, 0.18], 52);
+    return SDF.mesh(n, [-0.24, -0.08, -0.2], [0.26, 1.24, 0.2], 58);
   },
   // The Usher's robe (ground origin): tapered, layered, frayed hem
   us_robe: () => {
@@ -1016,6 +1034,35 @@ const SCULPTS = {
     // red cables winding up the forearm
     for (let i = 0; i < 10; i++) { const a = i * 0.9, a2 = (i + 1) * 0.9; n.push({ t: 'cap', a: [Math.cos(a) * 0.05, 0.05 + i * 0.07, 0.03 + Math.sin(a) * 0.05], b: [Math.cos(a2) * 0.05, 0.12 + i * 0.07, 0.03 + Math.sin(a2) * 0.05], r: 0.009, m: R, k: 0.003 }); }
     return SDF.mesh(n, [-0.6, -0.04, -0.52], [0.36, 2.1, 0.16], 96);
+  }
+  ,
+  // the gas mask (origin at the face centre, lenses facing -z): rose rubber face piece, two big round lenses
+  // in thick rims, a teal ribbed filter snout, gold-orange canisters on both cheeks, a teal strap; hollow at
+  // the back so you see the inside as it comes down over your face
+  gasmask: () => {
+    const RO = MAT.handRose, TE = MAT.handTeal, GO = MAT.paint, K = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.115, 0.145, 0.1], m: RO, n: [0.003, 50] },
+      { t: 'ell', c: [0, -0.07, -0.03], r: [0.08, 0.09, 0.08], m: RO, k: 0.04, n: [0.003, 50] },
+      { t: 'ell', c: [0, 0.005, 0.035], r: [0.1, 0.13, 0.09], op: 's', k: 0.01, sm: K },          // hollow back
+      // lens rims and holes
+      { t: 'tor', c: [-0.052, 0.035, -0.088], R: 0.04, r: 0.013, rot: [0, Math.PI / 2, 0], m: RO, k: 0.012 },
+      { t: 'tor', c: [0.052, 0.035, -0.088], R: 0.04, r: 0.013, rot: [0, Math.PI / 2, 0], m: RO, k: 0.012 },
+      { t: 'sph', c: [-0.052, 0.035, -0.09], r: 0.033, op: 's', k: 0.004, sm: K },
+      { t: 'sph', c: [0.052, 0.035, -0.09], r: 0.033, op: 's', k: 0.004, sm: K },
+      // ribbed teal filter snout
+      { t: 'cyl', c: [0, -0.075, -0.115], r: 0.04, h: 0.035, rot: [0, Math.PI / 2, 0], rr: 0.01, m: TE, k: 0.02 },
+      { t: 'cyl', c: [0, -0.075, -0.155], r: 0.018, h: 0.012, rot: [0, Math.PI / 2, 0], op: 's', k: 0.004, sm: K },
+      // gold-orange canisters on the cheeks
+      { t: 'cyl', c: [-0.105, -0.07, -0.06], r: 0.038, h: 0.03, rot: [-0.9, Math.PI / 2, 0], rr: 0.006, m: GO, k: 0.015 },
+      { t: 'cyl', c: [0.105, -0.07, -0.06], r: 0.038, h: 0.03, rot: [0.9, Math.PI / 2, 0], rr: 0.006, m: GO, k: 0.015 },
+      // the strap round the back of the head
+      { t: 'cap', a: [-0.11, 0.04, 0.0], b: [-0.08, 0.06, 0.14], r: 0.01, m: TE }, { t: 'cap', a: [0.11, 0.04, 0.0], b: [0.08, 0.06, 0.14], r: 0.01, m: TE },
+      { t: 'cap', a: [-0.08, 0.06, 0.14], b: [0.08, 0.06, 0.14], r: 0.01, m: TE }
+    ];
+    for (let i = 0; i < 3; i++) n.push({ t: 'tor', c: [0, -0.075, -0.09 - i * 0.022], R: 0.042, r: 0.006, rot: [0, Math.PI / 2, 0], m: TE, k: 0.004 });
+    // scuffs: darker grime in the rubber
+    for (const c of [[0.07, 0.1, -0.05], [-0.08, -0.03, -0.07], [0.02, 0.12, -0.06]]) n.push({ t: 'sph', c, r: 0.018, m: MAT.burnt, k: 0.01, n: [0.006, 80] });
+    return SDF.mesh(n, [-0.17, -0.2, -0.18], [0.17, 0.17, 0.17], 72);
   }
 };
 const SCULPT_ORDER = Object.keys(SCULPTS);

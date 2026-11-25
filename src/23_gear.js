@@ -37,7 +37,7 @@ const UV_SECRETS = [
 const Gear = {
   owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, handsLost: false,
   wheelOpen: false, wheelSel: 0, wheelV: new Float32Array(2), holdT: 0, wheelDom: -2,
-  hasMask: false, maskOn: false, maskT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
+  hasMask: false, maskOn: false, maskT: 0, maskShowT: 0, packShowT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
   blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
   pickups: [], secrets: [], pipAsset: null, pipTimer: 0, overlay: null, gasOverlay: null,
   tmp: V3.create(), m: M4.create(),
@@ -123,7 +123,8 @@ const Gear = {
     }
     if (J.has('KeyG') && this.hasMask) this.toggleMask();
     if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'STARBY: BLACKLIGHT ON - hidden ink glows in the beam' : 'STARBY: FLASHLIGHT'); }
-    this.maskT = damp(this.maskT, this.maskOn ? 1 : 0, 7, dt);
+    this.maskT = damp(this.maskT, this.maskOn ? 1 : 0, 4, dt);
+    this.maskShowT = Math.max(0, (this.maskShowT || 0) - dt);
     this.updateGas(dt);
     this.updateSecrets(dt);
     this.updateOverlays(dt);
@@ -208,12 +209,12 @@ const Gear = {
     p.taken = true;
     sfx('pickup');
     if (p.restore) {
-      this.handsLost = false;
+      this.handsLost = false; this.packShowT = 1.2;
       sfx('dock', Player.body.pos);
       GrabPack.showHint('HANDS ON - teal on the left, rose on the right. Look at something and fire');
       Dialogue.say('PIP', 'Click! Click! Hello, hands! I missed you two.');
     } else if (p.kind === 'mask') {
-      this.hasMask = true;
+      this.hasMask = true; this.maskShowT = 2.2;
       GrabPack.showHint('GAS MASK - press [G] to put it on or take it off');
     } else {
       this.owned[p.type] = 1;
@@ -310,23 +311,16 @@ const Gear = {
     for (const p of this.pickups) {
       if (p.taken || !vis[p.sector]) continue;
       const bob = Math.sin(t * 2 + p.pos[0]) * 0.03;
-      if (p.kind === 'hand') {
+      if (p.restore) { this.drawPackPickup(p.pos[0], p.pos[1], p.pos[2], bob); }
+      else if (p.kind === 'hand') {
         const T = HAND_TYPES[p.type], gm = 'glove_L_open';
         if (Sculpt.ready(gm)) {
           const it = R.push(gm, T.mat);
           if (it) { M4.compose(it.model, p.pos[0], p.pos[1] + 0.12 + bob, p.pos[2], t * 0.8, -1.2, 0, 1.3, 1.3, 1.3); it.tint[0] = T.tint[0]; it.tint[1] = T.tint[1]; it.tint[2] = T.tint[2]; if (T.glow) { it.emis[0] = T.glow[0]; it.emis[1] = T.glow[1]; it.emis[2] = T.glow[2]; } }
         }
       } else {
-        // gas mask: rubber face piece, two round lenses, a filter canister and straps
-        const yaw = t * 0.6;
-        const it = R.trs('sphere', MAT.rubber, p.pos[0], p.pos[1] + 0.12 + bob, p.pos[2], yaw, 0, 0, 0.13, 0.15, 0.09);
-        for (const sx of [-1, 1]) {
-          Cast.pt(this.tmp, p.pos, yaw, sx * 0.055, 0.15 + bob, -0.075);
-          const l = R.trs('sphere', MAT.lens, this.tmp[0], this.tmp[1], this.tmp[2], yaw, 0, 0, 0.042, 0.042, 0.015);
-          if (l) { l.emis[0] = 0.1; l.emis[1] = 0.12; l.emis[2] = 0.1; }
-        }
-        Cast.pt(this.tmp, p.pos, yaw, 0, 0.05 + bob, -0.1);
-        R.trs('cyl', MAT.steel, this.tmp[0], this.tmp[1] - 0.04, this.tmp[2], yaw, Math.PI / 2 - 0.3, 0, 0.05, 0.08, 0.05);
+        // the gas mask, turning slowly on the desk
+        this.drawMask(p.pos[0], p.pos[1] + 0.14 + bob, p.pos[2], t * 0.6, 1.3);
       }
       // a soft glint so you notice it
       const g = R.trs('sphereLow', MAT.screen, p.pos[0], p.pos[1] + 0.3 + bob, p.pos[2], 0, 0, 0, 0.015, 0.015, 0.015, false);
@@ -339,6 +333,60 @@ const Gear = {
       S.asset.materials[0].texEmissive = 3.5 * S.reveal;
       M4.compose(this.m, p[0], p[1], p[2], S.s.yaw, 0, 0, 2.2, 0.82, 1);
       AssetQueue.push(S.asset, this.m, false);
+    }
+  },
+  // the gas mask model (front facing -z): sculpted face piece plus glassy lenses
+  drawMask(x, y, z, yaw, sc, basis) {
+    const R = RenderQueue;
+    if (!Sculpt.ready('gasmask')) return;
+    const it = R.push('gasmask', MAT.paint);
+    if (!it) return;
+    if (basis) it.model.set(basis); else M4.compose(it.model, x, y, z, yaw, 0, 0, sc, sc, sc);
+    for (const sx of [-1, 1]) {
+      V3.set(this.tmp, sx * 0.052, 0.035, -0.083); M4.transformPoint(this.tmp, it.model, this.tmp);
+      const g = R.push('sphere', MAT.screen, false);
+      if (g) { g.model.set(it.model); g.model[12] = this.tmp[0]; g.model[13] = this.tmp[1]; g.model[14] = this.tmp[2];
+        for (let k = 0; k < 3; k++) { g.model[k] *= 0.034; g.model[4 + k] *= 0.034; g.model[8 + k] *= 0.012; }
+        g.tint[0] = 0.75; g.tint[1] = 0.8; g.tint[2] = 0.82; g.emis[0] = 0.05; g.emis[1] = 0.06; g.emis[2] = 0.06; }
+    }
+  },
+  // your GrabPack in the crate at the start: the pack with its cable drum, both hoses and both hands
+  drawPackPickup(x, y, z, bob) {
+    const R = RenderQueue, yb = y + 0.1 + bob;
+    R.trs('box', MAT.rustIron, x, yb + 0.12, z, 0.3, 0, 0, 0.42, 0.28, 0.24);
+    R.trs('box', MAT.steel, x, yb + 0.31, z, 0.3, 0, 0, 0.44, 0.1, 0.26);
+    let it = R.push('cyl', MAT.rubber); if (it) M4.compose(it.model, x - 0.2 * Math.cos(0.3), yb + 0.42, z + 0.2 * Math.sin(0.3), 0.3, 0, -Math.PI / 2, 0.11, 0.4, 0.11);
+    for (const k of [0, 1]) { const r = R.push('torus', MAT.copper); if (r) M4.compose(r.model, x + (k ? 0.17 : -0.17) * Math.cos(0.3), yb + 0.42, z - (k ? 0.17 : -0.17) * Math.sin(0.3), 0.3, 0, Math.PI / 2, 0.12, 0.3, 0.12); }
+    for (const sx of [-1, 1]) {
+      const sxp = V3.create(x + sx * 0.22, yb + 0.2, z - 0.05), hand = V3.create(x + sx * 0.5, yb + 0.06, z - 0.25);
+      R.seg('cyl', MAT.rubber, sxp, hand, 0.035);
+      for (let k = 1; k < 4; k++) { V3.lerp(this.tmp, sxp, hand, k / 4); const r = R.trs('torus', MAT.steel, this.tmp[0], this.tmp[1], this.tmp[2], 0, 0, Math.PI / 2, 0.04, 0.3, 0.04, false); }
+      const gm = 'glove_L_open';
+      if (Sculpt.ready(gm)) { const h = R.push(gm, sx < 0 ? MAT.handTeal : MAT.handRose); if (h) { M4.compose(h.model, hand[0], hand[1] + 0.05, hand[2], sx * 0.6, -1.3, 0, 1.1, 1.1, 1.1); h.tint[0] = 0.7; h.tint[1] = 0.7; h.tint[2] = 0.7; } }
+    }
+    for (const sx of [-1, 1]) R.trs('box', MAT.canvas, x + sx * 0.12, yb + 0.15, z + 0.13, 0.3, 0, 0, 0.06, 0.32, 0.02, false);   // straps
+  },
+  // the mask in your view: held up to look at when you first find it, then lowered onto your face
+  submitMaskView() {
+    const show = this.maskShowT > 0 ? Math.min(1, this.maskShowT) : 0;
+    const putOn = this.maskOn && this.maskT < 0.95 ? 1 - this.maskT : 0;
+    if (!show && !putOn) return;
+    const eye = Player.cam.eye, f = Renderer.camFwd, u = Renderer.camUp;
+    const r = V3.cross(this.tmp2 || (this.tmp2 = V3.create()), u, f);
+    if (show) {
+      // held out at arm's length, lenses toward you
+      V3.copy(this.tmp, eye); V3.addScaled(this.tmp, this.tmp, f, 0.42); V3.addScaled(this.tmp, this.tmp, u, -0.06 + Math.sin(Game.time * 2) * 0.01);
+      // local z along your view, so the lens side (-z) faces you; (r, u, f) is right-handed
+      basisMatrix(this.m, this.tmp, r, u, f, 1.15, 1.15, 1.15);
+      this.drawMask(0, 0, 0, 0, 1, this.m);
+    } else {
+      // coming down from above over your eyes: you see the hollow inside of the face piece
+      V3.copy(this.tmp, eye); V3.addScaled(this.tmp, this.tmp, f, 0.12 + putOn * 0.2); V3.addScaled(this.tmp, this.tmp, u, putOn * 0.4);
+      // flipped (x and z together, still right-handed) so the hollow back faces you
+      V3.scale(this.tmp3 || (this.tmp3 = V3.create()), r, -1);
+      const fb = V3.scale(V3.create(), f, -1);
+      basisMatrix(this.m, this.tmp, this.tmp3, u, fb, 1.6, 1.6, 1.6);
+      this.drawMask(0, 0, 0, 0, 1, this.m);
     }
   },
   // PIP strapped to the back of the teal glove's wrist, facing you (called from Game.submitHands)

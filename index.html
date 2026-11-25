@@ -7705,6 +7705,7 @@ const Game = {
     if (state === STATE.MAIN_MENU && UI.menuPage === 'title') TitleScene.submit();
     if (state === STATE.MAIN_MENU && UI.menuPage === 'chapters') ChapterCards.submitActors();
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
+    if (this.isGameplay() || state === STATE.PAUSED) Gear.submitMaskView();
     CableMesh.build();
     const sc = this.scene;
     const menuLike = state === STATE.MAIN_MENU || state === STATE.SETTINGS_PANEL || state === STATE.CREDITS || state === STATE.VICTORY || state === STATE.BOOT_LOADING;
@@ -10300,22 +10301,21 @@ const Cast = {
     M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1.24, 1.24, 1.24);
     it = R.push('mg_head', MAT.porcelain);
     if (it) it.model.set(this.m);
-    // her LEFT eye: polished glass with a glowing teal iris (it lights the things around her); the lid closes on blinks
-    V3.set(this.local, -0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.034, 0.034 * (1 - D.blink * 0.9), 0.016, false);
-    if (it) { it.tint[0] = 0.8; it.tint[1] = 0.9; it.tint[2] = 0.9; it.emis[0] = 0.25; it.emis[1] = 0.3; it.emis[2] = 0.3; }
-    V3.set(this.local, -0.05, 0.013, -0.125); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.016 * (1 - D.blink), 0.016 * (1 - D.blink), 0.005, false);
-    if (it) { it.emis[0] = 0.2; it.emis[1] = 2.6; it.emis[2] = 2.4; }
+    // her LEFT eye: a realistic glass doll eye - white, a teal iris that glows faintly, a dark pupil and a
+    // hard glint; the lid closes on blinks. The RIGHT socket stays an empty black void.
+    const bl = 1 - D.blink * 0.9;
+    const EL = (x, y, z) => { V3.set(this.local, x, y, z); return M4.transformPoint(b, this.m, this.local); };
+    EL(-0.05, 0.013, -0.108);
+    R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, hp, 0.08, 0.034, 0.034 * bl, 0.026, false);
+    EL(-0.05, 0.013, -0.132);
+    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.02, 0.02 * bl, 0.006, false);
+    if (it) { it.tint[0] = 0.15; it.tint[1] = 0.75; it.tint[2] = 0.7; it.emis[0] = 0.03; it.emis[1] = 0.45; it.emis[2] = 0.42; }
     V3.copy(D.eyePos, b);
-    // the RIGHT socket is an empty black void; inside the broken temple, rusted gold clockwork turns
-    V3.set(this.local, 0.085, 0.035, -0.04); M4.transformPoint(b, this.m, this.local);
-    for (let g = 0; g < 2; g++) {
-      const gi = R.trs('torus', MAT.copper, b[0] + g * 0.01, b[1] - g * 0.03, b[2] + g * 0.02, hy + Math.PI / 2, Game.time * (g ? -1.3 : 0.9), 0, 0.03 - g * 0.008, 0.25, 0.03 - g * 0.008, false);
-      if (gi) { gi.tint[0] = 1.25; gi.tint[1] = 0.85; gi.tint[2] = 0.4; }
-    }
-    const hub = R.trs('cylLow', MAT.copper, b[0], b[1], b[2], hy, 0, Math.PI / 2, 0.006, 0.05, 0.006, false);
-    if (hub) { hub.tint[0] = 1.1; hub.tint[1] = 0.8; hub.tint[2] = 0.4; }
+    EL(-0.05, 0.013, -0.137);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008 * bl, 0.003, false);
+    EL(-0.058, 0.022, -0.14);
+    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], 0, 0, 0, 0.004 * bl, 0.004 * bl, 0.004, false);
+    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.8; it.emis[2] = 1.8; }
   },
 
   // where the needle staff is this frame (also used by the socket check)
@@ -10397,10 +10397,19 @@ const Cast = {
     M4.compose(this.m, a[0], a[1], a[2], hy, 0.06, -0.14 + Math.sin(Game.time * 1.1) * 0.03, S * 1.08, S, S);
     it = Sculpt.ready(mesh) ? R.push(mesh, MAT.burnt) : null;
     if (it) it.model.set(this.m);
-    // soft violet glass eye; pulses while the staff feeds power into the socket
-    V3.set(this.local, 0.12, 0.06, -0.265); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.052, 0.052, 0.034, false);
-    if (it) { const g = P.eyeGlow; it.emis[0] = 0.55 * g; it.emis[1] = 0.1 * g; it.emis[2] = 1.05 * g; }
+    // a realistic glass eye: white ball, a violet iris (it glows a little in the dark and pulses while the
+    // staff feeds power into the socket), a dark pupil and a hard glint
+    const TL = (x, y, z) => { V3.set(this.local, x, y, z); return M4.transformPoint(b, this.m, this.local); };
+    TL(0.12, 0.06, -0.255);
+    R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.055, 0.055, 0.04, false);
+    TL(0.12, 0.06, -0.29);
+    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.032, 0.032, 0.01, false);
+    if (it) { const g = P.eyeGlow; it.tint[0] = 0.55; it.tint[1] = 0.2; it.tint[2] = 0.85; it.emis[0] = 0.3 * g; it.emis[1] = 0.05 * g; it.emis[2] = 0.6 * g; }
+    TL(0.12, 0.06, -0.297);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, 0, 0, 0.013, 0.013, 0.004, false);
+    TL(0.108, 0.075, -0.3);
+    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], 0, 0, 0, 0.006, 0.006, 0.006, false);
+    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.8; it.emis[2] = 1.8; }
   }
 };
 const _cast = {
@@ -10870,15 +10879,25 @@ function sculptThimbleHead(open) {
     { t: 'sph', c: [0.17, -0.06, -0.17], r: 0.11, m: F, k: 0.08 },
     { t: 'ell', c: [0, -0.1, -0.235], r: [0.2, 0.14, 0.13], m: W, k: 0.07, n: [0.006, 26] },
     { t: 'ell', c: [0, -0.02, -0.36], r: [0.055, 0.04, 0.034], m: D, k: 0.015 },
-    { t: 'cyl', c: [-0.12, 0.06, -0.27], r: 0.052, h: 0.014, rr: 0.006, rot: [0, Math.PI / 2, 0], m: D, k: 0.01 },
-    { t: 'sph', c: [-0.135, 0.07, -0.29], r: 0.008, op: 's', sm: F },
-    { t: 'sph', c: [-0.105, 0.05, -0.29], r: 0.008, op: 's', sm: F },
     { t: 'sph', c: [0.12, 0.06, -0.29], r: 0.052, op: 's', k: 0.015, sm: D },
-    { t: 'cyl', c: [0.04, 0.3, 0.02], r: 0.11, h: 0.08, rr: 0.03, rot: [0, 0, 0.25], m: C, k: 0.03 }
+    // a thick pad of black bandage over the other eye
+    { t: 'ell', c: [-0.13, 0.075, -0.275], r: [0.085, 0.07, 0.035], rot: [0.35, 0, 0.3], m: D, k: 0.02, n: [0.004, 70] }
   ];
-  for (let i = 0; i < 8; i++) {
-    const a = i / 8 * Math.PI * 2;
-    n.push({ t: 'sph', c: [0.06 + Math.cos(a) * 0.112, 0.32, 0.02 + Math.sin(a) * 0.112], r: 0.014, op: 's', sm: C });
+  // the bandage wraps diagonally round the whole head: low over the left eye, up over the top on the right
+  {
+    const pts = [];
+    for (let i = 0; i <= 18; i++) {
+      const a = -Math.PI + i / 18 * Math.PI * 2;
+      const y = 0.27 - 0.22 * Math.cos(a + 2.3), k = Math.sqrt(Math.max(0.04, 1 - (y / 0.31) ** 2));
+      pts.push([Math.cos(a) * 0.355 * k, y, Math.sin(a) * 0.315 * k]);
+    }
+    for (let i = 0; i < pts.length - 1; i++) n.push({ t: 'cap', a: pts[i], b: pts[i + 1], r: 0.032, m: D, k: 0.012, n: [0.003, 60] });
+    n.push({ t: 'cap', a: [-0.2, 0.1, 0.24], b: [-0.26, -0.12, 0.3], r: 0.022, r2: 0.012, m: D, k: 0.01 });
+  }
+  // a scruffy tuft of reddish hair sprouting from the top of the head
+  for (let i = 0; i < 9; i++) {
+    const a = i * 2.4, l = 0.13 + (i % 3) * 0.05;
+    n.push({ t: 'cap', a: [0.02 + Math.cos(a) * 0.03, 0.27, 0.03 + Math.sin(a) * 0.03], b: [0.02 + Math.cos(a) * 0.09, 0.27 + l, 0.06 + Math.sin(a) * 0.07], r: 0.026, r2: 0.006, m: MAT.lining, k: 0.012, n: [0.006, 60] });
   }
   // the smile follows the muzzle surface, corners lifting gently
   const arc = k => {
@@ -10923,7 +10942,7 @@ function sculptThimbleHead(open) {
     n.push({ t: 'cap', a: [cx - sz, cy + sz, cz], b: [cx + sz, cy - sz, cz], r: 0.0045, m, k: 0.002 });
   };
   for (let i = 0; i < 5; i++) X(-0.2 + i * 0.1, 0.27 - Math.abs(i - 2) * 0.03, -0.17 + Math.abs(i - 2) * 0.04, 0.012, i % 2 ? MAT.paint : R);
-  return SDF.mesh(n, [-0.52, -0.36, -0.42], [0.42, 0.5, 0.36], 76);
+  return SDF.mesh(n, [-0.52, -0.36, -0.42], [0.42, 0.62, 0.4], 80);
 }
 
 // Battered harlequin top hat nodes (base at y 0); sewn onto the crown of the Spoolwright's hood (sp_hood)
@@ -11325,11 +11344,19 @@ const SCULPTS = {
   th_arm: () => {
     const n = [
       { t: 'cap', a: [0, 0.04, 0], b: [0, 0.78, 0], r: 0.125, r2: 0.105, m: MAT.burnt, n: [0.012, 12] },
-      { t: 'ell', c: [0, 0.9, -0.01], r: [0.15, 0.14, 0.12], m: MAT.burnt, k: 0.06 },
-      { t: 'ell', c: [0, 0.94, -0.08], r: [0.09, 0.08, 0.04], m: MAT.furLight, k: 0.02 },
+      // a patched, mismatched work glove: grey-green palm, mustard, maroon and teal patches, stitched fingers
+      { t: 'ell', c: [0, 0.9, -0.01], r: [0.15, 0.14, 0.12], m: MAT.vest, k: 0.06, n: [0.004, 40] },
+      { t: 'tor', c: [0, 0.78, 0], R: 0.12, r: 0.03, m: MAT.paint, k: 0.02 },
+      { t: 'ell', c: [0.07, 0.93, -0.09], r: [0.06, 0.06, 0.03], m: MAT.paint, k: 0.01 },
+      { t: 'ell', c: [-0.08, 0.86, -0.08], r: [0.05, 0.05, 0.03], m: MAT.lining, k: 0.01 },
+      { t: 'ell', c: [-0.04, 0.96, 0.09], r: [0.06, 0.05, 0.03], m: MAT.handTeal, k: 0.01 },
+      { t: 'cap', a: [-0.07, 1.0, -0.03], b: [-0.09, 1.13, -0.05], r: 0.04, r2: 0.034, m: MAT.paint, k: 0.02 },
+      { t: 'cap', a: [0.0, 1.02, -0.03], b: [0.0, 1.16, -0.05], r: 0.04, r2: 0.034, m: MAT.vest, k: 0.02 },
+      { t: 'cap', a: [0.07, 1.0, -0.03], b: [0.09, 1.12, -0.05], r: 0.038, r2: 0.032, m: MAT.lining, k: 0.02 },
+      { t: 'cap', a: [0.13, 0.9, -0.04], b: [0.19, 0.98, -0.08], r: 0.036, r2: 0.03, m: MAT.vest, k: 0.02 },
       { t: 'cap', a: [0.11, 0.3, -0.05], b: [0.11, 0.6, -0.06], r: 0.004, m: MAT.paint, k: 0.002 }
     ];
-    return SDF.mesh(n, [-0.2, -0.08, -0.18], [0.2, 1.08, 0.18], 52);
+    return SDF.mesh(n, [-0.24, -0.08, -0.2], [0.26, 1.24, 0.2], 58);
   },
   // The Usher's robe (ground origin): tapered, layered, frayed hem
   us_robe: () => {
@@ -11649,6 +11676,35 @@ const SCULPTS = {
     // red cables winding up the forearm
     for (let i = 0; i < 10; i++) { const a = i * 0.9, a2 = (i + 1) * 0.9; n.push({ t: 'cap', a: [Math.cos(a) * 0.05, 0.05 + i * 0.07, 0.03 + Math.sin(a) * 0.05], b: [Math.cos(a2) * 0.05, 0.12 + i * 0.07, 0.03 + Math.sin(a2) * 0.05], r: 0.009, m: R, k: 0.003 }); }
     return SDF.mesh(n, [-0.6, -0.04, -0.52], [0.36, 2.1, 0.16], 96);
+  }
+  ,
+  // the gas mask (origin at the face centre, lenses facing -z): rose rubber face piece, two big round lenses
+  // in thick rims, a teal ribbed filter snout, gold-orange canisters on both cheeks, a teal strap; hollow at
+  // the back so you see the inside as it comes down over your face
+  gasmask: () => {
+    const RO = MAT.handRose, TE = MAT.handTeal, GO = MAT.paint, K = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.115, 0.145, 0.1], m: RO, n: [0.003, 50] },
+      { t: 'ell', c: [0, -0.07, -0.03], r: [0.08, 0.09, 0.08], m: RO, k: 0.04, n: [0.003, 50] },
+      { t: 'ell', c: [0, 0.005, 0.035], r: [0.1, 0.13, 0.09], op: 's', k: 0.01, sm: K },          // hollow back
+      // lens rims and holes
+      { t: 'tor', c: [-0.052, 0.035, -0.088], R: 0.04, r: 0.013, rot: [0, Math.PI / 2, 0], m: RO, k: 0.012 },
+      { t: 'tor', c: [0.052, 0.035, -0.088], R: 0.04, r: 0.013, rot: [0, Math.PI / 2, 0], m: RO, k: 0.012 },
+      { t: 'sph', c: [-0.052, 0.035, -0.09], r: 0.033, op: 's', k: 0.004, sm: K },
+      { t: 'sph', c: [0.052, 0.035, -0.09], r: 0.033, op: 's', k: 0.004, sm: K },
+      // ribbed teal filter snout
+      { t: 'cyl', c: [0, -0.075, -0.115], r: 0.04, h: 0.035, rot: [0, Math.PI / 2, 0], rr: 0.01, m: TE, k: 0.02 },
+      { t: 'cyl', c: [0, -0.075, -0.155], r: 0.018, h: 0.012, rot: [0, Math.PI / 2, 0], op: 's', k: 0.004, sm: K },
+      // gold-orange canisters on the cheeks
+      { t: 'cyl', c: [-0.105, -0.07, -0.06], r: 0.038, h: 0.03, rot: [-0.9, Math.PI / 2, 0], rr: 0.006, m: GO, k: 0.015 },
+      { t: 'cyl', c: [0.105, -0.07, -0.06], r: 0.038, h: 0.03, rot: [0.9, Math.PI / 2, 0], rr: 0.006, m: GO, k: 0.015 },
+      // the strap round the back of the head
+      { t: 'cap', a: [-0.11, 0.04, 0.0], b: [-0.08, 0.06, 0.14], r: 0.01, m: TE }, { t: 'cap', a: [0.11, 0.04, 0.0], b: [0.08, 0.06, 0.14], r: 0.01, m: TE },
+      { t: 'cap', a: [-0.08, 0.06, 0.14], b: [0.08, 0.06, 0.14], r: 0.01, m: TE }
+    ];
+    for (let i = 0; i < 3; i++) n.push({ t: 'tor', c: [0, -0.075, -0.09 - i * 0.022], R: 0.042, r: 0.006, rot: [0, Math.PI / 2, 0], m: TE, k: 0.004 });
+    // scuffs: darker grime in the rubber
+    for (const c of [[0.07, 0.1, -0.05], [-0.08, -0.03, -0.07], [0.02, 0.12, -0.06]]) n.push({ t: 'sph', c, r: 0.018, m: MAT.burnt, k: 0.01, n: [0.006, 80] });
+    return SDF.mesh(n, [-0.17, -0.2, -0.18], [0.17, 0.17, 0.17], 72);
   }
 };
 const SCULPT_ORDER = Object.keys(SCULPTS);
@@ -12673,7 +12729,7 @@ const UV_SECRETS = [
 const Gear = {
   owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, handsLost: false,
   wheelOpen: false, wheelSel: 0, wheelV: new Float32Array(2), holdT: 0, wheelDom: -2,
-  hasMask: false, maskOn: false, maskT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
+  hasMask: false, maskOn: false, maskT: 0, maskShowT: 0, packShowT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
   blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
   pickups: [], secrets: [], pipAsset: null, pipTimer: 0, overlay: null, gasOverlay: null,
   tmp: V3.create(), m: M4.create(),
@@ -12759,7 +12815,8 @@ const Gear = {
     }
     if (J.has('KeyG') && this.hasMask) this.toggleMask();
     if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'STARBY: BLACKLIGHT ON - hidden ink glows in the beam' : 'STARBY: FLASHLIGHT'); }
-    this.maskT = damp(this.maskT, this.maskOn ? 1 : 0, 7, dt);
+    this.maskT = damp(this.maskT, this.maskOn ? 1 : 0, 4, dt);
+    this.maskShowT = Math.max(0, (this.maskShowT || 0) - dt);
     this.updateGas(dt);
     this.updateSecrets(dt);
     this.updateOverlays(dt);
@@ -12844,12 +12901,12 @@ const Gear = {
     p.taken = true;
     sfx('pickup');
     if (p.restore) {
-      this.handsLost = false;
+      this.handsLost = false; this.packShowT = 1.2;
       sfx('dock', Player.body.pos);
       GrabPack.showHint('HANDS ON - teal on the left, rose on the right. Look at something and fire');
       Dialogue.say('PIP', 'Click! Click! Hello, hands! I missed you two.');
     } else if (p.kind === 'mask') {
-      this.hasMask = true;
+      this.hasMask = true; this.maskShowT = 2.2;
       GrabPack.showHint('GAS MASK - press [G] to put it on or take it off');
     } else {
       this.owned[p.type] = 1;
@@ -12946,23 +13003,16 @@ const Gear = {
     for (const p of this.pickups) {
       if (p.taken || !vis[p.sector]) continue;
       const bob = Math.sin(t * 2 + p.pos[0]) * 0.03;
-      if (p.kind === 'hand') {
+      if (p.restore) { this.drawPackPickup(p.pos[0], p.pos[1], p.pos[2], bob); }
+      else if (p.kind === 'hand') {
         const T = HAND_TYPES[p.type], gm = 'glove_L_open';
         if (Sculpt.ready(gm)) {
           const it = R.push(gm, T.mat);
           if (it) { M4.compose(it.model, p.pos[0], p.pos[1] + 0.12 + bob, p.pos[2], t * 0.8, -1.2, 0, 1.3, 1.3, 1.3); it.tint[0] = T.tint[0]; it.tint[1] = T.tint[1]; it.tint[2] = T.tint[2]; if (T.glow) { it.emis[0] = T.glow[0]; it.emis[1] = T.glow[1]; it.emis[2] = T.glow[2]; } }
         }
       } else {
-        // gas mask: rubber face piece, two round lenses, a filter canister and straps
-        const yaw = t * 0.6;
-        const it = R.trs('sphere', MAT.rubber, p.pos[0], p.pos[1] + 0.12 + bob, p.pos[2], yaw, 0, 0, 0.13, 0.15, 0.09);
-        for (const sx of [-1, 1]) {
-          Cast.pt(this.tmp, p.pos, yaw, sx * 0.055, 0.15 + bob, -0.075);
-          const l = R.trs('sphere', MAT.lens, this.tmp[0], this.tmp[1], this.tmp[2], yaw, 0, 0, 0.042, 0.042, 0.015);
-          if (l) { l.emis[0] = 0.1; l.emis[1] = 0.12; l.emis[2] = 0.1; }
-        }
-        Cast.pt(this.tmp, p.pos, yaw, 0, 0.05 + bob, -0.1);
-        R.trs('cyl', MAT.steel, this.tmp[0], this.tmp[1] - 0.04, this.tmp[2], yaw, Math.PI / 2 - 0.3, 0, 0.05, 0.08, 0.05);
+        // the gas mask, turning slowly on the desk
+        this.drawMask(p.pos[0], p.pos[1] + 0.14 + bob, p.pos[2], t * 0.6, 1.3);
       }
       // a soft glint so you notice it
       const g = R.trs('sphereLow', MAT.screen, p.pos[0], p.pos[1] + 0.3 + bob, p.pos[2], 0, 0, 0, 0.015, 0.015, 0.015, false);
@@ -12975,6 +13025,60 @@ const Gear = {
       S.asset.materials[0].texEmissive = 3.5 * S.reveal;
       M4.compose(this.m, p[0], p[1], p[2], S.s.yaw, 0, 0, 2.2, 0.82, 1);
       AssetQueue.push(S.asset, this.m, false);
+    }
+  },
+  // the gas mask model (front facing -z): sculpted face piece plus glassy lenses
+  drawMask(x, y, z, yaw, sc, basis) {
+    const R = RenderQueue;
+    if (!Sculpt.ready('gasmask')) return;
+    const it = R.push('gasmask', MAT.paint);
+    if (!it) return;
+    if (basis) it.model.set(basis); else M4.compose(it.model, x, y, z, yaw, 0, 0, sc, sc, sc);
+    for (const sx of [-1, 1]) {
+      V3.set(this.tmp, sx * 0.052, 0.035, -0.083); M4.transformPoint(this.tmp, it.model, this.tmp);
+      const g = R.push('sphere', MAT.screen, false);
+      if (g) { g.model.set(it.model); g.model[12] = this.tmp[0]; g.model[13] = this.tmp[1]; g.model[14] = this.tmp[2];
+        for (let k = 0; k < 3; k++) { g.model[k] *= 0.034; g.model[4 + k] *= 0.034; g.model[8 + k] *= 0.012; }
+        g.tint[0] = 0.75; g.tint[1] = 0.8; g.tint[2] = 0.82; g.emis[0] = 0.05; g.emis[1] = 0.06; g.emis[2] = 0.06; }
+    }
+  },
+  // your GrabPack in the crate at the start: the pack with its cable drum, both hoses and both hands
+  drawPackPickup(x, y, z, bob) {
+    const R = RenderQueue, yb = y + 0.1 + bob;
+    R.trs('box', MAT.rustIron, x, yb + 0.12, z, 0.3, 0, 0, 0.42, 0.28, 0.24);
+    R.trs('box', MAT.steel, x, yb + 0.31, z, 0.3, 0, 0, 0.44, 0.1, 0.26);
+    let it = R.push('cyl', MAT.rubber); if (it) M4.compose(it.model, x - 0.2 * Math.cos(0.3), yb + 0.42, z + 0.2 * Math.sin(0.3), 0.3, 0, -Math.PI / 2, 0.11, 0.4, 0.11);
+    for (const k of [0, 1]) { const r = R.push('torus', MAT.copper); if (r) M4.compose(r.model, x + (k ? 0.17 : -0.17) * Math.cos(0.3), yb + 0.42, z - (k ? 0.17 : -0.17) * Math.sin(0.3), 0.3, 0, Math.PI / 2, 0.12, 0.3, 0.12); }
+    for (const sx of [-1, 1]) {
+      const sxp = V3.create(x + sx * 0.22, yb + 0.2, z - 0.05), hand = V3.create(x + sx * 0.5, yb + 0.06, z - 0.25);
+      R.seg('cyl', MAT.rubber, sxp, hand, 0.035);
+      for (let k = 1; k < 4; k++) { V3.lerp(this.tmp, sxp, hand, k / 4); const r = R.trs('torus', MAT.steel, this.tmp[0], this.tmp[1], this.tmp[2], 0, 0, Math.PI / 2, 0.04, 0.3, 0.04, false); }
+      const gm = 'glove_L_open';
+      if (Sculpt.ready(gm)) { const h = R.push(gm, sx < 0 ? MAT.handTeal : MAT.handRose); if (h) { M4.compose(h.model, hand[0], hand[1] + 0.05, hand[2], sx * 0.6, -1.3, 0, 1.1, 1.1, 1.1); h.tint[0] = 0.7; h.tint[1] = 0.7; h.tint[2] = 0.7; } }
+    }
+    for (const sx of [-1, 1]) R.trs('box', MAT.canvas, x + sx * 0.12, yb + 0.15, z + 0.13, 0.3, 0, 0, 0.06, 0.32, 0.02, false);   // straps
+  },
+  // the mask in your view: held up to look at when you first find it, then lowered onto your face
+  submitMaskView() {
+    const show = this.maskShowT > 0 ? Math.min(1, this.maskShowT) : 0;
+    const putOn = this.maskOn && this.maskT < 0.95 ? 1 - this.maskT : 0;
+    if (!show && !putOn) return;
+    const eye = Player.cam.eye, f = Renderer.camFwd, u = Renderer.camUp;
+    const r = V3.cross(this.tmp2 || (this.tmp2 = V3.create()), u, f);
+    if (show) {
+      // held out at arm's length, lenses toward you
+      V3.copy(this.tmp, eye); V3.addScaled(this.tmp, this.tmp, f, 0.42); V3.addScaled(this.tmp, this.tmp, u, -0.06 + Math.sin(Game.time * 2) * 0.01);
+      // local z along your view, so the lens side (-z) faces you; (r, u, f) is right-handed
+      basisMatrix(this.m, this.tmp, r, u, f, 1.15, 1.15, 1.15);
+      this.drawMask(0, 0, 0, 0, 1, this.m);
+    } else {
+      // coming down from above over your eyes: you see the hollow inside of the face piece
+      V3.copy(this.tmp, eye); V3.addScaled(this.tmp, this.tmp, f, 0.12 + putOn * 0.2); V3.addScaled(this.tmp, this.tmp, u, putOn * 0.4);
+      // flipped (x and z together, still right-handed) so the hollow back faces you
+      V3.scale(this.tmp3 || (this.tmp3 = V3.create()), r, -1);
+      const fb = V3.scale(V3.create(), f, -1);
+      basisMatrix(this.m, this.tmp, this.tmp3, u, fb, 1.6, 1.6, 1.6);
+      this.drawMask(0, 0, 0, 0, 1, this.m);
     }
   },
   // PIP strapped to the back of the teal glove's wrist, facing you (called from Game.submitHands)
@@ -14238,14 +14342,15 @@ const ChapterCards = {
     V3.set(this.tmp, S.eye[0], S.eye[1], S.eye[2]);
     let yaw = S.yaw, pitch = S.pitch;
     if (S.aim) { const dx = S.at[0] - S.eye[0], dy = S.at[1] - S.eye[1], dz = S.at[2] - S.eye[2]; yaw = Math.atan2(-dx, -dz); pitch = Math.atan2(dy, Math.hypot(dx, dz)); }
-    Game.applyCamera(this.tmp, yaw + Math.sin(Game.menuTime * 0.4 + k) * 0.03, pitch, 0);
+    Game.applyCamera(this.tmp, yaw, pitch, 0);
     Streaming.visible.fill(0); for (const s of S.sec) Streaming.visible[s] = 1;
     Lights.update(0, Game.time + Game.menuTime, Streaming.visible);
     return true;
   },
   // the gallery toys (drawn only while the chapter select is open)
   submitActors() {
-    const R = RenderQueue, t = Game.menuTime, z = 135.6, base = 0.35;
+    // sealed chapters: the toys hold perfectly still (t is frozen)
+    const R = RenderQueue, t = 0, z = 135.6, base = 0.35;
     const put = (name, x, y, yaw, sc, tr, tg, tb, pitch, roll) => {
       if (!Sculpt.ready(name)) return null;
       const it = R.push(name, MAT.paint);
