@@ -57,6 +57,18 @@ drag your view **down** (or back away) to wrench the handle over; let go too ear
 staggers it for a moment; a *charged* hit (your other hand tethered to a live node) shocks it for a long stun,
 and a stalker then slinks back into the vents. Only in the Loom boss fight can it actually be beaten.
 
+**The opening.** A new game starts in the **Station Yard** under the main office, facing the Usher's old desk
+computer (his eye watches you from the CRT). His briefing locks your movement until he has finished. Your
+hands are in a crate by the tracks (until you take them the triggers do nothing); Thimble is already with you,
+Marigold waits on the platform; then loop the yard-gate circuit and the freight lift takes you down into the
+Intake, where a second monitor picks up the story. After the Loom, the lift keeps going to the Fabrication Line.
+
+**Menus.** The game opens on a 3D factory exterior at dusk (PLAY / LOAD / SETTINGS / QUIT), then a six-chapter
+select where only Chapter 6 can be played, then the Chapter 6 screen with the Spoolwright behind it. The pause
+menu offers RESUME / RESTART CHECKPOINT / LOAD GAME / SETTINGS / MAIN MENU, and when you die an ally tells you to
+get back up before the checkpoint reloads. The gas mask drops down over your face; you see out through two
+rubber-lined lenses with hairline cracks at the edges.
+
 You wake in the intake lift under a big flickering monitor: the Usher's eye watches you from it while it gives
 the opening briefing (the LIFELINE hands, the hand scanner, PIP, and a warning about the bells).
 
