@@ -319,21 +319,15 @@ function hatNodes() {
     }
     // two long, drooping cloth tails flopping off the crown, each ending in a bell
     for (const [sx, m] of [[-1, TE], [1, GO]]) {
-      const pts = [[sx * 0.08, 0.38, 0.0], [sx * 0.24, 0.42, 0.04], [sx * 0.34, 0.3, 0.06], [sx * 0.37, 0.12, 0.05], [sx * 0.36, -0.06, 0.04]];
+      // they flop out past the sides of the hood and hang beside the head, clear of the mask
+      const pts = [[sx * 0.08, 0.38, 0.0], [sx * 0.28, 0.44, 0.05], [sx * 0.48, 0.32, 0.08], [sx * 0.6, 0.08, 0.08], [sx * 0.63, -0.2, 0.06]];
       for (let i = 0; i < pts.length - 1; i++) {
         const r0 = 0.055 - i * 0.011, r1 = 0.055 - (i + 1) * 0.011;
         n.push({ t: 'cap', a: pts[i], b: pts[i + 1], r: r0, r2: Math.max(0.012, r1), m, k: 0.03, n: [0.008, 30] });
       }
       const e = pts[pts.length - 1];
-      n.push({ t: 'sph', c: [e[0], e[1] - 0.04, e[2]], r: 0.036, m: GO, k: 0.006 });
-      n.push({ t: 'box', c: [e[0], e[1] - 0.058, e[2]], h: [0.026, 0.004, 0.004], op: 's', sm: MAT.rubber });
-    }
-    // bells dangling on frayed ribbons from the band
-    for (const [ang, len, m] of [[1.9, 0.16, RO], [2.6, 0.22, TE], [-2.2, 0.18, GO]]) {
-      const x = Math.sin(ang) * 0.18, z = Math.cos(ang) * 0.18;
-      n.push({ t: 'cap', a: [x, 0.07, z], b: [x * 1.25, 0.07 - len, z * 1.25], r: 0.012, r2: 0.008, m, k: 0.006, n: [0.004, 60] });
-      n.push({ t: 'sph', c: [x * 1.27, 0.04 - len, z * 1.27], r: 0.03, m: GO, k: 0.006 });
-      n.push({ t: 'box', c: [x * 1.27, 0.025 - len, z * 1.27], h: [0.022, 0.004, 0.004], op: 's', sm: MAT.rubber });
+      n.push({ t: 'sph', c: [e[0], e[1] - 0.05, e[2]], r: 0.048, m: GO, k: 0.006 });
+      n.push({ t: 'box', c: [e[0], e[1] - 0.075, e[2]], h: [0.034, 0.005, 0.005], op: 's', sm: MAT.rubber });
     }
     for (const [x, z, h] of [[-0.08, -0.15, 0.3], [0.12, 0.1, 0.25]]) {
       n.push({ t: 'cap', a: [x * 0.6, h - 0.05, z * 0.6], b: [x * 1.6, h + 0.08, z * 1.6], r: 0.006, m: MAT.steel, k: 0.002 });
@@ -455,7 +449,7 @@ const SCULPTS = {
       for (const key of ['c', 'a', 'b']) if (h[key]) h[key] = [h[key][0] + off[0], h[key][1] + off[1], h[key][2] + off[2]];
       n.push(h);
     }
-    return SDF.mesh(n, [-0.58, -0.66, -0.45], [0.58, 1.0, 0.78], 84);
+    return SDF.mesh(n, [-0.76, -0.66, -0.45], [0.76, 1.0, 0.78], 92);
   },
   // Filthy, ragged jester's motley on a skeletal upper torso (origin at the chest, facing -z): ruby cloth with
   // teal and orange harlequin diamonds, a pleated teal/ruby ruff, a dagged hem of pointed tatters, pom-pom
@@ -966,7 +960,7 @@ const SCULPTS = {
   // Chapter 4: DOUGHBERT - a lumpy bread-dough baker: knuckle-pressed dents, a floury baker's hat, an
   // apron, raisin eyes, a cookie-cutter grin, a rolling pin under one arm
   card_dough: () => {
-    const D = MAT.furLight, H = MAT.porcelain, A = MAT.porcelain, K = MAT.burnt, W = MAT.wood, n = [
+    const D = MAT.furLight, H = MAT.porcelain, A = MAT.porcelain, K = MAT.rubber, W = MAT.wood, n = [
       { t: 'ell', c: [0, 0.6, 0], r: [0.42, 0.5, 0.38], m: D, n: [0.018, 9] },
       { t: 'ell', c: [-0.12, 0.95, -0.05], r: [0.3, 0.25, 0.28], m: D, k: 0.12, n: [0.016, 11] },
       { t: 'ell', c: [0.04, 1.28, -0.03], r: [0.28, 0.25, 0.26], m: D, k: 0.1, n: [0.014, 12] },
@@ -977,24 +971,27 @@ const SCULPTS = {
       // baker's hat: a band and a puffed, floury top
       { t: 'cyl', c: [0.02, 1.5, -0.02], r: 0.2, h: 0.07, m: H, k: 0.02 },
       { t: 'ell', c: [0.0, 1.66, -0.02], r: [0.27, 0.15, 0.25], m: H, k: 0.05, n: [0.02, 18] },
-      // raisin eyes and a cookie-cutter grin pressed into the face
-      { t: 'ell', c: [-0.05, 1.32, -0.25], r: [0.03, 0.04, 0.02], m: K, k: 0.006, n: [0.006, 80] },
-      { t: 'ell', c: [0.13, 1.33, -0.235], r: [0.03, 0.04, 0.02], m: K, k: 0.006, n: [0.006, 80] },
+      // a huge open black laughing mouth gouged into the dough
+      { t: 'ell', c: [0.05, 1.19, -0.25], r: [0.17, 0.1, 0.12], op: 's', k: 0.025, sm: MAT.rubber },
       // apron
       { t: 'ell', c: [0, 0.6, -0.33], r: [0.3, 0.38, 0.06], m: A, k: 0.02 },
       { t: 'tor', c: [0, 0.96, 0], R: 0.36, r: 0.015, m: A, k: 0.01 },
       // lumpy arms; the right one clamps a rolling pin
       { t: 'cap', a: [-0.36, 0.9, 0], b: [-0.5, 0.55, -0.12], r: 0.11, r2: 0.09, m: D, k: 0.07, n: [0.015, 14] },
-      { t: 'cap', a: [0.36, 0.9, 0], b: [0.46, 0.7, -0.22], r: 0.11, r2: 0.09, m: D, k: 0.07, n: [0.015, 14] },
-      { t: 'cap', a: [0.08, 0.72, -0.3], b: [0.64, 0.72, -0.3], r: 0.055, m: W, k: 0.005 },
-      { t: 'cap', a: [-0.04, 0.72, -0.3], b: [0.08, 0.72, -0.3], r: 0.022, m: W },
-      { t: 'cap', a: [0.64, 0.72, -0.3], b: [0.76, 0.72, -0.3], r: 0.022, m: W },
+      // the right hand comes up to the side of his face as he laughs
+      { t: 'cap', a: [0.36, 0.9, 0], b: [0.42, 1.12, -0.18], r: 0.11, r2: 0.09, m: D, k: 0.07, n: [0.015, 14] },
+      { t: 'ell', c: [0.36, 1.24, -0.24], r: [0.07, 0.11, 0.06], rot: [0, 0, -0.3], m: D, k: 0.04, n: [0.01, 16] },
+      // the rolling pin dropped at his feet
+      { t: 'cap', a: [-0.5, 0.05, -0.32], b: [0.1, 0.05, -0.42], r: 0.05, m: W, k: 0.005 },
       // stubby feet
       { t: 'ell', c: [-0.17, 0.08, -0.1], r: [0.13, 0.09, 0.17], m: D, k: 0.06 },
       { t: 'ell', c: [0.17, 0.08, -0.1], r: [0.13, 0.09, 0.17], m: D, k: 0.06 }
     ];
-    // the grin: a row of pressed cutter notches
-    for (let i = 0; i < 7; i++) { const a = (i - 3) * 0.17; n.push({ t: 'box', c: [0.04 + Math.sin(a) * 0.2, 1.2 - Math.cos(a) * 0.04 + 0.03, -0.255 + (1 - Math.cos(a)) * 0.06], h: [0.014, 0.025, 0.02], rot: [-a, 0, 0], op: 's', k: 0.004, sm: K }); }
+    // black eyes squeezed shut in laughter: upturned crescents
+    for (const ex of [-0.06, 0.15]) for (let i = 0; i < 4; i++) {
+      const a0 = -1.1 + i * 0.55, a1 = a0 + 0.55;
+      n.push({ t: 'cap', a: [ex + Math.sin(a0) * 0.045, 1.37 + Math.cos(a0) * 0.03, -0.258], b: [ex + Math.sin(a1) * 0.045, 1.37 + Math.cos(a1) * 0.03, -0.258], r: 0.013, m: K, k: 0.004 });
+    }
     return SDF.mesh(n, [-0.66, -0.02, -0.44], [0.82, 1.84, 0.42], 84);
   },
   // Chapter 5: the needle claw - a scorched skeletal forearm and hand: plated palm with rivets, knuckle

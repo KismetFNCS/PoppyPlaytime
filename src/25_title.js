@@ -9,6 +9,7 @@
 const TITLE_SECTOR = 11;
 const TITLE_CAM = { pos: V3.create(0, 1.7, 118), yaw: 0, pitch: 0.16 };
 const CARD_ACTOR_X = [-12, -6, 0, 6, 12];
+const CARD_LEAN = 0.25;   // + tilts a model forward toward the camera (-z)
 const TITLE_SKY = [[2.4, 1.45, 0.45], [2.1, 1.0, 0.5], [1.5, 0.55, 0.5], [0.8, 0.22, 0.3], [0.25, 0.07, 0.1]];
 
 const TitleScene = {
@@ -118,11 +119,13 @@ const CARD_SHOTS = [
   // each chapter has its own colour mood (key-light tint): blue, pink, crimson-violet, teal-lime, deep red, white
   // chapters 1-5: original toys on the gallery stages (teal wind-up rabbit, lanky pink marionette, violet owl,
   // bread-dough baker, the needle claw); chapter 6: the Epxirtype himself
-  { eye: [-12, 1.15, 133.4], yaw: Math.PI, pitch: 0.02, sec: [11], at: [-12, 1.0, 135.6], tint: [0.75, 1.05, 1.45] },
-  { eye: [-6, 1.75, 132.3], yaw: Math.PI, pitch: 0.06, sec: [11], at: [-6, 2.0, 135.6], tint: [1.7, 0.6, 1.15] },
-  { eye: [0, 1.05, 133.5], yaw: Math.PI, pitch: 0.0, sec: [11], at: [0, 1.0, 135.6], tint: [1.15, 0.6, 1.7] },
-  { eye: [6, 1.05, 133.5], yaw: Math.PI, pitch: 0.0, sec: [11], at: [6, 1.0, 135.6], tint: [1.2, 1.1, 1.0] },
-  { eye: [12, 1.35, 134.1], yaw: Math.PI, pitch: 0.05, sec: [11], at: [12, 1.4, 135.6], tint: [1.6, 0.25, 0.2] },
+  // close-up portraits that fill the card: a tilted head; a low angle looking up; an extreme face close-up;
+  // a head thrown back laughing; the claw reaching down into the lens (aim is derived from eye -> at)
+  { eye: [-11.95, 1.45, 134.1], sec: [11], at: [-12.15, 1.5, 135.6], tint: [0.75, 1.05, 1.45], aim: true },
+  { eye: [-6, 2.08, 134.75], sec: [11], at: [-6, 2.52, 135.6], tint: [1.7, 0.6, 1.15], aim: true },
+  { eye: [0.05, 1.38, 134.35], sec: [11], at: [0, 1.36, 135.6], tint: [1.15, 0.6, 1.7], aim: true },
+  { eye: [6.1, 1.25, 134.25], sec: [11], at: [6, 1.4, 135.6], tint: [1.2, 1.1, 1.0], aim: true },
+  { eye: [12.05, 1.45, 134.4], sec: [11], at: [12.1, 1.55, 135.3], tint: [1.6, 0.25, 0.2], aim: true },
   { eye: [-0.2, 1.8, -79.9], yaw: 0, pitch: 0.12, sec: [3, 4], at: [0.9, 2.6, -84.6], tint: [1, 1, 1] }
 ];
 const ChapterCards = {
@@ -143,7 +146,9 @@ const ChapterCards = {
     const k = this.k = (this.k + 1) % CARD_SHOTS.length, S = CARD_SHOTS[k];
     this.active = k;
     V3.set(this.tmp, S.eye[0], S.eye[1], S.eye[2]);
-    Game.applyCamera(this.tmp, S.yaw + Math.sin(Game.menuTime * 0.4 + k) * 0.08, S.pitch, 0);
+    let yaw = S.yaw, pitch = S.pitch;
+    if (S.aim) { const dx = S.at[0] - S.eye[0], dy = S.at[1] - S.eye[1], dz = S.at[2] - S.eye[2]; yaw = Math.atan2(-dx, -dz); pitch = Math.atan2(dy, Math.hypot(dx, dz)); }
+    Game.applyCamera(this.tmp, yaw + Math.sin(Game.menuTime * 0.4 + k) * 0.03, pitch, 0);
     Streaming.visible.fill(0); for (const s of S.sec) Streaming.visible[s] = 1;
     Lights.update(0, Game.time + Game.menuTime, Streaming.visible);
     return true;
@@ -151,26 +156,26 @@ const ChapterCards = {
   // the gallery toys (drawn only while the chapter select is open)
   submitActors() {
     const R = RenderQueue, t = Game.menuTime, z = 135.6, base = 0.35;
-    const put = (name, x, y, yaw, sc, tr, tg, tb) => {
+    const put = (name, x, y, yaw, sc, tr, tg, tb, pitch, roll) => {
       if (!Sculpt.ready(name)) return null;
       const it = R.push(name, MAT.paint);
-      if (it) { M4.compose(it.model, x, y, z, yaw, 0, 0, sc, sc, sc); if (tr) { it.tint[0] = tr; it.tint[1] = tg; it.tint[2] = tb; } }
+      if (it) { M4.compose(it.model, x, y, z, yaw, pitch || 0, roll || 0, sc, sc, sc); if (tr) { it.tint[0] = tr; it.tint[1] = tg; it.tint[2] = tb; } }
       return it;
     };
     // 1: Tinker Tom bobs on his spring as the key in his back turns
     let x = CARD_ACTOR_X[0], bob = Math.abs(Math.sin(t * 5)) * 0.03;
-    put('card_rabbit', x, base + bob, Math.sin(t * 0.6) * 0.15, 0.82);
+    put('card_rabbit', x, base + bob, -0.3 + Math.sin(t * 0.6) * 0.05, 0.82, 0, 0, 0, 0, 0.12);   // head cocked, peering in
     for (const s of [-1, 1]) { const k = R.trs('torus', MAT.copper, x + s * 0.06, base + bob + 0.86 * 0.82, z + 0.36, t * 3, 0, Math.PI / 2, 0.06, 0.25, 0.06, false); if (k) { k.tint[0] = 1.3; k.tint[1] = 1.0; k.tint[2] = 0.45; } }
     // 2: Stilts Sally sways on her strings under the crossbar
     x = CARD_ACTOR_X[1]; const sw = Math.sin(t * 1.4) * 0.04;
-    put('card_sally', x, base, sw, 0.78);
+    put('card_sally', x, base, sw, 0.78, 0, 0, 0, 0, sw * 0.5);   // looming over you
     const bar = R.trs('box', MAT.wood, x, base + 3.4 * 0.78, z, sw, 0, 0, 1.4, 0.05, 0.05); if (bar) bar.castShadow = false;
     for (const p of [[-0.6 * 0.78, 1.5 * 0.78], [0.6 * 0.78, 1.5 * 0.78], [0, 3.1 * 0.78], [-0.08, 1.2 * 0.78], [0.08, 1.2 * 0.78]]) {
       R.seg('cylLow', MAT.cable, V3.set(this.tmp, x + p[0], base + p[1], z), V3.create(x + p[0] * 0.9, base + 3.4 * 0.78, z), 0.003, false);
     }
     // 3: Hootsworth's lantern eyes glow and his head tilts
     x = CARD_ACTOR_X[2]; const tilt = Math.sin(t * 0.7) * 0.12;
-    put('card_owl', x, base, tilt, 0.85);
+    put('card_owl', x, base, tilt * 0.5, 0.85, 0, 0, 0, 0, 0.3 + tilt);   // head cocked hard to one side
     for (const s of [-1, 1]) {
       const e = R.trs('sphere', MAT.screen, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.39 * 0.85, 0, 0, 0, 0.08, 0.08, 0.04, false);
       if (e) { e.emis[0] = 2.6; e.emis[1] = 1.5; e.emis[2] = 0.3; }
@@ -178,11 +183,11 @@ const ChapterCards = {
     }
     // 4: Doughbert squishes as he breathes
     x = CARD_ACTOR_X[3]; const sq = 1 + Math.sin(t * 3) * 0.025;
-    const d = put('card_dough', x, base, -0.15, 0.85, 1.45, 1.2, 0.95);
+    const d = put('card_dough', x, base, -0.15, 0.85, 1.45, 1.2, 0.95, -CARD_LEAN * 0.35, 0.08);   // thrown back, laughing
     if (d) { d.model[0] *= sq; d.model[5] /= sq; d.model[10] *= sq; }
     // 5: the needle claw flexes; a red ember glows in the palm
     x = CARD_ACTOR_X[4];
-    put('card_claw', x + 0.1, base, Math.sin(t * 0.8) * 0.2, 0.9);
+    put('card_claw', x + 0.1, base + 0.2, Math.sin(t * 0.8) * 0.1, 0.9, 0, 0, 0, -CARD_LEAN * 2.4, 0);   // reaching down into the lens
     const ge = R.trs('sphereLow', MAT.screen, x + 0.1, base + 0.95 * 0.9, z - 0.06, 0, 0, 0, 0.04, 0.04, 0.02, false); if (ge) { ge.emis[0] = 2.5 * (0.7 + 0.3 * Math.sin(t * 4)); ge.emis[1] = 0.2; ge.emis[2] = 0.1; }
   },
   // a key light from the upper left onto the actor
