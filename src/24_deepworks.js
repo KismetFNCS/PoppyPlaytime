@@ -492,7 +492,7 @@ const DeepWorks = {
       case 'F_PATH':
         Dialogue.say('THIMBLE', 'Those pistons will flatten you! Hold on - I fit where you don\'t!');
         this.thimbleTask = { kind: 'JAM', target: [1.6, -199.4], t: 0 };
-        GrabPack.showHint('Thimble is crawling into the piston machinery...');
+        GrabPack.showHint('Morsel is crawling into the piston machinery...');
         return true;
       case 'C_TERM1': this.startOverride('DC1', 3.6, 0); return true;
       case 'C_TERM2': this.startOverride('D8', 4.2, 8); return true;
@@ -534,7 +534,7 @@ const DeepWorks = {
     this.overrides.push({ door, t: time, nextStage });
     sfx('override', Player.body.pos);
     Dialogue.say('MARIGOLD', door === 'D8' ? 'Last lock. I am inside the drainage system now... give me a moment.' : 'Hold still. I can reach the lock through the wiring... overriding.');
-    GrabPack.showHint('MARIGOLD IS OVERRIDING THE LOCK...');
+    GrabPack.showHint('POSIE IS OVERRIDING THE LOCK...');
   },
 
   // ======================================================================================
@@ -580,8 +580,8 @@ const DeepWorks = {
     // rendezvous: Marigold waits on the platform bench
     if (Game.stage === 5 && !this.met && Math.hypot(b[0] - 10.4, b[2] + 173.6) < 5.5) {
       this.met = true; P.wave = 1;
-      Dialogue.say('MARIGOLD', 'You found me. ...And you brought Mister Thimble. Good. Nobody goes down alone this time.');
-      Dialogue.say('THIMBLE', 'Hi Marigold! We\'re here to un-break everything. Probably.');
+      Dialogue.say('MARIGOLD', 'You found me. ...And you brought Mr. Morsel. Good. Nobody goes down alone this time.');
+      Dialogue.say('THIMBLE', 'Hi Posie! We\'re here to un-break everything. Probably.');
       Dialogue.say('MARIGOLD', 'The gate needs current. The node is in the signal box by the west wall.');
       Pip.react('happy', 2);
       UI.setObjective(OBJECTIVE_YARD_GATE);
@@ -772,7 +772,7 @@ const DeepWorks = {
     sfx('screech', V3.set(this.tmp, 0, 10, -312)); Player.addTrauma(0.6);
     Dialogue.clear();
     Dialogue.say('SPOOLWRIGHT', 'You followed me all the way down. Good. I was running out of parts.');
-    Dialogue.say('MARIGOLD', 'The trains still run through the vault. Use them - Thimble, take the switch!');
+    Dialogue.say('MARIGOLD', 'The trains still run through the vault. Use them - Morsel, take the switch!');
     Dialogue.say('THIMBLE', 'On it! Hit the switch box and I\'ll send the next train down whatever line it\'s standing on!');
     const P = Cast.plush; P.mode = 'VSWITCH'; P.hidden = false; V3.set(P.pos, -14.4, 0, -311.8); P.yaw = -Math.PI / 2;
     UI.setObjective(OBJECTIVES[9]);

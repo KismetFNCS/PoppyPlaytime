@@ -134,6 +134,8 @@ const Lights = {
   seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.06, 0.04]), current: 0, base: 1.6, radius: 3.5, scatter: 0.4, fixture: 'none', sector: 2 },
   // sickly glow inside the toxic lint smog (linear RGB, yellow-green)
   gasGlow: { pos: V3.create(-7.3, 1.6, -43.6), color: new Float32Array([0.55, 0.75, 0.12]), current: 0, base: 2.2, radius: 6.5, scatter: 0.6, fixture: 'none', sector: 2 },
+  // Posie's glowing teal left eye (linear RGB, teal)
+  dollGlow: { pos: V3.create(), color: new Float32Array([0.1, 0.85, 0.8]), current: 0, base: 0.7, radius: 2.4, scatter: 0.3, fixture: 'none', sector: 0 },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
@@ -184,6 +186,13 @@ const Lights = {
       list.items[list.count++] = SG;
     }
     if (sectorVisible[2]) { const GG = this.gasGlow; GG.current = GG.base * (0.85 + 0.15 * Math.sin(time * 0.9)); if (list.count >= list.items.length) list.items.push(null); list.items[list.count++] = GG; }
+    const DG = this.dollGlow, DD = Cast.doll;
+    if (DD.eyePos && sectorVisible[DD.sector] && (Game.isGameplay() || state === STATE.PAUSED)) {
+      V3.copy(DG.pos, DD.eyePos); DG.pos[2] += 0; DG.sector = DD.sector;
+      DG.current = DG.base * (0.85 + 0.15 * Math.sin(time * 1.3)) * (1 - DD.blink * 0.8);
+      if (list.count >= list.items.length) list.items.push(null);
+      list.items[list.count++] = DG;
+    }
     const TG = this.thimbleGlow, TP = Cast.plush;
     if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
       V3.set(TG.pos, TP.pos[0], 1.05, TP.pos[2]); TG.sector = TP.sector;

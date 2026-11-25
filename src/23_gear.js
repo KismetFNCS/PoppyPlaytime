@@ -122,7 +122,7 @@ const Gear = {
       if (this.swapT < SWAP_TIME / 2 && this.cur !== this.swapTo) { this.cur = this.swapTo; sfx('dock', Player.body.pos); }
     }
     if (J.has('KeyG') && this.hasMask) this.toggleMask();
-    if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'PIP: BLACKLIGHT ON - hidden ink glows in the beam' : 'PIP: FLASHLIGHT'); }
+    if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'STARBY: BLACKLIGHT ON - hidden ink glows in the beam' : 'STARBY: FLASHLIGHT'); }
     this.maskT = damp(this.maskT, this.maskOn ? 1 : 0, 7, dt);
     this.updateGas(dt);
     this.updateSecrets(dt);

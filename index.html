@@ -50,7 +50,7 @@
   #hud .hand.l { left: 3vw; color: var(--handL); }
   #hud .hand.r { right: 3vw; color: var(--handR); }
   #hud .hand.away { opacity: 0.45; }
-  /* PIP now rides on the teal glove: the canvas is only its face texture */
+  /* STARBY now rides on the teal glove: the canvas is only its face texture */
   #pipCanvas { position: absolute; left: -9999px; top: 0; width: 128px; height: 128px; }
   /* gas mask: the inside of the face piece with two lens windows, breath fog and a scuffed visor */
   #maskOverlay { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 30; transition: none; }
@@ -146,8 +146,16 @@
   #chapterPage .card svg { position: absolute; left: 50%; top: 14%; width: 74%; transform: translateX(-50%); opacity: 0.9; }
   #chapterPage .card .cn { position: absolute; left: 0; right: 0; bottom: 19%; font-size: clamp(12px, 2.2vh, 24px); letter-spacing: 0.08em; color: rgb(236,236,236); }
   #chapterPage .card .ct { position: absolute; left: 4%; right: 4%; bottom: 9%; font-size: clamp(11px, 2.1vh, 22px); color: rgb(236,236,236); white-space: normal; line-height: 1.15; }
-  #chapterPage .card.locked { filter: grayscale(1) brightness(0.45); }
-  #chapterPage .card.locked::after { content: 'SEALED'; position: absolute; left: 0; right: 0; top: 46%; font-size: clamp(12px, 2vh, 20px); letter-spacing: 0.3em; color: rgb(200,200,200); }
+  #chapterPage .card canvas.cv { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #chapterPage .card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.85) 88%); z-index: 1; }
+  #chapterPage .card .cn, #chapterPage .card .ct { z-index: 2; }
+  #chapterPage .card.locked { filter: none; }
+  #chapterPage .card:nth-child(1)::before { background: linear-gradient(180deg, rgba(40,80,200,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card:nth-child(2)::before { background: linear-gradient(180deg, rgba(220,80,170,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card:nth-child(3)::before { background: linear-gradient(180deg, rgba(170,20,60,0.32), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card:nth-child(4)::before { background: linear-gradient(180deg, rgba(40,170,140,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card:nth-child(5)::before { background: linear-gradient(180deg, rgba(150,10,20,0.34), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card.locked::after { z-index: 2; content: 'SEALED'; position: absolute; left: 0; right: 0; top: 3%; font-size: clamp(12px, 2vh, 20px); letter-spacing: 0.3em; color: rgb(200,200,200); }
   #chapterPage .card.live { background: linear-gradient(180deg, rgb(110,30,52), rgb(18,60,64)); box-shadow: 0 0 2.4vh rgb(190,46,82); }
   #chapterPage .card.sel { border-color: rgb(255,214,120); transform: translateY(-1vh); }
   #chapterPage .card.shake { animation: shake 300ms; }
@@ -246,7 +254,7 @@
       <h2>CREDITS</h2>
       <p><span class="k">ENGINE, SHADERS, AUDIO SYNTHESIS</span><br>Procedural runtime &mdash; every mesh, texture and sound generated in code</p>
       <p><span class="k">SETTING</span><br>Merriweather Toy Works, Sector 06: Reclamation (an original fictional factory)</p>
-      <p><span class="k">ENTITY DESIGN</span><br>Experiment 6-06 &ldquo;The Spoolwright&rdquo;</p>
+      <p><span class="k">ENTITY DESIGN</span><br>Experiment 6-06 &ldquo;The Epxirtype&rdquo;</p>
       <p><span class="k">INSPIRATION</span><br>A fan tribute to the industrial toy-factory horror genre. Not affiliated with any studio.</p>
       <button class="mbtn" id="btnCreditsBack" data-act="creditsBack">BACK</button>
     </div>
@@ -266,7 +274,7 @@
     <div class="cross" id="hudCross"></div>
     <div class="prompt" id="hudPrompt"></div>
     <div id="hudVhs"><svg width="64" height="40" viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="60" height="34" rx="3"/><rect x="12" y="10" width="40" height="15" rx="2"/><g class="reel"><circle cx="21" cy="17.5" r="5"/><path d="M21 12.5v10M16 17.5h10"/></g><g class="reel"><circle cx="43" cy="17.5" r="5"/><path d="M43 12.5v10M38 17.5h10"/></g><path d="M20 37l4-7h16l4 7"/></svg><span id="hudVhsText">SAVING</span></div>
-    <div class="boss" id="hudBoss"><b>THE SPOOLWRIGHT</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    <div class="boss" id="hudBoss"><b>THE EPXIRTYPE</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
     <div class="dialog" id="hudDialog"><b id="hudDialogName"></b><span id="hudDialogText"></span></div>
     <div id="handWheel"><div class="ring"></div>
@@ -275,7 +283,7 @@
       <div class="desc"></div></div>
     <div class="hand l" id="hudHandL">L &middot; TEAL</div>
     <div class="hand r" id="hudHandR">R &middot; ROSE</div>
-    <canvas id="pipCanvas" width="128" height="128" aria-label="PIP companion"></canvas>
+    <canvas id="pipCanvas" width="128" height="128" aria-label="STARBY companion"></canvas>
     <div class="cable" id="hudCable"><span id="hudCableText">TETHER</span><div class="bar"><i id="hudCableBar"></i></div></div>
     <button class="pausebtn" id="btnHudPause" data-act="pause" aria-label="Pause">II</button>
     <button class="mute" id="btnMute" data-act="mute" aria-label="Mute">SND</button>
@@ -4187,6 +4195,8 @@ const Lights = {
   seraphGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.06, 0.04]), current: 0, base: 1.6, radius: 3.5, scatter: 0.4, fixture: 'none', sector: 2 },
   // sickly glow inside the toxic lint smog (linear RGB, yellow-green)
   gasGlow: { pos: V3.create(-7.3, 1.6, -43.6), color: new Float32Array([0.55, 0.75, 0.12]), current: 0, base: 2.2, radius: 6.5, scatter: 0.6, fixture: 'none', sector: 2 },
+  // Posie's glowing teal left eye (linear RGB, teal)
+  dollGlow: { pos: V3.create(), color: new Float32Array([0.1, 0.85, 0.8]), current: 0, base: 0.7, radius: 2.4, scatter: 0.3, fixture: 'none', sector: 0 },
   monsterGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.07, 0.04]), current: 0, base: 1.8, radius: 2.8, scatter: 0.25, fixture: 'none', sector: 0 },
   update(dt, time, sectorVisible) {
     const list = this.visible;
@@ -4237,6 +4247,13 @@ const Lights = {
       list.items[list.count++] = SG;
     }
     if (sectorVisible[2]) { const GG = this.gasGlow; GG.current = GG.base * (0.85 + 0.15 * Math.sin(time * 0.9)); if (list.count >= list.items.length) list.items.push(null); list.items[list.count++] = GG; }
+    const DG = this.dollGlow, DD = Cast.doll;
+    if (DD.eyePos && sectorVisible[DD.sector] && (Game.isGameplay() || state === STATE.PAUSED)) {
+      V3.copy(DG.pos, DD.eyePos); DG.pos[2] += 0; DG.sector = DD.sector;
+      DG.current = DG.base * (0.85 + 0.15 * Math.sin(time * 1.3)) * (1 - DD.blink * 0.8);
+      if (list.count >= list.items.length) list.items.push(null);
+      list.items[list.count++] = DG;
+    }
     const TG = this.thimbleGlow, TP = Cast.plush;
     if (TP.mode === 'FOLLOW' && !TP.hidden && !Player.flashOn && sectorVisible[TP.sector] && Game.isGameplay()) {
       V3.set(TG.pos, TP.pos[0], 1.05, TP.pos[2]); TG.sector = TP.sector;
@@ -6485,7 +6502,7 @@ const TAPES = [
   {
     title: 'INCIDENT 6-06', label: 'FINAL TRANSMISSION', presenter: 'mascot', pitch: 300,
     lines: [
-      'The Spoolwright is still. For the first time in years, the Loom has stopped turning.',
+      'The Epxirtype is still. For the first time in years, the Loom has stopped turning.',
       'Whatever we built down there only ever wanted one thing... to be finished.',
       'Somewhere below, the spools are still turning.',
       'Thank you for choosing Merriweather. END OF TAPE.'
@@ -6497,7 +6514,7 @@ TAPES.push({
   title: 'RECLAMATION LOG 23', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'wave', pitch: 185,
   lines: [
     'Log twenty-three. The doll keeps turning up in places nobody carried her.',
-    'Marigold was our display model. Now she sits by the doors before they open, as if she knows.',
+    'Posie was our display model. Now she sits by the doors before they open, as if she knows.',
     'The bear in the foundry still has a working voice box. It asks the night shift for hugs. Nobody answers anymore.',
     'And 6-06... if it sees you climb into a locker, it will open that locker. Hide before it sees you. Never after.'
   ]
@@ -6942,14 +6959,14 @@ const OBJECTIVES = [
   'Restore power to the hall door: latch a hand on the power node, loop the cable around both amber relays, then fire your other hand into the door receptacle.',
   'Cross the Pressure Gallery quietly. Shut the steam (high lever, east wall) and power the gallery gate (west wall).',
   'RUN. Reach the freight lift at the end of the Spool Foundry.',
-  'Defeat the Spoolwright: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
+  'Defeat the Epxirtype: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
   // ---- Act II: the Deep Works ----
-  'STATION YARD. Take your hands from the crate by the tracks, meet Marigold on the platform, then power the yard gate. Mind the shunter.',
+  'STATION YARD. Take your hands from the crate by the tracks, meet Posie on the platform, then power the yard gate. Mind the shunter.',
   'FABRICATION LINE. Carry the cable across the moving belts (stay clear of the end stampers): node on the west wall, loop both relays, plug LINE POWER. Then hit the piston override in the hall.',
-  'DRAINAGE CATACOMBS. Watch your footing on the gel. Fire a hand at each lock terminal so Marigold can override it, then wrench the exit ladder down (latch the ring, drag your view down) and climb.',
+  'DRAINAGE CATACOMBS. Watch your footing on the gel. Fire a hand at each lock terminal so Posie can override it, then wrench the exit ladder down (latch the ring, drag your view down) and climb.',
   'SORTING HUB. When the intercom calls a colour, every container of that colour moves. Find the open gaps through the three bands, then time your run past the crushing walls.',
-  'CORE VAULT. Phase 1: lure the Spoolwright onto a track, then hit the TRACK SWITCH (west wall) - Thimble sends the next train down that line. Dodge the trains. Phase 2: latch each exposed core and drag it out.',
-  'The Spoolwright is contained. The Deep Works are quiet.'
+  'CORE VAULT. Phase 1: lure the Epxirtype onto a track, then hit the TRACK SWITCH (west wall) - Morsel sends the next train down that line. Dodge the trains. Phase 2: latch each exposed core and drag it out.',
+  'The Epxirtype is contained. The Deep Works are quiet.'
 ];
 // [headline, speaker, line] shown on the death screen
 const DEATH_LINES = {
@@ -7686,6 +7703,7 @@ const Game = {
     Gear.submit(vis);
     DeepWorks.submit(vis);
     if (state === STATE.MAIN_MENU && UI.menuPage === 'title') TitleScene.submit();
+    if (state === STATE.MAIN_MENU && UI.menuPage === 'chapters') ChapterCards.submitActors();
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
@@ -7971,8 +7989,12 @@ const Game = {
 
   render() {
     if (!Renderer.ok || state === STATE.BOOT_LOADING) return;
+    // the chapter select: each card shows one of our characters, rendered live (one card per frame)
+    const cards = state === STATE.MAIN_MENU && UI.menuPage === 'chapters' && ChapterCards.prepare();
     this.submitScene();
+    if (cards) ChapterCards.light(this.scene);
     Renderer.render(this.scene, this.time + this.menuTime);
+    if (cards) ChapterCards.capture();
   }
 };
 const _g = {
@@ -8312,12 +8334,12 @@ async function runAll() {
     UI.selectMenu(0); T.clearSfxLog(); UI.menuActivate(); T.step(DT, 1);
     check('menu: a sealed chapter refuses (deny)', UI.menuPage === 'chapters' && T.getSfxLog().includes('deny'), UI.menuPage);
     Game.uiAction('chapter6'); T.step(DT, 1);
-    check('menu: chapter 6 opens its screen with the Spoolwright behind it', UI.menuPage === 'ch6' && !document.getElementById('chapterPage').classList.contains('on'), UI.menuPage);
+    check('menu: chapter 6 opens its screen with the Epxirtype behind it', UI.menuPage === 'ch6' && !document.getElementById('chapterPage').classList.contains('on'), UI.menuPage);
     T.gotoMenu();
     T.step(DT, 2);
     check('menu: state is MAIN_MENU', T.getState() === 'MAIN_MENU', T.getState());
     checkUI('MAIN_MENU');
-    check('menu: the Spoolwright looms in the menu backdrop', Monster.visible && Monster.state === MSTATE.MENU_POSE, Monster.state);
+    check('menu: the Epxirtype looms in the menu backdrop', Monster.visible && Monster.state === MSTATE.MENU_POSE, Monster.state);
     check('menu: arrow navigation moves selection', (() => { const a = UI.menuIndex; tap('ArrowDown'); const b = UI.menuIndex; tap('ArrowUp'); return b !== a; })());
     Game.uiAction('settings'); T.step(DT, 1);
     check('settings: panel opens from menu', T.getState() === 'SETTINGS_PANEL', T.getState());
@@ -8350,11 +8372,11 @@ async function runAll() {
     check('vhs: Escape skips to gameplay', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
     // ---------------- the opening: station yard under the main office ----------------
     const DWo = DeepWorks;
-    check('opening: a new game starts in the station yard, facing the Usher\'s computer (stage 5)', Game.stage === 5 && Streaming.current === 6 && Cast.monitor.computer && Cast.monitor.stage === 5, 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    check('opening: a new game starts in the station yard, facing Harlan Smithers\'s computer (stage 5)', Game.stage === 5 && Streaming.current === 6 && Cast.monitor.computer && Cast.monitor.stage === 5, 'stage ' + Game.stage + ' sector ' + Streaming.current);
     check('opening: no hands on the pack yet', Gear.handsLost, '');
-    check('opening: Thimble is already with you (an old friend)', Cast.plush.mode === 'FOLLOW', Cast.plush.mode);
+    check('opening: Morsel is already with you (an old friend)', Cast.plush.mode === 'FOLLOW', Cast.plush.mode);
     T.step(DT, 90);
-    check('opening: the Usher\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
+    check('opening: Harlan Smithers\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
     const lockZ = Player.body.pos[2]; T.simulateKey('KeyW', true); T.step(DT, 30); T.simulateKey('KeyW', false);
     check('opening: you cannot walk away while he speaks', Math.abs(Player.body.pos[2] - lockZ) < 0.01, (Player.body.pos[2] - lockZ).toFixed(3));
     Dialogue.clear(); T.step(DT, 2);
@@ -8366,7 +8388,7 @@ async function runAll() {
     const shX0 = DWo.shunter.x; T.step(DT, 60);
     check('opening: the shunter car patrols the second line', DWo.shunter.x !== shX0 || DWo.shunter.wait > 0, shX0 + ' -> ' + DWo.shunter.x);
     T.setPlayerPose(8.6, 0, -170.6, -Math.PI / 2, 0); T.step(DT, 6);
-    check('opening: rendezvous with Marigold on the platform', DWo.met && Cast.plush.mode === 'FOLLOW', String(DWo.met));
+    check('opening: rendezvous with Posie on the platform', DWo.met && Cast.plush.mode === 'FOLLOW', String(DWo.met));
     Dialogue.clear();
     T.setPlayerPose(-10, 0, -165, Math.PI / 2, 0); T.step(DT, 2);
     T.aimAt(-12.45, 1.5, -165); click(0); T.step(DT, 20);
@@ -8506,7 +8528,7 @@ async function runAll() {
     // ---------------- stalker AI ----------------
     T.step(DT, 300);
     T.setPlayerPose(0, 0, -26, 0, 0); T.step(DT, 3);
-    check('gallery: only rattles in the ducts - the Spoolwright stays hidden until the foundry', !Monster.active && !Monster.visible && T.getSfxLog().includes('ventEnter'), Monster.state);
+    check('gallery: only rattles in the ducts - the Epxirtype stays hidden until the foundry', !Monster.active && !Monster.visible && T.getSfxLog().includes('ventEnter'), Monster.state);
     // the stalker behaviours are still exercised directly
     Monster.activateStalker(2); T.step(DT, 3);
     check('ai: stalker wakes in the vents', Monster.active && Monster.inVent && Monster.state === MSTATE.VENT_PATROL, Monster.state);
@@ -8552,7 +8574,7 @@ async function runAll() {
     const cp = Game.checkpoint;
     check('checkpoint: player at stage-2 checkpoint', Math.abs(Player.body.pos[2] - cp.pos[2]) < 0.2 && Game.stage === 2, Player.body.pos[2].toFixed(2));
     check('checkpoint: puzzle progress kept (R1 powered, D1 open)', Level.receptacles[1].powered && Level.doorById('D1').open === 1);
-    check('checkpoint: the Spoolwright is not back in the gallery (revealed later)', !Monster.active && !Monster.visible, Monster.state);
+    check('checkpoint: the Epxirtype is not back in the gallery (revealed later)', !Monster.active && !Monster.visible, Monster.state);
     check('checkpoint: no hands out, particles cleared', T.getCounts().handsOut === 0, JSON.stringify(T.getCounts()));
 
     await breathe();
@@ -8588,23 +8610,23 @@ async function runAll() {
     await breathe();
     // ---------------- scripted chase ----------------
     T.setPlayerPose(0, 0, -49.5, 0, 0); T.step(DT, 3);
-    check('reveal: the Spoolwright stands frozen at the far end of the foundry', Monster.creeping && Monster.visible && !Monster.scripted, JSON.stringify(T.monster()));
+    check('reveal: the Epxirtype stands frozen at the far end of the foundry', Monster.creeping && Monster.visible && !Monster.scripted, JSON.stringify(T.monster()));
     const cz0 = Monster.pos[2];
     for (let i = 0; i < 60; i++) { T.aimAt(Monster.head[0], Monster.head[1], Monster.head[2]); T.step(DT, 1); }
     check('reveal: it does not move while you watch it', Monster.pos[2] === cz0, Monster.pos[2].toFixed(2));
     T.clearSfxLog(); T.aimAt(0, 1.6, -40); T.step(DT, 40);
     check('reveal: look away and it jerks closer in a new pose, bells jingling', Monster.pos[2] > cz0 + 1 && T.getSfxLog().includes('bells'), Monster.pos[2].toFixed(2));
     for (let i = 0; i < 14 && !Ambush.active; i++) { T.aimAt(0, 1.6, -40); T.step(DT, 40); }
-    check('chase: trigger slams D2 and spawns the Spoolwright', Monster.scripted && Level.doorById('D2').target === 0 && Level.doorById('D2').locked, JSON.stringify(T.monster()));
+    check('chase: trigger slams D2 and spawns the Epxirtype', Monster.scripted && Level.doorById('D2').target === 0 && Level.doorById('D2').locked, JSON.stringify(T.monster()));
     check('state: CHASE_SEQUENCE during the scripted chase', T.getState() === 'CHASE_SEQUENCE', T.getState());
     T.step(DT, 30);
     check('chase: camera shake engaged', Player.chaseShake > 0.3, Player.chaseShake.toFixed(2));
     check('chase: fracture map driven by the burst', Game.fractureAmt > 0.3, Game.fractureAmt.toFixed(2));
     check('ambush: you are pinned and the view locks while they talk', Ambush.active && Player.lockAmt > 0.3 && Dialogue.busy() && ['SPOOLWRIGHT', 'THIMBLE'].includes(Dialogue.current.speaker), Dialogue.current ? Dialogue.current.speaker : 'none');
     T.step(DT, 60);
-    check('ambush: the Spoolwright holds still for the scene', Monster.bossHold || Monster.state === MSTATE.EMERGE, Monster.state);
+    check('ambush: the Epxirtype holds still for the scene', Monster.bossHold || Monster.state === MSTATE.EMERGE, Monster.state);
     Ambush.skip(); T.step(DT, 3);
-    check('ambush: Thimble\'s purple blast stuns it and frees you', !Ambush.active && Monster.stunTimer > 0 && !Monster.bossHold && Cast.plush.mode === 'SHUTTER' && Player.lockAmt === 0, Monster.stunTimer.toFixed(2));
+    check('ambush: Morsel\'s purple blast stuns it and frees you', !Ambush.active && Monster.stunTimer > 0 && !Monster.bossHold && Cast.plush.mode === 'SHUTTER' && Player.lockAmt === 0, Monster.stunTimer.toFixed(2));
     Game.invulnerable = true;
     T.setPlayerPose(3, 0, -67, 0, 0); T.aimAt(5.85 - 0.3, 3.45, -69); T.step(DT, 1);
     T.simulateMouse(0, true); for (let i = 0; i < 150 && !Level.levers[1].pulled; i++) T.step(DT, 1);
@@ -8617,7 +8639,7 @@ async function runAll() {
     check('boss: the freight lift descends into the Loom', Streaming.current === 5 && Game.stage === 4, 'sector ' + Streaming.current + ' stage ' + Game.stage);
     check('checkpoint: saved at the boss arena', Game.checkpoint.stage === 4 && Game.checkpoint.monsterMode === 2, Game.checkpoint.stage);
     T.step(DT, 200);
-    check('boss: the Spoolwright drops in', Boss.active && Monster.boss && Monster.active, Boss.mode + ' ' + Monster.state);
+    check('boss: the Epxirtype drops in', Boss.active && Monster.boss && Monster.active, Boss.mode + ' ' + Monster.state);
     T.step(DT, 80);
     Game.invulnerable = true;
     // real shock: latch a wall node, then hit the creature with the other hand
@@ -8681,16 +8703,16 @@ async function runAll() {
     setState(STATE.GAMEPLAY_ACTIVE); Game.invulnerable = true; Player.health = 100;
     T.setPlayerPose(0, 0, -199.0, Math.PI / 2, 0); T.step(DT, 2);
     T.aimAt(-2.35, 1.6, -199.6); click(0); T.step(DT, 10);
-    check('fab: piston override sends Thimble into the machinery', DWk.thimbleTask && DWk.thimbleTask.kind === 'JAM', '');
+    check('fab: piston override sends Morsel into the machinery', DWk.thimbleTask && DWk.thimbleTask.kind === 'JAM', '');
     let jammed = false; for (let i = 0; i < 700 && !jammed; i++) { T.step(DT, 1); jammed = DWk.jam.on; }
     T.step(DT, 90);
-    check('fab: Thimble jams the pistons (raised) and the exit opens', jammed && DWk.pistons.every(p => p.y > 3) && Level.doorById('D7').target === 1, DWk.pistons.map(p => p.y.toFixed(1)).join(','));
+    check('fab: Morsel jams the pistons (raised) and the exit opens', jammed && DWk.pistons.every(p => p.y > 3) && Level.doorById('D7').target === 1, DWk.pistons.map(p => p.y.toFixed(1)).join(','));
     check('fab: stage 7 checkpoint', Game.checkpoint.stage === 7, Game.checkpoint.stage);
     T.step(DT, 250);
-    check('fab: Thimble climbs back out and follows', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
+    check('fab: Morsel climbs back out and follows', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
     // checkpoint restore keeps Act II progress
     Game.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); Game.invulnerable = true; T.step(DT, 4);
-    check('checkpoint: restoring in the catacombs keeps the pistons jammed and Thimble with you', Game.stage === 7 && Streaming.current === 8 && DWk.jam.on && Level.doorById('D7').open === 1 && Cast.plush.mode === 'FOLLOW', 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    check('checkpoint: restoring in the catacombs keeps the pistons jammed and Morsel with you', Game.stage === 7 && Streaming.current === 8 && DWk.jam.on && Level.doorById('D7').open === 1 && Cast.plush.mode === 'FOLLOW', 'stage ' + Game.stage + ' sector ' + Streaming.current);
 
     await breathe();
     // drainage catacombs
@@ -8701,9 +8723,9 @@ async function runAll() {
     check('catacombs: the live cables shock you', Player.health < 90 && T.getSfxLog().includes('shock'), Player.health.toFixed(0));
     Game.invulnerable = true; Player.health = 100;
     T.setPlayerPose(3, 0, -223.5, 0, 0); T.step(DT, 2); T.aimAt(3, 1.6, -225.85); click(0); T.step(DT, 10);
-    check('catacombs: terminal hands the lock to Marigold', DWk.overrides.length === 1, '');
+    check('catacombs: terminal hands the lock to Posie', DWk.overrides.length === 1, '');
     T.step(DT, 300);
-    check('catacombs: Marigold overrides the lock', Level.doorById('DC1').target === 1, '');
+    check('catacombs: Posie overrides the lock', Level.doorById('DC1').target === 1, '');
     T.step(DT, 300);
     for (const wp of [[0, -228.8], [-8.8, -228.8], [-8.8, -234.8], [0, -234.8]]) T.walkTo(wp[0], wp[1]);
     T.step(DT, 60);
@@ -8759,7 +8781,7 @@ async function runAll() {
     check('vault: entering wakes the fight', V.active && Game.chaseActive, V.mode);
     for (let i = 0; i < 400 && V.mode !== 'P1'; i++) T.step(DT, 1);
     T.step(DT, 120);
-    check('vault: the Spoolwright descends (phase 1)', V.mode === 'P1' && Monster.active && Monster.boss, V.mode + ' ' + Monster.state);
+    check('vault: the Epxirtype descends (phase 1)', V.mode === 'P1' && Monster.active && Monster.boss, V.mode + ' ' + Monster.state);
     check('ui: boss bar shows the vault health', document.getElementById('hudBoss').style.display === 'block', '');
     V.trainCd = 0; let trainSeen = false;
     for (let i = 0; i < 200 && !trainSeen; i++) { T.step(DT, 1); trainSeen = DWk.trains.length > 0; }
@@ -8773,10 +8795,10 @@ async function runAll() {
     T.aimAt(-15.25, 1.6, -310); click(0);
     for (let i = 0; i < 400 && V.hp === 6; i++) T.step(DT, 1);
     Monster.bossHold = false;
-    check('vault: Thimble throws the switch - the train hits the Spoolwright', V.hp === 5 && Monster.stunTimer > 0, 'hp ' + V.hp);
+    check('vault: Morsel throws the switch - the train hits the Epxirtype', V.hp === 5 && Monster.stunTimer > 0, 'hp ' + V.hp);
     GrabPack.reset();
     DWk.trainHit({ z: VAULT_TRACKS[0], dir: 1 }); DWk.trainHit({ z: VAULT_TRACKS[0], dir: 1 }); T.step(DT, 30);
-    check('vault: three hits - Marigold overloads the generators (phase 2)', V.mode === 'P2' && DWk.cores.every(c => c.collider.enabled), V.mode);
+    check('vault: three hits - Posie overloads the generators (phase 2)', V.mode === 'P2' && DWk.cores.every(c => c.collider.enabled), V.mode);
     T.step(DT, 120);
     const core = DWk.cores[1];
     T.setPlayerPose(0, 0, -325.6, 0, 0); T.step(DT, 2); T.aimAt(0, 1.5, -327.75);
@@ -8787,7 +8809,7 @@ async function runAll() {
     DWk.coreOut(); DWk.coreOut();
     check('vault: three cores out - containment begins', V.mode === 'CONTAIN', V.mode);
     for (let i = 0; i < 400 && V.mode !== 'DONE'; i++) T.step(DT, 1);
-    check('vault: the Spoolwright is contained (stage 10)', V.mode === 'DONE' && Game.stage === 10, V.mode + ' ' + Game.stage);
+    check('vault: the Epxirtype is contained (stage 10)', V.mode === 'DONE' && Game.stage === 10, V.mode + ' ' + Game.stage);
     check('victory: ending tape plays', untilState('CINEMATIC_VHS', 500) && VHS.tapeId === 2, T.getState());
     tap('Escape');
     check('victory: VICTORY screen', T.getState() === 'VICTORY', T.getState());
@@ -8881,7 +8903,7 @@ async function runAll() {
       check('marigold: introduces herself when you approach', Cast.doll.met && (Dialogue.busy() || true) && T.getSfxLog().includes('voiceBlip') || Cast.doll.met, String(Cast.doll.met));
       Dialogue.clear(); Companion.cool = 999; for (const k in Companion.lineCool) Companion.lineCool[k] = 999;
       Dialogue.say('MARIGOLD', 'Test line.'); T.step(DT, 20);
-      check('dialogue: speaker label + typewriter text shown', document.getElementById('hudDialogName').textContent === 'MARIGOLD' && document.getElementById('hudDialogText').textContent.length > 0, document.getElementById('hudDialogText').textContent);
+      check('dialogue: speaker label + typewriter text shown', document.getElementById('hudDialogName').textContent === 'POSIE' && document.getElementById('hudDialogText').textContent.length > 0, document.getElementById('hudDialogText').textContent);
       T.step(DT, 300);
       check('dialogue: line clears after its hold time', !Dialogue.busy() && document.getElementById('hudDialog').style.display === 'none');
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
@@ -8910,7 +8932,7 @@ async function runAll() {
       check('thimble: hints at the puzzle when you are stuck', Dialogue.busy() && Dialogue.current.speaker === 'THIMBLE' && /lever|gate/.test(Dialogue.current.text), Dialogue.current ? Dialogue.current.text : '');
       Dialogue.clear(); Companion.cool = 0; Companion.lineCool.threat = 0;
       Game.invulnerable = true; T.spawnMonsterNear(9); Monster.targetSpeed = 0; T.step(DT, 3);
-      check('thimble: warns you and hides when the Spoolwright is near', Cast.plush.mode === 'HIDE' && Cast.plush.hidden && Dialogue.current.speaker === 'THIMBLE', Cast.plush.mode);
+      check('thimble: warns you and hides when the Epxirtype is near', Cast.plush.mode === 'HIDE' && Cast.plush.hidden && Dialogue.current.speaker === 'THIMBLE', Cast.plush.mode);
       Monster.reset(); T.step(DT, 300);
       check('thimble: comes back once it is gone', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
       // fighting back outside the boss fight: a plain hit staggers it, a charged hit shocks it into the vents
@@ -9060,7 +9082,7 @@ async function runAll() {
       Game.saveCheckpoint(1); T.step(DT, 2);
       check('gear: VHS cassette icon while saving', document.getElementById('hudVhs').classList.contains('on') && document.getElementById('hudVhsText').textContent === 'SAVING');
       T.setStepRender(true); T.setPlayerPose(0, 0, -10, 0, 0); T.step(DT, 2);
-      check('gear: PIP on the teal glove renders (face texture)', T.getLastError() === null && Renderer.stats.assetDraws > 0, Renderer.stats.assetDraws);
+      check('gear: STARBY on the teal glove renders (face texture)', T.getLastError() === null && Renderer.stats.assetDraws > 0, Renderer.stats.assetDraws);
       T.setStepRender(false);
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }
@@ -9775,7 +9797,7 @@ const Cast = {
     pos: V3.create(0, -50, 0), yaw: 0, headYaw: 0, state: 'HIDDEN', timer: 0, stareTime: 0, used: new Uint8Array(4),
     eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
   },
-  doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
+  doll: { pos: V3.create(10.6, 1.0, -6.6), eyePos: V3.create(0, -50, 0), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
   plush: { pos: V3.create(3.0, 0, -27.5), yaw: 2.43, headYaw: 0, eyeGlow: 0.5, eyePulse: 0, talked: false, plugState: 0, plugTimer: 0, plug: 0, wave: 0, cheered: false, talking: false,
     mode: 'WAIT', sector: 2, hidden: false, walk: 0, phase: 0, ground: 0, groundIdle: 0, overload: 0 },
   // where Mister Thimble waits in the gallery, and where he stands by the shutter socket
@@ -9845,7 +9867,7 @@ const Cast = {
     const U = this.usher;
     U.state = 'HIDDEN'; U.timer = 0; U.stareTime = 0; U.used.fill(0); U.glitch = 0; U.perch = -1;
     V3.set(U.pos, 0, -50, 0);
-    const D = this.doll; D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0; D.met = false; D.farewell = false;
+    const D = this.doll; if (!D.eyePos) D.eyePos = V3.create(0, -50, 0); D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0; D.met = false; D.farewell = false;
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
     this.resetPlush();
@@ -10060,7 +10082,7 @@ const Cast = {
         sfx('power', sk);
         Dialogue.say('THIMBLE', 'Ah! The voltage is too high - it\'s backing up into my stitches!');
         Dialogue.say('THIMBLE', 'Clamp onto my staff and hold on - ground it through your pack!');
-        GrabPack.showHint('OVERLOAD - clamp a hand on Thimble\'s staff and HOLD to ground it');
+        GrabPack.showHint('OVERLOAD - clamp a hand on Morsel\'s staff and HOLD to ground it');
         Pip.react('scared', 2);
       }
     }
@@ -10264,23 +10286,36 @@ const Cast = {
     if (!Sculpt.ready('mg_body')) return;
     // sculpted seated body (dress, pinafore, ruffled petticoat, porcelain limbs, shoes)
     let it = R.push('mg_body', MAT.paint);
-    if (it) M4.compose(it.model, p[0], p[1], p[2], yaw, 0, 0, 1, 1, 1);
+    if (it) { M4.compose(it.model, p[0], p[1], p[2], yaw, 0, 0, 1, 1, 1); it.tint[0] = 0.72; it.tint[1] = 0.84; it.tint[2] = 0.84; }
+    // her gold-orange wind-up key between the shoulder blades, turning slowly
+    this.pt(a, p, yaw, 0, 0.4, 0.13);
+    M4.compose(this.m, a[0], a[1], a[2], yaw, Math.PI / 2, Game.time * 0.8, 1, 1, 1);
+    it = R.push('cylLow', MAT.copper); if (it) { M4.compose(it.model, a[0], a[1], a[2], yaw, Math.PI / 2, 0, 0.012, 0.09, 0.012); it.tint[0] = 1.3; it.tint[1] = 1.0; it.tint[2] = 0.45; }
+    this.pt(b, p, yaw, 0, 0.4, 0.22);
+    for (const s of [-1, 1]) { const bw = R.trs('torus', MAT.copper, b[0], b[1], b[2], yaw + Math.PI / 2, Game.time * 0.8 + s * 0.9, 0, 0.035, 0.3, 0.035, false); if (bw) { bw.tint[0] = 1.3; bw.tint[1] = 1.0; bw.tint[2] = 0.45; } }
     // sculpted head turns on the neck
     const hy = yaw + D.headYaw, hp = D.headPitch;
-    this.pt(a, p, yaw, 0, 0.66, 0.03);
-    M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1, 1, 1);
+    // a big doll head on a slim little body
+    this.pt(a, p, yaw, 0, 0.7, 0.03);
+    M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1.24, 1.24, 1.24);
     it = R.push('mg_head', MAT.porcelain);
     if (it) it.model.set(this.m);
-    // amber glass eye in the intact socket; the lid closes on blinks
-    V3.set(this.local, 0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, hp, 0.08, 0.022, 0.022 * (1 - D.blink * 0.9), 0.012, false);
-    if (it) { it.tint[0] = 0.85; it.tint[1] = 0.95; it.tint[2] = 1.25; it.emis[0] = 0.45; it.emis[1] = 0.5; it.emis[2] = 0.55; }
-    V3.set(this.local, 0.05, 0.013, -0.106); M4.transformPoint(b, this.m, this.local);
-    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008, 0.006, false);
-    // faint glint deep in the empty socket
-    V3.set(this.local, -0.05, 0.016, -0.1); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], 0, 0, 0, 0.004, 0.004, 0.004, false);
-    if (it) { it.emis[0] = 0.5; it.emis[1] = 0.5; it.emis[2] = 0.55; }
+    // her LEFT eye: polished glass with a glowing teal iris (it lights the things around her); the lid closes on blinks
+    V3.set(this.local, -0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.034, 0.034 * (1 - D.blink * 0.9), 0.016, false);
+    if (it) { it.tint[0] = 0.8; it.tint[1] = 0.9; it.tint[2] = 0.9; it.emis[0] = 0.25; it.emis[1] = 0.3; it.emis[2] = 0.3; }
+    V3.set(this.local, -0.05, 0.013, -0.125); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.016 * (1 - D.blink), 0.016 * (1 - D.blink), 0.005, false);
+    if (it) { it.emis[0] = 0.2; it.emis[1] = 2.6; it.emis[2] = 2.4; }
+    V3.copy(D.eyePos, b);
+    // the RIGHT socket is an empty black void; inside the broken temple, rusted gold clockwork turns
+    V3.set(this.local, 0.085, 0.035, -0.04); M4.transformPoint(b, this.m, this.local);
+    for (let g = 0; g < 2; g++) {
+      const gi = R.trs('torus', MAT.copper, b[0] + g * 0.01, b[1] - g * 0.03, b[2] + g * 0.02, hy + Math.PI / 2, Game.time * (g ? -1.3 : 0.9), 0, 0.03 - g * 0.008, 0.25, 0.03 - g * 0.008, false);
+      if (gi) { gi.tint[0] = 1.25; gi.tint[1] = 0.85; gi.tint[2] = 0.4; }
+    }
+    const hub = R.trs('cylLow', MAT.copper, b[0], b[1], b[2], hy, 0, Math.PI / 2, 0.006, 0.05, 0.006, false);
+    if (hub) { hub.tint[0] = 1.1; hub.tint[1] = 0.8; hub.tint[2] = 0.4; }
   },
 
   // where the needle staff is this frame (also used by the socket check)
@@ -10377,11 +10412,11 @@ const _cast = {
 // DIALOGUE: speaker-labelled lines with typewriter text and per-character voices
 // =====================================================================================
 const SPEAKERS = {
-  MARIGOLD: { name: 'MARIGOLD', color: '#e8c35a', pitch: 430, wobble: 0.1 },
-  USHER: { name: 'THE USHER  (PA)', color: '#3fd4a8', pitch: 105, wobble: 0.04 },
-  THIMBLE: { name: 'MISTER THIMBLE', color: '#b98cff', pitch: 170, wobble: 0.25 },
-  PIP: { name: 'PIP', color: '#7dff6a', pitch: 620, wobble: 0.15 },
-  SPOOLWRIGHT: { name: 'THE SPOOLWRIGHT', color: '#ff3b2e', pitch: 72, wobble: 0.35 },
+  MARIGOLD: { name: 'POSIE', color: '#e8c35a', pitch: 430, wobble: 0.1 },
+  USHER: { name: 'HARLAN SMITHERS  (PA)', color: '#3fd4a8', pitch: 105, wobble: 0.04 },
+  THIMBLE: { name: 'MR. MORSEL', color: '#b98cff', pitch: 170, wobble: 0.25 },
+  PIP: { name: 'STARBY', color: '#7dff6a', pitch: 620, wobble: 0.15 },
+  SPOOLWRIGHT: { name: 'THE EPXIRTYPE', color: '#ff3b2e', pitch: 72, wobble: 0.35 },
   CHERUB: { name: 'CHERUB CHEEKS', color: '#e8c35a', pitch: 760, wobble: 0.4 },
   SERAPH: { name: 'SERAPHIM SAM  (PA)', color: '#ff3b2e', pitch: 60, wobble: 0.1 }
 };
@@ -11183,7 +11218,8 @@ const SCULPTS = {
   },
   // Marigold seated body: dusty wine dress with a torn hem, grimy pinafore, cracked porcelain limbs
   mg_body: () => {
-    const Y = MAT.clothWine, W = MAT.furLight, P = MAT.porcelain, B = MAT.rubber, n = [
+    // Posie: a dusty teal dress with an ivory lace pinafore
+    const Y = MAT.handTeal, W = MAT.furLight, P = MAT.porcelain, B = MAT.rubber, n = [
       { t: 'ell', c: [0, 0.13, 0.02], r: [0.26, 0.15, 0.25], m: Y, n: [0.01, 34] },
       { t: 'tor', c: [0, 0.035, 0.02], R: 0.24, r: 0.035, m: Y, k: 0.02, n: [0.016, 48] },
       { t: 'box', c: [0, 0.0, 0.0], h: [0.4, 0.03, 0.4], op: 's', k: 0.01, sm: Y, n: [0.03, 22] },
@@ -11209,7 +11245,9 @@ const SCULPTS = {
   // Marigold head: shattered porcelain face (a whole cheek missing, hollow socket, milky eye),
   // parted lips, matted raven hair hanging in clumps over one side
   mg_head: () => {
-    const P = MAT.porcelain, H = MAT.hairDark, D = MAT.rubber;
+    // Posie: the RIGHT side of the skull is shattered inward (clockwork shows through, drawn in submitDoll),
+    // the right socket is a hollow black void, the left keeps a glowing teal glass eye; rose yarn hair
+    const P = MAT.porcelain, H = MAT.lining, D = MAT.rubber;
     const n = [
       { t: 'ell', c: [0, 0.035, 0.03], r: [0.16, 0.155, 0.155], m: H, n: [0.008, 50] },
       { t: 'ell', c: [0.02, -0.03, -0.12], r: [0.14, 0.14, 0.09], op: 's', k: 0.02, sm: H },
@@ -11218,7 +11256,7 @@ const SCULPTS = {
       { t: 'ell', c: [-0.07, -0.05, -0.085], r: [0.05, 0.045, 0.045], m: P, k: 0.05 },
       { t: 'sph', c: [0, -0.012, -0.136], r: 0.013, m: P, k: 0.012 },
       { t: 'sph', c: [-0.05, 0.016, -0.125], r: 0.036, op: 's', k: 0.008, sm: D },
-      { t: 'sph', c: [0.05, 0.013, -0.125], r: 0.029, op: 's', k: 0.008, sm: D },
+      { t: 'sph', c: [0.05, 0.013, -0.125], r: 0.035, op: 's', k: 0.008, sm: D },
       { t: 'ell', c: [0, -0.072, -0.126], r: [0.026, 0.012, 0.02], op: 's', k: 0.004, sm: D },
       // shattered left cheek and temple: a jagged hole into the hollow head
       { t: 'box', c: [-0.1, 0.03, -0.09], h: [0.06, 0.08, 0.06], rot: [0.4, 0.5, 0.7], op: 's', k: 0.003, sm: D, n: [0.02, 55] },
@@ -11228,13 +11266,28 @@ const SCULPTS = {
     const cr = [[-0.06, 0.09, -0.12, 0.02, 0.13, -0.11], [-0.04, -0.02, -0.13, 0.03, -0.09, -0.12], [-0.07, 0.11, -0.1, -0.03, 0.15, -0.03], [-0.02, 0.04, -0.14, 0.05, 0.08, -0.13]];
     for (const c of cr) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.004, op: 's', sm: D, n: [0.003, 120] });
     // matted clumps of hair hanging down the back and over the right side of the face
+    // rose lipstick on a small porcelain mouth
+    n.push({ t: 'ell', c: [0, -0.066, -0.13], r: [0.03, 0.01, 0.012], m: MAT.handRose, k: 0.004 });
+    n.push({ t: 'ell', c: [0, -0.08, -0.128], r: [0.026, 0.011, 0.012], m: MAT.handRose, k: 0.004 });
+    // porcelain ears; the left one has a chip knocked out of its rim
+    for (const s of [-1, 1]) n.push({ t: 'ell', c: [s * 0.142, -0.005, 0.005], r: [0.022, 0.045, 0.03], m: P, k: 0.012 });
+    n.push({ t: 'box', c: [0.165, 0.03, -0.005], h: [0.02, 0.02, 0.025], rot: [0.3, 0.2, 0.6], op: 's', k: 0.002, sm: D, n: [0.004, 90] });
+    // a patch of hair torn out at the side, leaving scraped bare porcelain (clumps 3-5 are missing)
     for (let r = 0; r < 14; r++) {
+      if (r >= 3 && r <= 5) continue;
       const ang = Math.PI * 0.2 + (r / 13) * Math.PI * 1.6;
       const bx = Math.sin(ang) * 0.15, bz = -Math.cos(ang) * 0.14 + 0.03;
       const len = 0.16 + ((r * 37) % 7) * 0.025;
       n.push({ t: 'cap', a: [bx, 0.06, bz], b: [bx * 1.12 + Math.sin(r) * 0.015, 0.06 - len, bz * 1.1 + 0.02], r: 0.03, r2: 0.012, m: H, k: 0.025, n: [0.006, 70] });
     }
     n.push({ t: 'cap', a: [0.08, 0.1, -0.12], b: [0.1, -0.08, -0.15], r: 0.022, r2: 0.01, m: H, k: 0.02, n: [0.004, 80] });
+    // mirror the whole sculpt so the damage sits on her right side (+x)
+    for (const k of n) {
+      for (const f of ['c', 'a', 'b']) if (k[f]) k[f] = [-k[f][0], k[f][1], k[f][2]];
+      if (k.rot) k.rot = [k.rot[0], -k.rot[1], -k.rot[2]];
+    }
+    // a bigger, deeper break into the right temple
+    n.push({ t: 'ell', c: [0.11, 0.05, -0.05], r: [0.05, 0.07, 0.07], op: 's', k: 0.004, sm: D, n: [0.02, 60] });
     return SDF.mesh(n, [-0.24, -0.26, -0.22], [0.24, 0.22, 0.24], 78);
   },
   // Mister Thimble (ally): soft, round, well-loved plush bear in auburn/chestnut fur, a slate vest with
@@ -11673,18 +11726,18 @@ const COMPANION_LINES = {
   taunts: [
     'Run along the seams, little thread! But mind your step... my needles drop on the beat, and your stitching is dreadfully messy today!',
     'Testing, one, two... is this dusty old microphone still wired? Ah, there we are! To our silent little guest: why not take a shortcut through the cutting room? I promise my shears don\'t bite... too hard!',
-    'I see you, little thread! And you brought the matching set along! Thimble, my boy, you really must get that head restitched... it\'s sagging lower every time you cross my monitors!'
+    'I see you, little thread! And you brought the matching set along! Morsel, my boy, you really must get that head restitched... it\'s sagging lower every time you cross my monitors!'
   ],
   ambush: [
     ['SPOOLWRIGHT', 'Well, well... look what dragged itself out of the rag bin. And it brought the silent little employee along for the ride!'],
-    ['THIMBLE', 'Leave them alone, Spoolwright! They... they don\'t talk, but they\'re fixing the power! They\'re putting this place back together!'],
+    ['THIMBLE', 'Leave them alone, Epxirtype! They... they don\'t talk, but they\'re fixing the power! They\'re putting this place back together!'],
     ['SPOOLWRIGHT', 'Fixing it? Or winding the gears tight enough to snap every mainspring we have? That broken doll already cries in the dark because of their cables!'],
     ['THIMBLE', '(whispering) When I strike the floor with my needle... you run. Don\'t answer me - just watch for the sparks!'],
     ['SPOOLWRIGHT', 'Whispering in patches won\'t save your seams! Let\'s see how your stitching holds under pressure!']
   ],
   banter: [
-    ['THIMBLE', 'I\'m just saying, Marigold... if we get to the main lift, we might actually see the sky. Real light. Not these humming tubes.'],
-    ['MARIGOLD', 'Is the sky as wide as the showroom floor, Thimble? I don\'t remember the colour of the outside... only the white tiles.'],
+    ['THIMBLE', 'I\'m just saying, Posie... if we get to the main lift, we might actually see the sky. Real light. Not these humming tubes.'],
+    ['MARIGOLD', 'Is the sky as wide as the showroom floor, Morsel? I don\'t remember the colour of the outside... only the white tiles.'],
     ['THIMBLE', 'Oh, it\'s bigger... way bigger. Right, friend? Tell her! ...Well, you know what I mean. She doesn\'t believe me.'],
     ['MARIGOLD', 'I believe our friend. Their hands are strong... and careful. If they say the sky is out there, I\'ll walk with you.'],
     ['THIMBLE', 'See? Teamwork! Keep those gauntlets ready, partner.']
@@ -11916,7 +11969,7 @@ const Ambush = {
     // he takes the vents to the shutter and waits there
     const s = Cast.PLUSH_SHUTTER; P.mode = 'SHUTTER'; V3.set(P.pos, s[0], 0, s[1]); P.yaw = s[2]; P.plugState = 0; P.plug = 0;
     Dialogue.say('THIMBLE', 'Run, friend! I\'ll meet you at the shutter!');
-    GrabPack.showHint('RUN! Get to the shutter - Thimble will meet you there (or wrench the high lever)');
+    GrabPack.showHint('RUN! Get to the shutter - Morsel will meet you there (or wrench the high lever)');
     Pip.react('scared', 2);
   }
 };
@@ -12538,7 +12591,7 @@ const Gear = {
       if (this.swapT < SWAP_TIME / 2 && this.cur !== this.swapTo) { this.cur = this.swapTo; sfx('dock', Player.body.pos); }
     }
     if (J.has('KeyG') && this.hasMask) this.toggleMask();
-    if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'PIP: BLACKLIGHT ON - hidden ink glows in the beam' : 'PIP: FLASHLIGHT'); }
+    if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'STARBY: BLACKLIGHT ON - hidden ink glows in the beam' : 'STARBY: FLASHLIGHT'); }
     this.maskT = damp(this.maskT, this.maskOn ? 1 : 0, 7, dt);
     this.updateGas(dt);
     this.updateSecrets(dt);
@@ -13295,7 +13348,7 @@ const DeepWorks = {
       case 'F_PATH':
         Dialogue.say('THIMBLE', 'Those pistons will flatten you! Hold on - I fit where you don\'t!');
         this.thimbleTask = { kind: 'JAM', target: [1.6, -199.4], t: 0 };
-        GrabPack.showHint('Thimble is crawling into the piston machinery...');
+        GrabPack.showHint('Morsel is crawling into the piston machinery...');
         return true;
       case 'C_TERM1': this.startOverride('DC1', 3.6, 0); return true;
       case 'C_TERM2': this.startOverride('D8', 4.2, 8); return true;
@@ -13337,7 +13390,7 @@ const DeepWorks = {
     this.overrides.push({ door, t: time, nextStage });
     sfx('override', Player.body.pos);
     Dialogue.say('MARIGOLD', door === 'D8' ? 'Last lock. I am inside the drainage system now... give me a moment.' : 'Hold still. I can reach the lock through the wiring... overriding.');
-    GrabPack.showHint('MARIGOLD IS OVERRIDING THE LOCK...');
+    GrabPack.showHint('POSIE IS OVERRIDING THE LOCK...');
   },
 
   // ======================================================================================
@@ -13383,8 +13436,8 @@ const DeepWorks = {
     // rendezvous: Marigold waits on the platform bench
     if (Game.stage === 5 && !this.met && Math.hypot(b[0] - 10.4, b[2] + 173.6) < 5.5) {
       this.met = true; P.wave = 1;
-      Dialogue.say('MARIGOLD', 'You found me. ...And you brought Mister Thimble. Good. Nobody goes down alone this time.');
-      Dialogue.say('THIMBLE', 'Hi Marigold! We\'re here to un-break everything. Probably.');
+      Dialogue.say('MARIGOLD', 'You found me. ...And you brought Mr. Morsel. Good. Nobody goes down alone this time.');
+      Dialogue.say('THIMBLE', 'Hi Posie! We\'re here to un-break everything. Probably.');
       Dialogue.say('MARIGOLD', 'The gate needs current. The node is in the signal box by the west wall.');
       Pip.react('happy', 2);
       UI.setObjective(OBJECTIVE_YARD_GATE);
@@ -13575,7 +13628,7 @@ const DeepWorks = {
     sfx('screech', V3.set(this.tmp, 0, 10, -312)); Player.addTrauma(0.6);
     Dialogue.clear();
     Dialogue.say('SPOOLWRIGHT', 'You followed me all the way down. Good. I was running out of parts.');
-    Dialogue.say('MARIGOLD', 'The trains still run through the vault. Use them - Thimble, take the switch!');
+    Dialogue.say('MARIGOLD', 'The trains still run through the vault. Use them - Morsel, take the switch!');
     Dialogue.say('THIMBLE', 'On it! Hit the switch box and I\'ll send the next train down whatever line it\'s standing on!');
     const P = Cast.plush; P.mode = 'VSWITCH'; P.hidden = false; V3.set(P.pos, -14.4, 0, -311.8); P.yaw = -Math.PI / 2;
     UI.setObjective(OBJECTIVES[9]);
@@ -13878,6 +13931,7 @@ const DeepWorks = {
 // =====================================================================================
 const TITLE_SECTOR = 11;
 const TITLE_CAM = { pos: V3.create(0, 1.7, 118), yaw: 0, pitch: 0.16 };
+const CARD_ACTOR_X = [-12, -6, 0, 6, 12];
 const TITLE_SKY = [[2.4, 1.45, 0.45], [2.1, 1.0, 0.5], [1.5, 0.55, 0.5], [0.8, 0.22, 0.3], [0.25, 0.07, 0.1]];
 
 const TitleScene = {
@@ -13936,6 +13990,9 @@ const TitleScene = {
     // fences and lamp posts by the road
     for (let z = 64; z < 136; z += 8) for (const x of [-6, 6]) { g(x - 0.06, 0, z - 0.06, x + 0.06, 4.2, z + 0.06, MAT.steel); g(x - 0.4, 4.1, z - 0.1, x + 0.4, 4.25, z + 0.1, MAT.steel); }
     for (const x of [-6, 6]) L.light(S, x, 4.0, 96, LIGHTING.hazardColor, 3.5, 14, 0, 'bulb', 0.3);
+    // the chapter-card gallery: five small stages behind the title camera, one per chapter
+    g(-16, 0, 141, 16, 9, 141.5, MAT.rubber);
+    for (const x of CARD_ACTOR_X) { g(x - 0.9, 0, 134.8, x + 0.9, 0.35, 136.4, MAT.steel); g(x - 1.6, 0.35, 140.6, x + 1.6, 6, 141, MAT.canvas); }
     // the dusk light on the facade
     L.light(S, 0, 16, 74, '#e2a03e', 26, 48, 0, 'none', 0);
     L.light(S, -26, 10, 66, '#e2a03e', 14, 34, 0, 'none', 0); L.light(S, 26, 10, 66, '#e2a03e', 14, 34, 0, 'none', 0);
@@ -13971,6 +14028,137 @@ const TitleScene = {
     // a low sun glow behind the big stack
     const s = R.trs('sphereLow', MAT.screen, 6, 22, 8, 0, 0, 0, 7, 7, 1, false);
     if (s) { s.emis[0] = 4; s.emis[1] = 2.6; s.emis[2] = 1.1; }
+  }
+};
+
+// =====================================================================================
+// CHAPTER CARDS: each card in the chapter select is a live window onto one of our own characters,
+// rendered by the engine. One card is re-rendered per frame (round robin) and copied into its canvas.
+//   1 Cherub Cheeks   2 Seraphim Sam   3 Mr. Morsel   4 Posie   5 Harlan Smithers   6 the Epxirtype
+// =====================================================================================
+const CARD_SHOTS = [
+  // eye, yaw, pitch, sectors to show, look-at (for the key light)
+  // each chapter has its own colour mood (key-light tint): blue, pink, crimson-violet, teal-lime, deep red, white
+  // chapters 1-5: original toys on the gallery stages (teal wind-up rabbit, lanky pink marionette, violet owl,
+  // bread-dough baker, the needle claw); chapter 6: the Epxirtype himself
+  { eye: [-12, 1.05, 132.4], yaw: Math.PI, pitch: 0.02, sec: [11], at: [-12, 1.0, 135.6], tint: [0.75, 1.05, 1.45] },
+  { eye: [-6, 1.9, 131.4], yaw: Math.PI, pitch: 0.06, sec: [11], at: [-6, 2.0, 135.6], tint: [1.7, 0.6, 1.15] },
+  { eye: [0, 1.0, 132.6], yaw: Math.PI, pitch: 0.0, sec: [11], at: [0, 1.0, 135.6], tint: [1.15, 0.6, 1.7] },
+  { eye: [6, 1.05, 132.6], yaw: Math.PI, pitch: 0.0, sec: [11], at: [6, 1.0, 135.6], tint: [1.35, 1.15, 0.95] },
+  { eye: [12, 1.45, 134.3], yaw: Math.PI, pitch: 0.05, sec: [11], at: [12, 1.4, 135.6], tint: [1.6, 0.25, 0.2] },
+  { eye: [-0.2, 1.8, -79.9], yaw: 0, pitch: 0.12, sec: [3, 4], at: [0.9, 2.6, -84.6], tint: [1, 1, 1] }
+];
+const ChapterCards = {
+  k: 0, canvases: null, saved: null, tmp: V3.create(), active: -1,
+  init() {
+    const cards = document.querySelectorAll('#chapterPage .card');
+    this.canvases = [];
+    cards.forEach(c => {
+      const cv = document.createElement('canvas'); cv.className = 'cv'; cv.width = 160; cv.height = 360;
+      c.insertBefore(cv, c.firstChild);
+      const svg = c.querySelector('svg'); if (svg) svg.style.display = 'none';
+      this.canvases.push(cv);
+    });
+  },
+  // set the camera and the stage for this frame's card; returns false when nothing should be drawn
+  prepare() {
+    if (!this.canvases) this.init();
+    const k = this.k = (this.k + 1) % CARD_SHOTS.length, S = CARD_SHOTS[k];
+    this.active = k;
+    V3.set(this.tmp, S.eye[0], S.eye[1], S.eye[2]);
+    Game.applyCamera(this.tmp, S.yaw + Math.sin(Game.menuTime * 0.4 + k) * 0.08, S.pitch, 0);
+    Streaming.visible.fill(0); for (const s of S.sec) Streaming.visible[s] = 1;
+    Lights.update(0, Game.time + Game.menuTime, Streaming.visible);
+    return true;
+  },
+  // the gallery toys (drawn only while the chapter select is open)
+  submitActors() {
+    const R = RenderQueue, t = Game.menuTime, z = 135.6;
+    const col = (it, r, g, b, e) => { if (it) { it.tint[0] = r; it.tint[1] = g; it.tint[2] = b; if (e) { it.emis[0] = e[0]; it.emis[1] = e[1]; it.emis[2] = e[2]; } } return it; };
+    const sph = (m, x, y, zz, sx, sy, sz, r, g, b, e) => col(R.trs('sphere', m, x, y, zz, 0, 0, 0, sx, sy, sz), r, g, b, e);
+    // 1: TINKER TOM - a chipped teal tin wind-up rabbit with a brass key in its back
+    let x = CARD_ACTOR_X[0], bob = Math.abs(Math.sin(t * 5)) * 0.03;
+    sph(MAT.paint, x, 0.85 + bob, z, 0.32, 0.4, 0.28, 0.18, 0.72, 0.85);
+    sph(MAT.paint, x, 1.42 + bob, z - 0.02, 0.27, 0.25, 0.25, 0.2, 0.75, 0.9);
+    for (const s of [-1, 1]) {
+      col(R.trs('sphere', MAT.paint, x + s * 0.12, 1.86 + bob, z + 0.02, 0, 0, s * 0.2, 0.07, 0.3, 0.05), 0.2, 0.75, 0.9);
+      col(R.trs('sphere', MAT.handRose, x + s * 0.12, 1.86 + bob, z - 0.025, 0, 0, s * 0.2, 0.04, 0.22, 0.02), 1, 0.7, 0.7);
+      sph(MAT.screen, x + s * 0.1, 1.46 + bob, z - 0.23, 0.065, 0.075, 0.03, 1, 1, 1);
+      sph(MAT.screen, x + s * 0.1 - 0.02, 1.49 + bob, z - 0.255, 0.015, 0.015, 0.01, 1, 1, 1, [2, 2, 2]);
+      sph(MAT.paint, x + s * 0.28, 0.95 + bob, z - 0.05, 0.08, 0.2, 0.08, 0.18, 0.72, 0.85);
+      sph(MAT.paint, x + s * 0.15, 0.42, z - 0.08, 0.1, 0.08, 0.16, 0.18, 0.72, 0.85);
+    }
+    sph(MAT.handRose, x, 1.36 + bob, z - 0.25, 0.035, 0.03, 0.03, 1, 0.6, 0.6);
+    col(R.trs('box', MAT.rubber, x, 1.27 + bob, z - 0.24, 0, 0, 0, 0.12, 0.012, 0.01, false), 1, 1, 1);
+    col(R.trs('cylLow', MAT.copper, x, 0.9 + bob, z + 0.26, 0, Math.PI / 2, 0, 0.025, 0.14, 0.025), 1.3, 1, 0.45);
+    for (const s of [-1, 1]) col(R.trs('torus', MAT.copper, x + s * 0.07, 0.9 + bob, z + 0.42, t * 3, 0, Math.PI / 2, 0.06, 0.25, 0.06), 1.3, 1, 0.45);
+    // 2: STILTS SALLY - a lanky pink marionette on stilts, hanging from her crossbar strings
+    x = CARD_ACTOR_X[1]; const sw = Math.sin(t * 1.4) * 0.06;
+    sph(MAT.handRose, x + sw, 2.75, z, 0.2, 0.22, 0.19, 1.25, 0.55, 0.8);
+    sph(MAT.screen, x + sw - 0.07, 2.78, z - 0.18, 0.04, 0.05, 0.02, 1, 1, 1, [0.3, 0.3, 0.3]);
+    sph(MAT.screen, x + sw + 0.07, 2.78, z - 0.18, 0.04, 0.05, 0.02, 1, 1, 1, [0.3, 0.3, 0.3]);
+    for (const s of [-1, 1]) sph(MAT.handRose, x + sw + s * 0.13, 2.66, z - 0.15, 0.05, 0.035, 0.02, 1.5, 0.35, 0.5);
+    col(R.trs('box', MAT.rubber, x + sw, 2.6, z - 0.17, 0, 0, 0, 0.14, 0.02, 0.01, false), 1, 1, 1);
+    col(R.trs('cyl', MAT.handRose, x + sw, 1.75, z, 0, 0, 0, 0.11, 0.8, 0.09), 1.2, 0.5, 0.78);
+    for (const s of [-1, 1]) {
+      const a = V3.set(this.tmp, x + sw + s * 0.12, 2.45, z), b = V3.create(x + s * (0.75 + sw), 1.4, z - 0.1);
+      col(R.seg('cylLow', MAT.handRose, a, b, 0.035), 1.2, 0.5, 0.78);
+      col(R.seg('cylLow', MAT.wood, V3.create(x + s * 0.08, 1.75, z), V3.create(x + s * 0.12, 0.35, z), 0.04), 1, 1, 1);
+      col(R.seg('cylLow', MAT.cable, b, V3.create(x + s * 0.7, 4.2, z - 0.1), 0.004, false), 1, 1, 1);
+    }
+    col(R.trs('box', MAT.wood, x, 4.2, z - 0.1, 0, 0, 0, 1.6, 0.06, 0.06), 1, 1, 1);
+    // 3: HOOTSWORTH - a fat violet owl plush whose amber lantern eyes never close
+    x = CARD_ACTOR_X[2]; const tilt = Math.sin(t * 0.7) * 0.25;
+    sph(MAT.furViolet, x, 0.95, z, 0.48, 0.58, 0.44, 1.5, 0.9, 1.7);
+    for (const s of [-1, 1]) {
+      sph(MAT.furLight, x + s * 0.17, 1.15, z - 0.36, 0.17, 0.17, 0.08, 1.1, 0.95, 1.1);
+      sph(MAT.screen, x + s * 0.17, 1.15, z - 0.42, 0.1, 0.1, 0.04, 1, 1, 1, [2.6, 1.5, 0.3]);
+      sph(MAT.screen, x + s * 0.17, 1.15, z - 0.45, 0.035, 0.05, 0.02, 1, 1, 1);
+      col(R.trs('sphere', MAT.furViolet, x + s * 0.27, 1.55, z, 0, tilt, s * 0.5, 0.07, 0.2, 0.06), 1.5, 0.9, 1.7);
+      sph(MAT.furViolet, x + s * 0.42, 0.95, z + 0.05, 0.1, 0.32, 0.25, 1.2, 0.7, 1.4);
+    }
+    col(R.trs('sphere', MAT.copper, x, 1.0, z - 0.43, 0, 0.3, 0, 0.05, 0.08, 0.05), 1.3, 0.9, 0.4);
+    // 4: DOUGHBERT - a lumpy bread-dough baker with raisin eyes, a cookie-cutter grin and a rolling pin
+    x = CARD_ACTOR_X[3]; const sq = 1 + Math.sin(t * 3) * 0.03;
+    sph(MAT.paint, x, 0.78, z, 0.42 * sq, 0.45 / sq, 0.38, 1.15, 0.9, 0.7);
+    sph(MAT.paint, x + 0.05, 1.32, z - 0.02, 0.3, 0.27, 0.27, 1.2, 0.95, 0.72);
+    sph(MAT.paint, x - 0.2, 1.05, z - 0.1, 0.15, 0.13, 0.13, 1.1, 0.85, 0.62);
+    for (const s of [-1, 1]) {
+      sph(MAT.burnt, x + 0.05 + s * 0.1, 1.38, z - 0.27, 0.035, 0.045, 0.02, 0.6, 0.4, 0.4);
+      sph(MAT.paint, x + s * 0.4, 0.85, z - 0.12, 0.11, 0.2, 0.11, 1.15, 0.9, 0.7);
+    }
+    for (let i = 0; i < 5; i++) sph(MAT.burnt, x + 0.05 + (i - 2) * 0.05, 1.24 - Math.abs(i - 2) * -0.012, z - 0.27, 0.016, 0.02, 0.01, 0.4, 0.3, 0.3);
+    col(R.trs('cyl', MAT.wood, x - 0.42, 0.85, z - 0.3, 0, 0, Math.PI / 2, 0.06, 0.84, 0.06), 1, 1, 1);
+    sph(MAT.paint, x - 0.15, 1.62, z, 0.24, 0.12, 0.22, 1.5, 1.5, 1.45);
+    // 5: the needle claw - a scorched skeletal hand whose fingers end in long sewing needles
+    x = CARD_ACTOR_X[4]; const cl = 0.3 + 0.25 * Math.sin(t * 1.2);
+    col(R.trs('box', MAT.steel, x, 1.0, z, 0, 0.2, 0, 0.26, 0.3, 0.08), 0.7, 0.6, 0.6);
+    col(R.seg('cyl', MAT.steel, V3.create(x, 0.3, z + 0.1), V3.create(x, 0.85, z + 0.02), 0.05), 0.6, 0.5, 0.5);
+    for (let f = 0; f < 4; f++) {
+      const fx = x + (f - 1.5) * 0.075, k1 = V3.create(fx, 1.15, z - 0.02), k2 = V3.create(fx + (f - 1.5) * 0.03, 1.38, z - 0.08 - cl * 0.1);
+      const tip = V3.create(fx + (f - 1.5) * 0.12, 2.0, z - 0.2 - cl * 0.35);
+      col(R.seg('cylLow', MAT.steel, k1, k2, 0.016), 0.7, 0.6, 0.6);
+      sph(MAT.copper, k2[0], k2[1], k2[2], 0.022, 0.022, 0.022, 1, 0.6, 0.4);
+      col(R.seg('cylLow', MAT.steel, k2, tip, 0.006), 1.3, 1.3, 1.4);
+    }
+    col(R.seg('cylLow', MAT.steel, V3.create(x - 0.13, 1.0, z), V3.create(x - 0.35, 1.5, z - 0.3), 0.012), 0.7, 0.6, 0.6);
+    const ge = R.trs('sphereLow', MAT.screen, x, 0.95, z - 0.05, 0, 0, 0, 0.05, 0.05, 0.02, false); if (ge) { ge.emis[0] = 2.5; ge.emis[1] = 0.2; ge.emis[2] = 0.1; }
+  },
+  // a key light from the upper left onto the actor
+  light(sc) {
+    const S = CARD_SHOTS[this.active];
+    sc.flash.on = true; sc.flash.intensity = 30; sc.flash.tint[0] = S.tint[0]; sc.flash.tint[1] = S.tint[1]; sc.flash.tint[2] = S.tint[2];
+    V3.set(sc.flash.pos, S.eye[0] - 0.8, S.eye[1] + 1.2, S.eye[2]);
+    V3.set(this.tmp, S.at[0], S.at[1], S.at[2]);
+    V3.sub(sc.flash.dir, this.tmp, sc.flash.pos); V3.normalize(sc.flash.dir, sc.flash.dir);
+  },
+  // copy the centre strip of the frame into the card, then put everyone back
+  capture() {
+    const cv = this.canvases[this.active], src = Renderer.gl.canvas;
+    if (cv) {
+      const h = src.height, w = Math.min(src.width, Math.round(h * cv.width / cv.height));
+      cv.getContext('2d').drawImage(src, (src.width - w) / 2, 0, w, h, 0, 0, cv.width, cv.height);
+    }
   }
 };
 </script>

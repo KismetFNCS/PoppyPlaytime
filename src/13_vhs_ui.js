@@ -34,7 +34,7 @@ const TAPES = [
   {
     title: 'INCIDENT 6-06', label: 'FINAL TRANSMISSION', presenter: 'mascot', pitch: 300,
     lines: [
-      'The Spoolwright is still. For the first time in years, the Loom has stopped turning.',
+      'The Epxirtype is still. For the first time in years, the Loom has stopped turning.',
       'Whatever we built down there only ever wanted one thing... to be finished.',
       'Somewhere below, the spools are still turning.',
       'Thank you for choosing Merriweather. END OF TAPE.'
@@ -46,7 +46,7 @@ TAPES.push({
   title: 'RECLAMATION LOG 23', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'wave', pitch: 185,
   lines: [
     'Log twenty-three. The doll keeps turning up in places nobody carried her.',
-    'Marigold was our display model. Now she sits by the doors before they open, as if she knows.',
+    'Posie was our display model. Now she sits by the doors before they open, as if she knows.',
     'The bear in the foundry still has a working voice box. It asks the night shift for hugs. Nobody answers anymore.',
     'And 6-06... if it sees you climb into a locker, it will open that locker. Hide before it sees you. Never after.'
   ]

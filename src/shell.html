@@ -50,7 +50,7 @@
   #hud .hand.l { left: 3vw; color: var(--handL); }
   #hud .hand.r { right: 3vw; color: var(--handR); }
   #hud .hand.away { opacity: 0.45; }
-  /* PIP now rides on the teal glove: the canvas is only its face texture */
+  /* STARBY now rides on the teal glove: the canvas is only its face texture */
   #pipCanvas { position: absolute; left: -9999px; top: 0; width: 128px; height: 128px; }
   /* gas mask: the inside of the face piece with two lens windows, breath fog and a scuffed visor */
   #maskOverlay { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 30; transition: none; }
@@ -146,8 +146,16 @@
   #chapterPage .card svg { position: absolute; left: 50%; top: 14%; width: 74%; transform: translateX(-50%); opacity: 0.9; }
   #chapterPage .card .cn { position: absolute; left: 0; right: 0; bottom: 19%; font-size: clamp(12px, 2.2vh, 24px); letter-spacing: 0.08em; color: rgb(236,236,236); }
   #chapterPage .card .ct { position: absolute; left: 4%; right: 4%; bottom: 9%; font-size: clamp(11px, 2.1vh, 22px); color: rgb(236,236,236); white-space: normal; line-height: 1.15; }
-  #chapterPage .card.locked { filter: grayscale(1) brightness(0.45); }
-  #chapterPage .card.locked::after { content: 'SEALED'; position: absolute; left: 0; right: 0; top: 46%; font-size: clamp(12px, 2vh, 20px); letter-spacing: 0.3em; color: rgb(200,200,200); }
+  #chapterPage .card canvas.cv { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #chapterPage .card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.85) 88%); z-index: 1; }
+  #chapterPage .card .cn, #chapterPage .card .ct { z-index: 2; }
+  #chapterPage .card.locked { filter: none; }
+  #chapterPage .card:nth-child(1)::before { background: linear-gradient(180deg, rgba(40,80,200,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card:nth-child(2)::before { background: linear-gradient(180deg, rgba(220,80,170,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card:nth-child(3)::before { background: linear-gradient(180deg, rgba(170,20,60,0.32), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card:nth-child(4)::before { background: linear-gradient(180deg, rgba(40,170,140,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card:nth-child(5)::before { background: linear-gradient(180deg, rgba(150,10,20,0.34), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
+  #chapterPage .card.locked::after { z-index: 2; content: 'SEALED'; position: absolute; left: 0; right: 0; top: 3%; font-size: clamp(12px, 2vh, 20px); letter-spacing: 0.3em; color: rgb(200,200,200); }
   #chapterPage .card.live { background: linear-gradient(180deg, rgb(110,30,52), rgb(18,60,64)); box-shadow: 0 0 2.4vh rgb(190,46,82); }
   #chapterPage .card.sel { border-color: rgb(255,214,120); transform: translateY(-1vh); }
   #chapterPage .card.shake { animation: shake 300ms; }
@@ -246,7 +254,7 @@
       <h2>CREDITS</h2>
       <p><span class="k">ENGINE, SHADERS, AUDIO SYNTHESIS</span><br>Procedural runtime &mdash; every mesh, texture and sound generated in code</p>
       <p><span class="k">SETTING</span><br>Merriweather Toy Works, Sector 06: Reclamation (an original fictional factory)</p>
-      <p><span class="k">ENTITY DESIGN</span><br>Experiment 6-06 &ldquo;The Spoolwright&rdquo;</p>
+      <p><span class="k">ENTITY DESIGN</span><br>Experiment 6-06 &ldquo;The Epxirtype&rdquo;</p>
       <p><span class="k">INSPIRATION</span><br>A fan tribute to the industrial toy-factory horror genre. Not affiliated with any studio.</p>
       <button class="mbtn" id="btnCreditsBack" data-act="creditsBack">BACK</button>
     </div>
@@ -266,7 +274,7 @@
     <div class="cross" id="hudCross"></div>
     <div class="prompt" id="hudPrompt"></div>
     <div id="hudVhs"><svg width="64" height="40" viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="60" height="34" rx="3"/><rect x="12" y="10" width="40" height="15" rx="2"/><g class="reel"><circle cx="21" cy="17.5" r="5"/><path d="M21 12.5v10M16 17.5h10"/></g><g class="reel"><circle cx="43" cy="17.5" r="5"/><path d="M43 12.5v10M38 17.5h10"/></g><path d="M20 37l4-7h16l4 7"/></svg><span id="hudVhsText">SAVING</span></div>
-    <div class="boss" id="hudBoss"><b>THE SPOOLWRIGHT</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    <div class="boss" id="hudBoss"><b>THE EPXIRTYPE</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
     <div class="dialog" id="hudDialog"><b id="hudDialogName"></b><span id="hudDialogText"></span></div>
     <div id="handWheel"><div class="ring"></div>
@@ -275,7 +283,7 @@
       <div class="desc"></div></div>
     <div class="hand l" id="hudHandL">L &middot; TEAL</div>
     <div class="hand r" id="hudHandR">R &middot; ROSE</div>
-    <canvas id="pipCanvas" width="128" height="128" aria-label="PIP companion"></canvas>
+    <canvas id="pipCanvas" width="128" height="128" aria-label="STARBY companion"></canvas>
     <div class="cable" id="hudCable"><span id="hudCableText">TETHER</span><div class="bar"><i id="hudCableBar"></i></div></div>
     <button class="pausebtn" id="btnHudPause" data-act="pause" aria-label="Pause">II</button>
     <button class="mute" id="btnMute" data-act="mute" aria-label="Mute">SND</button>

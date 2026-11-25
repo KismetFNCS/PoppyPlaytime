@@ -35,7 +35,7 @@ const Cast = {
     pos: V3.create(0, -50, 0), yaw: 0, headYaw: 0, state: 'HIDDEN', timer: 0, stareTime: 0, used: new Uint8Array(4),
     eyeX: 0, eyeY: 0, blink: 0, glitch: 0, perch: -1, sway: 0
   },
-  doll: { pos: V3.create(10.6, 1.0, -6.6), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
+  doll: { pos: V3.create(10.6, 1.0, -6.6), eyePos: V3.create(0, -50, 0), yaw: Math.PI / 2, headYaw: 0, headPitch: 0, snapped: false, blink: 0, seen: true, tickCool: 0, sector: 1, met: false, farewell: false },
   plush: { pos: V3.create(3.0, 0, -27.5), yaw: 2.43, headYaw: 0, eyeGlow: 0.5, eyePulse: 0, talked: false, plugState: 0, plugTimer: 0, plug: 0, wave: 0, cheered: false, talking: false,
     mode: 'WAIT', sector: 2, hidden: false, walk: 0, phase: 0, ground: 0, groundIdle: 0, overload: 0 },
   // where Mister Thimble waits in the gallery, and where he stands by the shutter socket
@@ -105,7 +105,7 @@ const Cast = {
     const U = this.usher;
     U.state = 'HIDDEN'; U.timer = 0; U.stareTime = 0; U.used.fill(0); U.glitch = 0; U.perch = -1;
     V3.set(U.pos, 0, -50, 0);
-    const D = this.doll; D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0; D.met = false; D.farewell = false;
+    const D = this.doll; if (!D.eyePos) D.eyePos = V3.create(0, -50, 0); D.headYaw = 0; D.headPitch = 0; D.snapped = false; D.seen = true; D.tickCool = 0; D.met = false; D.farewell = false;
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
     this.resetPlush();
@@ -320,7 +320,7 @@ const Cast = {
         sfx('power', sk);
         Dialogue.say('THIMBLE', 'Ah! The voltage is too high - it\'s backing up into my stitches!');
         Dialogue.say('THIMBLE', 'Clamp onto my staff and hold on - ground it through your pack!');
-        GrabPack.showHint('OVERLOAD - clamp a hand on Thimble\'s staff and HOLD to ground it');
+        GrabPack.showHint('OVERLOAD - clamp a hand on Morsel\'s staff and HOLD to ground it');
         Pip.react('scared', 2);
       }
     }
@@ -524,23 +524,36 @@ const Cast = {
     if (!Sculpt.ready('mg_body')) return;
     // sculpted seated body (dress, pinafore, ruffled petticoat, porcelain limbs, shoes)
     let it = R.push('mg_body', MAT.paint);
-    if (it) M4.compose(it.model, p[0], p[1], p[2], yaw, 0, 0, 1, 1, 1);
+    if (it) { M4.compose(it.model, p[0], p[1], p[2], yaw, 0, 0, 1, 1, 1); it.tint[0] = 0.72; it.tint[1] = 0.84; it.tint[2] = 0.84; }
+    // her gold-orange wind-up key between the shoulder blades, turning slowly
+    this.pt(a, p, yaw, 0, 0.4, 0.13);
+    M4.compose(this.m, a[0], a[1], a[2], yaw, Math.PI / 2, Game.time * 0.8, 1, 1, 1);
+    it = R.push('cylLow', MAT.copper); if (it) { M4.compose(it.model, a[0], a[1], a[2], yaw, Math.PI / 2, 0, 0.012, 0.09, 0.012); it.tint[0] = 1.3; it.tint[1] = 1.0; it.tint[2] = 0.45; }
+    this.pt(b, p, yaw, 0, 0.4, 0.22);
+    for (const s of [-1, 1]) { const bw = R.trs('torus', MAT.copper, b[0], b[1], b[2], yaw + Math.PI / 2, Game.time * 0.8 + s * 0.9, 0, 0.035, 0.3, 0.035, false); if (bw) { bw.tint[0] = 1.3; bw.tint[1] = 1.0; bw.tint[2] = 0.45; } }
     // sculpted head turns on the neck
     const hy = yaw + D.headYaw, hp = D.headPitch;
-    this.pt(a, p, yaw, 0, 0.66, 0.03);
-    M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1, 1, 1);
+    // a big doll head on a slim little body
+    this.pt(a, p, yaw, 0, 0.7, 0.03);
+    M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1.24, 1.24, 1.24);
     it = R.push('mg_head', MAT.porcelain);
     if (it) it.model.set(this.m);
-    // amber glass eye in the intact socket; the lid closes on blinks
-    V3.set(this.local, 0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphere', MAT.lens, b[0], b[1], b[2], hy, hp, 0.08, 0.022, 0.022 * (1 - D.blink * 0.9), 0.012, false);
-    if (it) { it.tint[0] = 0.85; it.tint[1] = 0.95; it.tint[2] = 1.25; it.emis[0] = 0.45; it.emis[1] = 0.5; it.emis[2] = 0.55; }
-    V3.set(this.local, 0.05, 0.013, -0.106); M4.transformPoint(b, this.m, this.local);
-    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008, 0.006, false);
-    // faint glint deep in the empty socket
-    V3.set(this.local, -0.05, 0.016, -0.1); M4.transformPoint(b, this.m, this.local);
-    it = R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], 0, 0, 0, 0.004, 0.004, 0.004, false);
-    if (it) { it.emis[0] = 0.5; it.emis[1] = 0.5; it.emis[2] = 0.55; }
+    // her LEFT eye: polished glass with a glowing teal iris (it lights the things around her); the lid closes on blinks
+    V3.set(this.local, -0.05, 0.013, -0.112); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.034, 0.034 * (1 - D.blink * 0.9), 0.016, false);
+    if (it) { it.tint[0] = 0.8; it.tint[1] = 0.9; it.tint[2] = 0.9; it.emis[0] = 0.25; it.emis[1] = 0.3; it.emis[2] = 0.3; }
+    V3.set(this.local, -0.05, 0.013, -0.125); M4.transformPoint(b, this.m, this.local);
+    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.016 * (1 - D.blink), 0.016 * (1 - D.blink), 0.005, false);
+    if (it) { it.emis[0] = 0.2; it.emis[1] = 2.6; it.emis[2] = 2.4; }
+    V3.copy(D.eyePos, b);
+    // the RIGHT socket is an empty black void; inside the broken temple, rusted gold clockwork turns
+    V3.set(this.local, 0.085, 0.035, -0.04); M4.transformPoint(b, this.m, this.local);
+    for (let g = 0; g < 2; g++) {
+      const gi = R.trs('torus', MAT.copper, b[0] + g * 0.01, b[1] - g * 0.03, b[2] + g * 0.02, hy + Math.PI / 2, Game.time * (g ? -1.3 : 0.9), 0, 0.03 - g * 0.008, 0.25, 0.03 - g * 0.008, false);
+      if (gi) { gi.tint[0] = 1.25; gi.tint[1] = 0.85; gi.tint[2] = 0.4; }
+    }
+    const hub = R.trs('cylLow', MAT.copper, b[0], b[1], b[2], hy, 0, Math.PI / 2, 0.006, 0.05, 0.006, false);
+    if (hub) { hub.tint[0] = 1.1; hub.tint[1] = 0.8; hub.tint[2] = 0.4; }
   },
 
   // where the needle staff is this frame (also used by the socket check)
@@ -637,11 +650,11 @@ const _cast = {
 // DIALOGUE: speaker-labelled lines with typewriter text and per-character voices
 // =====================================================================================
 const SPEAKERS = {
-  MARIGOLD: { name: 'MARIGOLD', color: '#e8c35a', pitch: 430, wobble: 0.1 },
-  USHER: { name: 'THE USHER  (PA)', color: '#3fd4a8', pitch: 105, wobble: 0.04 },
-  THIMBLE: { name: 'MISTER THIMBLE', color: '#b98cff', pitch: 170, wobble: 0.25 },
-  PIP: { name: 'PIP', color: '#7dff6a', pitch: 620, wobble: 0.15 },
-  SPOOLWRIGHT: { name: 'THE SPOOLWRIGHT', color: '#ff3b2e', pitch: 72, wobble: 0.35 },
+  MARIGOLD: { name: 'POSIE', color: '#e8c35a', pitch: 430, wobble: 0.1 },
+  USHER: { name: 'HARLAN SMITHERS  (PA)', color: '#3fd4a8', pitch: 105, wobble: 0.04 },
+  THIMBLE: { name: 'MR. MORSEL', color: '#b98cff', pitch: 170, wobble: 0.25 },
+  PIP: { name: 'STARBY', color: '#7dff6a', pitch: 620, wobble: 0.15 },
+  SPOOLWRIGHT: { name: 'THE EPXIRTYPE', color: '#ff3b2e', pitch: 72, wobble: 0.35 },
   CHERUB: { name: 'CHERUB CHEEKS', color: '#e8c35a', pitch: 760, wobble: 0.4 },
   SERAPH: { name: 'SERAPHIM SAM  (PA)', color: '#ff3b2e', pitch: 60, wobble: 0.1 }
 };

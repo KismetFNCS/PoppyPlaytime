@@ -585,7 +585,8 @@ const SCULPTS = {
   },
   // Marigold seated body: dusty wine dress with a torn hem, grimy pinafore, cracked porcelain limbs
   mg_body: () => {
-    const Y = MAT.clothWine, W = MAT.furLight, P = MAT.porcelain, B = MAT.rubber, n = [
+    // Posie: a dusty teal dress with an ivory lace pinafore
+    const Y = MAT.handTeal, W = MAT.furLight, P = MAT.porcelain, B = MAT.rubber, n = [
       { t: 'ell', c: [0, 0.13, 0.02], r: [0.26, 0.15, 0.25], m: Y, n: [0.01, 34] },
       { t: 'tor', c: [0, 0.035, 0.02], R: 0.24, r: 0.035, m: Y, k: 0.02, n: [0.016, 48] },
       { t: 'box', c: [0, 0.0, 0.0], h: [0.4, 0.03, 0.4], op: 's', k: 0.01, sm: Y, n: [0.03, 22] },
@@ -611,7 +612,9 @@ const SCULPTS = {
   // Marigold head: shattered porcelain face (a whole cheek missing, hollow socket, milky eye),
   // parted lips, matted raven hair hanging in clumps over one side
   mg_head: () => {
-    const P = MAT.porcelain, H = MAT.hairDark, D = MAT.rubber;
+    // Posie: the RIGHT side of the skull is shattered inward (clockwork shows through, drawn in submitDoll),
+    // the right socket is a hollow black void, the left keeps a glowing teal glass eye; rose yarn hair
+    const P = MAT.porcelain, H = MAT.lining, D = MAT.rubber;
     const n = [
       { t: 'ell', c: [0, 0.035, 0.03], r: [0.16, 0.155, 0.155], m: H, n: [0.008, 50] },
       { t: 'ell', c: [0.02, -0.03, -0.12], r: [0.14, 0.14, 0.09], op: 's', k: 0.02, sm: H },
@@ -620,7 +623,7 @@ const SCULPTS = {
       { t: 'ell', c: [-0.07, -0.05, -0.085], r: [0.05, 0.045, 0.045], m: P, k: 0.05 },
       { t: 'sph', c: [0, -0.012, -0.136], r: 0.013, m: P, k: 0.012 },
       { t: 'sph', c: [-0.05, 0.016, -0.125], r: 0.036, op: 's', k: 0.008, sm: D },
-      { t: 'sph', c: [0.05, 0.013, -0.125], r: 0.029, op: 's', k: 0.008, sm: D },
+      { t: 'sph', c: [0.05, 0.013, -0.125], r: 0.035, op: 's', k: 0.008, sm: D },
       { t: 'ell', c: [0, -0.072, -0.126], r: [0.026, 0.012, 0.02], op: 's', k: 0.004, sm: D },
       // shattered left cheek and temple: a jagged hole into the hollow head
       { t: 'box', c: [-0.1, 0.03, -0.09], h: [0.06, 0.08, 0.06], rot: [0.4, 0.5, 0.7], op: 's', k: 0.003, sm: D, n: [0.02, 55] },
@@ -630,13 +633,28 @@ const SCULPTS = {
     const cr = [[-0.06, 0.09, -0.12, 0.02, 0.13, -0.11], [-0.04, -0.02, -0.13, 0.03, -0.09, -0.12], [-0.07, 0.11, -0.1, -0.03, 0.15, -0.03], [-0.02, 0.04, -0.14, 0.05, 0.08, -0.13]];
     for (const c of cr) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.004, op: 's', sm: D, n: [0.003, 120] });
     // matted clumps of hair hanging down the back and over the right side of the face
+    // rose lipstick on a small porcelain mouth
+    n.push({ t: 'ell', c: [0, -0.066, -0.13], r: [0.03, 0.01, 0.012], m: MAT.handRose, k: 0.004 });
+    n.push({ t: 'ell', c: [0, -0.08, -0.128], r: [0.026, 0.011, 0.012], m: MAT.handRose, k: 0.004 });
+    // porcelain ears; the left one has a chip knocked out of its rim
+    for (const s of [-1, 1]) n.push({ t: 'ell', c: [s * 0.142, -0.005, 0.005], r: [0.022, 0.045, 0.03], m: P, k: 0.012 });
+    n.push({ t: 'box', c: [0.165, 0.03, -0.005], h: [0.02, 0.02, 0.025], rot: [0.3, 0.2, 0.6], op: 's', k: 0.002, sm: D, n: [0.004, 90] });
+    // a patch of hair torn out at the side, leaving scraped bare porcelain (clumps 3-5 are missing)
     for (let r = 0; r < 14; r++) {
+      if (r >= 3 && r <= 5) continue;
       const ang = Math.PI * 0.2 + (r / 13) * Math.PI * 1.6;
       const bx = Math.sin(ang) * 0.15, bz = -Math.cos(ang) * 0.14 + 0.03;
       const len = 0.16 + ((r * 37) % 7) * 0.025;
       n.push({ t: 'cap', a: [bx, 0.06, bz], b: [bx * 1.12 + Math.sin(r) * 0.015, 0.06 - len, bz * 1.1 + 0.02], r: 0.03, r2: 0.012, m: H, k: 0.025, n: [0.006, 70] });
     }
     n.push({ t: 'cap', a: [0.08, 0.1, -0.12], b: [0.1, -0.08, -0.15], r: 0.022, r2: 0.01, m: H, k: 0.02, n: [0.004, 80] });
+    // mirror the whole sculpt so the damage sits on her right side (+x)
+    for (const k of n) {
+      for (const f of ['c', 'a', 'b']) if (k[f]) k[f] = [-k[f][0], k[f][1], k[f][2]];
+      if (k.rot) k.rot = [k.rot[0], -k.rot[1], -k.rot[2]];
+    }
+    // a bigger, deeper break into the right temple
+    n.push({ t: 'ell', c: [0.11, 0.05, -0.05], r: [0.05, 0.07, 0.07], op: 's', k: 0.004, sm: D, n: [0.02, 60] });
     return SDF.mesh(n, [-0.24, -0.26, -0.22], [0.24, 0.22, 0.24], 78);
   },
   // Mister Thimble (ally): soft, round, well-loved plush bear in auburn/chestnut fur, a slate vest with

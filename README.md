@@ -5,7 +5,7 @@ A fan-made, first-person survival-horror slice inspired by industrial toy-factor
 and UI element is generated in code at runtime. The game uses no engines, libraries, image files or audio files.
 
 The setting and cast are original: Merriweather Toy Works, Sector 06 "Reclamation", the **LIFELINE** (twin
-launchable gauntlets) and Experiment 6-06, **"The Spoolwright"**. It is not affiliated with any studio.
+launchable gauntlets) and Experiment 6-06, **"The Epxirtype"**. It is not affiliated with any studio.
 
 ## Play
 
@@ -21,9 +21,9 @@ Open `index.html` in a current desktop Chrome, Edge or Firefox (WebGL2 required)
 | Flashlight / mute / pause | F / M / Esc or P | Y / – / Start | – / SND / II |
 | Debug / fidelity overlay / self-test | F1 / F2 / F9 | | `?test=1` |
 
-**The boss fight:** the freight lift drops into **The Loom**, a machine hall with pillars for cover and four live power nodes on the walls. Latch one hand onto a live node, then strike the Spoolwright with your other hand to shock it. Each shock stuns it and burns out that node for the rest of the phase. It takes six shocks over three phases: it hunts you, gets faster, and finally starts pouncing (it crouches first, so dodge sideways). Between phases it retreats into the ceiling ducts and drops back in from another vent.
+**The boss fight:** the freight lift drops into **The Loom**, a machine hall with pillars for cover and four live power nodes on the walls. Latch one hand onto a live node, then strike the Epxirtype with your other hand to shock it. Each shock stuns it and burns out that node for the rest of the phase. It takes six shocks over three phases: it hunts you, gets faster, and finally starts pouncing (it crouches first, so dodge sideways). Between phases it retreats into the ceiling ducts and drops back in from another vent.
 
-**Hiding:** lockers stand in the Reclamation Hall, the Pressure Gallery and the Spool Foundry. Press **E** in front of one to hide and peek out through the slats; press **E** again to leave. The Spoolwright can't see you inside, but it will sniff around, and if it watched you climb in, it walks over and rips the door open. Hide before it sees you, never after.
+**Hiding:** lockers stand in the Reclamation Hall, the Pressure Gallery and the Spool Foundry. Press **E** in front of one to hide and peek out through the slats; press **E** again to leave. The Epxirtype can't see you inside, but it will sniff around, and if it watched you climb in, it walks over and rips the door open. Hide before it sees you, never after.
 
 **How the circuit puzzles work:** fire a hand into a glowing power node to latch it. The cable from your
 pack to that node goes live. Walk so the cable wraps around the amber relay pegs; they turn green as they link.
@@ -45,7 +45,7 @@ drag your view **down** (or back away) to wrench the handle over; let go too ear
 - **Hand wheel.** Hold **[Tab]** (or hold [X] / pad Y) to open a wheel of your hands; the camera holds still
   while you aim at a slot with the mouse or stick (or press 1-4), and releasing equips it. The old hand spins
   like a wheel as it drops out of view, then the new one rises into place. A quick tap of [X] still cycles.
-- **PIP** is a chunky orange wrist device on the teal glove, with a black glass LED screen, an antenna and a lamp. Its LED face warns you (worried when something is close,
+- **STARBY** is a chunky orange wrist device on the teal glove, with a black glass LED screen, an antenna and a lamp. Its LED face warns you (worried when something is close,
   starry-eyed for finds), its front lamp is your flashlight, and **[B]** switches it to a blacklight that reveals
   three messages painted in invisible ink.
 - **Gas mask.** Take it from the intake-lift desk and put it on or off with **[G]**: you see through two lens
@@ -53,56 +53,56 @@ drag your view **down** (or back away) to wrench the handle over; let go too ear
   is full of toxic lint smog that chokes you without it.
 - A VHS cassette icon spins at the top left while the game saves or loads a checkpoint.
 
-**Fighting back:** you can't kill the Spoolwright until the Loom, but you can stop it. A plain hand hit
+**Fighting back:** you can't kill the Epxirtype until the Loom, but you can stop it. A plain hand hit
 staggers it for a moment; a *charged* hit (your other hand tethered to a live node) shocks it for a long stun,
 and a stalker then slinks back into the vents. Only in the Loom boss fight can it actually be beaten.
 
-**The opening.** A new game starts in the **Station Yard** under the main office, facing the Usher's old desk
+**The opening.** A new game starts in the **Station Yard** under the main office, facing Harlan Smithers's old desk
 computer (his eye watches you from the CRT). His briefing locks your movement until he has finished. Your
-hands are in a crate by the tracks (until you take them the triggers do nothing); Thimble is already with you,
-Marigold waits on the platform; then loop the yard-gate circuit and the freight lift takes you down into the
+hands are in a crate by the tracks (until you take them the triggers do nothing); Morsel is already with you,
+Posie waits on the platform; then loop the yard-gate circuit and the freight lift takes you down into the
 Intake, where a second monitor picks up the story. After the Loom, the lift keeps going to the Fabrication Line.
 
 **Menus.** The game opens on a 3D factory exterior at dusk (PLAY / LOAD / SETTINGS / QUIT), then a six-chapter
-select where only Chapter 6 can be played, then the Chapter 6 screen with the Spoolwright behind it. The pause
+select where only Chapter 6 can be played, then the Chapter 6 screen with the Epxirtype behind it. The pause
 menu offers RESUME / RESTART CHECKPOINT / LOAD GAME / SETTINGS / MAIN MENU, and when you die an ally tells you to
 get back up before the checkpoint reloads. The gas mask drops down over your face; you see out through two
 rubber-lined lenses with hairline cracks at the edges.
 
-You wake in the intake lift under a big flickering monitor: the Usher's eye watches you from it while it gives
-the opening briefing (the LIFELINE hands, the hand scanner, PIP, and a warning about the bells).
+You wake in the intake lift under a big flickering monitor: Harlan Smithers's eye watches you from it while it gives
+the opening briefing (the LIFELINE hands, the hand scanner, STARBY, and a warning about the bells).
 
 Route: Intake Lift → Reclamation Hall (circuit puzzle 1, a found tape) → Pressure Gallery (you meet Mister
-Thimble, who comes along; something only rattles through the ducts overhead and taunts you over the PA; a
-steam lever and circuit puzzle 2) → Spool Foundry (the Spoolwright is finally revealed standing at the far end: it never moves while you watch it, but each time
+Morsel, who comes along; something only rattles through the ducts overhead and taunts you over the PA; a
+steam lever and circuit puzzle 2) → Spool Foundry (the Epxirtype is finally revealed standing at the far end: it never moves while you watch it, but each time
 you look away it jerks closer into a new, twisted pose, its hat bells jingling softly; when it reaches you it
-confronts you both, then the chase: Thimble's overloaded socket or the high shutter lever) → Freight Lift → the Loom (boss
+confronts you both, then the chase: Morsel's overloaded socket or the high shutter lever) → Freight Lift → the Loom (boss
 fight). It is not in the menu or the early levels: it is the chapter's later boss.
 
-**Act II: the Deep Works.** Beating the Spoolwright in the Loom doesn't end it: it drags itself down the drain
+**Act II: the Deep Works.** Beating the Epxirtype in the Loom doesn't end it: it drags itself down the drain
 shaft and the freight lift follows it into five more levels (sectors 6-10, each with its own checkpoint):
 
-1. **Station Yard.** The Usher speaks from a monitor on a pole. The landing tore your right hand off the pack
-   (the right trigger does nothing): reattach it from the crate by the tracks. Thimble and Marigold wait on the
+1. **Station Yard.** Harlan Smithers speaks from a monitor on a pole. The landing tore your right hand off the pack
+   (the right trigger does nothing): reattach it from the crate by the tracks. Morsel and Posie wait on the
    platform. Loop the yard-gate circuit across the tracks while a shunter car patrols the second line (it
    knocks you flying).
 2. **Fabrication Line.** Three conveyor belts carry you sideways toward the end stampers, and a heavy carrier
-   rides the middle line. Route the cable across them, then hit the piston override: Thimble crawls into the
-   machinery and jams the four crushing pistons (stand under one before that and you're crushed). Marigold
+   rides the middle line. Route the cable across them, then hit the piston override: Morsel crawls into the
+   machinery and jams the four crushing pistons (stand under one before that and you're crushed). Posie
    watches from the overhead walkway.
 3. **Drainage Catacombs.** A tunnel maze: a gel floor with almost no traction between live cables, lock
-   terminals Marigold overrides through the wiring, a pipe that collapses behind you, a sludge channel with a
+   terminals Posie overrides through the wiring, a pipe that collapses behind you, a sludge channel with a
    shaky catwalk that drops once you're across, and an exit ladder you wrench down (latch the ring, drag your
    view down) and climb with W.
 4. **Sorting Hub.** Three bands of colour-coded containers. When the intercom calls a colour, every
    container of that colour slides between its gap and its pocket (each band always keeps one way through; a
    closing container shoves you out). Then time a run past two crushing walls.
-5. **Core Vault.** The Spoolwright descends. Phase 1: trains cross the vault on two lines and lift pads rise
-   and sink. Lure it onto a line and fire a hand at the track switch on the west wall: Thimble throws it and
-   the next train runs down that line. Three hits, then phase 2: Marigold overloads the generators, and you
+5. **Core Vault.** The Epxirtype descends. Phase 1: trains cross the vault on two lines and lift pads rise
+   and sink. Lure it onto a line and fire a hand at the track switch on the west wall: Morsel throws it and
+   the next train runs down that line. Three hits, then phase 2: Posie overloads the generators, and you
    latch each exposed core and drag it out. Three cores start the containment cinematic and the ending.
 
-## Enemies before the Spoolwright
+## Enemies before the Epxirtype
 
 - **Cherub Cheeks** (sold in 1974 as the doll that "cries real tears when it misses you"): a 3-ft vinyl baby
   doll in a tattered sailor suit and cap, with big glassy blue eyes and painted lashes, glowing acidic resin
@@ -126,26 +126,26 @@ shaft and the freight lift follows it into five more levels (sectors 6-10, each 
 
 All original designs, built to read like the genre without copying any existing character:
 
-- **The Spoolwright** (Experiment 6-06): the chapter's later boss (it looms in the menu backdrop, but you only hear it in the ducts and over the PA until it drops in on you in the foundry). A spool-bodied machine with a long, ribbed mechanical abdomen stretching out behind it (ending in a big rear drum and a needle), the shaggy violet fur draped over its back, with an open bone ribcage full of swirling red gas that throws red light around it, red pressure canisters, and six chunky plated legs with knuckle drums, hydraulic rams and hooked blade feet. Its upper body stands high on a thin segmented spine of vertebrae and gold brackets: a skeletal frame in filthy, ragged jester's motley: ruby cloth patched with teal and orange harlequin diamonds, a tall stand-up collar (blue outside, yellow inside) with a red bow at the throat, a dagged hem of pointed tatters, pom-pom buttons, puffed, segmented motley sleeves (teal, ruby and orange pieces with orange cuff rings) leading to bone-white forearms wrapped in red cables, and ribs showing through a rip. Three stolen toy arms dangle under its chest: shaggy teal and rose fur arms with yellowish plush hands, and in the middle a smooth, solid pink arm with a darker pink hand and a blue glove-ring at the wrist. Its face is a rounded, withered and chipped porcelain mask (a raised rim, strapped on behind) frozen in a huge ear-to-ear grin with two full rows of big blocky teeth that never moves; both eye sockets are pitch black, the left one holding a single small yellow point of light. Its neck and hood hold still; only the porcelain mask moves, and never smoothly: it holds still, then snaps round inside the hood to stare at you (cocking sideways) with a dry porcelain crack - far more often while it talks. If it must look further than the mask can turn, the hood snaps round with it. It wears a ragged rose, teal and gold patchwork hood (gold trim round the face, a frayed drape down the back) with a battered harlequin top hat sewn onto its crown as one piece, the hat pieced from rose, teal and gold panels, with two long drooping tails ending in bells and more bells on frayed ribbons; they jingle softly whenever it moves and stay silent when it is still. A yellow measuring tape trails behind it.
-- **The Usher**: a hooded, robed watcher on spindly black machine limbs whose face is a CRT lens showing one roving teal eye. It speaks to you over the factory PA when it appears at a vantage point in each area, then glitches out of existence if you stare at it or walk up to it.
-- **Marigold**: a shattered porcelain display doll (matted raven hair, dusty wine dress with a torn hem, half her cheek broken away into a hollow head, one milky glass eye) who acts as your guide. She introduces herself near the first tape, talks you through each area, moves ahead of you through the factory while you aren't looking, and waits in the freight lift at the end. Look away and her head is already turned toward you; catch her and she ticks.
-- **Mister Thimble**: a small (about a metre tall), soft, well-loved plush bear and your companion. Round and chubby, in auburn and chestnut fur with a pale belly, a faded slate-grey vest with brass buttons, sewn-on patches and yellow and red cross-stitched seams, chubby legs with bean-toed feet, one ear standing and one drooping, a copper thimble cap and one softly glowing purple glass eye. He wears a gentle stitched smile; his mouth only opens (friendly, with small rounded teeth) while he is talking. He leans on a giant ivory sewing-needle staff with a brass eye.
-  - You meet him at the start of the Pressure Gallery. You never speak; he talks to you anyway, following your trail with a waddle: ambient chatter, remarks when you sprint ahead, stand still looking around, bump into things or switch your flashlight off (his eye then lights the way in violet), hints if you are stuck on the gallery puzzle for 45 s, and a warning before he dives into the vents when the Spoolwright prowls close (he comes back once it has gone). The Spoolwright taunts you both over the PA.
-  - At the start of the foundry chase the Spoolwright drops in front of you; you are pinned while it and Thimble trade words, until Thimble slams his needle into the floor and a purple blast stuns it ([SPACE] skips the scene). At the shutter he jams the needle into a broken socket; the surge overloads, and you clamp a hand on his staff and **hold** to ground it through your pack, which raises the shutter (the high lever still works too).
-  - Down in the Loom he waits with Marigold, and once the Spoolwright is beaten the two of them talk about the sky.
-- **PIP**: your pocket companion on the HUD. A cog-shaped device with an LED dot-matrix face that talks with the hints, cheers when a circuit closes, sulks when one is refused, winks at relays, panics in chases and fills with static when you're caught.
+- **The Epxirtype** (Experiment 6-06): the chapter's later boss (it looms in the menu backdrop, but you only hear it in the ducts and over the PA until it drops in on you in the foundry). A spool-bodied machine with a long, ribbed mechanical abdomen stretching out behind it (ending in a big rear drum and a needle), the shaggy violet fur draped over its back, with an open bone ribcage full of swirling red gas that throws red light around it, red pressure canisters, and six chunky plated legs with knuckle drums, hydraulic rams and hooked blade feet. Its upper body stands high on a thin segmented spine of vertebrae and gold brackets: a skeletal frame in filthy, ragged jester's motley: ruby cloth patched with teal and orange harlequin diamonds, a tall stand-up collar (blue outside, yellow inside) with a red bow at the throat, a dagged hem of pointed tatters, pom-pom buttons, puffed, segmented motley sleeves (teal, ruby and orange pieces with orange cuff rings) leading to bone-white forearms wrapped in red cables, and ribs showing through a rip. Three stolen toy arms dangle under its chest: shaggy teal and rose fur arms with yellowish plush hands, and in the middle a smooth, solid pink arm with a darker pink hand and a blue glove-ring at the wrist. Its face is a rounded, withered and chipped porcelain mask (a raised rim, strapped on behind) frozen in a huge ear-to-ear grin with two full rows of big blocky teeth that never moves; both eye sockets are pitch black, the left one holding a single small yellow point of light. Its neck and hood hold still; only the porcelain mask moves, and never smoothly: it holds still, then snaps round inside the hood to stare at you (cocking sideways) with a dry porcelain crack - far more often while it talks. If it must look further than the mask can turn, the hood snaps round with it. It wears a ragged rose, teal and gold patchwork hood (gold trim round the face, a frayed drape down the back) with a battered harlequin top hat sewn onto its crown as one piece, the hat pieced from rose, teal and gold panels, with two long drooping tails ending in bells and more bells on frayed ribbons; they jingle softly whenever it moves and stay silent when it is still. A yellow measuring tape trails behind it.
+- **Harlan Smithers**: a hooded, robed watcher on spindly black machine limbs whose face is a CRT lens showing one roving teal eye. It speaks to you over the factory PA when it appears at a vantage point in each area, then glitches out of existence if you stare at it or walk up to it.
+- **Posie**: a shattered porcelain display doll (matted raven hair, dusty wine dress with a torn hem, half her cheek broken away into a hollow head, one milky glass eye) who acts as your guide. She introduces herself near the first tape, talks you through each area, moves ahead of you through the factory while you aren't looking, and waits in the freight lift at the end. Look away and her head is already turned toward you; catch her and she ticks.
+- **Mr. Morsel**: a small (about a metre tall), soft, well-loved plush bear and your companion. Round and chubby, in auburn and chestnut fur with a pale belly, a faded slate-grey vest with brass buttons, sewn-on patches and yellow and red cross-stitched seams, chubby legs with bean-toed feet, one ear standing and one drooping, a copper thimble cap and one softly glowing purple glass eye. He wears a gentle stitched smile; his mouth only opens (friendly, with small rounded teeth) while he is talking. He leans on a giant ivory sewing-needle staff with a brass eye.
+  - You meet him at the start of the Pressure Gallery. You never speak; he talks to you anyway, following your trail with a waddle: ambient chatter, remarks when you sprint ahead, stand still looking around, bump into things or switch your flashlight off (his eye then lights the way in violet), hints if you are stuck on the gallery puzzle for 45 s, and a warning before he dives into the vents when the Epxirtype prowls close (he comes back once it has gone). The Epxirtype taunts you both over the PA.
+  - At the start of the foundry chase the Epxirtype drops in front of you; you are pinned while it and Morsel trade words, until Morsel slams his needle into the floor and a purple blast stuns it ([SPACE] skips the scene). At the shutter he jams the needle into a broken socket; the surge overloads, and you clamp a hand on his staff and **hold** to ground it through your pack, which raises the shutter (the high lever still works too).
+  - Down in the Loom he waits with Posie, and once the Epxirtype is beaten the two of them talk about the sky.
+- **STARBY**: your pocket companion on the HUD. A cog-shaped device with an LED dot-matrix face that talks with the hints, cheers when a circuit closes, sulks when one is refused, winks at relays, panics in chases and fills with static when you're caught.
 - **The LIFELINE pack**: two big sculpted padded gloves (teal left, rose right) with stitched seams and brass cuff rings, held up in view on corrugated hoses and fired with the mouse buttons; they switch to a clenched mesh when gripping.
 
-The supporting characters and the Spoolwright's mask, hood and torso are sculpted: each is described as smoothly blended shapes with carved details (eye sockets, grins, teeth, cracks, ringlets, stitches), and turned into a single smooth, multi-material mesh while the game loads (`src/19_sculpt.js`).
+The supporting characters and the Epxirtype's mask, hood and torso are sculpted: each is described as smoothly blended shapes with carved details (eye sockets, grins, teeth, cracks, ringlets, stitches), and turned into a single smooth, multi-material mesh while the game loads (`src/19_sculpt.js`).
 
-Characters speak through on-screen dialogue with a name label, and their lines are read aloud by the browser's built-in speech voices, shaped per character (Thimble warm and quick, Marigold high and slow, the Usher low, PIP chirpy, the Spoolwright a deep, slow drawl; whispered lines are softer). **Settings → Character voices** turns speech off and falls back to typewriter blips.
+Characters speak through on-screen dialogue with a name label, and their lines are read aloud by the browser's built-in speech voices, shaped per character (Morsel warm and quick, Posie high and slow, Harlan Smithers low, STARBY chirpy, the Epxirtype a deep, slow drawl; whispered lines are softer). **Settings → Character voices** turns speech off and falls back to typewriter blips.
 
 **Music** is an adaptive score on one shared tempo grid whose layers crossfade with the situation: a warped,
 detuned piano over a cello pad while exploring ("Faded Threads"); a loom-press thud and arpeggio while a live
 tether is out ("The Looming Rhythm"); the chase percussion; strings, brass and a carousel tune that bends out of
-tune as the Spoolwright closes in during the boss fight ("Pins and Needles"); and a solo violin over a sub drone
-after it ("Shattered Porcelain"), with the drone dropping out while Marigold speaks. Whenever anyone speaks the
-music ducks by 6 dB behind a 4 kHz low-pass, and Thimble's blasts land with a bass-drum hit and a minor chord.
+tune as the Epxirtype closes in during the boss fight ("Pins and Needles"); and a solo violin over a sub drone
+after it ("Shattered Porcelain"), with the drone dropping out while Posie speaks. Whenever anyone speaks the
+music ducks by 6 dB behind a 4 kHz low-pass, and Morsel's blasts land with a bass-drum hit and a minor chord.
 
 ## Custom models
 
@@ -175,16 +175,16 @@ src/06_renderer.js  WebGL2 deferred pipeline + post stack + render queue
 src/07_level.js     sector layout, doors, puzzle entities, lights, vents, nav grid + A*
 src/08_grabpack.js  LIFELINE hands, Verlet cables, peg wrapping, circuit closure, cable tube mesh
 src/09_world.js     particles, light flicker models, doors, steam, triggers, sector streaming
-src/10_ai.js        Spoolwright behavior tree + FSM, perception, locomotion, 6-leg IK rig
+src/10_ai.js        Epxirtype behavior tree + FSM, perception, locomotion, 6-leg IK rig
 src/11_audio.js     Web Audio engine: FM threat drone, adaptive score + dialogue ducking, HRTF emitters, SFX
 src/12_player.js    input (keyboard/mouse/pointer-lock/gamepad/touch), player controller + camera
 src/13_vhs_ui.js    VHS transmission archive, settings, menus, HUD, F1/F2 overlays
 src/14_game.js      global state machine, director, checkpoints, jumpscare/failure/victory, scene submit
 src/15_harness.js   __TEST__ / __TEST_FIDELITY__ hooks and the embedded self-test (F9)
 src/19_sculpt.js    signed-distance-field sculpting + Surface Nets meshing for the characters
-src/20_boss.js      the Spoolwright boss fight in the Loom (phases, shocks, pounce, defeat)
-src/21_companion.js Thimble's companion chatter and reactions, the foundry ambush scene, Loom banter
-src/18_characters.js  the Usher, Marigold, Mister Thimble and the PIP HUD companion
+src/20_boss.js      the Epxirtype boss fight in the Loom (phases, shocks, pounce, defeat)
+src/21_companion.js Morsel's companion chatter and reactions, the foundry ambush scene, Loom banter
+src/18_characters.js  Harlan Smithers, Posie, Mr. Morsel and the STARBY HUD companion
 src/16_assets.js    .glb loader, model slots, assets/ folder manifest
 src/17_boot.js      main loop, error resilience, resize/DPI, input wiring
 assets/             your .glb models + assets.json manifest (see assets/README.md)
@@ -246,7 +246,7 @@ node tools/run_game.cjs index.html shots
     with per-character pitch-modulated voice blips, and tracking tears.
 18. **Settings:** FOV 90–100 (Hor+), X/Y sensitivity, invert Y, master/music/effects volume, quality tiers
     LOW/MEDIUM/HIGH/CINEMATIC AAA, VHS strength, shadows, reduced motion and hints. All persist across sessions.
-19. **Jumpscare (the kill):** an override state that locks the view onto the mask. The Spoolwright lunges,
+19. **Jumpscare (the kill):** an override state that locks the view onto the mask. The Epxirtype lunges,
     walks up to you with its needle claw fanned out, grabs you with its bony, cable-wrapped other hand and lifts
     you to its face, then laughs (a crackling old-time-radio showman's laugh) while slowly winding the claw back
     as its needles pinch into one spike, and stabs: a red flash, crack and shock-wave, then the failure card.

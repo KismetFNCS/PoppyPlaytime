@@ -260,12 +260,12 @@ async function runAll() {
     UI.selectMenu(0); T.clearSfxLog(); UI.menuActivate(); T.step(DT, 1);
     check('menu: a sealed chapter refuses (deny)', UI.menuPage === 'chapters' && T.getSfxLog().includes('deny'), UI.menuPage);
     Game.uiAction('chapter6'); T.step(DT, 1);
-    check('menu: chapter 6 opens its screen with the Spoolwright behind it', UI.menuPage === 'ch6' && !document.getElementById('chapterPage').classList.contains('on'), UI.menuPage);
+    check('menu: chapter 6 opens its screen with the Epxirtype behind it', UI.menuPage === 'ch6' && !document.getElementById('chapterPage').classList.contains('on'), UI.menuPage);
     T.gotoMenu();
     T.step(DT, 2);
     check('menu: state is MAIN_MENU', T.getState() === 'MAIN_MENU', T.getState());
     checkUI('MAIN_MENU');
-    check('menu: the Spoolwright looms in the menu backdrop', Monster.visible && Monster.state === MSTATE.MENU_POSE, Monster.state);
+    check('menu: the Epxirtype looms in the menu backdrop', Monster.visible && Monster.state === MSTATE.MENU_POSE, Monster.state);
     check('menu: arrow navigation moves selection', (() => { const a = UI.menuIndex; tap('ArrowDown'); const b = UI.menuIndex; tap('ArrowUp'); return b !== a; })());
     Game.uiAction('settings'); T.step(DT, 1);
     check('settings: panel opens from menu', T.getState() === 'SETTINGS_PANEL', T.getState());
@@ -298,11 +298,11 @@ async function runAll() {
     check('vhs: Escape skips to gameplay', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
     // ---------------- the opening: station yard under the main office ----------------
     const DWo = DeepWorks;
-    check('opening: a new game starts in the station yard, facing the Usher\'s computer (stage 5)', Game.stage === 5 && Streaming.current === 6 && Cast.monitor.computer && Cast.monitor.stage === 5, 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    check('opening: a new game starts in the station yard, facing Harlan Smithers\'s computer (stage 5)', Game.stage === 5 && Streaming.current === 6 && Cast.monitor.computer && Cast.monitor.stage === 5, 'stage ' + Game.stage + ' sector ' + Streaming.current);
     check('opening: no hands on the pack yet', Gear.handsLost, '');
-    check('opening: Thimble is already with you (an old friend)', Cast.plush.mode === 'FOLLOW', Cast.plush.mode);
+    check('opening: Morsel is already with you (an old friend)', Cast.plush.mode === 'FOLLOW', Cast.plush.mode);
     T.step(DT, 90);
-    check('opening: the Usher\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
+    check('opening: Harlan Smithers\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
     const lockZ = Player.body.pos[2]; T.simulateKey('KeyW', true); T.step(DT, 30); T.simulateKey('KeyW', false);
     check('opening: you cannot walk away while he speaks', Math.abs(Player.body.pos[2] - lockZ) < 0.01, (Player.body.pos[2] - lockZ).toFixed(3));
     Dialogue.clear(); T.step(DT, 2);
@@ -314,7 +314,7 @@ async function runAll() {
     const shX0 = DWo.shunter.x; T.step(DT, 60);
     check('opening: the shunter car patrols the second line', DWo.shunter.x !== shX0 || DWo.shunter.wait > 0, shX0 + ' -> ' + DWo.shunter.x);
     T.setPlayerPose(8.6, 0, -170.6, -Math.PI / 2, 0); T.step(DT, 6);
-    check('opening: rendezvous with Marigold on the platform', DWo.met && Cast.plush.mode === 'FOLLOW', String(DWo.met));
+    check('opening: rendezvous with Posie on the platform', DWo.met && Cast.plush.mode === 'FOLLOW', String(DWo.met));
     Dialogue.clear();
     T.setPlayerPose(-10, 0, -165, Math.PI / 2, 0); T.step(DT, 2);
     T.aimAt(-12.45, 1.5, -165); click(0); T.step(DT, 20);
@@ -454,7 +454,7 @@ async function runAll() {
     // ---------------- stalker AI ----------------
     T.step(DT, 300);
     T.setPlayerPose(0, 0, -26, 0, 0); T.step(DT, 3);
-    check('gallery: only rattles in the ducts - the Spoolwright stays hidden until the foundry', !Monster.active && !Monster.visible && T.getSfxLog().includes('ventEnter'), Monster.state);
+    check('gallery: only rattles in the ducts - the Epxirtype stays hidden until the foundry', !Monster.active && !Monster.visible && T.getSfxLog().includes('ventEnter'), Monster.state);
     // the stalker behaviours are still exercised directly
     Monster.activateStalker(2); T.step(DT, 3);
     check('ai: stalker wakes in the vents', Monster.active && Monster.inVent && Monster.state === MSTATE.VENT_PATROL, Monster.state);
@@ -500,7 +500,7 @@ async function runAll() {
     const cp = Game.checkpoint;
     check('checkpoint: player at stage-2 checkpoint', Math.abs(Player.body.pos[2] - cp.pos[2]) < 0.2 && Game.stage === 2, Player.body.pos[2].toFixed(2));
     check('checkpoint: puzzle progress kept (R1 powered, D1 open)', Level.receptacles[1].powered && Level.doorById('D1').open === 1);
-    check('checkpoint: the Spoolwright is not back in the gallery (revealed later)', !Monster.active && !Monster.visible, Monster.state);
+    check('checkpoint: the Epxirtype is not back in the gallery (revealed later)', !Monster.active && !Monster.visible, Monster.state);
     check('checkpoint: no hands out, particles cleared', T.getCounts().handsOut === 0, JSON.stringify(T.getCounts()));
 
     await breathe();
@@ -536,23 +536,23 @@ async function runAll() {
     await breathe();
     // ---------------- scripted chase ----------------
     T.setPlayerPose(0, 0, -49.5, 0, 0); T.step(DT, 3);
-    check('reveal: the Spoolwright stands frozen at the far end of the foundry', Monster.creeping && Monster.visible && !Monster.scripted, JSON.stringify(T.monster()));
+    check('reveal: the Epxirtype stands frozen at the far end of the foundry', Monster.creeping && Monster.visible && !Monster.scripted, JSON.stringify(T.monster()));
     const cz0 = Monster.pos[2];
     for (let i = 0; i < 60; i++) { T.aimAt(Monster.head[0], Monster.head[1], Monster.head[2]); T.step(DT, 1); }
     check('reveal: it does not move while you watch it', Monster.pos[2] === cz0, Monster.pos[2].toFixed(2));
     T.clearSfxLog(); T.aimAt(0, 1.6, -40); T.step(DT, 40);
     check('reveal: look away and it jerks closer in a new pose, bells jingling', Monster.pos[2] > cz0 + 1 && T.getSfxLog().includes('bells'), Monster.pos[2].toFixed(2));
     for (let i = 0; i < 14 && !Ambush.active; i++) { T.aimAt(0, 1.6, -40); T.step(DT, 40); }
-    check('chase: trigger slams D2 and spawns the Spoolwright', Monster.scripted && Level.doorById('D2').target === 0 && Level.doorById('D2').locked, JSON.stringify(T.monster()));
+    check('chase: trigger slams D2 and spawns the Epxirtype', Monster.scripted && Level.doorById('D2').target === 0 && Level.doorById('D2').locked, JSON.stringify(T.monster()));
     check('state: CHASE_SEQUENCE during the scripted chase', T.getState() === 'CHASE_SEQUENCE', T.getState());
     T.step(DT, 30);
     check('chase: camera shake engaged', Player.chaseShake > 0.3, Player.chaseShake.toFixed(2));
     check('chase: fracture map driven by the burst', Game.fractureAmt > 0.3, Game.fractureAmt.toFixed(2));
     check('ambush: you are pinned and the view locks while they talk', Ambush.active && Player.lockAmt > 0.3 && Dialogue.busy() && ['SPOOLWRIGHT', 'THIMBLE'].includes(Dialogue.current.speaker), Dialogue.current ? Dialogue.current.speaker : 'none');
     T.step(DT, 60);
-    check('ambush: the Spoolwright holds still for the scene', Monster.bossHold || Monster.state === MSTATE.EMERGE, Monster.state);
+    check('ambush: the Epxirtype holds still for the scene', Monster.bossHold || Monster.state === MSTATE.EMERGE, Monster.state);
     Ambush.skip(); T.step(DT, 3);
-    check('ambush: Thimble\'s purple blast stuns it and frees you', !Ambush.active && Monster.stunTimer > 0 && !Monster.bossHold && Cast.plush.mode === 'SHUTTER' && Player.lockAmt === 0, Monster.stunTimer.toFixed(2));
+    check('ambush: Morsel\'s purple blast stuns it and frees you', !Ambush.active && Monster.stunTimer > 0 && !Monster.bossHold && Cast.plush.mode === 'SHUTTER' && Player.lockAmt === 0, Monster.stunTimer.toFixed(2));
     Game.invulnerable = true;
     T.setPlayerPose(3, 0, -67, 0, 0); T.aimAt(5.85 - 0.3, 3.45, -69); T.step(DT, 1);
     T.simulateMouse(0, true); for (let i = 0; i < 150 && !Level.levers[1].pulled; i++) T.step(DT, 1);
@@ -565,7 +565,7 @@ async function runAll() {
     check('boss: the freight lift descends into the Loom', Streaming.current === 5 && Game.stage === 4, 'sector ' + Streaming.current + ' stage ' + Game.stage);
     check('checkpoint: saved at the boss arena', Game.checkpoint.stage === 4 && Game.checkpoint.monsterMode === 2, Game.checkpoint.stage);
     T.step(DT, 200);
-    check('boss: the Spoolwright drops in', Boss.active && Monster.boss && Monster.active, Boss.mode + ' ' + Monster.state);
+    check('boss: the Epxirtype drops in', Boss.active && Monster.boss && Monster.active, Boss.mode + ' ' + Monster.state);
     T.step(DT, 80);
     Game.invulnerable = true;
     // real shock: latch a wall node, then hit the creature with the other hand
@@ -629,16 +629,16 @@ async function runAll() {
     setState(STATE.GAMEPLAY_ACTIVE); Game.invulnerable = true; Player.health = 100;
     T.setPlayerPose(0, 0, -199.0, Math.PI / 2, 0); T.step(DT, 2);
     T.aimAt(-2.35, 1.6, -199.6); click(0); T.step(DT, 10);
-    check('fab: piston override sends Thimble into the machinery', DWk.thimbleTask && DWk.thimbleTask.kind === 'JAM', '');
+    check('fab: piston override sends Morsel into the machinery', DWk.thimbleTask && DWk.thimbleTask.kind === 'JAM', '');
     let jammed = false; for (let i = 0; i < 700 && !jammed; i++) { T.step(DT, 1); jammed = DWk.jam.on; }
     T.step(DT, 90);
-    check('fab: Thimble jams the pistons (raised) and the exit opens', jammed && DWk.pistons.every(p => p.y > 3) && Level.doorById('D7').target === 1, DWk.pistons.map(p => p.y.toFixed(1)).join(','));
+    check('fab: Morsel jams the pistons (raised) and the exit opens', jammed && DWk.pistons.every(p => p.y > 3) && Level.doorById('D7').target === 1, DWk.pistons.map(p => p.y.toFixed(1)).join(','));
     check('fab: stage 7 checkpoint', Game.checkpoint.stage === 7, Game.checkpoint.stage);
     T.step(DT, 250);
-    check('fab: Thimble climbs back out and follows', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
+    check('fab: Morsel climbs back out and follows', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
     // checkpoint restore keeps Act II progress
     Game.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); Game.invulnerable = true; T.step(DT, 4);
-    check('checkpoint: restoring in the catacombs keeps the pistons jammed and Thimble with you', Game.stage === 7 && Streaming.current === 8 && DWk.jam.on && Level.doorById('D7').open === 1 && Cast.plush.mode === 'FOLLOW', 'stage ' + Game.stage + ' sector ' + Streaming.current);
+    check('checkpoint: restoring in the catacombs keeps the pistons jammed and Morsel with you', Game.stage === 7 && Streaming.current === 8 && DWk.jam.on && Level.doorById('D7').open === 1 && Cast.plush.mode === 'FOLLOW', 'stage ' + Game.stage + ' sector ' + Streaming.current);
 
     await breathe();
     // drainage catacombs
@@ -649,9 +649,9 @@ async function runAll() {
     check('catacombs: the live cables shock you', Player.health < 90 && T.getSfxLog().includes('shock'), Player.health.toFixed(0));
     Game.invulnerable = true; Player.health = 100;
     T.setPlayerPose(3, 0, -223.5, 0, 0); T.step(DT, 2); T.aimAt(3, 1.6, -225.85); click(0); T.step(DT, 10);
-    check('catacombs: terminal hands the lock to Marigold', DWk.overrides.length === 1, '');
+    check('catacombs: terminal hands the lock to Posie', DWk.overrides.length === 1, '');
     T.step(DT, 300);
-    check('catacombs: Marigold overrides the lock', Level.doorById('DC1').target === 1, '');
+    check('catacombs: Posie overrides the lock', Level.doorById('DC1').target === 1, '');
     T.step(DT, 300);
     for (const wp of [[0, -228.8], [-8.8, -228.8], [-8.8, -234.8], [0, -234.8]]) T.walkTo(wp[0], wp[1]);
     T.step(DT, 60);
@@ -707,7 +707,7 @@ async function runAll() {
     check('vault: entering wakes the fight', V.active && Game.chaseActive, V.mode);
     for (let i = 0; i < 400 && V.mode !== 'P1'; i++) T.step(DT, 1);
     T.step(DT, 120);
-    check('vault: the Spoolwright descends (phase 1)', V.mode === 'P1' && Monster.active && Monster.boss, V.mode + ' ' + Monster.state);
+    check('vault: the Epxirtype descends (phase 1)', V.mode === 'P1' && Monster.active && Monster.boss, V.mode + ' ' + Monster.state);
     check('ui: boss bar shows the vault health', document.getElementById('hudBoss').style.display === 'block', '');
     V.trainCd = 0; let trainSeen = false;
     for (let i = 0; i < 200 && !trainSeen; i++) { T.step(DT, 1); trainSeen = DWk.trains.length > 0; }
@@ -721,10 +721,10 @@ async function runAll() {
     T.aimAt(-15.25, 1.6, -310); click(0);
     for (let i = 0; i < 400 && V.hp === 6; i++) T.step(DT, 1);
     Monster.bossHold = false;
-    check('vault: Thimble throws the switch - the train hits the Spoolwright', V.hp === 5 && Monster.stunTimer > 0, 'hp ' + V.hp);
+    check('vault: Morsel throws the switch - the train hits the Epxirtype', V.hp === 5 && Monster.stunTimer > 0, 'hp ' + V.hp);
     GrabPack.reset();
     DWk.trainHit({ z: VAULT_TRACKS[0], dir: 1 }); DWk.trainHit({ z: VAULT_TRACKS[0], dir: 1 }); T.step(DT, 30);
-    check('vault: three hits - Marigold overloads the generators (phase 2)', V.mode === 'P2' && DWk.cores.every(c => c.collider.enabled), V.mode);
+    check('vault: three hits - Posie overloads the generators (phase 2)', V.mode === 'P2' && DWk.cores.every(c => c.collider.enabled), V.mode);
     T.step(DT, 120);
     const core = DWk.cores[1];
     T.setPlayerPose(0, 0, -325.6, 0, 0); T.step(DT, 2); T.aimAt(0, 1.5, -327.75);
@@ -735,7 +735,7 @@ async function runAll() {
     DWk.coreOut(); DWk.coreOut();
     check('vault: three cores out - containment begins', V.mode === 'CONTAIN', V.mode);
     for (let i = 0; i < 400 && V.mode !== 'DONE'; i++) T.step(DT, 1);
-    check('vault: the Spoolwright is contained (stage 10)', V.mode === 'DONE' && Game.stage === 10, V.mode + ' ' + Game.stage);
+    check('vault: the Epxirtype is contained (stage 10)', V.mode === 'DONE' && Game.stage === 10, V.mode + ' ' + Game.stage);
     check('victory: ending tape plays', untilState('CINEMATIC_VHS', 500) && VHS.tapeId === 2, T.getState());
     tap('Escape');
     check('victory: VICTORY screen', T.getState() === 'VICTORY', T.getState());
@@ -829,7 +829,7 @@ async function runAll() {
       check('marigold: introduces herself when you approach', Cast.doll.met && (Dialogue.busy() || true) && T.getSfxLog().includes('voiceBlip') || Cast.doll.met, String(Cast.doll.met));
       Dialogue.clear(); Companion.cool = 999; for (const k in Companion.lineCool) Companion.lineCool[k] = 999;
       Dialogue.say('MARIGOLD', 'Test line.'); T.step(DT, 20);
-      check('dialogue: speaker label + typewriter text shown', document.getElementById('hudDialogName').textContent === 'MARIGOLD' && document.getElementById('hudDialogText').textContent.length > 0, document.getElementById('hudDialogText').textContent);
+      check('dialogue: speaker label + typewriter text shown', document.getElementById('hudDialogName').textContent === 'POSIE' && document.getElementById('hudDialogText').textContent.length > 0, document.getElementById('hudDialogText').textContent);
       T.step(DT, 300);
       check('dialogue: line clears after its hold time', !Dialogue.busy() && document.getElementById('hudDialog').style.display === 'none');
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
@@ -858,7 +858,7 @@ async function runAll() {
       check('thimble: hints at the puzzle when you are stuck', Dialogue.busy() && Dialogue.current.speaker === 'THIMBLE' && /lever|gate/.test(Dialogue.current.text), Dialogue.current ? Dialogue.current.text : '');
       Dialogue.clear(); Companion.cool = 0; Companion.lineCool.threat = 0;
       Game.invulnerable = true; T.spawnMonsterNear(9); Monster.targetSpeed = 0; T.step(DT, 3);
-      check('thimble: warns you and hides when the Spoolwright is near', Cast.plush.mode === 'HIDE' && Cast.plush.hidden && Dialogue.current.speaker === 'THIMBLE', Cast.plush.mode);
+      check('thimble: warns you and hides when the Epxirtype is near', Cast.plush.mode === 'HIDE' && Cast.plush.hidden && Dialogue.current.speaker === 'THIMBLE', Cast.plush.mode);
       Monster.reset(); T.step(DT, 300);
       check('thimble: comes back once it is gone', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
       // fighting back outside the boss fight: a plain hit staggers it, a charged hit shocks it into the vents
@@ -1008,7 +1008,7 @@ async function runAll() {
       Game.saveCheckpoint(1); T.step(DT, 2);
       check('gear: VHS cassette icon while saving', document.getElementById('hudVhs').classList.contains('on') && document.getElementById('hudVhsText').textContent === 'SAVING');
       T.setStepRender(true); T.setPlayerPose(0, 0, -10, 0, 0); T.step(DT, 2);
-      check('gear: PIP on the teal glove renders (face texture)', T.getLastError() === null && Renderer.stats.assetDraws > 0, Renderer.stats.assetDraws);
+      check('gear: STARBY on the teal glove renders (face texture)', T.getLastError() === null && Renderer.stats.assetDraws > 0, Renderer.stats.assetDraws);
       T.setStepRender(false);
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
     }

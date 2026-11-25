@@ -16,14 +16,14 @@ const OBJECTIVES = [
   'Restore power to the hall door: latch a hand on the power node, loop the cable around both amber relays, then fire your other hand into the door receptacle.',
   'Cross the Pressure Gallery quietly. Shut the steam (high lever, east wall) and power the gallery gate (west wall).',
   'RUN. Reach the freight lift at the end of the Spool Foundry.',
-  'Defeat the Spoolwright: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
+  'Defeat the Epxirtype: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
   // ---- Act II: the Deep Works ----
-  'STATION YARD. Take your hands from the crate by the tracks, meet Marigold on the platform, then power the yard gate. Mind the shunter.',
+  'STATION YARD. Take your hands from the crate by the tracks, meet Posie on the platform, then power the yard gate. Mind the shunter.',
   'FABRICATION LINE. Carry the cable across the moving belts (stay clear of the end stampers): node on the west wall, loop both relays, plug LINE POWER. Then hit the piston override in the hall.',
-  'DRAINAGE CATACOMBS. Watch your footing on the gel. Fire a hand at each lock terminal so Marigold can override it, then wrench the exit ladder down (latch the ring, drag your view down) and climb.',
+  'DRAINAGE CATACOMBS. Watch your footing on the gel. Fire a hand at each lock terminal so Posie can override it, then wrench the exit ladder down (latch the ring, drag your view down) and climb.',
   'SORTING HUB. When the intercom calls a colour, every container of that colour moves. Find the open gaps through the three bands, then time your run past the crushing walls.',
-  'CORE VAULT. Phase 1: lure the Spoolwright onto a track, then hit the TRACK SWITCH (west wall) - Thimble sends the next train down that line. Dodge the trains. Phase 2: latch each exposed core and drag it out.',
-  'The Spoolwright is contained. The Deep Works are quiet.'
+  'CORE VAULT. Phase 1: lure the Epxirtype onto a track, then hit the TRACK SWITCH (west wall) - Morsel sends the next train down that line. Dodge the trains. Phase 2: latch each exposed core and drag it out.',
+  'The Epxirtype is contained. The Deep Works are quiet.'
 ];
 // [headline, speaker, line] shown on the death screen
 const DEATH_LINES = {
@@ -760,6 +760,7 @@ const Game = {
     Gear.submit(vis);
     DeepWorks.submit(vis);
     if (state === STATE.MAIN_MENU && UI.menuPage === 'title') TitleScene.submit();
+    if (state === STATE.MAIN_MENU && UI.menuPage === 'chapters') ChapterCards.submitActors();
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
     CableMesh.build();
     const sc = this.scene;
@@ -1045,8 +1046,12 @@ const Game = {
 
   render() {
     if (!Renderer.ok || state === STATE.BOOT_LOADING) return;
+    // the chapter select: each card shows one of our characters, rendered live (one card per frame)
+    const cards = state === STATE.MAIN_MENU && UI.menuPage === 'chapters' && ChapterCards.prepare();
     this.submitScene();
+    if (cards) ChapterCards.light(this.scene);
     Renderer.render(this.scene, this.time + this.menuTime);
+    if (cards) ChapterCards.capture();
   }
 };
 const _g = {

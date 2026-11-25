@@ -34,18 +34,18 @@ const COMPANION_LINES = {
   taunts: [
     'Run along the seams, little thread! But mind your step... my needles drop on the beat, and your stitching is dreadfully messy today!',
     'Testing, one, two... is this dusty old microphone still wired? Ah, there we are! To our silent little guest: why not take a shortcut through the cutting room? I promise my shears don\'t bite... too hard!',
-    'I see you, little thread! And you brought the matching set along! Thimble, my boy, you really must get that head restitched... it\'s sagging lower every time you cross my monitors!'
+    'I see you, little thread! And you brought the matching set along! Morsel, my boy, you really must get that head restitched... it\'s sagging lower every time you cross my monitors!'
   ],
   ambush: [
     ['SPOOLWRIGHT', 'Well, well... look what dragged itself out of the rag bin. And it brought the silent little employee along for the ride!'],
-    ['THIMBLE', 'Leave them alone, Spoolwright! They... they don\'t talk, but they\'re fixing the power! They\'re putting this place back together!'],
+    ['THIMBLE', 'Leave them alone, Epxirtype! They... they don\'t talk, but they\'re fixing the power! They\'re putting this place back together!'],
     ['SPOOLWRIGHT', 'Fixing it? Or winding the gears tight enough to snap every mainspring we have? That broken doll already cries in the dark because of their cables!'],
     ['THIMBLE', '(whispering) When I strike the floor with my needle... you run. Don\'t answer me - just watch for the sparks!'],
     ['SPOOLWRIGHT', 'Whispering in patches won\'t save your seams! Let\'s see how your stitching holds under pressure!']
   ],
   banter: [
-    ['THIMBLE', 'I\'m just saying, Marigold... if we get to the main lift, we might actually see the sky. Real light. Not these humming tubes.'],
-    ['MARIGOLD', 'Is the sky as wide as the showroom floor, Thimble? I don\'t remember the colour of the outside... only the white tiles.'],
+    ['THIMBLE', 'I\'m just saying, Posie... if we get to the main lift, we might actually see the sky. Real light. Not these humming tubes.'],
+    ['MARIGOLD', 'Is the sky as wide as the showroom floor, Morsel? I don\'t remember the colour of the outside... only the white tiles.'],
     ['THIMBLE', 'Oh, it\'s bigger... way bigger. Right, friend? Tell her! ...Well, you know what I mean. She doesn\'t believe me.'],
     ['MARIGOLD', 'I believe our friend. Their hands are strong... and careful. If they say the sky is out there, I\'ll walk with you.'],
     ['THIMBLE', 'See? Teamwork! Keep those gauntlets ready, partner.']
@@ -277,7 +277,7 @@ const Ambush = {
     // he takes the vents to the shutter and waits there
     const s = Cast.PLUSH_SHUTTER; P.mode = 'SHUTTER'; V3.set(P.pos, s[0], 0, s[1]); P.yaw = s[2]; P.plugState = 0; P.plug = 0;
     Dialogue.say('THIMBLE', 'Run, friend! I\'ll meet you at the shutter!');
-    GrabPack.showHint('RUN! Get to the shutter - Thimble will meet you there (or wrench the high lever)');
+    GrabPack.showHint('RUN! Get to the shutter - Morsel will meet you there (or wrench the high lever)');
     Pip.react('scared', 2);
   }
 };
