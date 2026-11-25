@@ -576,6 +576,10 @@ const SFX = {
       o.connect(og); o.start(s); o.stop(s + dur + 0.05); vib.start(s); vib.stop(s + dur + 0.05);
       Audio.noise(s, 0.04, 0.12, 1800, 'bandpass', hp, 1.5);
     }
+    // a second, lower throat laughs a beat behind the first - it never sounds like only one voice
+    for (let k = 0; k < N; k += 2) { const s2 = t + 0.06 + k * (span / N); Audio.tone(s2, 'sawtooth', 96 - k * 1.5, 72 - k, 0.13, 0.09, hp, 0.01); }
+    // and the wheezing intake of breath at the end
+    Audio.noise(t + span + 0.05, 0.5, 0.2, 1400, 'bandpass', hp, 3);
     // radio crackle and hiss bed under the whole laugh
     Audio.noise(t, span + 0.3, 0.05, 2500, 'highpass', lp);
     for (let k = 0; k < 18; k++) Audio.noise(t + Math.random() * (span + 0.2), 0.008, 0.25, 4000, 'highpass', out);

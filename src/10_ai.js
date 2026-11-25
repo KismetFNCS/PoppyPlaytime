@@ -660,19 +660,20 @@ const Monster = {
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
       if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.8; }
     }
-    // three stolen plush arms dangle from under the chest: teal, rose (wearing a teal ring) and pink
+    // three stolen plush arms hang DEAD from under the chest: teal, rose (wearing a teal ring) and pink.
+    // No life in them - straight down under their own weight, only swinging with the body's motion.
     for (let k = 0; k < 3; k++) {
       const ax = TROPHY_ARMS[k * 3], ay = TROPHY_ARMS[k * 3 + 1], az = TROPHY_ARMS[k * 3 + 2];
-      const sw = Math.sin(this.breathe * 2.2 + k * 1.9) * 0.12, drag = Math.min(1, this.speed / 5) * 0.45;
+      const sw = Math.sin(this.breathe * 0.9 + k * 1.9) * 0.035, drag = Math.min(1, this.speed / 5) * 0.55;
       this.bodyPoint(B, ax, ay, az);
-      this.bodyPoint(H, ax * 1.9 + sw, ay - 0.72 + drag * 0.25, az - 0.42 + drag + Math.cos(this.breathe * 1.7 + k) * 0.08);
+      this.bodyPoint(H, ax * 1.25 + sw, ay - 0.98 + drag * 0.2, az - 0.12 + drag * 0.7 + Math.sin(this.time * 2.1 + k) * drag * 0.12);
       // the middle arm is smooth, solid pink with a darker pink hand and a blue glove-ring at the wrist;
       // the teal and rose arms are shaggy fur with yellowish plush hands
       const smooth = k === 2;
       it = Sculpt.ready(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm') ? R.push(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm', smooth ? MAT.handRose : MAT.furLight) : null;
       if (it) {
         M4.segment(it.model, B, H, 1);
-        if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2]; }
+        if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0] * 0.78; it.tint[1] = c[1] * 0.78; it.tint[2] = c[2] * 0.78; } else { it.tint[0] = 0.8; it.tint[1] = 0.74; it.tint[2] = 0.76; }
         const hd = Sculpt.ready('sp_trophyHand') ? R.push('sp_trophyHand', smooth ? MAT.handRose : MAT.furLight) : null;
         if (hd) {
           hd.model.set(it.model);

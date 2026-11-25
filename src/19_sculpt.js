@@ -368,21 +368,19 @@ const SCULPTS = {
       { t: 'sph', c: [0.125, 0.06, -0.3], r: 0.085, op: 's', k: 0.03, sm: D },
       { t: 'sph', c: [-0.125, 0.06, -0.3], r: 0.08, op: 's', k: 0.03, sm: D },
       { t: 'box', c: [0.17, 0.33, -0.1], h: [0.09, 0.07, 0.1], rot: [0.5, 0.4, 0.8], op: 's', k: 0.003, sm: D, n: [0.02, 40] },
-      { t: 'box', c: [-0.24, 0.24, -0.12], h: [0.05, 0.04, 0.08], rot: [0.2, -0.6, 0.3], op: 's', k: 0.002, sm: D, n: [0.015, 50] },
-      { t: 'sph', c: [0.02, -0.03, -0.33], r: 0.016, op: 's', k: 0.005, sm: D },
-      { t: 'sph', c: [-0.02, -0.03, -0.33], r: 0.016, op: 's', k: 0.005, sm: D }
-    ];
+      { t: 'box', c: [-0.24, 0.24, -0.12], h: [0.05, 0.04, 0.08], rot: [0.2, -0.6, 0.3], op: 's', k: 0.002, sm: D, n: [0.015, 50] }
+    ];   // no nose: just the eyes and the grin
     // the grin: a wide crescent carved across the face, corners curling up into the cheeks
-    const arc = a => [Math.sin(a) * 0.3, -0.15 + a * a * 0.085, -Math.cos(a) * 0.29 + 0.005];
-    for (let i = 0; i <= 14; i++) {
-      const a = -1.05 + i * 0.15, [x, y, z] = arc(a), edge = Math.abs(a) > 0.9;
-      n.push({ t: 'ell', c: [x, y, z], r: [0.06, edge ? 0.04 : 0.078, 0.09], rot: [a, 0, 0], op: 's', k: 0.012, sm: D });
+    const arc = a => [Math.sin(a) * 0.34, -0.12 + a * a * 0.1, -Math.cos(a) * 0.3 + 0.005];
+    for (let i = 0; i <= 18; i++) {
+      const a = -1.22 + i * 0.1356, [x, y, z] = arc(a), edge = Math.abs(a) > 1.05;
+      n.push({ t: 'ell', c: [x, y, z], r: [0.06, edge ? 0.045 : 0.095, 0.1], rot: [a, 0, 0], op: 's', k: 0.012, sm: D });
     }
     // a full grin: two complete rows of big, even, blocky teeth filling the whole mouth
-    for (let i = 0; i < 15; i++) {
-      const a = -0.98 + i * 0.14;
+    for (let i = 0; i < 19; i++) {
+      const a = -1.14 + i * 0.1267;
       const [x, y, z] = arc(a);
-      const hu = 0.04 - Math.abs(a) * 0.014, hl = 0.036 - Math.abs(a) * 0.014;
+      const hu = 0.05 - Math.abs(a) * 0.016, hl = 0.045 - Math.abs(a) * 0.016;
       n.push({ t: 'box', c: [x * 0.995, y + 0.003 + hu, z + 0.012], h: [0.0185, hu, 0.016], rr: 0.005, rot: [a, 0, 0], m: P, k: 0.002 });
       n.push({ t: 'box', c: [x * 0.995, y - 0.003 - hl, z + 0.014], h: [0.0175, hl, 0.015], rr: 0.005, rot: [a, 0, 0], m: P, k: 0.002 });
     }

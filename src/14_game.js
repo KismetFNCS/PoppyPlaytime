@@ -696,17 +696,12 @@ const Game = {
     K.stab = t < 2.9 ? 0 : smoothstep(2.9, 3.0, t);
     const laughing = t > 1.2 && t < 2.85;
     const ha = Math.abs(Math.sin((t - 1.2) * 13));
-    Monster.headTilt = laughing ? Math.sin(t * 6.5) * 0.3 : noise1(t * 40) * 0.12;
-    Monster.jaw = laughing ? 0.35 + 0.65 * ha : t < 1.2 ? 0.3 : 0.95;
-    Monster.flinchAmt = laughing ? -0.15 * ha : 0;   // head jerks back with each "ha"
-    // the head stares straight at you, snapping between sharp sideways cocks while it laughs
-    Monster.lookYaw = 0; Monster.lookPitch = 0;
-    const cock = laughing ? [0, 1.1, -0.5, 1.3, 0.2, -1.0][Math.floor((t - 1.2) * 3.2) % 6] : 0;
-    if (cock !== Monster.lookRoll && laughing) sfx('headSnap', Monster.head);
-    Monster.lookRoll = cock;
+    // it holds dead still while it laughs: no bobbing, no head cocks - just the frozen grin staring at you
+    Monster.headTilt = 0; Monster.jaw = 0.5; Monster.flinchAmt = 0;
+    Monster.lookYaw = 0; Monster.lookPitch = 0; Monster.lookRoll = 0;
     Monster.animateLegs(dt, false);
     Player.lockAmt = Math.min(1, Player.lockAmt + dt * 9);
-    Player.trauma = laughing ? 0.3 + 0.2 * ha : t < 0.85 ? 0.25 : t < 1.2 ? 0.9 : t > 2.9 ? 1 : 0.4;
+    Player.trauma = laughing ? 0.12 + 0.04 * ha : t < 0.85 ? 0.25 : t < 1.2 ? 0.9 : t > 2.9 ? 1 : 0.4;
     if (this.killCue === 0 && t > 1.2) { this.killCue = 1; sfx('laugh'); }
     if (this.killCue === 1 && t > 2.92) {
       this.killCue = 2; sfx('stab');
