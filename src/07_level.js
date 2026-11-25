@@ -14,7 +14,7 @@ const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SP
 const Level = {
   sectors: [], doors: [], batches: [], builders: [], portals: [],
   pegs: [], sources: [], receptacles: [], levers: [], tapes: [], steam: [], vents: [], triggers: [], lockers: [],
-  lightEntities: [], fixtures: [], decor: [],
+  lightEntities: [], fixtures: [], decor: [], breakables: [], cages: [], ducts: [],
   spawn: { pos: V3.create(0, 0, 5.5), yaw: 0 },
   menuCam: { pos: V3.create(-1.1, 1.2, -79.6), yaw: -0.02, pitch: 0.12 },
   menuMonster: { pos: V3.create(0.9, 0, -84.6), yaw: 0 },
@@ -24,8 +24,42 @@ const Level = {
     this.sectors.length = 0; this.doors.length = 0; this.batches.length = 0; this.builders.length = 0; this.portals.length = 0;
     this.pegs.length = 0; this.sources.length = 0; this.receptacles.length = 0; this.levers.length = 0; this.tapes.length = 0;
     this.steam.length = 0; this.vents.length = 0; this.triggers.length = 0; this.lockers.length = 0; this.lightEntities.length = 0; this.fixtures.length = 0;
-    this.decor.length = 0;
+    this.decor.length = 0; this.breakables.length = 0; this.cages.length = 0; this.ducts.length = 0;
   },
+  // a cracked panel blocking a gap: solid until a BELLOWS blast shatters it
+  breakable(sector, x0, y0, z0, x1, y1, z1) {
+    const c = Physics.addBox(x0, y0, z0, x1, y1, z1, LAYER.WORLD_STATIC, SURFACE.METAL, -1, true, sector);
+    const b = { sector, collider: c, broken: false, t: 0, c: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], h: [(x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2] };
+    this.breakables.push(b);
+    return b;
+  },
+  breakPanel(b) {
+    b.broken = true; b.collider.enabled = false; b.t = 0;
+    V3.set(_lv.p, b.c[0], b.c[1], b.c[2]);
+    sfx('shatter', _lv.p); Particles.burst(_lv.p, 40, 'debris'); Particles.burst(_lv.p, 16, 'spark');
+  },
+  resetBreakables() { for (const b of this.breakables) { b.broken = false; b.collider.enabled = true; } },
+  // a crawl duct: a low steel tunnel (1.3 m high - crouch to get through). axis 'x' or 'z' = its long direction;
+  // open: the side ('n'|'s'|'e'|'w') that has the entrance (the rest is closed)
+  duct(sector, x0, z0, x1, z1, open, openA, openB) {
+    const H = 1.3, T = 0.1;
+    this.solid(sector, x0, H, z0, x1, H + T, z1, MAT.steel, SURFACE.METAL);
+    const wall = (side, a0, a1) => {
+      if (side === 'w') this.solid(sector, x0 - T, 0, a0, x0, H + T, a1, MAT.steel, SURFACE.METAL);
+      if (side === 'e') this.solid(sector, x1, 0, a0, x1 + T, H + T, a1, MAT.steel, SURFACE.METAL);
+      if (side === 'n') this.solid(sector, a0, 0, z0 - T, a1, H + T, z0, MAT.steel, SURFACE.METAL);
+      if (side === 's') this.solid(sector, a0, 0, z1, a1, H + T, z1 + T, MAT.steel, SURFACE.METAL);
+    };
+    for (const side of ['w', 'e', 'n', 's']) {
+      const lo = side === 'w' || side === 'e' ? z0 : x0, hi = side === 'w' || side === 'e' ? z1 : x1;
+      if (side !== open) { wall(side, lo, hi); continue; }
+      wall(side, lo, openA); wall(side, openB, hi);
+    }
+    for (let k = 0; k < 6; k++) { const t = (k + 0.5) / 6; this.geom(sector, x0 + (x1 - x0) * t - 0.02, H - 0.04, z0, x0 + (x1 - x0) * t + 0.02, H, z1, MAT.rustIron); }
+    this.ducts.push({ sector, x0, z0, x1, z1 });
+  },
+  // a barred cage over a pickup (drawn until its lock receptacle is powered)
+  cage(sector, x0, z0, x1, z1, h, lock) { this.cages.push({ sector, x0, z0, x1, z1, h, lock, lift: 0 }); },
 
   sector(id, name, x0, z0, x1, z1, h) {
     const s = { id, name, min: V3.create(x0, -0.5, z0), max: V3.create(x1, h + 0.5, z1), h, monsterActive: false };
@@ -349,6 +383,7 @@ const Level = {
     this.shelf(1, -11.8, -10.8, -10.9, -7.5, 3.4);
     this.shelf(1, 10.9, -22, 11.8, -16, 4.4);
     this.spoolMachine(1, -5.5, -6.5);
+    this.cage(1, -4.2, -15.2, -2.8, -13.8, 1.8, 'R1');
     this.tank(1, 9.5, -14.5, 0.9, 3.6);
     this.pipeX(1, -12, 12, 6.2, -1.0, 0.18);
     this.pipeX(1, -12, 12, 5.9, -23.4, 0.14, MAT.copper);
@@ -405,6 +440,7 @@ const Level = {
     // hide lockers and a second audio log in the gallery
     this.locker(2, -9.6, -41.8, -Math.PI / 2); this.locker(2, 9.6, -32.6, Math.PI / 2); this.locker(2, 4.2, -47.65, Math.PI);
     this.desk(2, -4.5, -25.4);
+    this.crate(2, -8.6, -46.6, 1.0, 1);   // the LANTERN hand, deep in the toxic smog
     this.tape(2, -4.5, 1.0, -25.4, 3);
     this.locker(3, 5.6, -78.2, Math.PI / 2); this.locker(3, -5.6, -60.4, -Math.PI / 2);
 
@@ -573,4 +609,5 @@ const NavGrid = {
     return n;
   }
 };
+const _lv = { p: V3.create() };
 const NAV_DIRS = new Int8Array([1, 0, -1, 0, 0, 1, 0, -1, 1, 1, 1, -1, -1, 1, -1, -1]);

@@ -182,11 +182,22 @@ const DeepWorks = {
     L.geom(S, -1.6, 2.7, -146.7, 1.6, 2.85, -145.6, MAT.steel);
     L.geom(S, -1.3, 2.05, -146.36, 1.3, 2.45, -146.3, MAT.rubber);
     // crates, lamp posts, catenary pipes
-    L.crate(S, -4.2, -146.5, 0.9, 1); L.crate(S, 11.5, -146, 1.2, 2); L.crate(S, 12.6, -153.5, 1.0, 1); L.crate(S, -11.5, -170.5, 1.1, 2);
+    L.crate(S, -4.2, -146.5, 0.9, 1); L.crate(S, -8.2, -144.6, 1.2, 2); L.crate(S, 12.6, -153.5, 1.0, 1); L.crate(S, -11.5, -170.5, 1.1, 2);
     L.crate(S, 3.5, -165.5, 1.0, 1); L.tank(S, -11.8, -143.5, 1.0, 4.2);
     for (const x of [-9, 0, 9]) L.pipeY(S, x, -155.2, 0, 9, 0.14, MAT.steel);
     L.pipeX(S, -14, 14, 6.4, -155.2, 0.08, MAT.copper);
     L.pipeX(S, -14, 14, 8.1, -144, 0.2); L.pipeZ(S, -176, -140, 7.6, 13.4, 0.18, MAT.copper);
+    // the records office in the south-east corner: a locked door (OFFICE KEY), a desk with a tape and a CRT TV
+    L.solid(S, 8.9, 0, -146.8, 9.1, 3.2, -144.6, MAT.paint); L.solid(S, 8.9, 0, -143.0, 9.1, 3.2, -141, MAT.paint);
+    L.solid(S, 8.9, 2.6, -144.6, 9.1, 3.2, -143.0, MAT.paint);
+    L.solid(S, 9, 0, -147.0, 14, 3.2, -146.8, MAT.paint);
+    L.geom(S, 9, 3.2, -147.0, 14, 3.3, -140, MAT.steel);
+    const od = L.door('DY_OFF', 6, 6, 'x', 9, -144.6, -143.0, 2.6, false); od.key = 'OFFICE';
+    L.desk(S, 12.4, -145.6);
+    L.tape(S, 12.1, 1.0, -145.6, 4);
+    L.light(S, 11.5, 2.8, -143.5, LIGHTING.fillColor, 2.0, 5, 1, 'bulb', 0.3);
+    // a crawl duct along the west wall between the tracks: crouch [C] to get in; the OFFICE KEY lies at its dead end
+    L.duct(S, -14, -158.8, -12.6, -152, 'e', -153.6, -152.2);
     // the shunter car patrols the second line
     this.shunter = { x: -8, dir: 1, wait: 1.5, speed: 2.4, c: this.dyn(S, -10.3, 0, -161.2, -5.7, 2.8, -158.8), moving: false, lamp: 0 };
     // lights
@@ -285,6 +296,7 @@ const DeepWorks = {
     this.ladder = { down: 0, x0: 3.45, x1: 4.55, z0: -248.0, z1: -247.15 };
     L.receptacle(S, -4, 1.6, -249.15, 0, -1, false, [], 'C_TERM2', 'LOCK TERMINAL');
     L.solid(S, -11.6, 0, -253.6, -10.4, 0.9, -252.4, MAT.steel, SURFACE.METAL);   // Marigold's console
+    L.crate(S, -9.6, -220.5, 0.9, 1);   // the BELLOWS hand rests on a crate in the dead-end alcove
     // lights: sparse, sickly
     L.light(S, 0, 4.0, -221, '#7cff5a', 2.6, 8, 2, 'none', 0.5);
     L.emergency(S, -8.8, 4.2, -229); L.emergency(S, 7.8, 4.4, -235); L.emergency(S, -12, 4.5, -242); L.emergency(S, 12, 4.5, -252);
@@ -326,6 +338,12 @@ const DeepWorks = {
     for (let i = 0; i < 2; i++) this.crushers.push({ x: i ? 11 : -11, dir: i ? -1 : 1, c: this.dyn(S, -0.5, 0, -287.3, 0.5, 3.2, -283.1) });
     for (const x of [-14, 14]) L.geom(S, x - 0.3, 3.2, -287.5, x + 0.3, 3.6, -282.9, MAT.hazard);
     L.trigger(-1.3, -291, 1.3, -288.6, 'H_EXIT');
+    // a supply closet at the west end of the entry hall, sealed by a cracked panel (BELLOWS) - the CONDUIT inside
+    L.solid(S, -14, 0, -261.8, -11.5, 2.8, -261.6, MAT.steel, SURFACE.METAL); L.solid(S, -14, 0, -257.6, -11.5, 2.8, -257.4, MAT.steel, SURFACE.METAL);
+    L.solid(S, -14, 2.8, -261.8, -11.5, 3.0, -257.4, MAT.steel, SURFACE.METAL);
+    L.breakable(S, -11.6, 0, -261.6, -11.4, 2.8, -257.6);
+    L.crate(S, -12.8, -259.6, 0.9, 1);
+    L.light(S, -12.8, 2.4, -259.6, LIGHTING.fillColor, 1.6, 3.5, 2, 'bulb', 0.3);
     // lights
     for (let z = -258; z >= -290; z -= 8) { L.tube(S, -7, 7.98, z, true, 1); L.tube(S, 7, 7.98, z, true, z === -274 ? 2 : 0); }
     L.emergency(S, -13.6, 5, -282); L.emergency(S, 13.6, 5, -282); L.emergency(S, 0, 4.5, -291.6);
@@ -367,6 +385,14 @@ const DeepWorks = {
     this.genLights = VAULT_GENS.map(gx => L.light(S, gx, 2.0, -326.8, '#7cff5a', 0.0, 6, 0, 'none', 0.5));
     L.hazardLamp(S, -15.2, 2.6, -310); L.hazardLamp(S, 12.8, 1.8, -296.5);
     L.trigger(-6, -299, 6, -297, 'V_ENTER');
+    // the ANCHOR hand in a barred cage by the entrance; a charge socket on the cage, a live node across the room
+    L.crate(S, 14.2, -293.9, 0.9, 1);
+    L.solid(S, 12.35, 0, -295.6, 12.45, 2.6, -292.3, MAT.steel, SURFACE.METAL, LAYER.WORLD_STATIC, true);
+    L.solid(S, 12.35, 0, -295.7, 16, 2.6, -295.5, MAT.steel, SURFACE.METAL, LAYER.WORLD_STATIC, true);
+    this.cageCol = this.dyn(S, 12.3, 0, -295.6, 12.5, 2.6, -292.3);
+    L.cage(S, 12.4, -295.6, 16, -292.3, 2.6, 'V_CAGE');
+    const sock = L.receptacle(S, 12.25, 1.5, -294.0, -1, 0, true, [], 'V_CAGE', 'CHARGE SOCKET'); sock.charge = true;
+    L.powerSource(S, -15.85, 1.5, -294.2, 1, 0);
   },
 
   // ======================================================================================
@@ -403,6 +429,7 @@ const DeepWorks = {
     if (path && path.powered) { this.jam.on = true; for (const p of this.pistons) { p.y = 3.6; this.setBox(p.c, 0, p.y, p.z, 2.45, 1.6, 1.2); } }
     const lad = this.leverBy('C_LADDER'); if (lad && lad.pulled) this.ladder.down = 1;
     if (st >= 8) { this.catwalk.fallen = true; this.catwalk.t = 3; this.catwalk.c.enabled = false; this.pipe.fallen = true; this.pipe.t = 3; this.pipe.c.enabled = true; }
+    const cg = this.receptacleBy('V_CAGE'); if (this.cageCol) this.cageCol.enabled = !(cg && cg.powered);
     if (st >= 5) this.placeThimble();
   },
   placeThimble() {
@@ -513,6 +540,12 @@ const DeepWorks = {
         Game.stage = 9; UI.setObjective(OBJECTIVES[9]); Game.saveCheckpoint(9);
         return true;
       case 'V_ENTER': this.vaultStart(); return true;
+      case 'V_CAGE': {
+        if (this.cageCol) this.cageCol.enabled = false;
+        sfx('doorStart', Player.body.pos);
+        Dialogue.say('MARIGOLD', 'That cage was built for something they were afraid of. Take what is inside - you will need it.');
+        return true;
+      }
       case 'V_SWITCH': {
         const r = this.receptacleBy('V_SWITCH'); if (r) r.powered = false;
         if (this.vault.mode !== 'P1') { GrabPack.showHint('The line is dead - the power went to the generators'); return true; }

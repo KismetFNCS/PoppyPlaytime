@@ -386,13 +386,16 @@ const SCULPTS = {
       const [x, y, z] = arc(a);
       const hu = 0.05 - Math.abs(a) * 0.016, hl = 0.045 - Math.abs(a) * 0.016;
       n.push({ t: 'box', c: [x * 0.995, y + 0.003 + hu, z + 0.012], h: [0.0185, hu, 0.016], rr: 0.005, rot: [a, 0, 0], m: P, k: 0.002 });
+      if (i >= 12 && i <= 15) continue;   // a block of lower teeth knocked out on his right side
       n.push({ t: 'box', c: [x * 0.995, y - 0.003 - hl, z + 0.014], h: [0.0175, hl, 0.015], rr: 0.005, rot: [a, 0, 0], m: P, k: 0.002 });
     }
     // crazing cracks across the whole face
     const cracks = [[0.05, 0.3, -0.25, 0.12, 0.13, -0.29], [0.12, 0.13, -0.29, 0.07, 0.02, -0.31], [-0.2, 0.22, -0.22, -0.28, 0.0, -0.18],
       [0.24, -0.02, -0.2, 0.3, -0.18, -0.12], [-0.05, 0.38, -0.12, -0.12, 0.2, -0.27], [-0.12, 0.2, -0.27, -0.2, 0.15, -0.24],
       [0.0, -0.26, -0.27, 0.06, -0.38, -0.18], [-0.3, -0.1, -0.15, -0.22, -0.28, -0.17], [0.2, 0.25, -0.2, 0.28, 0.1, -0.18], [-0.08, 0.1, -0.3, -0.02, 0.2, -0.29]];
-    for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.008, op: 's', sm: D, n: [0.004, 60] });
+    for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.011, op: 's', sm: D, n: [0.005, 60] });
+    // chunks broken out of the rim
+    for (const c of [[0.33, 0.2, -0.08], [-0.3, -0.28, -0.1], [0.08, 0.4, -0.12]]) n.push({ t: 'box', c, h: [0.05, 0.04, 0.06], rot: [c[0] * 3, 0.4, 0.7], op: 's', k: 0.002, sm: D, n: [0.012, 50] });
     return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 84);
   },
   // Spoolwright femur (y 0 -> 1 along the bone): plated I-beam with lightening holes, hip drum, knee
@@ -459,6 +462,8 @@ const SCULPTS = {
       for (const key of ['c', 'a', 'b']) if (h[key]) h[key] = [h[key][0] + off[0], h[key][1] + off[1], h[key][2] + off[2]];
       n.push(h);
     }
+    // torn, scorched holes in the hood cloth
+    for (const c of [[0.36, 0.05, 0.25], [-0.38, -0.2, 0.18], [0.2, 0.32, 0.36], [-0.25, 0.3, 0.3]]) n.push({ t: 'sph', c, r: 0.06, op: 's', k: 0.01, sm: MAT.rubber, n: [0.025, 35] });
     return SDF.mesh(n, [-0.76, -0.66, -0.45], [0.76, 1.0, 0.78], 92);
   },
   // Filthy, ragged jester's motley on a skeletal upper torso (origin at the chest, facing -z): ruby cloth with
@@ -509,6 +514,9 @@ const SCULPTS = {
       n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
       n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
     }
+    // heavy damage: scorched holes burned through the motley, soot and peeled patches
+    for (const c of [[0.15, 0.1, -0.13], [-0.12, -0.42, -0.14], [0.2, -0.3, 0.1], [-0.18, 0.05, 0.12], [0.05, -0.55, -0.1]]) n.push({ t: 'sph', c, r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.02, 45] });
+    for (let k = 0; k < 10; k++) { const a = k * 2.3; n.push({ t: 'sph', c: [Math.sin(a) * 0.21, -0.6 + (k * 0.13) % 0.8, Math.cos(a) * 0.15], r: 0.05, m: MAT.burnt, k: 0.015, n: [0.014, 40] }); }
     return SDF.mesh(n, [-0.46, -0.78, -0.44], [0.46, 0.56, 0.4], 78);
   },
   // Stolen plush arm (shoulder at y 0, fingertips at y 1), coloured per draw: shaggy fur sleeve, a frayed
@@ -566,6 +574,12 @@ const SCULPTS = {
     for (let k = 0; k < 6; k++) {
       const s = 1 - Math.abs(k - 2.5) * 0.07;
       n.push({ t: 'tor', c: [0, 0.07, -0.4 + k * 0.16], R: 0.56 * s, r: 0.032, rot: [0, Math.PI / 2, 0], m: MAT.porcelain, k: 0.02, n: [0.004, 40] });
+    }
+    // the ribcage is cracked and broken: snapped ribs with gaps, splintered ends, hairline cracks and soot
+    for (const [k, a, w] of [[0, 1.2, 0.06], [1, -0.4, 0.08], [2, 2.3, 0.05], [3, 0.6, 0.09], [4, -1.9, 0.06], [5, 1.8, 0.07], [2, -0.9, 0.04]]) {
+      const s = 1 - Math.abs(k - 2.5) * 0.07, R = 0.56 * s, z = -0.4 + k * 0.16;
+      n.push({ t: 'box', c: [Math.cos(a) * R, 0.07 + Math.sin(a) * R, z], h: [w, w, 0.06], rot: [0, 0, a + 0.4], op: 's', k: 0.002, sm: MAT.burnt, n: [0.01, 60] });
+      n.push({ t: 'sph', c: [Math.cos(a + 0.25) * R, 0.07 + Math.sin(a + 0.25) * R, z], r: 0.036, m: MAT.burnt, k: 0.01, n: [0.01, 60] });
     }
     n.push({ t: 'cap', a: [0, -0.45, -0.42], b: [0, -0.45, 0.42], r: 0.04, m: MAT.porcelain, k: 0.03 });
     for (let k = 0; k < 8; k++) n.push({ t: 'ell', c: [0, 0.6 - k * 0.02, 0.4 + k * 0.2], r: [0.08, 0.065, 0.075], m: MAT.porcelain, k: 0.04 });

@@ -52,6 +52,21 @@ TAPES.push({
   ]
 });
 
+TAPES.push({
+  title: 'FOUNDERS REEL 1961', label: 'MERRIWEATHER FAMILY FILM', presenter: 'wave', pitch: 210,
+  lines: [
+    'Augustus Merriweather here, standing in our brand-new freight yard. Every toy we make leaves from these rails.',
+    'Doctor Varga tells me the new stitching lines will never stop. Toys that mend themselves! Imagine it.',
+    'And the children from the Hollow Pines home will be our very first testers. They will love it here.',
+    'Nora, keep the camera steady - wave to the children, everyone. Wave!'
+  ],
+  // Harlan Smithers cuts into the feed as it ends (his CRT is wired into every set in the building)
+  hijack: [
+    'Sentimental. The children never left, you know. They were simply... repurposed.',
+    'Keep watching my tapes. I like an audience.'
+  ]
+});
+
 const VHS = {
   canvas: null, ctx: null, tape: null, tapeId: -1, line: 0, chars: 0, charAcc: 0, time: 0, glitch: 0, done: null,
   lastChar: 0, roll: 0, tear: 0, holdAfterLine: 0,

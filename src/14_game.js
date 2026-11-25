@@ -230,6 +230,7 @@ const Game = {
     Steam.setAll(true);
     Gear.reset();
     DeepWorks.reset();
+    Level.resetBreakables();
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) { L.pulse = 0; L.enabled = true; }
     GrabPack.reset();
@@ -326,6 +327,7 @@ const Game = {
     Renderer.post.redWave = 0; Renderer.post.fear = 0; Renderer.post.flash = 0;
     this.fadeIn = 1;
     this.fractureAmt = 0;
+    Level.resetBreakables();
     DeepWorks.restore();
     sfxLog.push('restore');
   },
@@ -468,6 +470,16 @@ const Game = {
       const f1 = Input.mouseJust[1] || Input.justPressed.has('KeyR') || Input.padJust(7) || Input.padJust(5);
       if ((f0 || f1) && Gear.handsLost) GrabPack.showHint('No hands on the pack yet - they are in the crate by the tracks.');
       else { if (f0) GrabPack.fire(0, Player.cam); if (f1) GrabPack.fire(1, Player.cam); }
+      // keyed doors: walk up and press [E]; with the right key it unlocks and rolls up
+      if (usePressed) for (const d of Level.doors) {
+        if (!d.key || d.target === 1) continue;
+        const cx = d.axis === 'x' ? d.line : (d.a + d.b) / 2, cz = d.axis === 'x' ? (d.a + d.b) / 2 : d.line;
+        if (Math.hypot(Player.body.pos[0] - cx, Player.body.pos[2] - cz) > 2.2) continue;
+        if (Gear.hasKey(d.key)) { Doors.setOpen(d.id, true); sfx('scanner', Player.body.pos); GrabPack.showHint('UNLOCKED with the ' + d.key + ' KEY'); }
+        else { sfx('deny', Player.body.pos); GrabPack.showHint('LOCKED - it needs the ' + d.key + ' KEY'); }
+      }
+      // crawl ducts: a nudge to crouch at the entrance
+      for (const D of Level.ducts) if (!Player.crouching && Player.body.pos[0] > D.x0 - 0.9 && Player.body.pos[0] < D.x1 + 0.9 && Player.body.pos[2] > D.z0 - 0.9 && Player.body.pos[2] < D.z1 + 0.9 && GrabPack.hintTimer <= 0) GrabPack.showHint('A crawl duct - hold [C] to crouch and crawl through');
       const locker = Player.findLocker();
       const tape = locker ? null : Player.findInteract();
       if (locker && usePressed) this.enterLocker(locker);
@@ -596,7 +608,8 @@ const Game = {
     tape.collected = true;
     sfx('pickup');
     this.resumeState = state;
-    VHS.play(tape.tapeId, () => setState(STATE.GAMEPLAY_ACTIVE));
+    const T = TAPES[tape.tapeId];
+    VHS.play(tape.tapeId, () => { setState(STATE.GAMEPLAY_ACTIVE); if (T && T.hijack) for (const l of T.hijack) Dialogue.say('USHER', l); });
     setState(STATE.CINEMATIC_VHS);
   },
 
@@ -707,7 +720,7 @@ const Game = {
     // 2.9 s: it stabs; the screen cracks red and cuts to black
     const K = Monster.kill;
     const walk = smoothstep(0, 0.95, t);
-    this.placeJumpscareMonster(3.4 - 2.1 * walk);
+    this.placeJumpscareMonster(3.4 - 1.65 * walk);   // stops at arm's length, looming over you
     Monster.speed = t < 0.95 ? 2.4 : 0;
     K.grab = smoothstep(0.85, 1.2, t);
     K.wind = smoothstep(1.25, 2.7, t);
@@ -728,7 +741,7 @@ const Game = {
     }
     Player.updateCamera(dt, Settings.values.reduceMotion ? 0.3 : 1);
     // it lifts you off your feet, up to its face
-    Player.cam.eye[1] += 0.8 * smoothstep(0.9, 1.3, t);
+    Player.cam.eye[1] += 0.3 * smoothstep(0.9, 1.3, t);
     this.applyCamera(Player.cam.eye, Player.cam.yaw, Player.cam.pitch, Player.cam.roll);
     Player.updateFlashlight(dt);
     Renderer.post.redWave = t < 2.92 ? 0.12 + 0.08 * Math.sin(t * 13) : 1;
@@ -755,7 +768,9 @@ const Game = {
     this.submitLockers(vis);
     Lights.submitFixtures(vis);
     this.submitPuzzles(vis);
+    const q0 = RenderQueue.count;
     Monster.submit();
+    Monster.scorch(q0);
     Cast.submit(vis);
     Gear.submit(vis);
     DeepWorks.submit(vis);
@@ -789,31 +804,95 @@ const Game = {
 
   submitPuzzles(vis) {
     const R = RenderQueue, t = this.time;
+    // cracked panels (shattered by a BELLOWS blast)
+    for (const b of Level.breakables) {
+      if (b.broken || !vis[b.sector]) continue;
+      const it = R.trs('box', MAT.screen, b.c[0], b.c[1], b.c[2], 0, 0, 0, b.h[0] * 2, b.h[1] * 2, b.h[2] * 2);
+      if (it) { it.tint[0] = 0.55; it.tint[1] = 0.6; it.tint[2] = 0.62; it.emis[1] = 0.02; it.emis[2] = 0.03; }
+      for (let k = 0; k < 7; k++) {
+        const a = k * 0.9, ln = 0.5 + (k % 3) * 0.3, ax = b.h[0] > b.h[2];
+        V3.set(_g.p0, b.c[0], b.c[1] + 0.2, b.c[2]);
+        V3.set(_g.p1, b.c[0] + (ax ? Math.cos(a) * ln : 0), b.c[1] + 0.2 + Math.sin(a) * ln, b.c[2] + (ax ? 0 : Math.cos(a) * ln));
+        if (ax) { _g.p0[2] -= b.h[2] + 0.01; _g.p1[2] -= b.h[2] + 0.01; } else { _g.p0[0] += b.h[0] + 0.01; _g.p1[0] += b.h[0] + 0.01; }
+        const c = R.seg('cylLow', MAT.porcelain, _g.p0, _g.p1, 0.008, false); if (c) { c.emis[0] = 0.25; c.emis[1] = 0.25; c.emis[2] = 0.28; }
+      }
+    }
+    // barred cages over caged pickups: the bars slide up into the ceiling once the lock is powered
+    for (const C of Level.cages) {
+      if (!vis[C.sector]) continue;
+      const r = Level.receptacles.find(q => q.action === C.lock), open = r && r.powered;
+      C.lift = damp(C.lift, open ? 1 : 0, 2, 1 / 60);
+      if (C.lift > 0.98) continue;
+      const y0 = C.lift * C.h;
+      for (let x = C.x0; x <= C.x1 + 1e-3; x += 0.2) for (const z of [C.z0, C.z1]) R.trs('box', MAT.steel, x, y0 + C.h / 2, z, 0, 0, 0, 0.035, C.h, 0.035, false);
+      for (let z = C.z0; z <= C.z1 + 1e-3; z += 0.2) for (const x of [C.x0, C.x1]) R.trs('box', MAT.steel, x, y0 + C.h / 2, z, 0, 0, 0, 0.035, C.h, 0.035, false);
+      R.trs('box', MAT.rustIron, (C.x0 + C.x1) / 2, y0 + C.h, (C.z0 + C.z1) / 2, 0, 0, 0, C.x1 - C.x0 + 0.06, 0.06, C.z1 - C.z0 + 0.06);
+    }
+    // charge sockets: a pulsing cyan ring round the socket
+    for (const r of Level.receptacles) {
+      if (!r.charge || !vis[r.sector]) continue;
+      const it = R.push('torus', MAT.rubber, false);
+      if (it) { V3.set(_g.p0, r.pos[0] + r.n[0] * 0.05, r.pos[1], r.pos[2] + r.n[2] * 0.05); ringMatrix(it.model, _g.p0, r.n, 0.24); const k = r.powered ? 0.4 : 1.2 + 0.6 * Math.sin(t * 4); it.emis[0] = 0.2 * k; it.emis[1] = 1.4 * k; it.emis[2] = 2.0 * k; }
+    }
+    // the ANCHOR's harpoon: a spike through the Epxirtype, chained to a bolt in the floor
+    if (Monster.anchorT > 0 && Monster.visible) {
+      V3.set(_g.p1, Monster.anchorAt[0] + 0.7, 0.05, Monster.anchorAt[2] + 0.7);
+      R.seg('cylLow', MAT.steel, Monster.hitPoint, _g.p1, 0.018);
+      for (let k = 1; k < 8; k++) { V3.lerp(_g.p0, Monster.hitPoint, _g.p1, k / 8); R.trs('torus', MAT.rustIron, _g.p0[0], _g.p0[1], _g.p0[2], k, k * 0.7, 0, 0.05, 0.3, 0.05, false); }
+      R.trs('cyl', MAT.steel, _g.p1[0], 0, _g.p1[2], 0, 0, 0, 0.08, 0.12, 0.08);
+    }
+    // wall-mounted puzzle props are built in an explicit frame: n out of the wall, u up, r = u x n
+    const frame = (n) => { V3.set(_g.u, 0, 1, 0); V3.cross(_g.r, _g.u, n); V3.normalize(_g.r, _g.r); return _g.r; };
+    const plate = (mesh, mat, p, n, off, sx, sy, sz, shadow) => {
+      const r = frame(n); V3.set(_g.p0, p[0] + n[0] * off, p[1], p[2] + n[2] * off);
+      const it = R.push(mesh, mat, shadow !== false); if (it) basisMatrix(it.model, _g.p0, r, _g.u, n, sx, sy, sz); return it;
+    };
     for (const s of Level.sources) {
       if (!vis[s.sector]) continue;
       const p = s.pos, n = s.n;
-      const yaw = Math.atan2(n[0], n[2]);
-      R.trs('box', MAT.steel, p[0] - n[0] * 0.05, p[1], p[2] - n[2] * 0.05, yaw, 0, 0, 1.0, 1.0, 0.12);
-      R.trs('torus', MAT.hazard, p[0] + n[0] * 0.05, p[1], p[2] + n[2] * 0.05, yaw, Math.PI / 2, 0, 0.36, 0.5, 0.36);
-      const it = R.trs('sphere', MAT.rubber, p[0] + n[0] * 0.12, p[1], p[2] + n[2] * 0.12, 0, 0, 0, 0.2, 0.2, 0.2, false);
+      // power node: steel backplate in a hazard frame, copper coils round a glowing glass dome, a conduit up the wall
+      plate('box', MAT.steel, p, n, -0.05, 1.0, 1.0, 0.12);
+      for (const [dx, dy, w, h] of [[0, 0.47, 1.04, 0.07], [0, -0.47, 1.04, 0.07], [0.49, 0, 0.07, 1.0], [-0.49, 0, 0.07, 1.0]]) {
+        const r = frame(n); V3.set(_g.p1, p[0] + r[0] * dx + n[0] * 0.02, p[1] + dy, p[2] + r[2] * dx + n[2] * 0.02);
+        const it = R.push('box', MAT.hazard); if (it) basisMatrix(it.model, _g.p1, r, _g.u, n, w, h, 0.05);
+      }
+      for (let k = 0; k < 3; k++) { V3.set(_g.p1, p[0] + n[0] * (0.04 + k * 0.05), p[1], p[2] + n[2] * (0.04 + k * 0.05)); const c = R.push('torus', MAT.copper); if (c) ringMatrix(c.model, _g.p1, n, 0.3 - k * 0.05); }
+      const it = R.trs('sphere', MAT.screen, p[0] + n[0] * 0.14, p[1], p[2] + n[2] * 0.14, 0, 0, 0, 0.17, 0.17, 0.17, false);
       const pulse = 2.5 + Math.sin(t * 5) * 1.0;
       if (it && s.burnt) { it.emis[0] = 0.5 + 0.4 * Math.max(0, noise1(t * 20 + s.id)); it.emis[1] = 0.04; it.emis[2] = 0.02; }
       else if (it) { it.emis[0] = 0.08 * pulse; it.emis[1] = 0.75 * pulse; it.emis[2] = 1.0 * pulse; }
-      // conduit up the wall
-      R.trs('box', MAT.rustIron, p[0] - n[0] * 0.02, p[1] + 2.2, p[2] - n[2] * 0.02, yaw, 0, 0, 0.18, 3.6, 0.18);
+      V3.set(_g.p1, p[0] - n[0] * 0.02, p[1] + 0.5, p[2] - n[2] * 0.02); V3.set(_g.p2, _g.p1[0], p[1] + 4.0, _g.p1[2]);
+      R.seg('cylLow', MAT.rustIron, _g.p1, _g.p2, 0.07);
+      V3.set(_g.p1, p[0] + n[0] * 0.02, p[1] - 0.62, p[2] + n[2] * 0.02);
+      const jb = R.push('box', MAT.steel); if (jb) basisMatrix(jb.model, _g.p1, frame(n), _g.u, n, 0.3, 0.22, 0.14);
     }
     for (const r of Level.receptacles) {
       if (!vis[r.sector]) continue;
-      const p = r.pos, n = r.n, yaw = Math.atan2(n[0], n[2]);
-      R.trs('box', MAT.steel, p[0] - n[0] * 0.04, p[1], p[2] - n[2] * 0.04, yaw, 0, 0, 0.85, 0.85, 0.12);
+      const p = r.pos, n = r.n;
+      plate('box', MAT.steel, p, n, -0.04, 0.85, 0.85, 0.12);
       if (r.requiresPower) {
-        R.trs('torus', MAT.copper, p[0] + n[0] * 0.06, p[1], p[2] + n[2] * 0.06, yaw, Math.PI / 2, 0, 0.26, 0.6, 0.26);
-        R.trs('cyl', MAT.rubber, p[0] + n[0] * 0.02, p[1], p[2] + n[2] * 0.02, yaw, Math.PI / 2, 0, 0.17, 0.08, 0.17, false);
+        // power receptacle: a round socket in a copper collar with three contacts inside
+        V3.set(_g.p1, p[0] + n[0] * 0.05, p[1], p[2] + n[2] * 0.05);
+        const c = R.push('torus', MAT.copper); if (c) ringMatrix(c.model, _g.p1, n, 0.26);
+        { const rr = frame(n); V3.scale(_g.e, _g.u, -1); const d = R.push('cyl', MAT.rubber, false); if (d) basisMatrix(d.model, p, rr, n, _g.e, 0.2, 0.06, 0.2); }   // the socket's dark recess (cylinder axis out of the wall)
+        for (let k = 0; k < 3; k++) {
+          const a = k / 3 * Math.PI * 2, rr = frame(n);
+          V3.set(_g.p1, p[0] + rr[0] * Math.cos(a) * 0.1 + n[0] * 0.04, p[1] + Math.sin(a) * 0.1, p[2] + rr[2] * Math.cos(a) * 0.1 + n[2] * 0.04);
+          const ct = R.trs('sphereLow', MAT.copper, _g.p1[0], _g.p1[1], _g.p1[2], 0, 0, 0, 0.025, 0.025, 0.025, false);
+          if (ct && r.powered) { ct.emis[0] = 0.4; ct.emis[1] = 1.2; ct.emis[2] = 1.6; }
+        }
       } else {
-        // hand scanner: glowing palm outline
-        const it = R.trs('box', MAT.rubber, p[0] + n[0] * 0.03, p[1], p[2] + n[2] * 0.03, yaw, 0, 0, 0.36, 0.46, 0.04, false);
-        const g = r.powered ? 0 : 1;
-        if (it) { it.emis[0] = 0.05 + 0.3 * g; it.emis[1] = 0.6; it.emis[2] = 0.8 * (0.6 + 0.4 * Math.sin(t * 6)); }
+        // hand scanner: a glowing palm print, fingers and all
+        const g = r.powered ? 0.25 : 1, pul = 0.6 + 0.4 * Math.sin(t * 6), rr = frame(n);
+        const glow = it => { if (it) { it.emis[0] = 0.05 * g; it.emis[1] = 0.6 * g * pul + 0.15; it.emis[2] = 0.8 * g * pul + 0.2; } };
+        V3.set(_g.p1, p[0] + n[0] * 0.03, p[1] - 0.06, p[2] + n[2] * 0.03);
+        let it = R.push('box', MAT.rubber, false); if (it) basisMatrix(it.model, _g.p1, rr, _g.u, n, 0.2, 0.22, 0.02); glow(it);
+        for (let f = 0; f < 4; f++) {
+          V3.set(_g.p1, p[0] + rr[0] * (f - 1.5) * 0.05 + n[0] * 0.03, p[1] + 0.13 + (f === 1 || f === 2 ? 0.02 : 0), p[2] + rr[2] * (f - 1.5) * 0.05 + n[2] * 0.03);
+          it = R.push('box', MAT.rubber, false); if (it) basisMatrix(it.model, _g.p1, rr, _g.u, n, 0.035, 0.12, 0.02); glow(it);
+        }
+        V3.set(_g.p1, p[0] + rr[0] * 0.12 + n[0] * 0.03, p[1] - 0.04, p[2] + rr[2] * 0.12 + n[2] * 0.03);
+        it = R.push('box', MAT.rubber, false); if (it) basisMatrix(it.model, _g.p1, rr, _g.u, n, 0.035, 0.1, 0.02); glow(it);
       }
       const lp = r.light.pos;
       const it2 = R.trs('sphereLow', MAT.rubber, lp[0], lp[1], lp[2], 0, 0, 0, 0.07, 0.07, 0.07, false);
@@ -821,13 +900,15 @@ const Game = {
     }
     for (const p of Level.pegs) {
       if (!vis[p.sector]) continue;
-      R.trs('cyl', p.relay ? MAT.copper : MAT.hazard, p.x, 0, p.z, 0, 0, 0, p.radius, p.height, p.radius);
-      R.trs('torus', MAT.steel, p.x, 1.0, p.z, 0, 0, 0, p.radius + 0.03, 0.5, p.radius + 0.03);
+      // relay post: a steel pole with stacked porcelain insulators and a copper cap
+      R.trs('cyl', p.relay ? MAT.steel : MAT.hazard, p.x, 0, p.z, 0, 0, 0, p.radius * 0.7, p.height, p.radius * 0.7);
+      R.trs('cyl', MAT.steel, p.x, 0, p.z, 0, 0, 0, p.radius + 0.12, 0.08, p.radius + 0.12);
       if (p.relay) {
+        for (let k = 0; k < 4; k++) R.trs('torus', MAT.porcelain, p.x, p.height - 0.5 + k * 0.12, p.z, 0, 0, 0, p.radius + 0.06, 0.55, p.radius + 0.06);
+        R.trs('cyl', MAT.copper, p.x, p.height, p.z, 0, 0, 0, p.radius * 0.9, 0.05, p.radius * 0.9);
         const it = R.trs('sphere', MAT.rubber, p.x, p.height + 0.12, p.z, 0, 0, 0, 0.13, 0.13, 0.13, false);
         if (it) { const c = p.light.color, k = p.light.current * 0.9; it.emis[0] = c[0] * k; it.emis[1] = c[1] * k; it.emis[2] = c[2] * k; }
-        R.trs('cyl', MAT.steel, p.x, 0, p.z, 0, 0, 0, p.radius + 0.12, 0.08, p.radius + 0.12);
-      }
+      } else R.trs('torus', MAT.steel, p.x, 1.0, p.z, 0, 0, 0, p.radius + 0.03, 0.5, p.radius + 0.03);
     }
     for (const l of Level.levers) {
       if (!vis[l.sector] || l.style) continue;   // ladders and cores draw themselves (DeepWorks)
@@ -846,6 +927,16 @@ const Game = {
       if (lamp) { if (l.pulled) { lamp.emis[1] = 2.5; } else { lamp.emis[0] = 2.5; lamp.emis[1] = 0.6 + Math.sin(t * 6) * 0.5; } }
     }
     const customTape = Assets.slot('tape');
+    // every tape sits next to a little CRT set (Harlan Smithers is wired into all of them)
+    for (const tp of Level.tapes) {
+      if (!vis[tp.sector]) continue;
+      const x = tp.pos[0] + 0.5, y = tp.pos[1] - 0.05, z = tp.pos[2];
+      const tv = R.trs('box', MAT.paint, x, y + 0.2, z, 0, 0, 0, 0.46, 0.38, 0.4); if (tv) { tv.tint[0] = 0.62; tv.tint[1] = 0.6; tv.tint[2] = 0.8; }
+      const bk = R.trs('box', MAT.paint, x, y + 0.2, z + 0.26, 0, 0, 0, 0.32, 0.26, 0.16); if (bk) { bk.tint[0] = 0.5; bk.tint[1] = 0.48; bk.tint[2] = 0.66; }
+      const sc = R.trs('box', MAT.screen, x - 0.02, y + 0.22, z - 0.205, 0, 0, 0, 0.34, 0.27, 0.01, false);
+      if (sc) { const n = 0.12 + 0.08 * noise1(t * 40 + x); sc.emis[0] = n * 0.8; sc.emis[1] = n; sc.emis[2] = n * 1.3; }
+      R.trs('cylLow', MAT.steel, x + 0.12, y + 0.39, z, 0, 0, 0.5, 0.006, 0.2, 0.006, false);
+    }
     for (const tp of Level.tapes) {
       if (!vis[tp.sector] || tp.collected) continue;
       if (customTape) {
@@ -932,9 +1023,9 @@ const Game = {
     // the hand wheel: real hand models float in a ring in front of you, the chosen one larger
     if (Gear.wheelOpen) {
       const keep = Gear.cur;
-      for (let k = 0; k < 4; k++) {
+      for (let k = 0; k < HAND_COUNT; k++) {
         if (!Gear.owned[k]) continue;
-        const ox = k === 1 ? 0.15 : k === 3 ? -0.15 : 0, oy = k === 0 ? 0.13 : k === 2 ? -0.15 : -0.01;
+        const ang = k / HAND_COUNT * Math.PI * 2, ox = Math.sin(ang) * 0.15, oy = Math.cos(ang) * 0.14 - 0.01;
         V3.copy(_g.hp, cam.eye); V3.addScaled(_g.hp, _g.hp, fwd, 0.72); V3.addScaled(_g.hp, _g.hp, right, ox); V3.addScaled(_g.hp, _g.hp, up, oy - 0.05);
         V3.scale(_g.hf, up, 1); V3.addScaled(_g.hf, _g.hf, right, Math.sin(this.time * 2 + k) * 0.08); V3.normalize(_g.hf, _g.hf);
         V3.scale(_g.hu, fwd, -1);
@@ -991,6 +1082,8 @@ const Game = {
         basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[0] = tr; it.tint[1] = tg; it.tint[2] = tb; it.tint[3] = lift;
         it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow;
         if (side === 1 && HT.glow) { const p = 0.7 + 0.3 * Math.sin(Game.time * 3); it.emis[0] += HT.glow[0] * p; it.emis[1] += HT.glow[1] * p; it.emis[2] += HT.glow[2] * p; }
+        // a charged CONDUIT glows cyan, flickering as the charge runs down
+        if (side === 1 && HT.id === 'CONDUIT' && Gear.charge > 0) { const p = (0.6 + 0.4 * Math.sin(Game.time * 9)) * Math.min(1, Gear.charge / 5); it.emis[0] += 0.15 * p; it.emis[1] += 0.9 * p; it.emis[2] += 1.3 * p; }
       }
       return;
     }

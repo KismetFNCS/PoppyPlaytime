@@ -475,6 +475,7 @@ const SFX = {
   },
   scanner(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.7); for (let i = 0; i < 3; i++) Audio.tone(t + i * 0.09, 'sine', 1200 + i * 300, 1200 + i * 300, 0.08, 0.12, out); },
   snap(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.7); Audio.noise(t, 0.2, 0.5, 4000, 'highpass', out); Audio.tone(t, 'sawtooth', 1800, 200, 0.25, 0.15, out); },
+  blast(t, pos) { const out = Audio.dest(pos, 'sfx', 5, 0.4); Audio.noise(t, 0.5, 0.9, 1200, 'lowpass', out); Audio.noise(t, 0.25, 0.5, 4500, 'highpass', out); Audio.tone(t, 'sine', 90, 40, 0.4, 0.5, out); },
   // ---- Act II machinery ----
   trainHorn(t, pos) { const out = Audio.dest(pos, 'sfx', 8, 0.3); for (const f of [233, 294, 349]) Audio.tone(t, 'sawtooth', f, f * 0.985, 1.3, 0.12, out, 0.05); },
   trainRush(t, pos) {

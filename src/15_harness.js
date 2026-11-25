@@ -311,6 +311,25 @@ async function runAll() {
     check('opening: firing does nothing until you have your hands', GrabPack.hands[0].state === HAND.DOCKED && /crate/.test(GrabPack.hint), GrabPack.hint);
     T.setPlayerPose(-4.2, 0, -145.3, 0, 0); T.aimAt(-4.2, 0.98, -146.5); T.step(DT, 2); tap('KeyE'); T.step(DT, 20);
     check('opening: take your hands from the crate by the tracks', !Gear.handsLost && Gear.pickups.find(p => p.restore).taken, GrabPack.hint);
+    // exploration: crawl through the duct for the office key, unlock the records office, watch its tape
+    T.setPlayerPose(-12.0, 0, -152.9, Math.PI / 2, 0); T.simulateKey('KeyC', true); T.step(DT, 12);
+    T.walkTo(-13.3, -152.9); T.walkTo(-13.3, -157.6); T.step(DT, 4);
+    check('explore: crouched, you crawl down the duct', Player.body.pos[2] < -157 && Player.body.pos[0] < -12.8, Player.body.pos[0].toFixed(2) + ',' + Player.body.pos[2].toFixed(2));
+    T.aimAt(-13.3, 0.25, -158.2); T.step(DT, 2); tap('KeyE'); T.step(DT, 4);
+    check('explore: the OFFICE KEY is at the end of the duct', Gear.hasKey('OFFICE'), GrabPack.hint);
+    T.simulateKey('KeyC', false);
+    const off = Level.doorById('DY_OFF');
+    Gear.pickups.find(p => p.key === 'OFFICE').taken = false;
+    T.setPlayerPose(7.9, 0, -143.8, -Math.PI / 2, 0); T.step(DT, 3); tap('KeyE'); T.step(DT, 3);
+    check('explore: the records office is locked without its key', off.target === 0 && /LOCKED/.test(GrabPack.hint), GrabPack.hint);
+    Gear.pickups.find(p => p.key === 'OFFICE').taken = true;
+    tap('KeyE'); T.step(DT, 200);
+    check('explore: the key unlocks the records office', off.target === 1 && off.open > 0.9, off.open.toFixed(2));
+    T.setPlayerPose(11.2, 0, -145.0, -Math.PI / 2, 0); T.step(DT, 3); T.aimAt(12.1, 1.0, -145.6); T.step(DT, 2); tap('KeyE'); T.step(DT, 2);
+    check('explore: a tape by a CRT set in the office', T.getState() === 'CINEMATIC_VHS' && VHS.tapeId === 4, T.getState());
+    VHS.finish(); T.step(DT, 2);
+    check('explore: Harlan Smithers hijacks the tape as it ends', Dialogue.busy() && (Dialogue.current.speaker === 'USHER' || Dialogue.queue.some(q => q.speaker === 'USHER')), '');
+    Dialogue.clear();
     const shX0 = DWo.shunter.x; T.step(DT, 60);
     check('opening: the shunter car patrols the second line', DWo.shunter.x !== shX0 || DWo.shunter.wait > 0, shX0 + ' -> ' + DWo.shunter.x);
     T.setPlayerPose(8.6, 0, -170.6, -Math.PI / 2, 0); T.step(DT, 6);
@@ -968,6 +987,9 @@ async function runAll() {
       check('gear: [G] takes it off', !Gear.maskOn && document.getElementById('maskOverlay').style.display === 'none');
       // a new hand: pick up the THUMPER and swap to it
       const th = Gear.pickups.find(p => p.kind === 'hand' && p.type === 1);
+      const r1 = Level.receptacles.find(r => r.action === 'R1'); r1.powered = false;
+      check('gear: the THUMPER is caged until the hall circuit is restored', Gear.locked(th), '');
+      r1.powered = true;
       T.setPlayerPose(th.pos[0], 0, th.pos[2] + 1.4, 0, 0); T.aimAt(th.pos[0], th.pos[1], th.pos[2]); T.step(DT, 2); tap('KeyE'); T.step(DT, 30);
       check('gear: picking up a hand equips it on the right', Gear.owned[1] && Gear.cur === 1 && /THUMPER/.test(document.getElementById('hudHandR').textContent), document.getElementById('hudHandR').textContent);
       tap('KeyX'); T.step(DT, 30);
@@ -988,6 +1010,24 @@ async function runAll() {
       T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
       check('gear: THUMPER hit stuns for longer (3.2 s) and knocks it back', Monster.state === MSTATE.STUNNED && Monster.stunTimer > 2.5, Monster.stunTimer.toFixed(2));
       Monster.reset(); GrabPack.reset(); T.step(DT, 30);
+      // the Act II hands
+      Gear.owned[4] = Gear.owned[5] = Gear.owned[6] = 1; Gear.cur = 5; Gear.swapT = 0; Level.resetBreakables(); Game.stage = 8;
+      T.setPlayerPose(-9.5, 0, -259.6, Math.PI / 2, 0); T.step(DT, 3); T.aimAt(-11.5, 1.4, -259.6); click(1); T.step(DT, 20);
+      check('hands: a BELLOWS blast shatters the cracked panel sealing the closet', Level.breakables[0].broken && !Level.breakables[0].collider.enabled, '');
+      GrabPack.reset(); Gear.cur = 4; T.step(DT, 60); Game.stage = 9;
+      T.setPlayerPose(-14, 0, -294.2, Math.PI / 2, 0); T.step(DT, 3); T.aimAt(-15.85, 1.5, -294.2); click(1); T.step(DT, 20);
+      check('hands: CONDUIT stores the charge of a live node', Gear.charge > 15 && !GrabPack.hands[1].tethered, Gear.charge.toFixed(1));
+      const anch = Gear.pickups.find(p => p.type === 6);
+      check('hands: the ANCHOR is caged until its charge socket is powered', Gear.locked(anch), '');
+      GrabPack.reset(); T.step(DT, 40);
+      T.setPlayerPose(10.6, 0, -294.0, -Math.PI / 2, 0); T.step(DT, 3); T.aimAt(12.25, 1.5, -294.0); click(1); T.step(DT, 25);
+      check('hands: firing the charged CONDUIT into the socket opens the cage', !Gear.locked(anch) && !DeepWorks.cageCol.enabled && Gear.charge === 0, GrabPack.hint);
+      GrabPack.reset(); Gear.cur = 6; T.step(DT, 60); Game.stage = 1;
+      T.setPlayerPose(0, 0, -13.5, 0, 0); T.spawnMonsterNear(5); Monster.targetSpeed = 0; Monster.stunImmune = 0; T.step(DT, 2);
+      T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
+      const ax = Monster.pos[0]; T.step(DT, 60);
+      check('hands: the ANCHOR chains the Epxirtype in place', Monster.anchorT > 0 && Monster.pos[0] === ax, Monster.anchorT.toFixed(2));
+      Monster.reset(); GrabPack.reset(); Gear.cur = 0; Gear.owned[4] = Gear.owned[5] = Gear.owned[6] = 0; T.step(DT, 30);
       // the gas: without the mask it chokes you, with it you breathe
       Gear.gasDisabled = false; Game.invulnerable = false; Player.health = 100; Game.stage = 2;
       const z = GAS_ZONES[0];

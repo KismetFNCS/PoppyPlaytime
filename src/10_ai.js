@@ -45,7 +45,7 @@ const Monster = {
   // the head tracks you in sudden, jerky snaps (and cocks sideways now and then)
   lookYaw: 0, lookPitch: 0, lookRoll: 0, snapTimer: 0,
   // the foundry reveal: frozen while watched, jerking closer in a new twisted pose whenever you look away
-  creeping: false, unseenT: 0, creepCool: 0, bellT: 0,
+  creeping: false, unseenT: 0, creepCool: 0, bellT: 0, trophyFrom: 0, trophyTo: 0, anchorT: 0, anchorCool: 0, anchorAt: V3.create(),
   catchCooldown: 0, sector: -1, sightRange: 20,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
 
@@ -83,7 +83,7 @@ const Monster = {
     this.state = MSTATE.DORMANT; this.stateTime = 0; this.active = false; this.scripted = false; this.visible = false;
     this.inVent = true; this.pathLen = 0; this.pathIdx = 0; this.stunTimer = 0; this.lostTimer = 0; this.speed = 0;
     this.noiseTime = -99; this.lastSeenTime = -99; this.seesPlayer = false; this.catchCooldown = 0; this.flinchAmt = 0; this.sawHide = false;
-    this.creeping = false; this.unseenT = 0; this.creepCool = 0; this.bellT = 0;
+    this.creeping = false; this.unseenT = 0; this.creepCool = 0; this.bellT = 0; this.anchorT = 0; this.anchorCool = 0;
     this.kill.on = false; this.kill.grab = 0; this.kill.join = 0; this.kill.stab = 0; this.kill.wind = 0;
     this.boss = false; this.bossHold = false; this.airborne = false; this.bossSpeed = 0; this.stunImmune = 0; this.retreatAfterStun = false; this.retreatTimer = 0;
     this.jaw = 0; this.armReach = 0; this.lean = 0; this.time = 0; this.btTimer = 0; this.ventProgress = 0; this.roarCooldown = 0;
@@ -304,6 +304,15 @@ const Monster = {
       GrabPack.showHint('SHOCKED! It is stunned - move! (you can only finish it in the Loom)');
       return 'shock';
     }
+    // ANCHOR: a harpoon spike through it, chained to the floor - it cannot move for 4.5 s (even through stun immunity)
+    if (h.side === 1 && HAND_TYPES[Gear.cur].id === 'ANCHOR' && this.anchorCool <= 0) {
+      this.anchorT = 4.5; this.anchorCool = 9; this.stunTimer = Math.max(this.stunTimer, 4.5); this.flinchAmt = 1;
+      V3.copy(this.anchorAt, this.pos); this.setState(MSTATE.STUNNED);
+      sfx('pin', this.pos); sfx('monsterHurt', this.pos); Player.addTrauma(0.35);
+      Particles.burst(this.hitPoint, 20, 'spark');
+      GrabPack.showHint('ANCHORED! It is chained to the floor for 4.5 s');
+      return 'anchor';
+    }
     if (this.stunImmune <= 0) {
       // the stun depends on the hand: ROSE 1.3 s, THUMPER 3.2 s (+ knock-back), STITCHER 4.5 s (pinned), LANTERN 2.6 s
       const type = h.side === 1 ? HAND_TYPES[Gear.cur].id : 'ROSE', st = Gear.stunFor(h.side);
@@ -352,6 +361,8 @@ const Monster = {
     this.catchCooldown = Math.max(0, this.catchCooldown - dt);
     this.roarCooldown = Math.max(0, this.roarCooldown - dt);
     this.stunTimer = Math.max(0, this.stunTimer - dt);
+    this.anchorCool = Math.max(0, this.anchorCool - dt);
+    if (this.anchorT > 0) { this.anchorT -= dt; this.pos[0] = this.anchorAt[0]; this.pos[2] = this.anchorAt[2]; this.stunTimer = Math.max(this.stunTimer, 0.1); }
     this.stunImmune = Math.max(0, this.stunImmune - dt);
     this.retreatTimer = Math.max(0, this.retreatTimer - dt);
     this.flinchAmt = damp(this.flinchAmt, 0, 5, dt);
@@ -378,6 +389,8 @@ const Monster = {
         break;
       default: this.locomote(dt, true); break;
     }
+    // chained by the ANCHOR: nothing moves it off the spot (STUNNED still slides it to a stop)
+    if (this.anchorT > 0) { this.pos[0] = this.anchorAt[0]; this.pos[2] = this.anchorAt[2]; this.speed = 0; }
     this.visible = !this.inVent;
     this.sector = Level.sectorAt(this.pos[0], this.pos[2]);
     // clicking vocalization rate scales with aggression
@@ -660,20 +673,22 @@ const Monster = {
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
       if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.8; }
     }
+    this.trophyFrom = RenderQueue.count;
     // three stolen plush arms hang DEAD from under the chest: teal, rose (wearing a teal ring) and pink.
     // No life in them - straight down under their own weight, only swinging with the body's motion.
     for (let k = 0; k < 3; k++) {
       const ax = TROPHY_ARMS[k * 3], ay = TROPHY_ARMS[k * 3 + 1], az = TROPHY_ARMS[k * 3 + 2];
-      const sw = Math.sin(this.breathe * 0.9 + k * 1.9) * 0.035, drag = Math.min(1, this.speed / 5) * 0.55;
+      // dead weight: no sway of their own; they only trail back a little when he runs
+      const drag = Math.min(1, this.speed / 5) * 0.4;
       this.bodyPoint(B, ax, ay, az);
-      this.bodyPoint(H, ax * 1.25 + sw, ay - 0.98 + drag * 0.2, az - 0.12 + drag * 0.7 + Math.sin(this.time * 2.1 + k) * drag * 0.12);
+      this.bodyPoint(H, ax * 1.2, ay - 1.0 + drag * 0.15, az - 0.06 + drag * 0.6);
       // the middle arm is smooth, solid pink with a darker pink hand and a blue glove-ring at the wrist;
       // the teal and rose arms are shaggy fur with yellowish plush hands
       const smooth = k === 2;
       it = Sculpt.ready(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm') ? R.push(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm', smooth ? MAT.handRose : MAT.furLight) : null;
       if (it) {
         M4.segment(it.model, B, H, 1);
-        if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0] * 0.78; it.tint[1] = c[1] * 0.78; it.tint[2] = c[2] * 0.78; } else { it.tint[0] = 0.8; it.tint[1] = 0.74; it.tint[2] = 0.76; }
+        if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2]; }
         const hd = Sculpt.ready('sp_trophyHand') ? R.push('sp_trophyHand', smooth ? MAT.handRose : MAT.furLight) : null;
         if (hd) {
           hd.model.set(it.model);
@@ -687,6 +702,7 @@ const Monster = {
         }
       }
     }
+    this.trophyTo = RenderQueue.count;
     // ---- neck: segmented cable bundle up to the mask ----
     this.bodyPoint(B, 0, 2.49, -0.5);
     const hx = 0;   // the neck holds still; only the mask moves
@@ -732,6 +748,20 @@ const Monster = {
 
   // the kill: it walks up with its claw raised, its bony left hand grabs you and lifts you to its face, it
   // laughs while slowly winding the claw back (needles pinching into one spike), then stabs
+  // he is scorched all over: every part is darkened, soot-blackened and faded toward burnt brown, with only
+  // hints of the old rose / teal / gold left; the grimy porcelain mask keeps a little more of its pale colour.
+  // Emissive parts (the eye, the gas glow) are untouched.
+  scorch(from) {
+    const Q = RenderQueue;
+    for (let i = from; i < Q.count; i++) {
+      // the stolen arms keep their colours: only darkened with soot and a little burnt brown
+      const t = Q.items[i].tint, mask = Q.items[i].mat === MAT.porcelain, arm = i >= this.trophyFrom && i < this.trophyTo;
+      const lum = 0.3 * t[0] + 0.5 * t[1] + 0.2 * t[2], mix = arm ? 0.18 : mask ? 0.4 : 0.6, dark = arm ? 0.72 : mask ? 0.82 : 0.58;
+      t[0] = (t[0] + (lum * 1.0 - t[0]) * mix) * dark;
+      t[1] = (t[1] + (lum * 0.78 - t[1]) * mix) * dark;
+      t[2] = (t[2] + (lum * 0.58 - t[2]) * mix) * dark;
+    }
+  },
   submitKillArms() {
     const K = this.kill, L = _mh.kl;
     // where your eyes are in its local space

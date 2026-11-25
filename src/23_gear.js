@@ -17,15 +17,30 @@ const HAND_TYPES = [
   { id: 'ROSE', mat: MAT.handRose, tint: [0.7, 0.6, 0.6], glow: null, stun: 1.3, cool: 0.18, desc: 'your old hand - a solid slap that staggers' },
   { id: 'THUMPER', mat: MAT.copper, tint: [0.95, 0.8, 0.6], glow: null, stun: 3.2, cool: 0.9, desc: 'heavy brass punch - long stun, knock-back, smashes cherubs' },
   { id: 'STITCHER', mat: MAT.steel, tint: [1.15, 1.15, 1.2], glow: null, stun: 4.5, cool: 1.0, desc: 'needle fingers that pin whatever they hit' },
-  { id: 'LANTERN', mat: MAT.handRose, tint: [0.62, 0.48, 1.35], glow: [0.3, 0.1, 0.8], stun: 2.6, cool: 1.4, desc: 'bursts with blinding light where it lands' }
+  { id: 'LANTERN', mat: MAT.handRose, tint: [0.62, 0.48, 1.35], glow: [0.3, 0.1, 0.8], stun: 2.6, cool: 1.4, desc: 'bursts with blinding light where it lands' },
+  // Act II hands (harder to find):
+  //   CONDUIT   copper coil hand: touch a live power node and it holds the charge for 20 s - fire it into a
+  //             CHARGE SOCKET to power it without a cable (found behind a cracked panel in the sorting hub)
+  //   BELLOWS   pneumatic air-blast hand: shatters cracked panels and blows enemies back (catacomb alcove)
+  //   ANCHOR    harpoon hand: spikes the Epxirtype and chains it to the floor for 4.5 s - the boss-fight hand
+  //             (caged by the Core Vault entrance; the cage opens from a charge socket)
+  { id: 'CONDUIT', mat: MAT.copper, tint: [0.75, 0.95, 1.05], glow: null, stun: 1.0, cool: 0.5, desc: 'stores current: touch a live node, then fire it into a charge socket (20 s)' },
+  { id: 'BELLOWS', mat: MAT.steel, tint: [1.15, 1.0, 0.85], glow: null, stun: 1.8, cool: 1.1, desc: 'pneumatic blast: shatters cracked panels and blows enemies back' },
+  { id: 'ANCHOR', mat: MAT.rustIron, tint: [1.0, 0.95, 1.0], glow: [0.15, 0.02, 0.0], stun: 4.5, cool: 1.6, desc: 'harpoons the Epxirtype and chains it to the floor for 4.5 s' }
 ];
+const HAND_COUNT = HAND_TYPES.length;
 const PICKUP_SPOTS = [
   { kind: 'mask', sector: 0, pos: [-2.6, 0.86, 2.2] },
-  { kind: 'hand', type: 1, sector: 1, pos: [-3.5, 1.08, -14.5] },
-  { kind: 'hand', type: 3, sector: 2, pos: [-6.5, 1.08, -33] },
+  // THUMPER sits in a locked cage until the hall door circuit is restored; LANTERN is deep in the toxic smog
+  { kind: 'hand', type: 1, sector: 1, pos: [-3.5, 1.08, -14.5], lock: 'R1' },
+  { kind: 'hand', type: 3, sector: 2, pos: [-8.6, 1.08, -46.6] },
   { kind: 'hand', type: 2, sector: 3, pos: [4.6, 1.18, -56] },
   // Act II: your own right hand, torn off in the drop to the station yard
-  { kind: 'hand', type: 0, restore: true, sector: 6, pos: [-4.2, 0.98, -146.5] }
+  { kind: 'hand', type: 0, restore: true, sector: 6, pos: [-4.2, 0.98, -146.5] },
+  { kind: 'key', key: 'OFFICE', label: 'OFFICE KEY', sector: 6, pos: [-13.3, 0.25, -158.2] },
+  { kind: 'hand', type: 5, sector: 8, pos: [-9.6, 1.0, -220.5] },
+  { kind: 'hand', type: 4, sector: 9, pos: [-12.8, 1.0, -259.6] },
+  { kind: 'hand', type: 6, sector: 10, pos: [14.2, 1.0, -293.9], lock: 'V_CAGE' }
 ];
 const GAS_ZONES = [{ sector: 2, x0: -10, z0: -48, x1: -4.6, z1: -39.2 }];
 const UV_SECRETS = [
@@ -35,7 +50,7 @@ const UV_SECRETS = [
 ];
 
 const Gear = {
-  owned: new Uint8Array(4), cur: 0, swapT: 0, swapTo: 0, handsLost: false,
+  owned: new Uint8Array(HAND_COUNT), cur: 0, charge: 0, swapT: 0, swapTo: 0, handsLost: false,
   wheelOpen: false, wheelSel: 0, wheelV: new Float32Array(2), holdT: 0, wheelDom: -2,
   hasMask: false, maskOn: false, maskT: 0, maskShowT: 0, packShowT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
   blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
@@ -43,7 +58,7 @@ const Gear = {
   tmp: V3.create(), m: M4.create(),
 
   init() {
-    this.pickups = PICKUP_SPOTS.map(p => ({ kind: p.kind, type: p.type || 0, restore: !!p.restore, sector: p.sector, pos: V3.create(p.pos[0], p.pos[1], p.pos[2]), taken: false }));
+    this.pickups = PICKUP_SPOTS.map(p => ({ kind: p.kind, type: p.type || 0, key: p.key || null, label: p.label || '', restore: !!p.restore, lock: p.lock || null, sector: p.sector, pos: V3.create(p.pos[0], p.pos[1], p.pos[2]), taken: false }));
     this.secrets = UV_SECRETS.map(s => ({ s, asset: this.textQuad(s.lines), reveal: 0 }));
     // PIP's face on the teal glove uses the HUD companion canvas as a live texture
     if (Pip.faceCanvas) this.pipAsset = this.canvasQuad(Pip.faceCanvas, 'pip-face', 2.4, false);
@@ -52,7 +67,7 @@ const Gear = {
     this.reset();
   },
   reset() {
-    this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0;
+    this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0; this.charge = 0;
     this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
     this.blacklight = false; this.secretsFound.fill(0); this.handsLost = false;
     for (const p of this.pickups) p.taken = false;
@@ -108,7 +123,7 @@ const Gear = {
     if (held) {
       this.holdT += dt;
       if (!this.wheelOpen && !this.handsLost && (K.Tab || this.holdT > 0.22)) this.openWheel();
-      if (this.wheelOpen) for (let k = 0; k < 4; k++) if (J.has('Digit' + (k + 1)) && this.owned[k]) this.wheelSel = k;
+      if (this.wheelOpen) for (let k = 0; k < HAND_COUNT; k++) if (J.has('Digit' + (k + 1)) && this.owned[k]) this.wheelSel = k;
     } else if (this.holdT > 0) {
       if (this.wheelOpen) this.closeWheel(true);
       else if (!this.handsLost) dir = 1;
@@ -123,8 +138,9 @@ const Gear = {
     }
     if (J.has('KeyG') && this.hasMask) this.toggleMask();
     if (J.has('KeyB')) { this.blacklight = !this.blacklight; sfx('uiClick'); GrabPack.showHint(this.blacklight ? 'STARBY: BLACKLIGHT ON - hidden ink glows in the beam' : 'STARBY: FLASHLIGHT'); }
-    this.maskT = damp(this.maskT, this.maskOn ? 1 : 0, 4, dt);
+    this.maskT = damp(this.maskT, this.maskOn ? 1 : 0, this.maskOn ? 4 : 8, dt);
     this.maskShowT = Math.max(0, (this.maskShowT || 0) - dt);
+    if (this.charge > 0) { this.charge -= dt; if (this.charge <= 0) { this.charge = 0; GrabPack.showHint('CONDUIT: the stored charge has drained away'); } }
     this.updateGas(dt);
     this.updateSecrets(dt);
     this.updateOverlays(dt);
@@ -153,15 +169,29 @@ const Gear = {
     v[0] = clamp(v[0] + dx, -120, 120); v[1] = clamp(v[1] + dy, -120, 120);
     const l = Math.hypot(v[0], v[1]);
     if (l < 30) return;
-    // slots: ROSE up, THUMPER right, STITCHER down, LANTERN left
-    const k = ((Math.round(Math.atan2(v[0], -v[1]) / (Math.PI / 2)) % 4) + 4) % 4;
-    if (this.owned[k] && k !== this.wheelSel) { this.wheelSel = k; sfx('uiHover'); }
+    // slots go clockwise from the top; pick the nearest slot you own
+    const ang = Math.atan2(v[0], -v[1]);
+    let best = -1, bd = 1e9;
+    for (let k = 0; k < HAND_COUNT; k++) { if (!this.owned[k]) continue; const d = Math.abs(wrapAngle(ang - k / HAND_COUNT * Math.PI * 2)); if (d < bd) { bd = d; best = k; } }
+    if (best >= 0 && best !== this.wheelSel) { this.wheelSel = best; sfx('uiHover'); }
   },
   updateWheelDom() {
-    const key = this.wheelOpen ? this.wheelSel * 16 + this.owned[0] + this.owned[1] * 2 + this.owned[2] * 4 + this.owned[3] * 8 : -1;
+    let key = -1;
+    if (this.wheelOpen) { key = this.wheelSel; for (let k = 0; k < HAND_COUNT; k++) key = key * 2 + this.owned[k]; }
     if (key === this.wheelDom) return;
     this.wheelDom = key;
     const w = document.getElementById('handWheel'); if (!w) return;
+    // one slot per hand type, spaced round the circle clockwise from the top
+    if (w.querySelectorAll('.slot').length !== HAND_COUNT) {
+      w.querySelectorAll('.slot').forEach(e => e.remove());
+      for (let k = 0; k < HAND_COUNT; k++) {
+        const d = document.createElement('div'); d.className = 'slot';
+        const a = k / HAND_COUNT * Math.PI * 2;
+        d.style.left = (50 + Math.sin(a) * 33).toFixed(1) + '%'; d.style.top = (50 - Math.cos(a) * 33).toFixed(1) + '%';
+        d.append(document.createElement('i'), document.createElement('span'));
+        w.insertBefore(d, w.querySelector('.desc'));
+      }
+    }
     w.style.display = this.wheelOpen ? 'block' : 'none';
     const slots = w.querySelectorAll('.slot');
     for (let i = 0; i < slots.length; i++) {
@@ -180,7 +210,7 @@ const Gear = {
   },
   cycle(dir) {
     let n = (this.swapT > 0 ? this.swapTo : this.cur);
-    for (let k = 0; k < 4; k++) { n = (n + dir + 4) % 4; if (this.owned[n]) break; }
+    for (let k = 0; k < HAND_COUNT; k++) { n = (n + dir + HAND_COUNT) % HAND_COUNT; if (this.owned[n]) break; }
     if (n === (this.swapT > 0 ? this.swapTo : this.cur)) { if (this.ownedCount() < 2) GrabPack.showHint('Only the ROSE hand so far - find more hands'); return; }
     this.equip(n);
   },
@@ -192,10 +222,12 @@ const Gear = {
   },
 
   // ---------- pickups ----------
+  // a caged pickup opens when the receptacle named by its lock has been powered
+  locked(p) { if (!p.lock) return false; const r = Level.receptacles.find(q => q.action === p.lock); return !(r && r.powered); },
   nearestPickup() {
     let best = null, bd = 2.4;
     for (const p of this.pickups) {
-      if (p.taken) continue;
+      if (p.taken || this.locked(p)) continue;
       const d = V3.dist(p.pos, Player.eyePos);
       if (d > bd) continue;
       V3.sub(this.tmp, p.pos, Player.eyePos); V3.normalize(this.tmp, this.tmp);
@@ -204,10 +236,16 @@ const Gear = {
     }
     return best;
   },
-  promptFor(p) { return p.kind === 'mask' ? '[E] TAKE GAS MASK' : p.restore ? '[E] TAKE YOUR GRABPACK HANDS' : '[E] TAKE ' + HAND_TYPES[p.type].id + ' HAND'; },
+  hasKey(k) { return this.pickups.some(p => p.kind === 'key' && p.key === k && p.taken); },
+  promptFor(p) { return p.kind === 'key' ? '[E] TAKE ' + p.label : p.kind === 'mask' ? '[E] TAKE GAS MASK' : p.restore ? '[E] TAKE YOUR GRABPACK HANDS' : '[E] TAKE ' + HAND_TYPES[p.type].id + ' HAND'; },
   take(p) {
     p.taken = true;
     sfx('pickup');
+    if (p.kind === 'key') {
+      GrabPack.showHint('FOUND: ' + p.label + ' - it opens a locked door somewhere');
+      Pip.react('stars', 2.5);
+      return;
+    }
     if (p.restore) {
       this.handsLost = false; this.packShowT = 1.2;
       sfx('dock', Player.body.pos);
@@ -294,6 +332,17 @@ const Gear = {
   // ---------- hand stats ----------
   stunFor(side) { return side === 1 ? HAND_TYPES[this.cur].stun : 1.3; },
   effectFor(side) { return side === 1 ? HAND_TYPES[this.cur].id : 'ROSE'; },
+  // the BELLOWS hand's pneumatic blast: shatters cracked panels and throws enemies back
+  bellowsBlast(pos) {
+    sfx('blast', pos); Player.addTrauma(0.25);
+    Particles.burst(pos, 24, 'steam'); Particles.burst(pos, 10, 'debris');
+    for (const b of Level.breakables) if (!b.broken && Math.hypot(b.c[0] - pos[0], b.c[1] - pos[1], b.c[2] - pos[2]) < 2.4) Level.breakPanel(b);
+    if (Monster.active && Monster.visible && V3.dist(Monster.pos, pos) < 3.2) {
+      const dx = Monster.pos[0] - Player.body.pos[0], dz = Monster.pos[2] - Player.body.pos[2], d = Math.hypot(dx, dz) || 1;
+      Monster.pos[0] += dx / d * 1.4; Monster.pos[2] += dz / d * 1.4; Monster.stunTimer = Math.max(Monster.stunTimer, 1.8); Monster.flinchAmt = 1;
+    }
+    Enemies.burst(pos);
+  },
   // the Lantern hand's blinding burst (also fired when it hits a wall)
   lanternBurst(pos) {
     Lights.pulse(pos, 0.75, 0.55, 1.0, 9, 9, 0.7, 0);
@@ -311,7 +360,13 @@ const Gear = {
     for (const p of this.pickups) {
       if (p.taken || !vis[p.sector]) continue;
       const bob = Math.sin(t * 2 + p.pos[0]) * 0.03;
-      if (p.restore) { this.drawPackPickup(p.pos[0], p.pos[1], p.pos[2], bob); }
+      if (p.kind === 'key') {
+        // a brass key with a tag, turning slowly
+        const ky = t * 1.5, it = R.trs('torus', MAT.copper, p.pos[0], p.pos[1] + 0.1 + bob, p.pos[2], ky, Math.PI / 2, 0, 0.05, 0.35, 0.05);
+        if (it) { it.tint[0] = 1.4; it.tint[1] = 1.1; it.tint[2] = 0.5; }
+        Cast.pt(this.tmp, p.pos, ky, 0.12, 0.1 + bob, 0);
+        const sh = R.trs('box', MAT.copper, this.tmp[0], this.tmp[1], this.tmp[2], ky, 0, 0, 0.16, 0.02, 0.02); if (sh) { sh.tint[0] = 1.4; sh.tint[1] = 1.1; sh.tint[2] = 0.5; }
+      } else if (p.restore) { this.drawPackPickup(p.pos[0], p.pos[1], p.pos[2], bob); }
       else if (p.kind === 'hand') {
         const T = HAND_TYPES[p.type], gm = 'glove_L_open';
         if (Sculpt.ready(gm)) {
