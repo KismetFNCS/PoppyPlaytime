@@ -19,12 +19,11 @@ Open `index.html` in a current desktop Chrome, Edge or Firefox (WebGL2 required)
 | Fire ROSE hand (right) | Right mouse or R | RB / RT | R |
 | Jump / interact | Space / E | A / X | JUMP / USE |
 | Flashlight / mute / pause | F / M / Esc or P | Y / – / Start | – / SND / II |
-| Skip cutscene / dialogue line | Enter (double-tap: whole conversation) | Back | – |
 | Debug / fidelity overlay / self-test | F1 / F2 / F9 | | `?test=1` |
 
-**Skipping:** a **[ENTER] SKIP** prompt shows whenever something is playing. Enter skips Harlan Smithers's
-opening broadcast, the ambush, the drop into the Deep Works, the freight-lift ride, a tape on a TV, or the line
-someone is saying; tap it twice quickly to skip a whole conversation. In locked scenes Space, E or a click also skip.
+**Cutscenes are unskippable:** tapes, Harlan Smithers's broadcasts, the ambush, the drops between areas and
+every conversation play out in full. Subtitles sit at the bottom of the screen, and each line waits for the
+voice before it to finish, so nobody talks over anyone else.
 
 **Settings** (four tabs): **Display** - window mode, resolution, frame-rate limit, VSync, field of view (default
 90, 60-120), motion blur, film grain, brightness/gamma, camera shake. **Graphics** - quality preset, resolution
@@ -33,7 +32,7 @@ music, SFX and dialogue volume, subtitles, character voices. **Controls** - sens
 invert Y, crouch toggle, and rebindable keys for every action.
 
 **Tapes and TVs:** every tape sits on a VCR beside a big wood-cased CRT on a cart. Press E and the tape plays on
-that set's screen while you keep moving; walk away or press Enter to stop it. On some tapes Harlan Smithers
+that set's screen while you keep moving; walk away to stop it. On some tapes Harlan Smithers
 breaks into the same screen when it ends.
 
 **The boss fight:** the freight lift drops into **The Loom**, a machine hall with pillars for cover and four live power nodes on the walls. Latch one hand onto a live node, then strike the Epxirtype with your other hand to shock it. Each shock stuns it and burns out that node for the rest of the phase. It takes six shocks over three phases: it hunts you, gets faster, and finally starts pouncing (it crouches first, so dodge sideways). Between phases it retreats into the ceiling ducts and drops back in from another vent.
@@ -146,7 +145,7 @@ All original designs, built to read like the genre without copying any existing 
 - **Posie**: a shattered porcelain display doll (matted raven hair, dusty wine dress with a torn hem, half her cheek broken away into a hollow head, one milky glass eye) who acts as your guide. She introduces herself near the first tape, talks you through each area, moves ahead of you through the factory while you aren't looking, and waits in the freight lift at the end. Look away and her head is already turned toward you; catch her and she ticks.
 - **Mr. Morsel**: a small (about a metre tall), soft, well-loved plush bear and your companion. Round and chubby, in auburn and chestnut fur with a pale belly, a faded slate-grey vest with brass buttons, sewn-on patches and yellow and red cross-stitched seams, chubby legs with bean-toed feet, one ear standing and one drooping, a copper thimble cap and one glass eye with a violet iris. He wears a gentle stitched smile; his mouth only opens (friendly, with small rounded teeth) while he is talking. He leans on a giant ivory sewing-needle staff with a brass eye.
   - You meet him at the start of the Pressure Gallery. You never speak; he talks to you anyway, following your trail with a waddle: ambient chatter, remarks when you sprint ahead, stand still looking around, bump into things or switch your flashlight off (he then lights the way with a soft warm glow), hints if you are stuck on the gallery puzzle for 45 s, and a warning before he dives into the vents when the Epxirtype prowls close (he comes back once it has gone). The Epxirtype taunts you both over the PA.
-  - At the start of the foundry chase the Epxirtype drops in front of you; you are pinned while it and Morsel trade words, until Morsel slams his needle into the floor and a purple blast stuns it ([SPACE] skips the scene). At the shutter he jams the needle into a broken socket; the surge overloads, and you clamp a hand on his staff and **hold** to ground it through your pack, which raises the shutter (the high lever still works too).
+  - At the start of the foundry chase the Epxirtype drops in front of you; you are pinned while it and Morsel trade words, until Morsel slams his needle into the floor and a purple blast stuns it. At the shutter he jams the needle into a broken socket; the surge overloads, and you clamp a hand on his staff and **hold** to ground it through your pack, which raises the shutter (the high lever still works too).
   - Down in the Loom he waits with Posie, and once the Epxirtype is beaten the two of them talk about the sky.
 - **Lovey**: an original rose-pink plush ally you meet when the freight lift drops into the Deep Works (stages 6-9). Tall and gangly with a heart-shaped head, long floppy ears (one torn and pinned), one black button eye and a stitched-shut X for the other, rosy cheeks and a stitched smile, a sewn heart patch on her chest, a torn seam spilling stuffing, a bandaged leg and her left arm in a sling. Gentle with friends: Posie rides on her shoulder, she follows a few steps behind and pats you if you stand beside her. Fierce with anything that comes for you: she charges and swats cherubs to pieces, knocks the seraph out of the air and slams the Epxirtype back for a long stun (then needs a breather).
 - **STARBY**: your pocket companion on the HUD. A cog-shaped device with an LED dot-matrix face that talks with the hints, cheers when a circuit closes, sulks when one is refused, winks at relays, panics in chases and fills with static when you're caught.

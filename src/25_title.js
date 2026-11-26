@@ -227,10 +227,10 @@ const CARD_SHOTS = [
   // a head thrown back laughing; the claw reaching down into the lens (aim is derived from eye -> at)
   { eye: [-11.95, 1.45, 134.1], sec: [11], at: [-12.15, 1.5, 135.6], tint: [0.75, 1.05, 1.45], aim: true },
   { eye: [-6, 2.08, 134.75], sec: [11], at: [-6, 2.52, 135.6], tint: [1.7, 0.6, 1.15], aim: true },
-  { eye: [0.05, 1.38, 134.35], sec: [11], at: [0, 1.36, 135.6], tint: [1.15, 0.6, 1.7], aim: true },
+  { eye: [0, 1.44, 133.75], sec: [11], at: [0, 1.42, 135.6], tint: [1.15, 0.6, 1.7], aim: true },
   { eye: [6.1, 1.25, 134.25], sec: [11], at: [6, 1.4, 135.6], tint: [1.2, 1.1, 1.0], aim: true },
   { eye: [12.05, 1.45, 134.4], sec: [11], at: [12.1, 1.55, 135.3], tint: [1.6, 0.25, 0.2], aim: true },
-  { eye: [-0.2, 1.8, -79.9], yaw: 0, pitch: 0.12, sec: [3, 4], at: [0.9, 2.6, -84.6], tint: [1, 1, 1] }
+  { eye: [0.85, 2.3, -79.6], sec: [3, 4], at: [0.95, 2.75, -84.6], tint: [1, 1, 1], aim: true }
 ];
 const ChapterCards = {
   k: 0, canvases: null, saved: null, tmp: V3.create(), active: -1,
@@ -254,6 +254,9 @@ const ChapterCards = {
     if (S.aim) { const dx = S.at[0] - S.eye[0], dy = S.at[1] - S.eye[1], dz = S.at[2] - S.eye[2]; yaw = Math.atan2(-dx, -dz); pitch = Math.atan2(dy, Math.hypot(dx, dz)); }
     Game.applyCamera(this.tmp, yaw, pitch, 0);
     Streaming.visible.fill(0); for (const s of S.sec) Streaming.visible[s] = 1;
+    // chapter 6: the Epxirtype turns to face you, holding Posie up by her head
+    Monster.cardHold = k === 5;
+    if (k === 5) { this.savedYaw = Monster.yaw; Monster.yaw = Math.atan2(-(S.eye[0] - Monster.pos[0]), -(S.eye[2] - Monster.pos[2])); Monster.lookYaw = 0; Monster.lookPitch = 0; Monster.lookRoll = 0; }
     Lights.update(0, Game.time + Game.menuTime, Streaming.visible);
     return true;
   },
@@ -280,12 +283,16 @@ const ChapterCards = {
     }
     // 3: Hootsworth's glassy amber eyes and a hard head tilt
     x = CARD_ACTOR_X[2]; const tilt = Math.sin(t * 0.7) * 0.12;
-    put('card_owl', x, base, tilt * 0.5, 0.85, 0, 0, 0, 0, 0.3 + tilt);   // head cocked hard to one side
-    for (const s of [-1, 1]) {
-      // dull amber glass eyes (no glow)
-      const e = R.trs('sphere', MAT.porcelain, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.39 * 0.85, 0, 0, 0, 0.08, 0.08, 0.04, false);
+    const owl = put('card_owl', x, base, 0, 0.85, 0, 0, 0, 0, 0.08 + tilt * 0.3);   // facing you square-on, a slight head cock
+    if (owl) for (const s of [-1, 1]) {
+      // dull amber glass eyes seated inside the brass rims: placed through the owl's own transform so they
+      // tilt with the head instead of floating off it (no glow)
+      const ow = 0.08 + tilt * 0.3, oy = 0, sc = 0.85;
+      V3.set(this.tmp2 || (this.tmp2 = V3.create()), s * 0.15, 1.26, -0.4); M4.transformPoint(this.tmp, owl.model, this.tmp2);
+      const e = R.trs('sphere', MAT.porcelain, this.tmp[0], this.tmp[1], this.tmp[2], oy, 0, ow, 0.092 * sc, 0.092 * sc, 0.05 * sc, false);
       if (e) { e.tint[0] = 1.1; e.tint[1] = 0.7; e.tint[2] = 0.25; }
-      const pu = R.trs('sphere', MAT.rubber, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.42 * 0.85, 0, 0, 0, 0.03, 0.055 * (0.6 + 0.4 * Math.abs(Math.sin(t * 0.5))), 0.015, false);
+      V3.set(this.tmp2, s * 0.15, 1.26, -0.445); M4.transformPoint(this.tmp, owl.model, this.tmp2);
+      R.trs('sphere', MAT.rubber, this.tmp[0], this.tmp[1], this.tmp[2], oy, 0, ow, 0.03 * sc, 0.05 * sc, 0.012 * sc, false);
     }
     // 4: Doughbert squishes as he breathes
     x = CARD_ACTOR_X[3]; const sq = 1 + Math.sin(t * 3) * 0.025;
@@ -306,6 +313,7 @@ const ChapterCards = {
   },
   // copy the centre strip of the frame into the card, then put everyone back
   capture() {
+    if (Monster.cardHold) { Monster.cardHold = false; if (this.savedYaw !== undefined) Monster.yaw = this.savedYaw; }
     const cv = this.canvases[this.active], src = Renderer.gl.canvas;
     if (cv) {
       const h = src.height, w = Math.min(src.width, Math.round(h * cv.width / cv.height));

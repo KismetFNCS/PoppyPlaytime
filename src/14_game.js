@@ -70,8 +70,7 @@ const HANDLERS = {
     enter() { UI.show('vhs'); Input.exitLock(); Renderer.post.vhsBoost = 0.6; },
     exit() { UI.hide('vhs'); Renderer.post.vhsBoost = 0; },
     update(dt) {
-      if (Input.justPressed.has('Escape') || Input.justPressed.has(Settings.bindOf('skip')) || Input.padJust(1) || Input.padJust(8)) { VHS.finish(); return; }
-      if (Input.justPressed.has('Space') || Input.mouseJust[0] || Input.padJust(0)) VHS.advance();
+      // tapes play through on their own: no skipping
       VHS.update(dt);
       Audio.updateDrone(0.1, true);
     }
@@ -173,7 +172,6 @@ const Game = {
       }
       case 'loadGame': if (state === STATE.PAUSED) { this.refreshContinue(); if (this.hasSave) this.continueGame(); } break;
       case 'mute': this.toggleMute(); break;
-      case 'skipTape': VHS.finish(); break;
       case 'rewind': if (state === STATE.FAILURE_STATE) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
       case 'winDone': if (state === STATE.VICTORY) setState(STATE.MAIN_MENU); break;
     }
@@ -442,16 +440,7 @@ const Game = {
     if (Input.justPressed.has('KeyF') || Input.padJust(3)) { Player.flashOn = !Player.flashOn; sfx('flashlight'); }
     const usePressed = Input.justPressed.has('KeyE') || Input.padJust(2);
     const wasHidden = !!Player.hidden;
-    // cutscenes: the skip key (Enter by default) or the pad's Back button cuts any of them short
-    // and any dialogue line (characters talking to you or to each other) can be skipped the same way
-    const skipKey = Input.justPressed.has(Settings.bindOf('skip')) || Input.justPressed.has('Backspace') || Input.padJust(8);
-    // in a locked scene (you can't move anyway) Space, E or a click skip too
-    const lockedSkip = this.cutsceneActive() && (Input.justPressed.has('Space') || Input.justPressed.has('KeyE') || Input.mouseJust[0] || Input.padJust(0));
-    if (skipKey || lockedSkip) {
-      if (this.cutsceneActive()) this.skipCutscene();
-      else if (this.tv && !this.tv.hijack) { VHS.finish(); sfx('uiClick'); }
-      else if (Dialogue.busy()) { Dialogue.skip(); sfx('uiClick'); }
-    }
+    // cutscenes and dialogue play out in full: there is no skipping
     const broadcast = DeepWorks.broadcastLocked();
     if (broadcast) {
       // the Usher's broadcast: you can't move, look away or skip it; the view settles on his screen
@@ -631,7 +620,7 @@ const Game = {
     if (DeepWorks.toIntake > 1.7) { DeepWorks.toIntake = 1.6; Dialogue.clear(); }
   },
   // a found tape plays on the TV beside it while you stay in control; Harlan Smithers can then break into
-  // that same screen. Enter (the skip key) stops it; walking away stops it too.
+  // that same screen. It plays through; walking away stops it.
   playTape(tape) {
     tape.collected = true;
     sfx('pickup');

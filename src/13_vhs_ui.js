@@ -475,13 +475,6 @@ const UI = {
   // Change-driven HUD writes (no DOM writes when nothing changed)
   updateHud(dt) {
     const H = this.lastHud, E = this.el;
-    // skip prompt while a scripted scene is playing
-    const cut = Game.isGameplay() && (Game.cutsceneActive() || Dialogue.busy() || !!Game.tv);
-    if (H.cut !== cut) {
-      H.cut = cut;
-      const sh = document.getElementById('skipHint');
-      if (sh) { sh.style.display = cut ? 'block' : 'none'; document.getElementById('skipKey').textContent = Settings.keyName(Settings.bindOf('skip')); }
-    }
     this.objectiveTimer -= dt;
     const objOn = this.objectiveTimer > 0 || Game.state === STATE.PAUSED;
     if (H.obj !== this.objective) { E.hudObjText.textContent = this.objective; H.obj = this.objective; }

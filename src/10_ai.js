@@ -736,16 +736,28 @@ const Monster = {
     for (const side of [-1, 1]) {
       this.bodyPoint(B, side * 0.3, 2.39 + this.rise(), -0.47);
       const reach = this.armReach;
-      this.bodyPoint(H, side * (1.05 - reach * 0.4), 1.85 + this.rise() * 0.5 + reach * 0.6 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
+      // elbow and wrist in body-local space; on the chapter-6 card his right hand is raised in front of him,
+      // holding Posie up by the top of her head
+      const hold = this.cardHold && side === 1, cy = 2.25 + this.rise();
+      const ex = hold ? 0.8 : side * (1.05 - reach * 0.4), ey = hold ? cy - 0.05 : 1.85 + this.rise() * 0.5 + reach * 0.6 + Math.sin(this.breathe * 3 + side) * 0.08, ez = hold ? -0.75 : -0.9 - reach * 0.7;
+      const hlx = hold ? 0.5 : side * (0.75 - reach * 0.4), hly = hold ? cy + 0.55 : 1.45 + reach * 0.9, hlz = hold ? -1.2 : -1.55 - reach * 0.9;
+      this.bodyPoint(H, ex, ey, ez);
       R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
       R.seg('cyl', MAT.steel, B, H, 0.045);
       this.puffSleeve(B, H, side);
-      this.bodyPoint(X, side * (0.75 - reach * 0.4), 1.45 + reach * 0.9, -1.55 - reach * 0.9);
+      this.bodyPoint(X, hlx, hly, hlz);
       this.boneForearm(H, X);
       R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
       R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.055, 0.055, 0.055);
-      const hlx = side * (0.75 - reach * 0.4), hly = 1.45 + reach * 0.9, hlz = -1.55 - reach * 0.9;
-      this.needleHand(side, hlx, hly, hlz, side * (1.05 - reach * 0.4), 1.85 + this.rise() * 0.5 + reach * 0.6, -0.9 - reach * 0.7, reach);
+      this.needleHand(side, hlx, hly, hlz, ex, ey, ez, hold ? 0.15 : reach);
+      if (hold) {
+        // Posie dangles from his grip by her head, facing you
+        const D = Cast.doll, sp = V3.create(D.pos[0], D.pos[1], D.pos[2]), sy = D.yaw, shy = D.headYaw, shp = D.headPitch;
+        this.bodyPoint(D.pos, hlx, hly - 0.42 - 0.7 * 1.0, hlz - 0.1);
+        D.yaw = this.yaw; D.headYaw = 0; D.headPitch = 0.1;
+        Cast.submitDoll();
+        V3.copy(D.pos, sp); D.yaw = sy; D.headYaw = shy; D.headPitch = shp;
+      }
     }
     this.submitLegs();
   },

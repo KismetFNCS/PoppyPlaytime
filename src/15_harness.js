@@ -314,10 +314,12 @@ async function runAll() {
     check('vhs: tape insert sound', T.getSfxLog().includes('tapeInsert'), T.getSfxLog().join(','));
     T.step(DT, 30);
     check('vhs: typewriter reveals text', VHS.chars > 0, VHS.chars);
-    tap('Space'); tap('Space');
-    check('vhs: Space advances lines', VHS.line >= 1, 'line ' + VHS.line);
-    tap('Escape');
-    check('vhs: Escape skips to gameplay', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    for (let i = 0; i < 1500 && VHS.line < 1 && T.getState() === 'CINEMATIC_VHS'; i++) T.step(DT, 1);
+    check('vhs: the tape advances on its own', VHS.line >= 1, 'line ' + VHS.line);
+    tap('Escape'); tap('Enter');
+    check('vhs: cutscene tapes cannot be skipped', T.getState() === 'CINEMATIC_VHS', T.getState());
+    VHS.finish(); T.step(DT, 2);
+    check('vhs: when the tape ends you are in the game', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
     // ---------------- the opening: station yard under the main office ----------------
     const DWo = DeepWorks;
     check('opening: a new game starts in the station yard, facing Harlan Smithers\'s computer (stage 5)', Game.stage === 5 && Streaming.current === 6 && Cast.monitor.computer && Cast.monitor.stage === 5, 'stage ' + Game.stage + ' sector ' + Streaming.current);
@@ -327,15 +329,13 @@ async function runAll() {
     check('opening: Harlan Smithers\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
     const lockZ = Player.body.pos[2]; T.simulateKey('KeyW', true); T.step(DT, 30); T.simulateKey('KeyW', false);
     check('opening: you cannot walk away while he speaks', Math.abs(Player.body.pos[2] - lockZ) < 0.01, (Player.body.pos[2] - lockZ).toFixed(3));
-    check('cutscene: the skip prompt shows during the broadcast', Game.cutsceneActive() && document.getElementById('skipHint').style.display === 'block', '');
-    tap('Enter'); T.step(DT, 2);
-    check('cutscene: Enter skips the broadcast', !DWo.broadcastLocked(), '');
+    tap('Enter'); tap('Space'); T.step(DT, 2);
+    check('cutscene: the broadcast cannot be skipped', DWo.broadcastLocked(), '');
+    Dialogue.clear(); T.step(DT, 2);
     Dialogue.clear(); Dialogue.say('THIMBLE', 'First line of a long chat between friends.'); Dialogue.say('PIP', 'Second line.'); Dialogue.say('MARIGOLD', 'Third line.'); T.step(DT, 3);
-    check('dialogue: the skip prompt shows while characters talk', document.getElementById('skipHint').style.display === 'block', '');
-    tap('Enter'); T.step(DT, 1);
-    check('dialogue: Enter skips to the next line', Dialogue.current && Dialogue.current.speaker === 'PIP', Dialogue.current ? Dialogue.current.speaker : 'none');
-    tap('Enter'); tap('Enter'); T.step(DT, 2);
-    check('dialogue: a double press skips the whole conversation', !Dialogue.busy(), Dialogue.queue.length);
+    tap('Enter'); tap('Enter'); T.step(DT, 1);
+    check('dialogue: lines play out in full (no skipping)', Dialogue.current && Dialogue.current.speaker === 'THIMBLE' && Dialogue.queue.length === 2, Dialogue.current ? Dialogue.current.speaker : 'none');
+    Dialogue.clear();
     check('opening: when he finishes you are free to move', !DWo.broadcastLocked(), '');
     click(0); T.step(DT, 10);
     check('opening: firing does nothing until you have your hands', GrabPack.hands[0].state === HAND.DOCKED && /crate/.test(GrabPack.hint), GrabPack.hint);
@@ -486,7 +486,8 @@ async function runAll() {
     T.step(DT, 30);
     check('tape: the tape keeps playing while you move about', !!VHS.tape && VHS.chars > 0, VHS.chars);
     tap('Enter');
-    check('tape: Enter stops the tape', !VHS.tape && T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    check('tape: the tape cannot be skipped', !!VHS.tape && T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    Game.stopTv(); Dialogue.clear();
 
     await breathe();
     // ---------------- pause ----------------
@@ -804,6 +805,8 @@ async function runAll() {
     check('vault: the Epxirtype is contained (stage 10)', V.mode === 'DONE' && Game.stage === 10, V.mode + ' ' + Game.stage);
     check('victory: ending tape plays', untilState('CINEMATIC_VHS', 500) && VHS.tapeId === 2, T.getState());
     tap('Escape');
+    check('victory: the ending tape cannot be skipped', T.getState() === 'CINEMATIC_VHS', T.getState());
+    VHS.finish(); T.step(DT, 2);
     check('victory: VICTORY screen', T.getState() === 'VICTORY', T.getState());
     tap('Enter');
     check('victory: returns to the menu', T.getState() === 'MAIN_MENU', T.getState());

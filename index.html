@@ -287,7 +287,6 @@
     <div class="objective" id="hudObjective"><b>OBJECTIVE</b><span id="hudObjText"></span></div>
     <div class="cross" id="hudCross"></div>
     <div class="prompt" id="hudPrompt"></div>
-    <div id="skipHint"><b id="skipKey">ENTER</b> SKIP</div>
     <div id="hudVhs"><svg width="64" height="40" viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="60" height="34" rx="3"/><rect x="12" y="10" width="40" height="15" rx="2"/><g class="reel"><circle cx="21" cy="17.5" r="5"/><path d="M21 12.5v10M16 17.5h10"/></g><g class="reel"><circle cx="43" cy="17.5" r="5"/><path d="M43 12.5v10M38 17.5h10"/></g><path d="M20 37l4-7h16l4 7"/></svg><span id="hudVhsText">SAVING</span></div>
     <div class="boss" id="hudBoss"><b>THE EPXIRTYPE</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
@@ -322,8 +321,6 @@
   </div>
   <div id="vhs" class="screen">
     <canvas id="vhsCanvas" width="640" height="360"></canvas>
-    <button class="skipbtn" id="btnSkipTape" data-act="skipTape">SKIP TAPE</button>
-    <div class="skip">SPACE / CLICK: next line &middot; ENTER / ESC: skip tape</div>
   </div>
 </div>
 <div id="debug"></div>
@@ -654,7 +651,7 @@ const KEY_ACTIONS = [
   ['forward', 'MOVE FORWARD', 'KeyW'], ['back', 'MOVE BACK', 'KeyS'], ['left', 'STRAFE LEFT', 'KeyA'], ['right', 'STRAFE RIGHT', 'KeyD'],
   ['jump', 'JUMP', 'Space'], ['sprint', 'SPRINT', 'ShiftLeft'], ['crouch', 'CROUCH', 'KeyC'], ['use', 'INTERACT', 'KeyE'],
   ['fireL', 'FIRE LEFT HAND', 'KeyQ'], ['fireR', 'FIRE RIGHT HAND', 'KeyR'], ['flash', 'FLASHLIGHT', 'KeyF'],
-  ['wheel', 'HAND WHEEL', 'Tab'], ['mask', 'GAS MASK', 'KeyG'], ['skip', 'SKIP CUTSCENE', 'Enter', true]
+  ['wheel', 'HAND WHEEL', 'Tab'], ['mask', 'GAS MASK', 'KeyG']
 ];
 
 // ANCHORS: measure functions resolve lazily against engine objects defined later in the file.
@@ -5321,16 +5318,28 @@ const Monster = {
     for (const side of [-1, 1]) {
       this.bodyPoint(B, side * 0.3, 2.39 + this.rise(), -0.47);
       const reach = this.armReach;
-      this.bodyPoint(H, side * (1.05 - reach * 0.4), 1.85 + this.rise() * 0.5 + reach * 0.6 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
+      // elbow and wrist in body-local space; on the chapter-6 card his right hand is raised in front of him,
+      // holding Posie up by the top of her head
+      const hold = this.cardHold && side === 1, cy = 2.25 + this.rise();
+      const ex = hold ? 0.8 : side * (1.05 - reach * 0.4), ey = hold ? cy - 0.05 : 1.85 + this.rise() * 0.5 + reach * 0.6 + Math.sin(this.breathe * 3 + side) * 0.08, ez = hold ? -0.75 : -0.9 - reach * 0.7;
+      const hlx = hold ? 0.5 : side * (0.75 - reach * 0.4), hly = hold ? cy + 0.55 : 1.45 + reach * 0.9, hlz = hold ? -1.2 : -1.55 - reach * 0.9;
+      this.bodyPoint(H, ex, ey, ez);
       R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
       R.seg('cyl', MAT.steel, B, H, 0.045);
       this.puffSleeve(B, H, side);
-      this.bodyPoint(X, side * (0.75 - reach * 0.4), 1.45 + reach * 0.9, -1.55 - reach * 0.9);
+      this.bodyPoint(X, hlx, hly, hlz);
       this.boneForearm(H, X);
       R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
       R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.055, 0.055, 0.055);
-      const hlx = side * (0.75 - reach * 0.4), hly = 1.45 + reach * 0.9, hlz = -1.55 - reach * 0.9;
-      this.needleHand(side, hlx, hly, hlz, side * (1.05 - reach * 0.4), 1.85 + this.rise() * 0.5 + reach * 0.6, -0.9 - reach * 0.7, reach);
+      this.needleHand(side, hlx, hly, hlz, ex, ey, ez, hold ? 0.15 : reach);
+      if (hold) {
+        // Posie dangles from his grip by her head, facing you
+        const D = Cast.doll, sp = V3.create(D.pos[0], D.pos[1], D.pos[2]), sy = D.yaw, shy = D.headYaw, shp = D.headPitch;
+        this.bodyPoint(D.pos, hlx, hly - 0.42 - 0.7 * 1.0, hlz - 0.1);
+        D.yaw = this.yaw; D.headYaw = 0; D.headPitch = 0.1;
+        Cast.submitDoll();
+        V3.copy(D.pos, sp); D.yaw = sy; D.headYaw = shy; D.headPitch = shp;
+      }
     }
     this.submitLegs();
   },
@@ -6387,9 +6396,8 @@ const Input = {
     if (e.code === 'F2') { FidelityOverlay.toggle(); return; }
     const panel = document.getElementById('report');
     if (e.code === 'Escape' && panel.style.display === 'block') { panel.style.display = 'none'; return; }
-    // rebound keys arrive as the default key the game listens for; the skip key is also kept raw
+    // rebound keys arrive as the default key the game listens for
     const code = Settings.translate(e.code);
-    if (e.code !== code && e.code === Settings.bindOf('skip')) Input.justPressed.add(e.code);
     if (code) {
       if (!Input.keys[code]) Input.justPressed.add(code);
       Input.keys[code] = true;
@@ -7198,13 +7206,6 @@ const UI = {
   // Change-driven HUD writes (no DOM writes when nothing changed)
   updateHud(dt) {
     const H = this.lastHud, E = this.el;
-    // skip prompt while a scripted scene is playing
-    const cut = Game.isGameplay() && (Game.cutsceneActive() || Dialogue.busy() || !!Game.tv);
-    if (H.cut !== cut) {
-      H.cut = cut;
-      const sh = document.getElementById('skipHint');
-      if (sh) { sh.style.display = cut ? 'block' : 'none'; document.getElementById('skipKey').textContent = Settings.keyName(Settings.bindOf('skip')); }
-    }
     this.objectiveTimer -= dt;
     const objOn = this.objectiveTimer > 0 || Game.state === STATE.PAUSED;
     if (H.obj !== this.objective) { E.hudObjText.textContent = this.objective; H.obj = this.objective; }
@@ -7399,8 +7400,7 @@ const HANDLERS = {
     enter() { UI.show('vhs'); Input.exitLock(); Renderer.post.vhsBoost = 0.6; },
     exit() { UI.hide('vhs'); Renderer.post.vhsBoost = 0; },
     update(dt) {
-      if (Input.justPressed.has('Escape') || Input.justPressed.has(Settings.bindOf('skip')) || Input.padJust(1) || Input.padJust(8)) { VHS.finish(); return; }
-      if (Input.justPressed.has('Space') || Input.mouseJust[0] || Input.padJust(0)) VHS.advance();
+      // tapes play through on their own: no skipping
       VHS.update(dt);
       Audio.updateDrone(0.1, true);
     }
@@ -7502,7 +7502,6 @@ const Game = {
       }
       case 'loadGame': if (state === STATE.PAUSED) { this.refreshContinue(); if (this.hasSave) this.continueGame(); } break;
       case 'mute': this.toggleMute(); break;
-      case 'skipTape': VHS.finish(); break;
       case 'rewind': if (state === STATE.FAILURE_STATE) { this.restoreCheckpoint(); setState(STATE.GAMEPLAY_ACTIVE); } break;
       case 'winDone': if (state === STATE.VICTORY) setState(STATE.MAIN_MENU); break;
     }
@@ -7771,16 +7770,7 @@ const Game = {
     if (Input.justPressed.has('KeyF') || Input.padJust(3)) { Player.flashOn = !Player.flashOn; sfx('flashlight'); }
     const usePressed = Input.justPressed.has('KeyE') || Input.padJust(2);
     const wasHidden = !!Player.hidden;
-    // cutscenes: the skip key (Enter by default) or the pad's Back button cuts any of them short
-    // and any dialogue line (characters talking to you or to each other) can be skipped the same way
-    const skipKey = Input.justPressed.has(Settings.bindOf('skip')) || Input.justPressed.has('Backspace') || Input.padJust(8);
-    // in a locked scene (you can't move anyway) Space, E or a click skip too
-    const lockedSkip = this.cutsceneActive() && (Input.justPressed.has('Space') || Input.justPressed.has('KeyE') || Input.mouseJust[0] || Input.padJust(0));
-    if (skipKey || lockedSkip) {
-      if (this.cutsceneActive()) this.skipCutscene();
-      else if (this.tv && !this.tv.hijack) { VHS.finish(); sfx('uiClick'); }
-      else if (Dialogue.busy()) { Dialogue.skip(); sfx('uiClick'); }
-    }
+    // cutscenes and dialogue play out in full: there is no skipping
     const broadcast = DeepWorks.broadcastLocked();
     if (broadcast) {
       // the Usher's broadcast: you can't move, look away or skip it; the view settles on his screen
@@ -7960,7 +7950,7 @@ const Game = {
     if (DeepWorks.toIntake > 1.7) { DeepWorks.toIntake = 1.6; Dialogue.clear(); }
   },
   // a found tape plays on the TV beside it while you stay in control; Harlan Smithers can then break into
-  // that same screen. Enter (the skip key) stops it; walking away stops it too.
+  // that same screen. It plays through; walking away stops it.
   playTape(tape) {
     tape.collected = true;
     sfx('pickup');
@@ -8976,10 +8966,12 @@ async function runAll() {
     check('vhs: tape insert sound', T.getSfxLog().includes('tapeInsert'), T.getSfxLog().join(','));
     T.step(DT, 30);
     check('vhs: typewriter reveals text', VHS.chars > 0, VHS.chars);
-    tap('Space'); tap('Space');
-    check('vhs: Space advances lines', VHS.line >= 1, 'line ' + VHS.line);
-    tap('Escape');
-    check('vhs: Escape skips to gameplay', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    for (let i = 0; i < 1500 && VHS.line < 1 && T.getState() === 'CINEMATIC_VHS'; i++) T.step(DT, 1);
+    check('vhs: the tape advances on its own', VHS.line >= 1, 'line ' + VHS.line);
+    tap('Escape'); tap('Enter');
+    check('vhs: cutscene tapes cannot be skipped', T.getState() === 'CINEMATIC_VHS', T.getState());
+    VHS.finish(); T.step(DT, 2);
+    check('vhs: when the tape ends you are in the game', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
     // ---------------- the opening: station yard under the main office ----------------
     const DWo = DeepWorks;
     check('opening: a new game starts in the station yard, facing Harlan Smithers\'s computer (stage 5)', Game.stage === 5 && Streaming.current === 6 && Cast.monitor.computer && Cast.monitor.stage === 5, 'stage ' + Game.stage + ' sector ' + Streaming.current);
@@ -8989,15 +8981,13 @@ async function runAll() {
     check('opening: Harlan Smithers\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
     const lockZ = Player.body.pos[2]; T.simulateKey('KeyW', true); T.step(DT, 30); T.simulateKey('KeyW', false);
     check('opening: you cannot walk away while he speaks', Math.abs(Player.body.pos[2] - lockZ) < 0.01, (Player.body.pos[2] - lockZ).toFixed(3));
-    check('cutscene: the skip prompt shows during the broadcast', Game.cutsceneActive() && document.getElementById('skipHint').style.display === 'block', '');
-    tap('Enter'); T.step(DT, 2);
-    check('cutscene: Enter skips the broadcast', !DWo.broadcastLocked(), '');
+    tap('Enter'); tap('Space'); T.step(DT, 2);
+    check('cutscene: the broadcast cannot be skipped', DWo.broadcastLocked(), '');
+    Dialogue.clear(); T.step(DT, 2);
     Dialogue.clear(); Dialogue.say('THIMBLE', 'First line of a long chat between friends.'); Dialogue.say('PIP', 'Second line.'); Dialogue.say('MARIGOLD', 'Third line.'); T.step(DT, 3);
-    check('dialogue: the skip prompt shows while characters talk', document.getElementById('skipHint').style.display === 'block', '');
-    tap('Enter'); T.step(DT, 1);
-    check('dialogue: Enter skips to the next line', Dialogue.current && Dialogue.current.speaker === 'PIP', Dialogue.current ? Dialogue.current.speaker : 'none');
-    tap('Enter'); tap('Enter'); T.step(DT, 2);
-    check('dialogue: a double press skips the whole conversation', !Dialogue.busy(), Dialogue.queue.length);
+    tap('Enter'); tap('Enter'); T.step(DT, 1);
+    check('dialogue: lines play out in full (no skipping)', Dialogue.current && Dialogue.current.speaker === 'THIMBLE' && Dialogue.queue.length === 2, Dialogue.current ? Dialogue.current.speaker : 'none');
+    Dialogue.clear();
     check('opening: when he finishes you are free to move', !DWo.broadcastLocked(), '');
     click(0); T.step(DT, 10);
     check('opening: firing does nothing until you have your hands', GrabPack.hands[0].state === HAND.DOCKED && /crate/.test(GrabPack.hint), GrabPack.hint);
@@ -9148,7 +9138,8 @@ async function runAll() {
     T.step(DT, 30);
     check('tape: the tape keeps playing while you move about', !!VHS.tape && VHS.chars > 0, VHS.chars);
     tap('Enter');
-    check('tape: Enter stops the tape', !VHS.tape && T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    check('tape: the tape cannot be skipped', !!VHS.tape && T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    Game.stopTv(); Dialogue.clear();
 
     await breathe();
     // ---------------- pause ----------------
@@ -9466,6 +9457,8 @@ async function runAll() {
     check('vault: the Epxirtype is contained (stage 10)', V.mode === 'DONE' && Game.stage === 10, V.mode + ' ' + Game.stage);
     check('victory: ending tape plays', untilState('CINEMATIC_VHS', 500) && VHS.tapeId === 2, T.getState());
     tap('Escape');
+    check('victory: the ending tape cannot be skipped', T.getState() === 'CINEMATIC_VHS', T.getState());
+    VHS.finish(); T.step(DT, 2);
     check('victory: VICTORY screen', T.getState() === 'VICTORY', T.getState());
     tap('Enter');
     check('victory: returns to the menu', T.getState() === 'MAIN_MENU', T.getState());
@@ -11882,8 +11875,10 @@ const SCULPTS = {
       const rr = Math.sqrt(Math.max(0.05, 1 - ((y - 0.04) / 0.5) ** 2));
       n.push({ t: 'box', c: [Math.sin(ang) * 0.43 * rr, y, 0.07 + Math.cos(ang) * 0.42 * rr], h: [0.12, 0.16, 0.014], rr: 0.01, rot: [ang, -0.2, 0], m: k % 2 ? TE : GO, k: 0.015, n: [0.008, 40] });
     }
-    // gold trim round the face opening
-    n.push({ t: 'tor', c: [0, -0.05, -0.27], R: 0.37, r: 0.026, rot: [0, Math.PI / 2, 0], m: GO, k: 0.02, n: [0.006, 40] });
+    // a thick, padded gold band round the face opening, sewn to the hood all the way round and wide enough to
+    // overlap the edge of the mask, with dark cloth filling the opening behind the mask so no gap shows
+    n.push({ t: 'tor', c: [0, -0.02, -0.25], R: 0.39, r: 0.06, rot: [0, Math.PI / 2, 0], m: GO, k: 0.05, n: [0.008, 40] });
+    n.push({ t: 'cyl', c: [0, -0.02, -0.05], r: 0.42, h: 0.03, rot: [0, Math.PI / 2, 0], m: MAT.canvas, k: 0.06 });
     // stitched seam down the back, grime and soot
     for (let k = 0; k < 6; k++) { const y = 0.36 - k * 0.07; n.push({ t: 'cap', a: [-0.015, y, 0.49 - k * 0.01], b: [0.015, y - 0.03, 0.49 - k * 0.01], r: 0.005, m: GO, k: 0.002 }); }
     // soot pressed into the upper hood only (lower blotches floated free of the cloth)
@@ -12447,7 +12442,7 @@ const SCULPTS = {
       { t: 'cap', a: [-0.32, 0.42, -0.25], b: [-0.2, 0.3, -0.33], r: 0.03, op: 's', k: 0.01, sm: L },
       { t: 'sph', c: [-0.27, 0.36, -0.3], r: 0.04, m: MAT.porcelain, k: 0.01, n: [0.015, 80] }
     ];
-    // brass lantern rims round the eyes (glass drawn separately, glowing)
+    // brass lantern rims round the eyes (glass drawn separately)
     for (const sx of [-1, 1]) {
       n.push({ t: 'tor', c: [sx * 0.15, 1.26, -0.42], R: 0.1, r: 0.022, rot: [0, Math.PI / 2, 0], m: B, k: 0.01 });
       n.push({ t: 'sph', c: [sx * 0.15, 1.26, -0.4], r: 0.09, op: 's', k: 0.01, sm: K });
@@ -13115,7 +13110,7 @@ const Companion = {
 // =====================================================================================
 // AMBUSH: the Spoolwright drops in at the start of the foundry chase. You can't move; it
 // and Thimble trade words, then Thimble slams his needle into the floor, the purple blast
-// stuns it, and the chase is on. [SPACE] / [E] skips.
+// stuns it, and the chase is on.
 // =====================================================================================
 const Ambush = {
   active: false, t: 0, pin: V3.create(), spot: V3.create(), look: V3.create(), prevInv: false, held: false,
@@ -13141,7 +13136,6 @@ const Ambush = {
     Player.lockTarget = this.look; Player.lockAmt = 0;
     Dialogue.clear();
     for (const [who, line] of COMPANION_LINES.ambush) Dialogue.say(who, line);
-    GrabPack.showHint('[SPACE] skip scene');
   },
 
   update(dt) {
@@ -13159,8 +13153,7 @@ const Ambush = {
     Player.lockAmt = Math.min(0.9, Player.lockAmt + dt * 2);
     P.yaw = P.yaw + wrapAngle(Math.atan2(-(M.pos[0] - P.pos[0]), -(M.pos[2] - P.pos[2])) - P.yaw) * Math.min(1, dt * 4);
     P.wave = c && c.speaker === 'THIMBLE' ? 0.35 : P.wave;
-    const skip = this.t > 1 && (Input.justPressed.has('Space') || Input.justPressed.has('KeyE') || Input.padJust(0));
-    if (skip || (this.t > 3 && !Dialogue.busy()) || this.t > 40) this.blast(skip);
+    if ((this.t > 3 && !Dialogue.busy()) || this.t > 40) this.blast(false);
   },
   skip() { if (this.active) this.blast(true); },
 
@@ -15587,10 +15580,10 @@ const CARD_SHOTS = [
   // a head thrown back laughing; the claw reaching down into the lens (aim is derived from eye -> at)
   { eye: [-11.95, 1.45, 134.1], sec: [11], at: [-12.15, 1.5, 135.6], tint: [0.75, 1.05, 1.45], aim: true },
   { eye: [-6, 2.08, 134.75], sec: [11], at: [-6, 2.52, 135.6], tint: [1.7, 0.6, 1.15], aim: true },
-  { eye: [0.05, 1.38, 134.35], sec: [11], at: [0, 1.36, 135.6], tint: [1.15, 0.6, 1.7], aim: true },
+  { eye: [0, 1.44, 133.75], sec: [11], at: [0, 1.42, 135.6], tint: [1.15, 0.6, 1.7], aim: true },
   { eye: [6.1, 1.25, 134.25], sec: [11], at: [6, 1.4, 135.6], tint: [1.2, 1.1, 1.0], aim: true },
   { eye: [12.05, 1.45, 134.4], sec: [11], at: [12.1, 1.55, 135.3], tint: [1.6, 0.25, 0.2], aim: true },
-  { eye: [-0.2, 1.8, -79.9], yaw: 0, pitch: 0.12, sec: [3, 4], at: [0.9, 2.6, -84.6], tint: [1, 1, 1] }
+  { eye: [0.85, 2.3, -79.6], sec: [3, 4], at: [0.95, 2.75, -84.6], tint: [1, 1, 1], aim: true }
 ];
 const ChapterCards = {
   k: 0, canvases: null, saved: null, tmp: V3.create(), active: -1,
@@ -15614,6 +15607,9 @@ const ChapterCards = {
     if (S.aim) { const dx = S.at[0] - S.eye[0], dy = S.at[1] - S.eye[1], dz = S.at[2] - S.eye[2]; yaw = Math.atan2(-dx, -dz); pitch = Math.atan2(dy, Math.hypot(dx, dz)); }
     Game.applyCamera(this.tmp, yaw, pitch, 0);
     Streaming.visible.fill(0); for (const s of S.sec) Streaming.visible[s] = 1;
+    // chapter 6: the Epxirtype turns to face you, holding Posie up by her head
+    Monster.cardHold = k === 5;
+    if (k === 5) { this.savedYaw = Monster.yaw; Monster.yaw = Math.atan2(-(S.eye[0] - Monster.pos[0]), -(S.eye[2] - Monster.pos[2])); Monster.lookYaw = 0; Monster.lookPitch = 0; Monster.lookRoll = 0; }
     Lights.update(0, Game.time + Game.menuTime, Streaming.visible);
     return true;
   },
@@ -15640,12 +15636,16 @@ const ChapterCards = {
     }
     // 3: Hootsworth's glassy amber eyes and a hard head tilt
     x = CARD_ACTOR_X[2]; const tilt = Math.sin(t * 0.7) * 0.12;
-    put('card_owl', x, base, tilt * 0.5, 0.85, 0, 0, 0, 0, 0.3 + tilt);   // head cocked hard to one side
-    for (const s of [-1, 1]) {
-      // dull amber glass eyes (no glow)
-      const e = R.trs('sphere', MAT.porcelain, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.39 * 0.85, 0, 0, 0, 0.08, 0.08, 0.04, false);
+    const owl = put('card_owl', x, base, 0, 0.85, 0, 0, 0, 0, 0.08 + tilt * 0.3);   // facing you square-on, a slight head cock
+    if (owl) for (const s of [-1, 1]) {
+      // dull amber glass eyes seated inside the brass rims: placed through the owl's own transform so they
+      // tilt with the head instead of floating off it (no glow)
+      const ow = 0.08 + tilt * 0.3, oy = 0, sc = 0.85;
+      V3.set(this.tmp2 || (this.tmp2 = V3.create()), s * 0.15, 1.26, -0.4); M4.transformPoint(this.tmp, owl.model, this.tmp2);
+      const e = R.trs('sphere', MAT.porcelain, this.tmp[0], this.tmp[1], this.tmp[2], oy, 0, ow, 0.092 * sc, 0.092 * sc, 0.05 * sc, false);
       if (e) { e.tint[0] = 1.1; e.tint[1] = 0.7; e.tint[2] = 0.25; }
-      const pu = R.trs('sphere', MAT.rubber, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.42 * 0.85, 0, 0, 0, 0.03, 0.055 * (0.6 + 0.4 * Math.abs(Math.sin(t * 0.5))), 0.015, false);
+      V3.set(this.tmp2, s * 0.15, 1.26, -0.445); M4.transformPoint(this.tmp, owl.model, this.tmp2);
+      R.trs('sphere', MAT.rubber, this.tmp[0], this.tmp[1], this.tmp[2], oy, 0, ow, 0.03 * sc, 0.05 * sc, 0.012 * sc, false);
     }
     // 4: Doughbert squishes as he breathes
     x = CARD_ACTOR_X[3]; const sq = 1 + Math.sin(t * 3) * 0.025;
@@ -15666,6 +15666,7 @@ const ChapterCards = {
   },
   // copy the centre strip of the frame into the card, then put everyone back
   capture() {
+    if (Monster.cardHold) { Monster.cardHold = false; if (this.savedYaw !== undefined) Monster.yaw = this.savedYaw; }
     const cv = this.canvases[this.active], src = Renderer.gl.canvas;
     if (cv) {
       const h = src.height, w = Math.min(src.width, Math.round(h * cv.width / cv.height));

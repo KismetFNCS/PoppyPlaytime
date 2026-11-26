@@ -308,7 +308,7 @@ const KEY_ACTIONS = [
   ['forward', 'MOVE FORWARD', 'KeyW'], ['back', 'MOVE BACK', 'KeyS'], ['left', 'STRAFE LEFT', 'KeyA'], ['right', 'STRAFE RIGHT', 'KeyD'],
   ['jump', 'JUMP', 'Space'], ['sprint', 'SPRINT', 'ShiftLeft'], ['crouch', 'CROUCH', 'KeyC'], ['use', 'INTERACT', 'KeyE'],
   ['fireL', 'FIRE LEFT HAND', 'KeyQ'], ['fireR', 'FIRE RIGHT HAND', 'KeyR'], ['flash', 'FLASHLIGHT', 'KeyF'],
-  ['wheel', 'HAND WHEEL', 'Tab'], ['mask', 'GAS MASK', 'KeyG'], ['skip', 'SKIP CUTSCENE', 'Enter', true]
+  ['wheel', 'HAND WHEEL', 'Tab'], ['mask', 'GAS MASK', 'KeyG']
 ];
 
 // ANCHORS: measure functions resolve lazily against engine objects defined later in the file.

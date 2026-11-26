@@ -486,8 +486,10 @@ const SCULPTS = {
       const rr = Math.sqrt(Math.max(0.05, 1 - ((y - 0.04) / 0.5) ** 2));
       n.push({ t: 'box', c: [Math.sin(ang) * 0.43 * rr, y, 0.07 + Math.cos(ang) * 0.42 * rr], h: [0.12, 0.16, 0.014], rr: 0.01, rot: [ang, -0.2, 0], m: k % 2 ? TE : GO, k: 0.015, n: [0.008, 40] });
     }
-    // gold trim round the face opening
-    n.push({ t: 'tor', c: [0, -0.05, -0.27], R: 0.37, r: 0.026, rot: [0, Math.PI / 2, 0], m: GO, k: 0.02, n: [0.006, 40] });
+    // a thick, padded gold band round the face opening, sewn to the hood all the way round and wide enough to
+    // overlap the edge of the mask, with dark cloth filling the opening behind the mask so no gap shows
+    n.push({ t: 'tor', c: [0, -0.02, -0.25], R: 0.39, r: 0.06, rot: [0, Math.PI / 2, 0], m: GO, k: 0.05, n: [0.008, 40] });
+    n.push({ t: 'cyl', c: [0, -0.02, -0.05], r: 0.42, h: 0.03, rot: [0, Math.PI / 2, 0], m: MAT.canvas, k: 0.06 });
     // stitched seam down the back, grime and soot
     for (let k = 0; k < 6; k++) { const y = 0.36 - k * 0.07; n.push({ t: 'cap', a: [-0.015, y, 0.49 - k * 0.01], b: [0.015, y - 0.03, 0.49 - k * 0.01], r: 0.005, m: GO, k: 0.002 }); }
     // soot pressed into the upper hood only (lower blotches floated free of the cloth)
@@ -1051,7 +1053,7 @@ const SCULPTS = {
       { t: 'cap', a: [-0.32, 0.42, -0.25], b: [-0.2, 0.3, -0.33], r: 0.03, op: 's', k: 0.01, sm: L },
       { t: 'sph', c: [-0.27, 0.36, -0.3], r: 0.04, m: MAT.porcelain, k: 0.01, n: [0.015, 80] }
     ];
-    // brass lantern rims round the eyes (glass drawn separately, glowing)
+    // brass lantern rims round the eyes (glass drawn separately)
     for (const sx of [-1, 1]) {
       n.push({ t: 'tor', c: [sx * 0.15, 1.26, -0.42], R: 0.1, r: 0.022, rot: [0, Math.PI / 2, 0], m: B, k: 0.01 });
       n.push({ t: 'sph', c: [sx * 0.15, 1.26, -0.4], r: 0.09, op: 's', k: 0.01, sm: K });

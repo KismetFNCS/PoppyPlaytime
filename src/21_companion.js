@@ -209,7 +209,7 @@ const Companion = {
 // =====================================================================================
 // AMBUSH: the Spoolwright drops in at the start of the foundry chase. You can't move; it
 // and Thimble trade words, then Thimble slams his needle into the floor, the purple blast
-// stuns it, and the chase is on. [SPACE] / [E] skips.
+// stuns it, and the chase is on.
 // =====================================================================================
 const Ambush = {
   active: false, t: 0, pin: V3.create(), spot: V3.create(), look: V3.create(), prevInv: false, held: false,
@@ -235,7 +235,6 @@ const Ambush = {
     Player.lockTarget = this.look; Player.lockAmt = 0;
     Dialogue.clear();
     for (const [who, line] of COMPANION_LINES.ambush) Dialogue.say(who, line);
-    GrabPack.showHint('[SPACE] skip scene');
   },
 
   update(dt) {
@@ -253,8 +252,7 @@ const Ambush = {
     Player.lockAmt = Math.min(0.9, Player.lockAmt + dt * 2);
     P.yaw = P.yaw + wrapAngle(Math.atan2(-(M.pos[0] - P.pos[0]), -(M.pos[2] - P.pos[2])) - P.yaw) * Math.min(1, dt * 4);
     P.wave = c && c.speaker === 'THIMBLE' ? 0.35 : P.wave;
-    const skip = this.t > 1 && (Input.justPressed.has('Space') || Input.justPressed.has('KeyE') || Input.padJust(0));
-    if (skip || (this.t > 3 && !Dialogue.busy()) || this.t > 40) this.blast(skip);
+    if ((this.t > 3 && !Dialogue.busy()) || this.t > 40) this.blast(false);
   },
   skip() { if (this.active) this.blast(true); },
 

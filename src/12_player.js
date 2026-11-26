@@ -19,9 +19,8 @@ const Input = {
     if (e.code === 'F2') { FidelityOverlay.toggle(); return; }
     const panel = document.getElementById('report');
     if (e.code === 'Escape' && panel.style.display === 'block') { panel.style.display = 'none'; return; }
-    // rebound keys arrive as the default key the game listens for; the skip key is also kept raw
+    // rebound keys arrive as the default key the game listens for
     const code = Settings.translate(e.code);
-    if (e.code !== code && e.code === Settings.bindOf('skip')) Input.justPressed.add(e.code);
     if (code) {
       if (!Input.keys[code]) Input.justPressed.add(code);
       Input.keys[code] = true;
