@@ -618,7 +618,7 @@ const FEEL = {
   cableMax: 42, cableNodes: 28, cableIters: 8, cableSag: 1.035,
   bobWalkHz: 1.9, bobWalkAmp: 0.035, bobSprintHz: 2.7, bobSprintAmp: 0.065, sprintLeanDeg: 2.2,
   breathHz: 0.25, breathAmp: 0.006, chaseTrauma: 0.55, jumpscareLock: 3.6, failCard: 2.4,
-  monsterPatrol: 2.2, monsterStalk: 3.1, monsterChase: 5.9, monsterCatch: 1.15,
+  monsterPatrol: 2.6, monsterStalk: 3.7, monsterChase: 6.3, monsterCatch: 1.3,
   bumpFriction: 0.55, fixedStep: 1 / 120
 };
 // Derived jump physics: v0 = 2h/t, g = v0/t  -> v0 = 5.625 m/s, g = 17.58 m/s^2. Source: [ASSUMED] targets above.
@@ -4637,7 +4637,7 @@ const Monster = {
   lookYaw: 0, lookPitch: 0, lookRoll: 0, snapTimer: 0,
   // the foundry reveal: frozen while watched, jerking closer in a new twisted pose whenever you look away
   creeping: false, unseenT: 0, creepCool: 0, bellT: 0, trophyFrom: 0, trophyTo: 0, anchorT: 0, anchorCool: 0, anchorAt: V3.create(),
-  catchCooldown: 0, sector: -1, sightRange: 20,
+  catchCooldown: 0, sector: -1, sightRange: 26,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
 
   init() {
@@ -4811,7 +4811,7 @@ const Monster = {
     if (this.boss) sp = this.bossSpeed;
     else if (scripted) {
       const d = V3.distXZ(this.pos, Player.body.pos);
-      sp = d > 14 ? 8.2 : d > 7 ? 6.4 : d < 3.5 ? Math.min(FEEL.monsterChase, Math.max(4.6, Player.horizontalSpeed() * 0.97)) : 5.9;
+      sp = d > 14 ? 8.8 : d > 7 ? 6.9 : d < 3.5 ? Math.min(FEEL.monsterChase, Math.max(5.0, Player.horizontalSpeed() * 0.99)) : 6.2;
     }
     this.targetSpeed = sp;
     return BT.RUNNING;
@@ -12786,7 +12786,15 @@ const SCULPTS = {
       n.push({ t: 'sph', c: [x * 0.85, 0.32, z * 0.7], r: 0.04, m: S });
       n.push({ t: 'cap', a: [x * 0.85, 0.32, z * 0.7], b: [x * 1.0, 0.02, z * 0.82], r: 0.025, r2: 0.01, m: S, k: 0.01 });
     }
-    return SDF.mesh(n, [-1.1, -0.02, -1.0], [1.1, 1.3, 1.0], 84);
+    // more faces pressed half into the mass, matted doll hair, rust weeping from the joints, a tiny bonnet
+    for (const [x, y, z, r] of [[-0.62, 0.72, -0.05, 0.15], [0.66, 0.7, -0.02, 0.14], [0.2, 1.08, 0.1, 0.15], [-0.25, 1.02, 0.05, 0.14]]) {
+      n.push({ t: 'sph', c: [x, y, z], r, m: P, k: 0.06, n: [0.004, 30] });
+      for (const ex of [-1, 1]) n.push({ t: 'sph', c: [x + ex * r * 0.35, y + r * 0.1, z - r * 0.85], r: r * 0.18, op: 's', k: 0.01, sm: K });
+    }
+    for (let k = 0; k < 14; k++) { const a = k * 2.2, x = Math.sin(a) * 0.35, z = Math.cos(a) * 0.25 + 0.15; n.push({ t: 'cap', a: [x, 1.05, z], b: [x * 1.5, 0.75 - (k % 3) * 0.08, z * 1.4 + 0.1], r: 0.02, r2: 0.006, m: MAT.hairDark, k: 0.01 }); }
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; n.push({ t: 'cap', a: [Math.sin(a) * 0.85, 0.34, Math.cos(a) * 0.7], b: [Math.sin(a) * 0.86, 0.18, Math.cos(a) * 0.71], r: 0.012, r2: 0.004, m: MAT.rustIron }); }
+    n.push({ t: 'ell', c: [0, 1.17, -0.05], r: [0.2, 0.08, 0.18], m: MAT.clothWine, k: 0.03, n: [0.006, 40] });
+    return SDF.mesh(n, [-1.1, -0.02, -1.0], [1.1, 1.4, 1.0], 96);
   },
   // PUFFER: a bloated vinyl fish-sack around a rose gas core, a bulging lens eye, a pressure valve and a lure
   a3_puffer: () => {
@@ -12804,7 +12812,12 @@ const SCULPTS = {
     // stitched rupture seam and stubby spines
     for (let i = 0; i < 8; i++) n.push({ t: 'cap', a: [-0.3 + i * 0.08, 0.3 - Math.abs(i - 3.5) * 0.02, 0.1], b: [-0.3 + i * 0.08, 0.36, 0.1], r: 0.008, m: K });
     for (let i = 0; i < 12; i++) { const a = i * 2.4, y = -0.2 + (i % 5) * 0.1; n.push({ t: 'cap', a: [Math.cos(a) * 0.38, y, Math.sin(a) * 0.42], b: [Math.cos(a) * 0.5, y, Math.sin(a) * 0.55], r: 0.018, r2: 0.004, m: V }); }
-    return SDF.mesh(n, [-0.6, -0.5, -0.6], [0.6, 0.55, 0.9], 72);
+    // patched vinyl panels, a corrugated valve hose, side fins and a bandaged split
+    for (const [x, y, z] of [[0.3, 0.1, 0.2], [-0.32, -0.05, 0.1], [0.05, -0.28, 0.25]]) n.push({ t: 'box', c: [x, y, z], h: [0.08, 0.07, 0.01], rot: [x * 2, y * 2, 0.3], m: MAT.rubber, k: 0.02, n: [0.004, 50] });
+    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, 0.44 + i * 0.03, 0.05 + i * 0.03], R: 0.04, r: 0.012, m: S });
+    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.42, -0.05, 0.12], r: [0.03, 0.14, 0.18], rot: [0, 0, sx * 0.5], m: V, k: 0.05 });
+    for (let i = 0; i < 4; i++) n.push({ t: 'tor', c: [-0.15, -0.1, -0.3 + i * 0.06], R: 0.33, r: 0.01, rot: [0, Math.PI / 2, 0.2], m: MAT.porcelain });
+    return SDF.mesh(n, [-0.62, -0.5, -0.62], [0.62, 0.65, 0.9], 84);
   },
   // ANGLER head (the telescoping neck is drawn in segments): a long, jagged-toothed jaw, an eye cluster, the lure
   a3_angler: () => {
@@ -12822,7 +12835,13 @@ const SCULPTS = {
     n.push({ t: 'cap', a: [0, 0.28, -0.1], b: [0, 0.55, -0.35], r: 0.016, m: S });
     n.push({ t: 'cap', a: [0, 0.55, -0.35], b: [0, 0.5, -0.55], r: 0.012, m: S });
     n.push({ t: 'sph', c: [0, 0.45, -0.58], r: 0.06, m: MAT.lens });
-    return SDF.mesh(n, [-0.45, -0.3, -0.75], [0.45, 0.65, 0.5], 72);
+    // a second staggered row of teeth, gill slits, barbels and a riveted skull plate
+    for (let i = 0; i < 9; i++) { const x = -0.2 + i * 0.05, z = -0.36 + Math.abs(x) * 0.6; n.push({ t: 'cap', a: [x + 0.02, 0.0, z + 0.05], b: [x + 0.02, -0.06, z + 0.04], r: 0.011, r2: 0.002, m: P }); }
+    for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) n.push({ t: 'box', c: [sx * 0.32, 0.02, 0.05 + i * 0.07], h: [0.02, 0.07, 0.008], op: 's', k: 0.005, sm: K });
+    for (const sx of [-1, 1]) n.push({ t: 'cap', a: [sx * 0.12, -0.18, -0.38], b: [sx * 0.2, -0.38, -0.45], r: 0.012, r2: 0.003, m: M });
+    n.push({ t: 'ell', c: [0, 0.24, 0.05], r: [0.22, 0.05, 0.25], m: S, k: 0.03, n: [0.003, 40] });
+    for (let i = 0; i < 6; i++) n.push({ t: 'sph', c: [-0.15 + i * 0.06, 0.29, 0.05 + (i % 2) * 0.06], r: 0.012, m: MAT.copper });
+    return SDF.mesh(n, [-0.45, -0.45, -0.75], [0.45, 0.65, 0.5], 84);
   },
   // LEECH: plush limbs (an arm, a leg, a duck bill) fused by rose-purple gel around a gear ring
   a3_leech: () => {
@@ -12852,7 +12871,12 @@ const SCULPTS = {
     for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [Math.sin(i * 2) * 0.12, 0.3, -0.05 + i * 0.08], r: 0.05, h: 0.01, rot: [0, Math.PI / 2, i], m: MAT.copper });
     for (const [x, z] of [[-0.3, -0.35], [0.3, -0.35], [-0.3, 0.45], [0.3, 0.45]]) { n.push({ t: 'cap', a: [x * 0.8, 0.35, z], b: [x * 1.3, 0.08, z], r: 0.07, r2: 0.05, m: M, k: 0.04 }); n.push({ t: 'cyl', c: [x * 1.3, 0.06, z], r: 0.06, h: 0.02, rot: [0, 0, Math.PI / 2], m: K }); }
     for (let k = 0; k < 9; k++) n.push({ t: 'sph', c: [Math.sin(k * 2.2) * 0.3, 0.55 + (k % 3) * 0.05, -0.4 + k * 0.1], r: 0.06, m: MAT.handTeal, k: 0.04, n: [0.02, 35] });   // moss
-    return SDF.mesh(n, [-0.55, -0.02, -1.0], [0.55, 0.8, 0.8], 76);
+    // the torn belly shows porcelain ribs; burlap seams, a dangling stitched ear, a spilled tuft of rose stuffing
+    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, 0.3, -0.12 + i * 0.07], R: 0.15, r: 0.012, rot: [0, Math.PI / 2, Math.PI / 2], m: P });
+    for (let i = 0; i < 8; i++) n.push({ t: 'cap', a: [-0.3 + i * 0.08, 0.6, 0.0 + (i % 2) * 0.05], b: [-0.3 + i * 0.08, 0.66, 0.02], r: 0.006, m: K });
+    n.push({ t: 'cap', a: [0.18, 0.68, -0.5], b: [0.32, 0.45, -0.42], r: 0.06, r2: 0.04, m: M, k: 0.03, n: [0.01, 30] });
+    for (let k = 0; k < 6; k++) n.push({ t: 'sph', c: [-0.02 + Math.sin(k) * 0.05, 0.36 - k * 0.02, -0.86 - k * 0.02], r: 0.03, m: MAT.handRose, k: 0.02, n: [0.01, 50] });
+    return SDF.mesh(n, [-0.55, -0.02, -1.05], [0.55, 0.85, 0.8], 88);
   },
   // CONDUCTOR: a faceless mannequin torso fused into the nose of a subway engine (origin at rail level)
   a3_conductor: () => {
@@ -12871,7 +12895,13 @@ const SCULPTS = {
     for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [-0.9 + i * 0.6, 2.85, 0.4], r: 0.12, h: 0.12, m: C });
     for (const sx of [-1, 1]) { n.push({ t: 'tor', c: [sx * 1.2, 1.8, -0.1], R: 0.3, r: 0.03, rot: [0, 0, Math.PI / 2], m: C }); n.push({ t: 'sph', c: [sx * 0.85, 0.9, -0.62], r: 0.13, m: MAT.lens }); }
     n.push({ t: 'box', c: [0, 0.45, -0.62], h: [1.2, 0.12, 0.08], m: S });
-    return SDF.mesh(n, [-1.4, 0, -1.4], [1.4, 3.1, 1.8], 84);
+    // rivet lines, a cracked windscreen band, a cow-catcher grille and a conductor's cap fused to the head
+    for (let i = 0; i < 12; i++) for (const y of [0.4, 2.7]) n.push({ t: 'sph', c: [-1.15 + i * 0.21, y, -0.5], r: 0.03, m: S });
+    n.push({ t: 'box', c: [0, 2.35, -0.38], h: [1.0, 0.22, 0.05], m: MAT.screen, k: 0.01 });
+    for (let i = 0; i < 7; i++) n.push({ t: 'box', c: [-0.9 + i * 0.3, 0.22, -0.75], h: [0.03, 0.2, 0.1], rot: [0.5, 0, 0], m: S });
+    n.push({ t: 'cyl', c: [0, 2.9, -0.92], r: 0.2, h: 0.06, m: MAT.vest, k: 0.02 });
+    n.push({ t: 'box', c: [0, 2.86, -1.1], h: [0.18, 0.015, 0.08], m: MAT.vest });
+    return SDF.mesh(n, [-1.4, 0, -1.4], [1.4, 3.1, 1.8], 96);
   },
   // SUIT: an immaculate, empty 1950s business suit walking on its own; a brass head-stump with a lens cluster
   a3_suit: () => {
@@ -12892,7 +12922,13 @@ const SCULPTS = {
       n.push({ t: 'box', c: [sx * 0.13, 1.33, -0.13], h: [0.06, 0.13, 0.01], rot: [0, 0, sx * 0.3], m: C, k: 0.01 });   // lapels
     }
     for (let i = 0; i < 3; i++) n.push({ t: 'cyl', c: [0.06, 1.18 - i * 0.1, -0.135], r: 0.012, h: 0.004, rot: [0, Math.PI / 2, 0], m: K });
-    return SDF.mesh(n, [-0.5, -0.02, -0.3], [0.5, 1.92, 0.3], 80);
+    // a folded pocket square, shirt cuffs, a tie clip, shiny shoes, brass gears turning in the open collar
+    n.push({ t: 'box', c: [-0.15, 1.42, -0.135], h: [0.04, 0.02, 0.008], m: W });
+    for (const sx of [-1, 1]) n.push({ t: 'tor', c: [sx * 0.34, 0.98, 0.02], R: 0.05, r: 0.012, m: W });
+    n.push({ t: 'box', c: [0, 1.28, -0.15], h: [0.04, 0.006, 0.006], m: B });
+    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.12, 0.06, -0.1], r: [0.05, 0.03, 0.06], m: MAT.screen, k: 0.01 });
+    for (let i = 0; i < 3; i++) n.push({ t: 'cyl', c: [-0.04 + i * 0.04, 1.6, -0.04], r: 0.03, h: 0.006, rot: [0, Math.PI / 2, i], m: B });
+    return SDF.mesh(n, [-0.5, -0.02, -0.3], [0.5, 1.92, 0.3], 92);
   },
   // SCRAPLING: a doll head bolted onto a little dinosaur body with a mechanical claw and a wind-up key
   a3_scrapling: () => {
@@ -12910,7 +12946,12 @@ const SCULPTS = {
       { t: 'sph', c: [0, 0.36, -0.06], r: 0.035, m: MAT.lens }
     ];
     for (const [x, z] of [[-0.1, -0.1], [0.1, -0.1], [-0.12, 0.18], [0.12, 0.18]]) n.push({ t: 'cap', a: [x, 0.25, z], b: [x * 1.5, 0.02, z - 0.03], r: 0.035, r2: 0.025, m: D, k: 0.02 });
-    return SDF.mesh(n, [-0.3, -0.02, -0.48], [0.45, 0.62, 0.66], 64);
+    // a doll's ponytail, a back of welded gears and bolts, a stitched teddy patch on its flank
+    n.push({ t: 'cap', a: [0, 0.6, -0.22], b: [0.02, 0.5, -0.05], r: 0.035, r2: 0.015, m: MAT.hairDark, k: 0.01 });
+    for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [0, 0.45, -0.05 + i * 0.09], r: 0.05, h: 0.008, rot: [0, 0, Math.PI / 2], m: C });
+    n.push({ t: 'ell', c: [-0.15, 0.3, 0.1], r: [0.02, 0.08, 0.1], m: MAT.furLight, k: 0.02, n: [0.006, 50] });
+    for (let i = 0; i < 4; i++) n.push({ t: 'sph', c: [0.15, 0.36, -0.05 + i * 0.08], r: 0.014, m: S });
+    return SDF.mesh(n, [-0.3, -0.02, -0.48], [0.45, 0.66, 0.66], 76);
   },
   // the Seraph's wing: rusted razor feathers fanned from a jointed iron spar (root at the origin, spans +x)
   a3_wing: () => {
@@ -12996,9 +13037,9 @@ const Sculpt = {
 // =====================================================================================
 
 const BOSS_PHASES = [
-  { speed: 4.4, leap: false, line: 'It is learning your hands... keep moving between the nodes!' },
-  { speed: 5.0, leap: false, line: 'The lights! It is pulling power from the whole floor!' },
-  { speed: 5.6, leap: true, line: 'When it crouches, it is going to pounce. Move sideways!' }
+  { speed: 5.0, leap: false, line: 'It is learning your hands... keep moving between the nodes!' },
+  { speed: 5.6, leap: false, line: 'The lights! It is pulling power from the whole floor!' },
+  { speed: 6.2, leap: true, line: 'When it crouches, it is going to pounce. Move sideways!' }
 ];
 
 const Boss = {
@@ -15388,18 +15429,18 @@ const DeepWorks = {
         if (V.t > 2.2) {
           Lights.blackout = 0;
           M.startScriptedChase(this.vaultVents[0]);
-          M.boss = true; M.bossHold = false; M.bossSpeed = 3.7;
+          M.boss = true; M.bossHold = false; M.bossSpeed = 4.4;
           V.mode = 'P1'; V.t = 0;
           V3.set(this.tmp, 0, 11.5, -312); Particles.burst(this.tmp, 40, 'debris');
         }
         break;
       case 'P1':
-        M.bossSpeed = 3.7;
+        M.bossSpeed = 4.4;
         V.trainCd -= dt;
         if (V.trainCd <= 0 && !this.trains.length) { V.trainCd = 9 + gameRng() * 4; this.dispatchTrain(gameRng() < 0.5 ? 0 : 1, 2.4, false); }
         break;
       case 'P2':
-        M.bossSpeed = 3.2;
+        M.bossSpeed = 4.0;
         break;
       case 'CONTAIN': {
         const k = Math.min(1, V.t / 2.2);
@@ -16104,7 +16145,7 @@ const Lovey = {
     if (T.kind === 'monster') {
       Monster.stunTimer = Math.max(Monster.stunTimer, 3.5); Monster.flinchAmt = 1;
       Particles.burst(this.tmp, 20, 'spark'); sfx('boom'); Audio.boom();
-      Player.addTrauma(0.35); this.cool = 16;
+      Player.addTrauma(0.35); this.cool = 22;
     } else if (T.kind === 'cherub') {
       T.c.dead = true; Particles.burst(this.tmp, 24, 'debris'); sfx('shatter', this.tmp);
       this.cool = 2;
@@ -16168,7 +16209,7 @@ const A3_OBJECTIVES = [
   'EXECUTIVE SUITE. Crouch under the Suits\' laser grids. Find the executive key in Harlan Smithers\' office.',
   'SALVAGE YARDS. Your light scares the Scraplings. Take the MAGNET hand, zip across the chasm on the gantry plates, then work the crane.',
   'THE HEART. Pull all three reactor clamps while Lovey and Morsel hold it off - then finish it.',
-  'SELF-DESTRUCT. RUN FOR THE FREIGHT LIFT!',
+  'SELF-DESTRUCT. 40 SECONDS - RUN FOR THE FREIGHT LIFT!',
   'It is over.'
 ];
 const A3_POSES = [
@@ -16262,8 +16303,8 @@ const Act3 = {
     for (let z = -336; z >= -372; z -= 9) { L.light(S, 0, 3, z, A3_COL.gold, 2.2, 7, 1, 'bulb', 0.4); }
     // the Seraph, cherub pack and choir masses
     this.seraph = { pos: V3.create(0, 11.5, -356), beam: V3.create(0, 0, -356), ang: 0, hold: 0, dive: 0, see: 0, light: L.light(S, 0, 0.6, -356, A3_COL.beam, 9, 6, 0, 'none', 0.9) };
-    this.choirs = [[-9, -344.6], [5.5, -353.6], [-6, -362.6], [6.5, -365.6]].map(([x, z]) => ({ home: V3.create(x, 0, z), pos: V3.create(x, 0, z), stun: 0, lunge: 0, yaw: 0 }));
-    this.cherubs = [0, 1, 2, 3, 4].map(i => ({ pos: V3.create(-8 + i * 4, 15.6, -340 - i * 6), ang: i * 1.3, shriek: 0 }));
+    this.choirs = [[-9, -344.6], [5.5, -353.6], [-6, -362.6], [6.5, -365.6], [-12, -350.6], [3, -341.6], [-3.5, -368.6]].map(([x, z]) => ({ home: V3.create(x, 0, z), pos: V3.create(x, 0, z), stun: 0, lunge: 0, yaw: 0 }));
+    this.cherubs = [0, 1, 2, 3, 4, 5, 6].map(i => ({ pos: V3.create(-8 + i * 4, 15.6, -340 - i * 6), ang: i * 1.3, shriek: 0 }));
   },
 
   // ---------- 11 SUNKEN TOYBOX ----------
@@ -16283,9 +16324,9 @@ const Act3 = {
     L.builders[S].cylinder(-9, -392, 0, 3.5, 0.12, 8, MAT.copper);
     for (const z of [-384, -396, -408, -420]) L.light(S, 0, 7.6, z, A3_COL.teal, 3.0, 12, 1, 'cage', 0.5);
     L.emergency(S, 14.5, 4, -385); L.emergency(S, -14.5, 4, -425);
-    this.puffers = [[-8, -390], [7, -402], [-3, -414], [9, -415], [-11, -421]].map(([x, z], i) => ({ pos: V3.create(x, 0.9, z), home: V3.create(x, 0.9, z), ph: i * 1.7, burst: 0 }));
+    this.puffers = [[-8, -390], [7, -402], [-3, -414], [9, -415], [-11, -421], [3, -386], [-9, -408], [5, -422]].map(([x, z], i) => ({ pos: V3.create(x, 0.9, z), home: V3.create(x, 0.9, z), ph: i * 1.7, burst: 0 }));
     this.anglers = [[9, -394], [-9, -404], [8, -424]].map(([x, z]) => ({ pos: V3.create(x, 0, z), rise: 0, snap: 0, stun: 0, light: L.light(S, x, 1.4, z, A3_COL.beam, 2.4, 4, 0, 'none', 0.6) }));
-    this.outimals = [[-12, -400], [12, -412]].map(([x, z]) => ({ pos: V3.create(x, 0, z), home: V3.create(x, 0, z), yaw: 0, held: 0 }));
+    this.outimals = [[-12, -400], [12, -412], [-12, -422]].map(([x, z]) => ({ pos: V3.create(x, 0, z), home: V3.create(x, 0, z), yaw: 0, held: 0 }));
   },
 
   // ---------- 12 GHOST LINE ----------
@@ -16325,7 +16366,7 @@ const Act3 = {
     L.solid(S, -4, 0, -513.5, 4, 0.85, -511.8, MAT.wood);
     for (let i = 0; i < 9; i++) { const x = -6 + (i % 3) * 1.1 - (i > 5 ? 0 : 0), y = 1.2 + Math.floor(i / 3) * 1.0; L.geom(S, x + 6 - 1.1 * 3 + 3.3 - 3.3, y, -515.9, x + 6 - 1.1 * 3 + 3.3 - 3.3 + 0.95, y + 0.8, -515.4, MAT.screen); }
     for (let z = -478; z >= -512; z -= 8) { L.light(S, -8, 5.2, z, LIGHTING.fillColor, 3.0, 8, z === -494 ? 2 : 0, 'tubeX', 0.2); L.light(S, 8, 5.2, z, LIGHTING.fillColor, 3.0, 8, 0, 'tubeX', 0.2); }
-    this.suits = [[0, -481, 1.2], [-9, -490, -0.8], [7, -498, 2.4], [-2, -508, 0]].map(([x, z, ph]) => ({ pos: V3.create(x, 0, z), yaw: 0, ph, fire: 0, flash: 0 }));
+    this.suits = [[0, -481, 1.2], [-9, -490, -0.8], [7, -498, 2.4], [-2, -508, 0], [12, -486, 3.3], [-12, -498, 0.6], [9, -510, 1.9]].map(([x, z, ph]) => ({ pos: V3.create(x, 0, z), yaw: 0, ph, fire: 0, flash: 0 }));
   },
 
   // ---------- 14 SALVAGE YARDS ----------
@@ -16351,7 +16392,7 @@ const Act3 = {
     L.lever(S, 12.4, 1.5, -558.9, 0, 1, 'S_CRANE');
     for (let z = -520; z >= -562; z -= 10) { L.light(S, -12, 10, z, LIGHTING.hazardColor, 4, 16, 0, 'cage', 0.5); L.light(S, 12, 10, z, LIGHTING.fillColor, 4, 16, z === -540 ? 3 : 0, 'cage', 0.5); }
     this.scraps = [];
-    for (let i = 0; i < 9; i++) this.scraps.push({ pos: V3.create(-10 + (i % 5) * 5, 0, i < 5 ? -527 - (i % 2) * 3 : -552 - (i % 2) * 4), yaw: 0, state: 'ROAM', t: gameRng() * 3, dead: false, flee: 0 });
+    for (let i = 0; i < 14; i++) this.scraps.push({ pos: V3.create(-12 + (i % 7) * 4, 0, i < 7 ? -526 - (i % 3) * 3 : -551 - (i % 3) * 4), yaw: 0, state: 'ROAM', t: gameRng() * 3, dead: false, flee: 0 });
   },
 
   // ---------- 15 THE HEART ----------
@@ -16560,21 +16601,22 @@ const Act3 = {
   updateCelestial(dt) {
     const S = this.seraph, b = Player.body.pos, t = Game.time;
     // the searchlight sweeps a slow figure-eight over the pews; under the loft you are in its shadow
-    S.ang += dt * 0.45;
+    S.ang += dt * 0.7;
     const tx = Math.sin(S.ang) * 10, tz = -356 + Math.sin(S.ang * 1.7) * 14;
     if (S.hold > 0) { S.hold -= dt; V3.set(this.tmp, b[0], 0, b[2]); }
     else V3.set(this.tmp, tx, 0, tz);
     S.beam[0] = damp(S.beam[0], this.tmp[0], S.hold > 0 ? 5 : 2, dt); S.beam[2] = damp(S.beam[2], this.tmp[2], S.hold > 0 ? 5 : 2, dt);
     S.light.pos[0] = S.beam[0]; S.light.pos[2] = S.beam[2];
     const inLoft = b[1] > 3.5, shaded = (b[0] > 9.8 && b[2] < -346 && b[2] > -372) || inLoft;
-    const lit = !shaded && Math.hypot(b[0] - S.beam[0], b[2] - S.beam[2]) < 1.7;
+    const lit = !shaded && Math.hypot(b[0] - S.beam[0], b[2] - S.beam[2]) < 2.1;
     S.see = lit ? S.see + dt : Math.max(0, S.see - dt * 2);
-    if (S.see > 0.6) { this.kill('THE SERAPH DIVED'); S.see = 0; return; }
+    if (S.see > 0.35) { this.kill('THE SERAPH DIVED'); S.see = 0; return; }
     // cherubs on the ceiling: running near them sets off a static shriek that turns the beam on you
     for (const c of this.cherubs) {
       c.ang += dt * 0.6; c.pos[0] = Math.sin(c.ang) * 12; c.pos[2] = -356 + Math.cos(c.ang * 0.8) * 18;
       c.shriek = Math.max(0, c.shriek - dt);
-      if (Player.sprinting && c.shriek <= 0 && Math.hypot(b[0] - c.pos[0], b[2] - c.pos[2]) < 7 && !inLoft) {
+      const cd = Math.hypot(b[0] - c.pos[0], b[2] - c.pos[2]);
+      if (c.shriek <= 0 && !inLoft && ((Player.sprinting && cd < 9) || (!Player.crouching && this.playerMoving() && cd < 4))) {
         c.shriek = 6; S.hold = 2.2; sfx('cherubShriek', c.pos); Player.addTrauma(0.25);
       }
     }
@@ -16583,7 +16625,7 @@ const Act3 = {
       c.stun = Math.max(0, c.stun - dt);
       const d = Math.hypot(b[0] - c.pos[0], b[2] - c.pos[2]);
       c.yaw = Math.atan2(-(b[0] - c.pos[0]), -(b[2] - c.pos[2]));
-      if (c.stun <= 0 && d < 1.8 && this.grab <= 0 && b[1] < 1) { this.grab = 2.6; c.lunge = 1; sfx('screech', c.pos); Player.addTrauma(0.6); S.hold = 3; GrabPack.showHint('THE CHOIR HAS YOUR ANKLES - hit it with a hand!'); }
+      if (c.stun <= 0 && d < 2.3 && this.grab <= 0 && b[1] < 1) { this.grab = 3.2; c.lunge = 1; sfx('screech', c.pos); Player.addTrauma(0.6); S.hold = 3; GrabPack.showHint('THE CHOIR HAS YOUR ANKLES - hit it with a hand!'); }
       c.lunge = Math.max(0, c.lunge - dt * 0.6);
     }
     if (this.grab > 0) { this.grab -= dt; Player.speedMul = 0; if (this.grab <= 0) this.grab = 0; }
@@ -16602,16 +16644,16 @@ const Act3 = {
     const wet = this.water > 0.05 && b[1] < this.water - 0.1;
     if (wet) Player.speedMul = Math.min(Player.speedMul, 0.6 * (1 - this.leeches * 0.15));
     // leeches latch on while you wade; four of them drag you under
-    if (wet) { this.leechT += dt; if (this.leechT > 2.2) { this.leechT = 0; this.leeches++; sfx('cherubBite', b); Player.addTrauma(0.2); if (this.leeches === 1) GrabPack.showHint('LEECHES! Fire a hand to knock them off - get out of the water'); } }
+    if (wet) { this.leechT += dt; if (this.leechT > 1.4) { this.leechT = 0; this.leeches++; sfx('cherubBite', b); Player.addTrauma(0.2); if (this.leeches === 1) GrabPack.showHint('LEECHES! Fire a hand to knock them off - get out of the water'); } }
     else { this.leechT = 0; if (this.leeches > 0 && gameRng() < dt * 0.6) this.leeches--; }
-    if (this.leeches >= 4) { this.leeches = 0; this.kill('DRAGGED UNDER BY LEECHES'); return; }
+    if (this.leeches >= 3) { this.leeches = 0; this.kill('DRAGGED UNDER BY LEECHES'); return; }
     // puffers drift; rush at one and it ruptures into rose gas
     for (const p of this.puffers) {
       if (p.burst > 0) continue;
       p.ph += dt; p.pos[0] = p.home[0] + Math.sin(p.ph * 0.4) * 1.5; p.pos[2] = p.home[2] + Math.cos(p.ph * 0.3) * 1.5; p.pos[1] = Math.max(this.water, 0) + 0.45 + Math.sin(p.ph) * 0.12;
       const d = V3.dist(p.pos, Player.eyePos);
-      const fast = Math.hypot(Player.body.vel[0], Player.body.vel[2]) > 4.2;
-      if (d < 2.6 && fast) this.pop(p);
+      const fast = Math.hypot(Player.body.vel[0], Player.body.vel[2]) > 3.4;
+      if (d < 3.2 && fast) this.pop(p);
     }
     let inGas = false;
     for (let i = this.gas.length - 1; i >= 0; i--) {
@@ -16620,17 +16662,17 @@ const Act3 = {
       if (Math.hypot(b[0] - g.pos[0], b[2] - g.pos[2]) < 3.2) inGas = true;
       if (g.t <= 0) this.gas.splice(i, 1);
     }
-    if (inGas && !Gear.maskOn) { this.gasT = (this.gasT || 0) + dt; Player.addTrauma(dt * 0.4); if (this.gasT > 3) { this.gasT = 0; this.kill('CHOKED ON ROSE GAS'); return; } }
+    if (inGas && !Gear.maskOn) { this.gasT = (this.gasT || 0) + dt; Player.addTrauma(dt * 0.4); if (this.gasT > 2) { this.gasT = 0; this.kill('CHOKED ON ROSE GAS'); return; } }
     else this.gasT = Math.max(0, (this.gasT || 0) - dt);
     // anglers rise from the deep pools when something moves close, then snap
     for (const a of this.anglers) {
       a.stun = Math.max(0, a.stun - dt);
       const d = Math.hypot(b[0] - a.pos[0], b[2] - a.pos[2]);
-      const want = a.stun > 0 || this.drain >= 1 ? 0 : d < 4.5 ? 1 : 0;
+      const want = a.stun > 0 || this.drain >= 1 ? 0 : d < 5.5 ? 1 : 0;
       a.rise = damp(a.rise, want, 3, dt);
       a.light.pos[1] = 0.6 + a.rise * 1.9;
       a.light.base = a.stun > 0 || this.drain >= 1 ? 0 : 2.4;
-      if (a.rise > 0.8 && d < 2.2 && this.playerMoving()) { a.snap = 1; this.kill('TAKEN BY AN ANGLER'); return; }
+      if (a.rise > 0.8 && ((d < 2.8 && this.playerMoving()) || d < 1.6)) { a.snap = 1; this.kill('TAKEN BY AN ANGLER'); return; }
     }
     // drowned outimals crawl after you through the water; your light holds them still
     for (const o of this.outimals) {
@@ -16640,7 +16682,7 @@ const Act3 = {
       if (lit || this.water < 0.1) o.held = Math.max(o.held, 0.2);
       const dx = b[0] - o.pos[0], dz = b[2] - o.pos[2], d = Math.hypot(dx, dz) || 1;
       o.yaw = Math.atan2(-dx, -dz);
-      if (o.held <= 0 && wet) { o.pos[0] += dx / d * 1.3 * dt; o.pos[2] += dz / d * 1.3 * dt; }
+      if (o.held <= 0 && wet) { o.pos[0] += dx / d * 2.0 * dt; o.pos[2] += dz / d * 2.0 * dt; }
       if (d < 0.9 && o.held <= 0) { this.kill('PULLED DOWN BY A DROWNED TOY'); return; }
     }
   },
@@ -16653,15 +16695,15 @@ const Act3 = {
       if (T.speed === 0) {
         T.wait -= dt;
         // the Conductor hears you near its line and comes early, much faster
-        if (loud && Math.abs(b[2] - T.z) < 9 && T.wait > 0.8) { T.wait = 0.8; T.alerted = true; sfx('trainHorn', V3.set(this.tmp, -14 * T.dir, 2, T.z)); }
-        if (T.wait <= 0) { T.speed = T.alerted ? 17 : 9; T.x = -26 * T.dir; T.horn = false; }
+        if (loud && Math.abs(b[2] - T.z) < 13 && T.wait > 0.8) { T.wait = 0.8; T.alerted = true; sfx('trainHorn', V3.set(this.tmp, -14 * T.dir, 2, T.z)); }
+        if (T.wait <= 0) { T.speed = T.alerted ? 21 : 12; T.x = -26 * T.dir; T.horn = false; }
       } else {
         T.x += T.dir * T.speed * dt;
         if (!T.horn && Math.abs(T.x) < 20) { T.horn = true; sfx('trainRush', V3.set(this.tmp, T.x, 2, T.z)); }
         if (gameRng() < dt * 18) { V3.set(this.tmp, T.x + T.dir * 1.5, 2.6, T.z); Particles.burst(this.tmp, 3, 'spark'); }
         const head = T.x, tail = T.x - T.dir * 13, lo = Math.min(head, tail), hi = Math.max(head, tail);
         if (Math.abs(b[2] - T.z) < 1.6 && b[0] > lo - 0.4 && b[0] < hi + 0.4 && b[1] < 3) { this.kill('HIT BY THE GHOST LINE'); return; }
-        if (Math.abs(T.x) > 32) { T.speed = 0; T.wait = 6 + gameRng() * 4; T.alerted = false; }
+        if (Math.abs(T.x) > 32) { T.speed = 0; T.wait = 3 + gameRng() * 3; T.alerted = false; }
       }
     }
   },
@@ -16669,16 +16711,16 @@ const Act3 = {
   updateSuite(dt) {
     const b = Player.body.pos;
     for (const s of this.suits) {
-      s.ph += dt * 0.5; s.yaw = Math.sin(s.ph) * 1.2;
+      s.ph += dt * 0.75; s.yaw = Math.sin(s.ph) * 1.5;
       s.flash = Math.max(0, s.flash - dt * 4);
       // the laser grid: a fan in front of the suit at chest and head height - crouch to pass under
       const dx = b[0] - s.pos[0], dz = b[2] - s.pos[2], d = Math.hypot(dx, dz);
-      if (d > 7 || d < 0.3) continue;
+      if (d > 9 || d < 0.3) continue;
       const fwdX = -Math.sin(s.yaw), fwdZ = -Math.cos(s.yaw);
       const cosA = (dx * fwdX + dz * fwdZ) / d;
-      if (cosA > Math.cos(0.32) && Player.crouch < 0.6 && Physics.lineOfSight(V3.set(this.tmp, s.pos[0], 1.5, s.pos[2]), Player.eyePos, LAYER.SIGHT)) {
+      if (cosA > Math.cos(0.42) && Player.crouch < 0.6 && Physics.lineOfSight(V3.set(this.tmp, s.pos[0], 1.5, s.pos[2]), Player.eyePos, LAYER.SIGHT)) {
         s.fire += dt;
-        if (s.fire > 0.25) { s.flash = 1; sfx('blast', s.pos); s.fire = 0; this.kill('GUNNED DOWN BY A SUIT'); return; }
+        if (s.fire > 0.15) { s.flash = 1; sfx('blast', s.pos); s.fire = 0; this.kill('GUNNED DOWN BY A SUIT'); return; }
       } else s.fire = 0;
     }
     if (Game.stage === 13 && !this.officeTalk && b[2] < -506) {
@@ -16704,7 +16746,7 @@ const Act3 = {
       if (Player.flashOn && V3.dot(this.tmp, Renderer.camFwd) / dl > 0.93 && dl < 8) { s.flee = Math.max(s.flee, 1.5); }
       let vx = 0, vz = 0, sp = 0;
       if (s.flee > 0) { vx = -dx / d; vz = -dz / d; sp = 4.5; }
-      else if (d < 10 && Math.sign(s.pos[2] - this.chasm.z1) === Math.sign(b[2] - this.chasm.z1)) { vx = dx / d; vz = dz / d; sp = 3.6; }
+      else if (d < 14 && Math.sign(s.pos[2] - this.chasm.z1) === Math.sign(b[2] - this.chasm.z1)) { vx = dx / d; vz = dz / d; sp = 4.6; }
       else { vx = Math.sin(s.t * 0.7 + s.pos[0]); vz = Math.cos(s.t * 0.5); sp = 0.8; }
       s.pos[0] = clamp(s.pos[0] + vx * sp * dt, -15.5, 15.5); s.pos[2] += vz * sp * dt;
       // never into the pit
@@ -16713,7 +16755,7 @@ const Act3 = {
       s.yaw = Math.atan2(-vx, -vz);
       if (d < 1.1) { close++; if (gameRng() < dt * 2) { sfx('cherubBite', s.pos); Player.addTrauma(0.15); } }
     }
-    if (close >= 3) this.kill('TORN APART BY SCRAPLINGS');
+    if (close >= 2) this.kill('TORN APART BY SCRAPLINGS');
   },
 
   // ---------------------------------------------------------------- the final showdown
@@ -16732,16 +16774,16 @@ const Act3 = {
       }
       if (H.t > 3) {
         M.startScriptedChase(this.heartVents[0]);
-        M.boss = true; M.bossHold = false; M.bossSpeed = 3.6;
+        M.boss = true; M.bossHold = false; M.bossSpeed = 4.4;
         H.mode = 'FIGHT'; H.t = 0;
         Game.chaseActive = true;
       }
     }
     if (H.mode === 'FIGHT') {
-      M.bossSpeed = 3.4 + H.clamps * 0.35;
+      M.bossSpeed = 4.3 + H.clamps * 0.45;
       // Lovey and Morsel fight beside you (Lovey's own slam is in Lovey.update)
       if (Cast.plush.mode === 'FOLLOW' && M.active && !M.inVent && V3.dist(M.pos, Cast.plush.pos) < 3 && (this.morselCd = (this.morselCd || 0) - dt) <= 0) {
-        this.morselCd = 11; M.stunTimer = Math.max(M.stunTimer, 2); Companion.plasmaBurst(Cast.plush.pos); sfx('shock', M.pos);
+        this.morselCd = 16; M.stunTimer = Math.max(M.stunTimer, 2); Companion.plasmaBurst(Cast.plush.pos); sfx('shock', M.pos);
       }
     }
     if (H.mode === 'TAKEDOWN') {
@@ -16788,7 +16830,7 @@ const Act3 = {
     Game.chaseActive = false; Game.invulnerable = true;
   },
   startEscape() {
-    this.escape = { t: 60, boomT: 0 };
+    this.escape = { t: 40, boomT: 0 };
     Game.invulnerable = false;
     Doors.setOpen('D16', true);
     this.setStage(16);

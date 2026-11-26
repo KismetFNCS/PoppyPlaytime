@@ -275,7 +275,7 @@ const FEEL = {
   cableMax: 42, cableNodes: 28, cableIters: 8, cableSag: 1.035,
   bobWalkHz: 1.9, bobWalkAmp: 0.035, bobSprintHz: 2.7, bobSprintAmp: 0.065, sprintLeanDeg: 2.2,
   breathHz: 0.25, breathAmp: 0.006, chaseTrauma: 0.55, jumpscareLock: 3.6, failCard: 2.4,
-  monsterPatrol: 2.2, monsterStalk: 3.1, monsterChase: 5.9, monsterCatch: 1.15,
+  monsterPatrol: 2.6, monsterStalk: 3.7, monsterChase: 6.3, monsterCatch: 1.3,
   bumpFriction: 0.55, fixedStep: 1 / 120
 };
 // Derived jump physics: v0 = 2h/t, g = v0/t  -> v0 = 5.625 m/s, g = 17.58 m/s^2. Source: [ASSUMED] targets above.

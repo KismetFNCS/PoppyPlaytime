@@ -845,18 +845,18 @@ const DeepWorks = {
         if (V.t > 2.2) {
           Lights.blackout = 0;
           M.startScriptedChase(this.vaultVents[0]);
-          M.boss = true; M.bossHold = false; M.bossSpeed = 3.7;
+          M.boss = true; M.bossHold = false; M.bossSpeed = 4.4;
           V.mode = 'P1'; V.t = 0;
           V3.set(this.tmp, 0, 11.5, -312); Particles.burst(this.tmp, 40, 'debris');
         }
         break;
       case 'P1':
-        M.bossSpeed = 3.7;
+        M.bossSpeed = 4.4;
         V.trainCd -= dt;
         if (V.trainCd <= 0 && !this.trains.length) { V.trainCd = 9 + gameRng() * 4; this.dispatchTrain(gameRng() < 0.5 ? 0 : 1, 2.4, false); }
         break;
       case 'P2':
-        M.bossSpeed = 3.2;
+        M.bossSpeed = 4.0;
         break;
       case 'CONTAIN': {
         const k = Math.min(1, V.t / 2.2);

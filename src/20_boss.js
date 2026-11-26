@@ -7,9 +7,9 @@
 // =====================================================================================
 
 const BOSS_PHASES = [
-  { speed: 4.4, leap: false, line: 'It is learning your hands... keep moving between the nodes!' },
-  { speed: 5.0, leap: false, line: 'The lights! It is pulling power from the whole floor!' },
-  { speed: 5.6, leap: true, line: 'When it crouches, it is going to pounce. Move sideways!' }
+  { speed: 5.0, leap: false, line: 'It is learning your hands... keep moving between the nodes!' },
+  { speed: 5.6, leap: false, line: 'The lights! It is pulling power from the whole floor!' },
+  { speed: 6.2, leap: true, line: 'When it crouches, it is going to pounce. Move sideways!' }
 ];
 
 const Boss = {

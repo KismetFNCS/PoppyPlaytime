@@ -1289,7 +1289,15 @@ const SCULPTS = {
       n.push({ t: 'sph', c: [x * 0.85, 0.32, z * 0.7], r: 0.04, m: S });
       n.push({ t: 'cap', a: [x * 0.85, 0.32, z * 0.7], b: [x * 1.0, 0.02, z * 0.82], r: 0.025, r2: 0.01, m: S, k: 0.01 });
     }
-    return SDF.mesh(n, [-1.1, -0.02, -1.0], [1.1, 1.3, 1.0], 84);
+    // more faces pressed half into the mass, matted doll hair, rust weeping from the joints, a tiny bonnet
+    for (const [x, y, z, r] of [[-0.62, 0.72, -0.05, 0.15], [0.66, 0.7, -0.02, 0.14], [0.2, 1.08, 0.1, 0.15], [-0.25, 1.02, 0.05, 0.14]]) {
+      n.push({ t: 'sph', c: [x, y, z], r, m: P, k: 0.06, n: [0.004, 30] });
+      for (const ex of [-1, 1]) n.push({ t: 'sph', c: [x + ex * r * 0.35, y + r * 0.1, z - r * 0.85], r: r * 0.18, op: 's', k: 0.01, sm: K });
+    }
+    for (let k = 0; k < 14; k++) { const a = k * 2.2, x = Math.sin(a) * 0.35, z = Math.cos(a) * 0.25 + 0.15; n.push({ t: 'cap', a: [x, 1.05, z], b: [x * 1.5, 0.75 - (k % 3) * 0.08, z * 1.4 + 0.1], r: 0.02, r2: 0.006, m: MAT.hairDark, k: 0.01 }); }
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; n.push({ t: 'cap', a: [Math.sin(a) * 0.85, 0.34, Math.cos(a) * 0.7], b: [Math.sin(a) * 0.86, 0.18, Math.cos(a) * 0.71], r: 0.012, r2: 0.004, m: MAT.rustIron }); }
+    n.push({ t: 'ell', c: [0, 1.17, -0.05], r: [0.2, 0.08, 0.18], m: MAT.clothWine, k: 0.03, n: [0.006, 40] });
+    return SDF.mesh(n, [-1.1, -0.02, -1.0], [1.1, 1.4, 1.0], 96);
   },
   // PUFFER: a bloated vinyl fish-sack around a rose gas core, a bulging lens eye, a pressure valve and a lure
   a3_puffer: () => {
@@ -1307,7 +1315,12 @@ const SCULPTS = {
     // stitched rupture seam and stubby spines
     for (let i = 0; i < 8; i++) n.push({ t: 'cap', a: [-0.3 + i * 0.08, 0.3 - Math.abs(i - 3.5) * 0.02, 0.1], b: [-0.3 + i * 0.08, 0.36, 0.1], r: 0.008, m: K });
     for (let i = 0; i < 12; i++) { const a = i * 2.4, y = -0.2 + (i % 5) * 0.1; n.push({ t: 'cap', a: [Math.cos(a) * 0.38, y, Math.sin(a) * 0.42], b: [Math.cos(a) * 0.5, y, Math.sin(a) * 0.55], r: 0.018, r2: 0.004, m: V }); }
-    return SDF.mesh(n, [-0.6, -0.5, -0.6], [0.6, 0.55, 0.9], 72);
+    // patched vinyl panels, a corrugated valve hose, side fins and a bandaged split
+    for (const [x, y, z] of [[0.3, 0.1, 0.2], [-0.32, -0.05, 0.1], [0.05, -0.28, 0.25]]) n.push({ t: 'box', c: [x, y, z], h: [0.08, 0.07, 0.01], rot: [x * 2, y * 2, 0.3], m: MAT.rubber, k: 0.02, n: [0.004, 50] });
+    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, 0.44 + i * 0.03, 0.05 + i * 0.03], R: 0.04, r: 0.012, m: S });
+    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.42, -0.05, 0.12], r: [0.03, 0.14, 0.18], rot: [0, 0, sx * 0.5], m: V, k: 0.05 });
+    for (let i = 0; i < 4; i++) n.push({ t: 'tor', c: [-0.15, -0.1, -0.3 + i * 0.06], R: 0.33, r: 0.01, rot: [0, Math.PI / 2, 0.2], m: MAT.porcelain });
+    return SDF.mesh(n, [-0.62, -0.5, -0.62], [0.62, 0.65, 0.9], 84);
   },
   // ANGLER head (the telescoping neck is drawn in segments): a long, jagged-toothed jaw, an eye cluster, the lure
   a3_angler: () => {
@@ -1325,7 +1338,13 @@ const SCULPTS = {
     n.push({ t: 'cap', a: [0, 0.28, -0.1], b: [0, 0.55, -0.35], r: 0.016, m: S });
     n.push({ t: 'cap', a: [0, 0.55, -0.35], b: [0, 0.5, -0.55], r: 0.012, m: S });
     n.push({ t: 'sph', c: [0, 0.45, -0.58], r: 0.06, m: MAT.lens });
-    return SDF.mesh(n, [-0.45, -0.3, -0.75], [0.45, 0.65, 0.5], 72);
+    // a second staggered row of teeth, gill slits, barbels and a riveted skull plate
+    for (let i = 0; i < 9; i++) { const x = -0.2 + i * 0.05, z = -0.36 + Math.abs(x) * 0.6; n.push({ t: 'cap', a: [x + 0.02, 0.0, z + 0.05], b: [x + 0.02, -0.06, z + 0.04], r: 0.011, r2: 0.002, m: P }); }
+    for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) n.push({ t: 'box', c: [sx * 0.32, 0.02, 0.05 + i * 0.07], h: [0.02, 0.07, 0.008], op: 's', k: 0.005, sm: K });
+    for (const sx of [-1, 1]) n.push({ t: 'cap', a: [sx * 0.12, -0.18, -0.38], b: [sx * 0.2, -0.38, -0.45], r: 0.012, r2: 0.003, m: M });
+    n.push({ t: 'ell', c: [0, 0.24, 0.05], r: [0.22, 0.05, 0.25], m: S, k: 0.03, n: [0.003, 40] });
+    for (let i = 0; i < 6; i++) n.push({ t: 'sph', c: [-0.15 + i * 0.06, 0.29, 0.05 + (i % 2) * 0.06], r: 0.012, m: MAT.copper });
+    return SDF.mesh(n, [-0.45, -0.45, -0.75], [0.45, 0.65, 0.5], 84);
   },
   // LEECH: plush limbs (an arm, a leg, a duck bill) fused by rose-purple gel around a gear ring
   a3_leech: () => {
@@ -1355,7 +1374,12 @@ const SCULPTS = {
     for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [Math.sin(i * 2) * 0.12, 0.3, -0.05 + i * 0.08], r: 0.05, h: 0.01, rot: [0, Math.PI / 2, i], m: MAT.copper });
     for (const [x, z] of [[-0.3, -0.35], [0.3, -0.35], [-0.3, 0.45], [0.3, 0.45]]) { n.push({ t: 'cap', a: [x * 0.8, 0.35, z], b: [x * 1.3, 0.08, z], r: 0.07, r2: 0.05, m: M, k: 0.04 }); n.push({ t: 'cyl', c: [x * 1.3, 0.06, z], r: 0.06, h: 0.02, rot: [0, 0, Math.PI / 2], m: K }); }
     for (let k = 0; k < 9; k++) n.push({ t: 'sph', c: [Math.sin(k * 2.2) * 0.3, 0.55 + (k % 3) * 0.05, -0.4 + k * 0.1], r: 0.06, m: MAT.handTeal, k: 0.04, n: [0.02, 35] });   // moss
-    return SDF.mesh(n, [-0.55, -0.02, -1.0], [0.55, 0.8, 0.8], 76);
+    // the torn belly shows porcelain ribs; burlap seams, a dangling stitched ear, a spilled tuft of rose stuffing
+    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, 0.3, -0.12 + i * 0.07], R: 0.15, r: 0.012, rot: [0, Math.PI / 2, Math.PI / 2], m: P });
+    for (let i = 0; i < 8; i++) n.push({ t: 'cap', a: [-0.3 + i * 0.08, 0.6, 0.0 + (i % 2) * 0.05], b: [-0.3 + i * 0.08, 0.66, 0.02], r: 0.006, m: K });
+    n.push({ t: 'cap', a: [0.18, 0.68, -0.5], b: [0.32, 0.45, -0.42], r: 0.06, r2: 0.04, m: M, k: 0.03, n: [0.01, 30] });
+    for (let k = 0; k < 6; k++) n.push({ t: 'sph', c: [-0.02 + Math.sin(k) * 0.05, 0.36 - k * 0.02, -0.86 - k * 0.02], r: 0.03, m: MAT.handRose, k: 0.02, n: [0.01, 50] });
+    return SDF.mesh(n, [-0.55, -0.02, -1.05], [0.55, 0.85, 0.8], 88);
   },
   // CONDUCTOR: a faceless mannequin torso fused into the nose of a subway engine (origin at rail level)
   a3_conductor: () => {
@@ -1374,7 +1398,13 @@ const SCULPTS = {
     for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [-0.9 + i * 0.6, 2.85, 0.4], r: 0.12, h: 0.12, m: C });
     for (const sx of [-1, 1]) { n.push({ t: 'tor', c: [sx * 1.2, 1.8, -0.1], R: 0.3, r: 0.03, rot: [0, 0, Math.PI / 2], m: C }); n.push({ t: 'sph', c: [sx * 0.85, 0.9, -0.62], r: 0.13, m: MAT.lens }); }
     n.push({ t: 'box', c: [0, 0.45, -0.62], h: [1.2, 0.12, 0.08], m: S });
-    return SDF.mesh(n, [-1.4, 0, -1.4], [1.4, 3.1, 1.8], 84);
+    // rivet lines, a cracked windscreen band, a cow-catcher grille and a conductor's cap fused to the head
+    for (let i = 0; i < 12; i++) for (const y of [0.4, 2.7]) n.push({ t: 'sph', c: [-1.15 + i * 0.21, y, -0.5], r: 0.03, m: S });
+    n.push({ t: 'box', c: [0, 2.35, -0.38], h: [1.0, 0.22, 0.05], m: MAT.screen, k: 0.01 });
+    for (let i = 0; i < 7; i++) n.push({ t: 'box', c: [-0.9 + i * 0.3, 0.22, -0.75], h: [0.03, 0.2, 0.1], rot: [0.5, 0, 0], m: S });
+    n.push({ t: 'cyl', c: [0, 2.9, -0.92], r: 0.2, h: 0.06, m: MAT.vest, k: 0.02 });
+    n.push({ t: 'box', c: [0, 2.86, -1.1], h: [0.18, 0.015, 0.08], m: MAT.vest });
+    return SDF.mesh(n, [-1.4, 0, -1.4], [1.4, 3.1, 1.8], 96);
   },
   // SUIT: an immaculate, empty 1950s business suit walking on its own; a brass head-stump with a lens cluster
   a3_suit: () => {
@@ -1395,7 +1425,13 @@ const SCULPTS = {
       n.push({ t: 'box', c: [sx * 0.13, 1.33, -0.13], h: [0.06, 0.13, 0.01], rot: [0, 0, sx * 0.3], m: C, k: 0.01 });   // lapels
     }
     for (let i = 0; i < 3; i++) n.push({ t: 'cyl', c: [0.06, 1.18 - i * 0.1, -0.135], r: 0.012, h: 0.004, rot: [0, Math.PI / 2, 0], m: K });
-    return SDF.mesh(n, [-0.5, -0.02, -0.3], [0.5, 1.92, 0.3], 80);
+    // a folded pocket square, shirt cuffs, a tie clip, shiny shoes, brass gears turning in the open collar
+    n.push({ t: 'box', c: [-0.15, 1.42, -0.135], h: [0.04, 0.02, 0.008], m: W });
+    for (const sx of [-1, 1]) n.push({ t: 'tor', c: [sx * 0.34, 0.98, 0.02], R: 0.05, r: 0.012, m: W });
+    n.push({ t: 'box', c: [0, 1.28, -0.15], h: [0.04, 0.006, 0.006], m: B });
+    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.12, 0.06, -0.1], r: [0.05, 0.03, 0.06], m: MAT.screen, k: 0.01 });
+    for (let i = 0; i < 3; i++) n.push({ t: 'cyl', c: [-0.04 + i * 0.04, 1.6, -0.04], r: 0.03, h: 0.006, rot: [0, Math.PI / 2, i], m: B });
+    return SDF.mesh(n, [-0.5, -0.02, -0.3], [0.5, 1.92, 0.3], 92);
   },
   // SCRAPLING: a doll head bolted onto a little dinosaur body with a mechanical claw and a wind-up key
   a3_scrapling: () => {
@@ -1413,7 +1449,12 @@ const SCULPTS = {
       { t: 'sph', c: [0, 0.36, -0.06], r: 0.035, m: MAT.lens }
     ];
     for (const [x, z] of [[-0.1, -0.1], [0.1, -0.1], [-0.12, 0.18], [0.12, 0.18]]) n.push({ t: 'cap', a: [x, 0.25, z], b: [x * 1.5, 0.02, z - 0.03], r: 0.035, r2: 0.025, m: D, k: 0.02 });
-    return SDF.mesh(n, [-0.3, -0.02, -0.48], [0.45, 0.62, 0.66], 64);
+    // a doll's ponytail, a back of welded gears and bolts, a stitched teddy patch on its flank
+    n.push({ t: 'cap', a: [0, 0.6, -0.22], b: [0.02, 0.5, -0.05], r: 0.035, r2: 0.015, m: MAT.hairDark, k: 0.01 });
+    for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [0, 0.45, -0.05 + i * 0.09], r: 0.05, h: 0.008, rot: [0, 0, Math.PI / 2], m: C });
+    n.push({ t: 'ell', c: [-0.15, 0.3, 0.1], r: [0.02, 0.08, 0.1], m: MAT.furLight, k: 0.02, n: [0.006, 50] });
+    for (let i = 0; i < 4; i++) n.push({ t: 'sph', c: [0.15, 0.36, -0.05 + i * 0.08], r: 0.014, m: S });
+    return SDF.mesh(n, [-0.3, -0.02, -0.48], [0.45, 0.66, 0.66], 76);
   },
   // the Seraph's wing: rusted razor feathers fanned from a jointed iron spar (root at the origin, spans +x)
   a3_wing: () => {

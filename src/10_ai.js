@@ -46,7 +46,7 @@ const Monster = {
   lookYaw: 0, lookPitch: 0, lookRoll: 0, snapTimer: 0,
   // the foundry reveal: frozen while watched, jerking closer in a new twisted pose whenever you look away
   creeping: false, unseenT: 0, creepCool: 0, bellT: 0, trophyFrom: 0, trophyTo: 0, anchorT: 0, anchorCool: 0, anchorAt: V3.create(),
-  catchCooldown: 0, sector: -1, sightRange: 20,
+  catchCooldown: 0, sector: -1, sightRange: 26,
   tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), hipW: V3.create(), kneeW: V3.create(), m: M4.create(),
 
   init() {
@@ -220,7 +220,7 @@ const Monster = {
     if (this.boss) sp = this.bossSpeed;
     else if (scripted) {
       const d = V3.distXZ(this.pos, Player.body.pos);
-      sp = d > 14 ? 8.2 : d > 7 ? 6.4 : d < 3.5 ? Math.min(FEEL.monsterChase, Math.max(4.6, Player.horizontalSpeed() * 0.97)) : 5.9;
+      sp = d > 14 ? 8.8 : d > 7 ? 6.9 : d < 3.5 ? Math.min(FEEL.monsterChase, Math.max(5.0, Player.horizontalSpeed() * 0.99)) : 6.2;
     }
     this.targetSpeed = sp;
     return BT.RUNNING;

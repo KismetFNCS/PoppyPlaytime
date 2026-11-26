@@ -28,7 +28,7 @@ const A3_OBJECTIVES = [
   'EXECUTIVE SUITE. Crouch under the Suits\' laser grids. Find the executive key in Harlan Smithers\' office.',
   'SALVAGE YARDS. Your light scares the Scraplings. Take the MAGNET hand, zip across the chasm on the gantry plates, then work the crane.',
   'THE HEART. Pull all three reactor clamps while Lovey and Morsel hold it off - then finish it.',
-  'SELF-DESTRUCT. RUN FOR THE FREIGHT LIFT!',
+  'SELF-DESTRUCT. 40 SECONDS - RUN FOR THE FREIGHT LIFT!',
   'It is over.'
 ];
 const A3_POSES = [
@@ -122,8 +122,8 @@ const Act3 = {
     for (let z = -336; z >= -372; z -= 9) { L.light(S, 0, 3, z, A3_COL.gold, 2.2, 7, 1, 'bulb', 0.4); }
     // the Seraph, cherub pack and choir masses
     this.seraph = { pos: V3.create(0, 11.5, -356), beam: V3.create(0, 0, -356), ang: 0, hold: 0, dive: 0, see: 0, light: L.light(S, 0, 0.6, -356, A3_COL.beam, 9, 6, 0, 'none', 0.9) };
-    this.choirs = [[-9, -344.6], [5.5, -353.6], [-6, -362.6], [6.5, -365.6]].map(([x, z]) => ({ home: V3.create(x, 0, z), pos: V3.create(x, 0, z), stun: 0, lunge: 0, yaw: 0 }));
-    this.cherubs = [0, 1, 2, 3, 4].map(i => ({ pos: V3.create(-8 + i * 4, 15.6, -340 - i * 6), ang: i * 1.3, shriek: 0 }));
+    this.choirs = [[-9, -344.6], [5.5, -353.6], [-6, -362.6], [6.5, -365.6], [-12, -350.6], [3, -341.6], [-3.5, -368.6]].map(([x, z]) => ({ home: V3.create(x, 0, z), pos: V3.create(x, 0, z), stun: 0, lunge: 0, yaw: 0 }));
+    this.cherubs = [0, 1, 2, 3, 4, 5, 6].map(i => ({ pos: V3.create(-8 + i * 4, 15.6, -340 - i * 6), ang: i * 1.3, shriek: 0 }));
   },
 
   // ---------- 11 SUNKEN TOYBOX ----------
@@ -143,9 +143,9 @@ const Act3 = {
     L.builders[S].cylinder(-9, -392, 0, 3.5, 0.12, 8, MAT.copper);
     for (const z of [-384, -396, -408, -420]) L.light(S, 0, 7.6, z, A3_COL.teal, 3.0, 12, 1, 'cage', 0.5);
     L.emergency(S, 14.5, 4, -385); L.emergency(S, -14.5, 4, -425);
-    this.puffers = [[-8, -390], [7, -402], [-3, -414], [9, -415], [-11, -421]].map(([x, z], i) => ({ pos: V3.create(x, 0.9, z), home: V3.create(x, 0.9, z), ph: i * 1.7, burst: 0 }));
+    this.puffers = [[-8, -390], [7, -402], [-3, -414], [9, -415], [-11, -421], [3, -386], [-9, -408], [5, -422]].map(([x, z], i) => ({ pos: V3.create(x, 0.9, z), home: V3.create(x, 0.9, z), ph: i * 1.7, burst: 0 }));
     this.anglers = [[9, -394], [-9, -404], [8, -424]].map(([x, z]) => ({ pos: V3.create(x, 0, z), rise: 0, snap: 0, stun: 0, light: L.light(S, x, 1.4, z, A3_COL.beam, 2.4, 4, 0, 'none', 0.6) }));
-    this.outimals = [[-12, -400], [12, -412]].map(([x, z]) => ({ pos: V3.create(x, 0, z), home: V3.create(x, 0, z), yaw: 0, held: 0 }));
+    this.outimals = [[-12, -400], [12, -412], [-12, -422]].map(([x, z]) => ({ pos: V3.create(x, 0, z), home: V3.create(x, 0, z), yaw: 0, held: 0 }));
   },
 
   // ---------- 12 GHOST LINE ----------
@@ -185,7 +185,7 @@ const Act3 = {
     L.solid(S, -4, 0, -513.5, 4, 0.85, -511.8, MAT.wood);
     for (let i = 0; i < 9; i++) { const x = -6 + (i % 3) * 1.1 - (i > 5 ? 0 : 0), y = 1.2 + Math.floor(i / 3) * 1.0; L.geom(S, x + 6 - 1.1 * 3 + 3.3 - 3.3, y, -515.9, x + 6 - 1.1 * 3 + 3.3 - 3.3 + 0.95, y + 0.8, -515.4, MAT.screen); }
     for (let z = -478; z >= -512; z -= 8) { L.light(S, -8, 5.2, z, LIGHTING.fillColor, 3.0, 8, z === -494 ? 2 : 0, 'tubeX', 0.2); L.light(S, 8, 5.2, z, LIGHTING.fillColor, 3.0, 8, 0, 'tubeX', 0.2); }
-    this.suits = [[0, -481, 1.2], [-9, -490, -0.8], [7, -498, 2.4], [-2, -508, 0]].map(([x, z, ph]) => ({ pos: V3.create(x, 0, z), yaw: 0, ph, fire: 0, flash: 0 }));
+    this.suits = [[0, -481, 1.2], [-9, -490, -0.8], [7, -498, 2.4], [-2, -508, 0], [12, -486, 3.3], [-12, -498, 0.6], [9, -510, 1.9]].map(([x, z, ph]) => ({ pos: V3.create(x, 0, z), yaw: 0, ph, fire: 0, flash: 0 }));
   },
 
   // ---------- 14 SALVAGE YARDS ----------
@@ -211,7 +211,7 @@ const Act3 = {
     L.lever(S, 12.4, 1.5, -558.9, 0, 1, 'S_CRANE');
     for (let z = -520; z >= -562; z -= 10) { L.light(S, -12, 10, z, LIGHTING.hazardColor, 4, 16, 0, 'cage', 0.5); L.light(S, 12, 10, z, LIGHTING.fillColor, 4, 16, z === -540 ? 3 : 0, 'cage', 0.5); }
     this.scraps = [];
-    for (let i = 0; i < 9; i++) this.scraps.push({ pos: V3.create(-10 + (i % 5) * 5, 0, i < 5 ? -527 - (i % 2) * 3 : -552 - (i % 2) * 4), yaw: 0, state: 'ROAM', t: gameRng() * 3, dead: false, flee: 0 });
+    for (let i = 0; i < 14; i++) this.scraps.push({ pos: V3.create(-12 + (i % 7) * 4, 0, i < 7 ? -526 - (i % 3) * 3 : -551 - (i % 3) * 4), yaw: 0, state: 'ROAM', t: gameRng() * 3, dead: false, flee: 0 });
   },
 
   // ---------- 15 THE HEART ----------
@@ -420,21 +420,22 @@ const Act3 = {
   updateCelestial(dt) {
     const S = this.seraph, b = Player.body.pos, t = Game.time;
     // the searchlight sweeps a slow figure-eight over the pews; under the loft you are in its shadow
-    S.ang += dt * 0.45;
+    S.ang += dt * 0.7;
     const tx = Math.sin(S.ang) * 10, tz = -356 + Math.sin(S.ang * 1.7) * 14;
     if (S.hold > 0) { S.hold -= dt; V3.set(this.tmp, b[0], 0, b[2]); }
     else V3.set(this.tmp, tx, 0, tz);
     S.beam[0] = damp(S.beam[0], this.tmp[0], S.hold > 0 ? 5 : 2, dt); S.beam[2] = damp(S.beam[2], this.tmp[2], S.hold > 0 ? 5 : 2, dt);
     S.light.pos[0] = S.beam[0]; S.light.pos[2] = S.beam[2];
     const inLoft = b[1] > 3.5, shaded = (b[0] > 9.8 && b[2] < -346 && b[2] > -372) || inLoft;
-    const lit = !shaded && Math.hypot(b[0] - S.beam[0], b[2] - S.beam[2]) < 1.7;
+    const lit = !shaded && Math.hypot(b[0] - S.beam[0], b[2] - S.beam[2]) < 2.1;
     S.see = lit ? S.see + dt : Math.max(0, S.see - dt * 2);
-    if (S.see > 0.6) { this.kill('THE SERAPH DIVED'); S.see = 0; return; }
+    if (S.see > 0.35) { this.kill('THE SERAPH DIVED'); S.see = 0; return; }
     // cherubs on the ceiling: running near them sets off a static shriek that turns the beam on you
     for (const c of this.cherubs) {
       c.ang += dt * 0.6; c.pos[0] = Math.sin(c.ang) * 12; c.pos[2] = -356 + Math.cos(c.ang * 0.8) * 18;
       c.shriek = Math.max(0, c.shriek - dt);
-      if (Player.sprinting && c.shriek <= 0 && Math.hypot(b[0] - c.pos[0], b[2] - c.pos[2]) < 7 && !inLoft) {
+      const cd = Math.hypot(b[0] - c.pos[0], b[2] - c.pos[2]);
+      if (c.shriek <= 0 && !inLoft && ((Player.sprinting && cd < 9) || (!Player.crouching && this.playerMoving() && cd < 4))) {
         c.shriek = 6; S.hold = 2.2; sfx('cherubShriek', c.pos); Player.addTrauma(0.25);
       }
     }
@@ -443,7 +444,7 @@ const Act3 = {
       c.stun = Math.max(0, c.stun - dt);
       const d = Math.hypot(b[0] - c.pos[0], b[2] - c.pos[2]);
       c.yaw = Math.atan2(-(b[0] - c.pos[0]), -(b[2] - c.pos[2]));
-      if (c.stun <= 0 && d < 1.8 && this.grab <= 0 && b[1] < 1) { this.grab = 2.6; c.lunge = 1; sfx('screech', c.pos); Player.addTrauma(0.6); S.hold = 3; GrabPack.showHint('THE CHOIR HAS YOUR ANKLES - hit it with a hand!'); }
+      if (c.stun <= 0 && d < 2.3 && this.grab <= 0 && b[1] < 1) { this.grab = 3.2; c.lunge = 1; sfx('screech', c.pos); Player.addTrauma(0.6); S.hold = 3; GrabPack.showHint('THE CHOIR HAS YOUR ANKLES - hit it with a hand!'); }
       c.lunge = Math.max(0, c.lunge - dt * 0.6);
     }
     if (this.grab > 0) { this.grab -= dt; Player.speedMul = 0; if (this.grab <= 0) this.grab = 0; }
@@ -462,16 +463,16 @@ const Act3 = {
     const wet = this.water > 0.05 && b[1] < this.water - 0.1;
     if (wet) Player.speedMul = Math.min(Player.speedMul, 0.6 * (1 - this.leeches * 0.15));
     // leeches latch on while you wade; four of them drag you under
-    if (wet) { this.leechT += dt; if (this.leechT > 2.2) { this.leechT = 0; this.leeches++; sfx('cherubBite', b); Player.addTrauma(0.2); if (this.leeches === 1) GrabPack.showHint('LEECHES! Fire a hand to knock them off - get out of the water'); } }
+    if (wet) { this.leechT += dt; if (this.leechT > 1.4) { this.leechT = 0; this.leeches++; sfx('cherubBite', b); Player.addTrauma(0.2); if (this.leeches === 1) GrabPack.showHint('LEECHES! Fire a hand to knock them off - get out of the water'); } }
     else { this.leechT = 0; if (this.leeches > 0 && gameRng() < dt * 0.6) this.leeches--; }
-    if (this.leeches >= 4) { this.leeches = 0; this.kill('DRAGGED UNDER BY LEECHES'); return; }
+    if (this.leeches >= 3) { this.leeches = 0; this.kill('DRAGGED UNDER BY LEECHES'); return; }
     // puffers drift; rush at one and it ruptures into rose gas
     for (const p of this.puffers) {
       if (p.burst > 0) continue;
       p.ph += dt; p.pos[0] = p.home[0] + Math.sin(p.ph * 0.4) * 1.5; p.pos[2] = p.home[2] + Math.cos(p.ph * 0.3) * 1.5; p.pos[1] = Math.max(this.water, 0) + 0.45 + Math.sin(p.ph) * 0.12;
       const d = V3.dist(p.pos, Player.eyePos);
-      const fast = Math.hypot(Player.body.vel[0], Player.body.vel[2]) > 4.2;
-      if (d < 2.6 && fast) this.pop(p);
+      const fast = Math.hypot(Player.body.vel[0], Player.body.vel[2]) > 3.4;
+      if (d < 3.2 && fast) this.pop(p);
     }
     let inGas = false;
     for (let i = this.gas.length - 1; i >= 0; i--) {
@@ -480,17 +481,17 @@ const Act3 = {
       if (Math.hypot(b[0] - g.pos[0], b[2] - g.pos[2]) < 3.2) inGas = true;
       if (g.t <= 0) this.gas.splice(i, 1);
     }
-    if (inGas && !Gear.maskOn) { this.gasT = (this.gasT || 0) + dt; Player.addTrauma(dt * 0.4); if (this.gasT > 3) { this.gasT = 0; this.kill('CHOKED ON ROSE GAS'); return; } }
+    if (inGas && !Gear.maskOn) { this.gasT = (this.gasT || 0) + dt; Player.addTrauma(dt * 0.4); if (this.gasT > 2) { this.gasT = 0; this.kill('CHOKED ON ROSE GAS'); return; } }
     else this.gasT = Math.max(0, (this.gasT || 0) - dt);
     // anglers rise from the deep pools when something moves close, then snap
     for (const a of this.anglers) {
       a.stun = Math.max(0, a.stun - dt);
       const d = Math.hypot(b[0] - a.pos[0], b[2] - a.pos[2]);
-      const want = a.stun > 0 || this.drain >= 1 ? 0 : d < 4.5 ? 1 : 0;
+      const want = a.stun > 0 || this.drain >= 1 ? 0 : d < 5.5 ? 1 : 0;
       a.rise = damp(a.rise, want, 3, dt);
       a.light.pos[1] = 0.6 + a.rise * 1.9;
       a.light.base = a.stun > 0 || this.drain >= 1 ? 0 : 2.4;
-      if (a.rise > 0.8 && d < 2.2 && this.playerMoving()) { a.snap = 1; this.kill('TAKEN BY AN ANGLER'); return; }
+      if (a.rise > 0.8 && ((d < 2.8 && this.playerMoving()) || d < 1.6)) { a.snap = 1; this.kill('TAKEN BY AN ANGLER'); return; }
     }
     // drowned outimals crawl after you through the water; your light holds them still
     for (const o of this.outimals) {
@@ -500,7 +501,7 @@ const Act3 = {
       if (lit || this.water < 0.1) o.held = Math.max(o.held, 0.2);
       const dx = b[0] - o.pos[0], dz = b[2] - o.pos[2], d = Math.hypot(dx, dz) || 1;
       o.yaw = Math.atan2(-dx, -dz);
-      if (o.held <= 0 && wet) { o.pos[0] += dx / d * 1.3 * dt; o.pos[2] += dz / d * 1.3 * dt; }
+      if (o.held <= 0 && wet) { o.pos[0] += dx / d * 2.0 * dt; o.pos[2] += dz / d * 2.0 * dt; }
       if (d < 0.9 && o.held <= 0) { this.kill('PULLED DOWN BY A DROWNED TOY'); return; }
     }
   },
@@ -513,15 +514,15 @@ const Act3 = {
       if (T.speed === 0) {
         T.wait -= dt;
         // the Conductor hears you near its line and comes early, much faster
-        if (loud && Math.abs(b[2] - T.z) < 9 && T.wait > 0.8) { T.wait = 0.8; T.alerted = true; sfx('trainHorn', V3.set(this.tmp, -14 * T.dir, 2, T.z)); }
-        if (T.wait <= 0) { T.speed = T.alerted ? 17 : 9; T.x = -26 * T.dir; T.horn = false; }
+        if (loud && Math.abs(b[2] - T.z) < 13 && T.wait > 0.8) { T.wait = 0.8; T.alerted = true; sfx('trainHorn', V3.set(this.tmp, -14 * T.dir, 2, T.z)); }
+        if (T.wait <= 0) { T.speed = T.alerted ? 21 : 12; T.x = -26 * T.dir; T.horn = false; }
       } else {
         T.x += T.dir * T.speed * dt;
         if (!T.horn && Math.abs(T.x) < 20) { T.horn = true; sfx('trainRush', V3.set(this.tmp, T.x, 2, T.z)); }
         if (gameRng() < dt * 18) { V3.set(this.tmp, T.x + T.dir * 1.5, 2.6, T.z); Particles.burst(this.tmp, 3, 'spark'); }
         const head = T.x, tail = T.x - T.dir * 13, lo = Math.min(head, tail), hi = Math.max(head, tail);
         if (Math.abs(b[2] - T.z) < 1.6 && b[0] > lo - 0.4 && b[0] < hi + 0.4 && b[1] < 3) { this.kill('HIT BY THE GHOST LINE'); return; }
-        if (Math.abs(T.x) > 32) { T.speed = 0; T.wait = 6 + gameRng() * 4; T.alerted = false; }
+        if (Math.abs(T.x) > 32) { T.speed = 0; T.wait = 3 + gameRng() * 3; T.alerted = false; }
       }
     }
   },
@@ -529,16 +530,16 @@ const Act3 = {
   updateSuite(dt) {
     const b = Player.body.pos;
     for (const s of this.suits) {
-      s.ph += dt * 0.5; s.yaw = Math.sin(s.ph) * 1.2;
+      s.ph += dt * 0.75; s.yaw = Math.sin(s.ph) * 1.5;
       s.flash = Math.max(0, s.flash - dt * 4);
       // the laser grid: a fan in front of the suit at chest and head height - crouch to pass under
       const dx = b[0] - s.pos[0], dz = b[2] - s.pos[2], d = Math.hypot(dx, dz);
-      if (d > 7 || d < 0.3) continue;
+      if (d > 9 || d < 0.3) continue;
       const fwdX = -Math.sin(s.yaw), fwdZ = -Math.cos(s.yaw);
       const cosA = (dx * fwdX + dz * fwdZ) / d;
-      if (cosA > Math.cos(0.32) && Player.crouch < 0.6 && Physics.lineOfSight(V3.set(this.tmp, s.pos[0], 1.5, s.pos[2]), Player.eyePos, LAYER.SIGHT)) {
+      if (cosA > Math.cos(0.42) && Player.crouch < 0.6 && Physics.lineOfSight(V3.set(this.tmp, s.pos[0], 1.5, s.pos[2]), Player.eyePos, LAYER.SIGHT)) {
         s.fire += dt;
-        if (s.fire > 0.25) { s.flash = 1; sfx('blast', s.pos); s.fire = 0; this.kill('GUNNED DOWN BY A SUIT'); return; }
+        if (s.fire > 0.15) { s.flash = 1; sfx('blast', s.pos); s.fire = 0; this.kill('GUNNED DOWN BY A SUIT'); return; }
       } else s.fire = 0;
     }
     if (Game.stage === 13 && !this.officeTalk && b[2] < -506) {
@@ -564,7 +565,7 @@ const Act3 = {
       if (Player.flashOn && V3.dot(this.tmp, Renderer.camFwd) / dl > 0.93 && dl < 8) { s.flee = Math.max(s.flee, 1.5); }
       let vx = 0, vz = 0, sp = 0;
       if (s.flee > 0) { vx = -dx / d; vz = -dz / d; sp = 4.5; }
-      else if (d < 10 && Math.sign(s.pos[2] - this.chasm.z1) === Math.sign(b[2] - this.chasm.z1)) { vx = dx / d; vz = dz / d; sp = 3.6; }
+      else if (d < 14 && Math.sign(s.pos[2] - this.chasm.z1) === Math.sign(b[2] - this.chasm.z1)) { vx = dx / d; vz = dz / d; sp = 4.6; }
       else { vx = Math.sin(s.t * 0.7 + s.pos[0]); vz = Math.cos(s.t * 0.5); sp = 0.8; }
       s.pos[0] = clamp(s.pos[0] + vx * sp * dt, -15.5, 15.5); s.pos[2] += vz * sp * dt;
       // never into the pit
@@ -573,7 +574,7 @@ const Act3 = {
       s.yaw = Math.atan2(-vx, -vz);
       if (d < 1.1) { close++; if (gameRng() < dt * 2) { sfx('cherubBite', s.pos); Player.addTrauma(0.15); } }
     }
-    if (close >= 3) this.kill('TORN APART BY SCRAPLINGS');
+    if (close >= 2) this.kill('TORN APART BY SCRAPLINGS');
   },
 
   // ---------------------------------------------------------------- the final showdown
@@ -592,16 +593,16 @@ const Act3 = {
       }
       if (H.t > 3) {
         M.startScriptedChase(this.heartVents[0]);
-        M.boss = true; M.bossHold = false; M.bossSpeed = 3.6;
+        M.boss = true; M.bossHold = false; M.bossSpeed = 4.4;
         H.mode = 'FIGHT'; H.t = 0;
         Game.chaseActive = true;
       }
     }
     if (H.mode === 'FIGHT') {
-      M.bossSpeed = 3.4 + H.clamps * 0.35;
+      M.bossSpeed = 4.3 + H.clamps * 0.45;
       // Lovey and Morsel fight beside you (Lovey's own slam is in Lovey.update)
       if (Cast.plush.mode === 'FOLLOW' && M.active && !M.inVent && V3.dist(M.pos, Cast.plush.pos) < 3 && (this.morselCd = (this.morselCd || 0) - dt) <= 0) {
-        this.morselCd = 11; M.stunTimer = Math.max(M.stunTimer, 2); Companion.plasmaBurst(Cast.plush.pos); sfx('shock', M.pos);
+        this.morselCd = 16; M.stunTimer = Math.max(M.stunTimer, 2); Companion.plasmaBurst(Cast.plush.pos); sfx('shock', M.pos);
       }
     }
     if (H.mode === 'TAKEDOWN') {
@@ -648,7 +649,7 @@ const Act3 = {
     Game.chaseActive = false; Game.invulnerable = true;
   },
   startEscape() {
-    this.escape = { t: 60, boomT: 0 };
+    this.escape = { t: 40, boomT: 0 };
     Game.invulnerable = false;
     Doors.setOpen('D16', true);
     this.setStage(16);

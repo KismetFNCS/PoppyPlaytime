@@ -115,7 +115,7 @@ const Lovey = {
     if (T.kind === 'monster') {
       Monster.stunTimer = Math.max(Monster.stunTimer, 3.5); Monster.flinchAmt = 1;
       Particles.burst(this.tmp, 20, 'spark'); sfx('boom'); Audio.boom();
-      Player.addTrauma(0.35); this.cool = 16;
+      Player.addTrauma(0.35); this.cool = 22;
     } else if (T.kind === 'cherub') {
       T.c.dead = true; Particles.burst(this.tmp, 24, 'debris'); sfx('shatter', this.tmp);
       this.cool = 2;
