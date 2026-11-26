@@ -382,7 +382,7 @@ const Level = {
     this.receptacle(1, -6.5, 1.6, -23.85, 0, 1, true, [P1.id, P2.id], 'R1', 'DOOR CIRCUIT');
     this.tape(1, 9.2, 1.0, -3.1, 1);
     this.locker(1, 11.55, -10.6, Math.PI / 2);
-    this.desk(1, 9.2, -3.1);
+    this.desk(1, 9.2, -3.1, true);
     this.conveyor(1, -10.5, -3.2, -2.5, -2.2);
     this.conveyor(1, -9, -20.5, -1, -19.5);
     this.crate(1, 10.5, -8, 1.1, 2); this.crate(1, 10.6, -6.6, 1.0, 1); this.crate(1, -10.2, -15.5, 1.2, 3);
@@ -446,7 +446,7 @@ const Level = {
 
     // hide lockers and a second audio log in the gallery
     this.locker(2, -9.6, -41.8, -Math.PI / 2); this.locker(2, 9.6, -32.6, Math.PI / 2); this.locker(2, 4.2, -47.65, Math.PI);
-    this.desk(2, -4.5, -25.4);
+    this.desk(2, -4.5, -25.4, true);
     this.crate(2, -8.6, -46.6, 1.0, 1);   // the LANTERN hand, deep in the toxic smog
     this.tape(2, -4.5, 1.0, -25.4, 3);
     this.locker(3, 5.6, -78.2, Math.PI / 2); this.locker(3, -5.6, -60.4, -Math.PI / 2);

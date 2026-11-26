@@ -232,7 +232,10 @@ const MATERIALS = [
   { name: 'hairDark', base: '#1e1916', rough: 0.8, metal: 0.0, tile: 4.0, emis: '#000000', emisStr: 0 },
   { name: 'clothWine', base: '#4a2433', rough: 0.92, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 },
   { name: 'lining', base: '#7a1a1c', rough: 0.7, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 },
-  { name: 'vest', base: '#3d4247', rough: 0.9, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 }
+  { name: 'vest', base: '#3d4247', rough: 0.9, metal: 0.0, tile: 2.0, emis: '#000000', emisStr: 0 },
+  // MATERIAL 24: weathered teal jester cloth #2c5f6e   MATERIAL 25: Posie Gel, wet glossy rose-orange #a83a52
+  { name: 'clothTeal', base: '#2c5f6e', rough: 0.9, metal: 0.0, tile: 2.5, emis: '#000000', emisStr: 0 },
+  { name: 'gel', base: '#a83a52', rough: 0.08, metal: 0.0, tile: 1.2, emis: '#000000', emisStr: 0 }
 ];
 const MAT = Object.create(null);
 for (let i = 0; i < MATERIALS.length; i++) MAT[MATERIALS[i].name] = i;

@@ -36,6 +36,13 @@
   .row select { min-height: 40px; font: inherit; background: var(--btnFill); color: var(--btnText); border: 1px solid var(--btnBorder); }
   .row input[type=checkbox] { width: 26px; height: 26px; accent-color: var(--accent); }
   .row .val { text-align: right; color: var(--accent); }
+  #levelPanel { position: absolute; inset: 8% 12%; display: none; background: rgba(8,6,10,0.94); border: 1px solid rgba(255,214,120,0.5); padding: 2.5vh 2vw; z-index: 5; overflow-y: auto; }
+  #levelPanel.on { display: block; }
+  #levelPanel h3 { margin: 0 0 2vh; letter-spacing: 0.2em; color: rgb(255,214,120); font-size: clamp(14px, 2.4vh, 24px); }
+  #levelPanel .lvgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1vh 1vw; }
+  .lvbtn { min-height: 44px; font: inherit; font-size: clamp(12px, 1.9vh, 18px); letter-spacing: 0.08em; background: rgba(30,24,28,0.9); color: rgb(232,226,214); border: 1px solid rgba(255,255,255,0.25); cursor: pointer; }
+  .lvbtn:hover { border-color: rgb(255,214,120); color: rgb(255,214,120); }
+  .lvbtn.back { margin-top: 2vh; padding: 0 3vw; }
   #skipHint { position: absolute; right: 3%; bottom: 14%; padding: 6px 14px; font-size: clamp(12px, 1.9vh, 18px); letter-spacing: 0.14em; color: rgb(232,232,232); background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35); display: none; }
   #skipHint b { color: var(--accent); margin-right: 6px; }
   #settingsTabs { display: flex; gap: 6px; margin: 0 0 12px; border-bottom: 1px solid var(--btnBorder); }
@@ -217,8 +224,10 @@
       <button class="mbtn" id="btnSettings" data-act="settings">SETTINGS</button>
       <button class="mbtn" id="btnCredits" data-act="credits">CREDITS</button>
       <button class="mbtn" id="btnQuit" data-act="quit">QUIT</button>
+      <button class="mbtn" id="btnLevels" data-act="levels">LEVEL SELECT</button>
     </div>
     <div class="ver">fan-made engine slice &middot; F9 self-test</div>
+    <div id="levelPanel"><h3>LEVEL SELECT &middot; BOSS FIGHTS</h3><div class="lvgrid"><button class="lvbtn" data-act="level:5">STATION YARD</button><button class="lvbtn" data-act="level:0">INTAKE LIFT</button><button class="lvbtn" data-act="level:1">RECLAMATION HALL</button><button class="lvbtn" data-act="level:2">PRESSURE GALLERY</button><button class="lvbtn" data-act="level:3">SPOOL FOUNDRY CHASE</button><button class="lvbtn" data-act="level:4">BOSS - THE LOOM</button><button class="lvbtn" data-act="level:6">FABRICATION LINE</button><button class="lvbtn" data-act="level:7">DRAINAGE CATACOMBS</button><button class="lvbtn" data-act="level:8">SORTING HUB</button><button class="lvbtn" data-act="level:9">BOSS - CORE VAULT</button><button class="lvbtn" data-act="level:10">CELESTIAL WING</button><button class="lvbtn" data-act="level:11">SUNKEN TOYBOX</button><button class="lvbtn" data-act="level:12">GHOST LINE</button><button class="lvbtn" data-act="level:13">EXECUTIVE SUITE</button><button class="lvbtn" data-act="level:14">SALVAGE YARDS</button><button class="lvbtn" data-act="level:15">FINAL BOSS - THE HEART</button><button class="lvbtn" data-act="level:16">ESCAPE</button></div><button class="lvbtn back" data-act="levelsBack">BACK</button></div>
   </div>
   <div id="titlePage">
     <svg class="sky" viewBox="0 0 1600 620" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
@@ -295,7 +304,7 @@
       <div class="slot s0"><i></i><span>ROSE</span></div><div class="slot s1"><i></i><span>THUMPER</span></div>
       <div class="slot s2"><i></i><span>STITCHER</span></div><div class="slot s3"><i></i><span>LANTERN</span></div>
       <div class="desc"></div></div>
-    <div class="hand l" id="hudHandL">L &middot; TEAL</div>
+    <div class="hand l" id="hudHandL">L &middot; BLUE</div>
     <div class="hand r" id="hudHandR">R &middot; ROSE</div>
     <canvas id="pipCanvas" width="128" height="128" aria-label="STARBY companion"></canvas>
     <div class="cable" id="hudCable"><span id="hudCableText">TETHER</span><div class="bar"><i id="hudCableBar"></i></div></div>

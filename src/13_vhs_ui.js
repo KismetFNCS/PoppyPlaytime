@@ -23,7 +23,7 @@ const TAPES = [
     ]
   },
   {
-    title: 'RECLAMATION LOG 19', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'wave', pitch: 190,
+    title: 'RECLAMATION LOG 19', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'portrait', people: ['varga'], pitch: 190,
     lines: [
       'Reclamation log, entry nineteen. Doctor Ilse Varga recording.',
       'Experiment 6-06 refuses to stay disassembled. We cut its threads; by morning it has sewn itself back together.',
@@ -43,7 +43,7 @@ const TAPES = [
 ];
 
 TAPES.push({
-  title: 'RECLAMATION LOG 23', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'wave', pitch: 185,
+  title: 'RECLAMATION LOG 23', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'portrait', people: ['varga'], pitch: 185,
   lines: [
     'Log twenty-three. The doll keeps turning up in places nobody carried her.',
     'Posie was our display model. Now she sits by the doors before they open, as if she knows.',
@@ -53,7 +53,7 @@ TAPES.push({
 });
 
 TAPES.push({
-  title: 'FOUNDERS REEL 1961', label: 'MERRIWEATHER FAMILY FILM', presenter: 'wave', pitch: 210,
+  title: 'FOUNDERS REEL 1961', label: 'MERRIWEATHER FAMILY FILM', presenter: 'portrait', people: ['augustus', 'varga', 'child', 'nora'], pitch: 210,
   lines: [
     'Augustus Merriweather here, standing in our brand-new freight yard. Every toy we make leaves from these rails.',
     'Doctor Varga tells me the new stitching lines will never stop. Toys that mend themselves! Imagine it.',
@@ -68,7 +68,7 @@ TAPES.push({
 });
 // the Epxirtype's old workshop in the chapel loft
 TAPES.push({
-  title: 'WORKSHOP REEL 6-06', label: 'R&D - DO NOT CIRCULATE', presenter: 'wave', pitch: 190,
+  title: 'WORKSHOP REEL 6-06', label: 'R&D - DO NOT CIRCULATE', presenter: 'portrait', people: ['varga', 'monster', 'harlan', 'varga'], pitch: 190,
   lines: [
     'Doctor Varga, day forty. Subject 6-06 asked for a name today. Mr. Smithers said it does not need one.',
     'It sews in the loft at night. Little spools, little hands. It says it is making friends.',
@@ -80,6 +80,96 @@ TAPES.push({
     'Every one you pull brings it closer to the end I designed.'
   ]
 });
+
+// a painted, film-grain portrait of one of the founders, staff or orphans (or the creature itself) for the tapes
+// and the missing-person posters. Original people: Augustus Merriweather (founder), Dr. Ilse Varga (R&D),
+// Nora Merriweather, Harlan Smithers (Director), and the Hollow Pines children.
+const PORTRAIT_PEOPLE = {
+  augustus: { skin: [214, 176, 150], hair: [196, 196, 190], hairStyle: 'side', age: 0.8, beard: 'moustache', suit: [52, 44, 40], tie: [120, 30, 40], glasses: false, female: false },
+  varga: { skin: [226, 192, 168], hair: [48, 36, 32], hairStyle: 'bun', age: 0.45, suit: [222, 222, 214], tie: null, glasses: true, female: true },
+  nora: { skin: [232, 200, 176], hair: [150, 92, 52], hairStyle: 'curls', age: 0.3, suit: [70, 110, 120], tie: null, glasses: false, female: true },
+  harlan: { skin: [206, 178, 160], hair: [30, 28, 28], hairStyle: 'slick', age: 0.6, suit: [36, 38, 44], tie: [30, 90, 96], glasses: false, female: false },
+  child: { skin: [236, 206, 184], hair: [120, 70, 40], hairStyle: 'bob', age: 0.05, suit: [150, 150, 170], tie: null, glasses: false, female: false, child: true },
+  child2: { skin: [216, 172, 140], hair: [36, 26, 22], hairStyle: 'pigtails', age: 0.05, suit: [170, 120, 140], tie: null, glasses: false, female: true, child: true }
+};
+function drawPortrait(c, x, y, w, h, who, t, talking) {
+  const P = PORTRAIT_PEOPLE[who];
+  c.save();
+  c.beginPath(); c.rect(x, y, w, h); c.clip();
+  // backdrop: a dim office or workshop wall, vignetted
+  let g = c.createRadialGradient(x + w / 2, y + h * 0.4, 10, x + w / 2, y + h / 2, w * 0.8);
+  g.addColorStop(0, 'rgb(92,78,64)'); g.addColorStop(1, 'rgb(18,14,12)');
+  c.fillStyle = g; c.fillRect(x, y, w, h);
+  if (who === 'monster') {
+    // grainy, half-lit footage of the creature in its workshop days: the porcelain mask and grin in the dark
+    const cx = x + w / 2, cy = y + h * 0.45, s = h * 0.32;
+    c.fillStyle = 'rgb(30,70,80)'; c.beginPath(); c.moveTo(cx - s * 1.2, cy - s * 0.4); c.lineTo(cx, cy - s * 2.2); c.lineTo(cx + s * 1.2, cy - s * 0.4); c.fill();
+    g = c.createRadialGradient(cx - s * 0.2, cy - s * 0.2, 2, cx, cy, s * 1.1); g.addColorStop(0, 'rgb(236,230,214)'); g.addColorStop(1, 'rgb(120,112,96)');
+    c.fillStyle = g; c.beginPath(); c.ellipse(cx, cy, s * 0.95, s * 1.05, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgb(8,6,6)'; for (const sx of [-1, 1]) { c.beginPath(); c.ellipse(cx + sx * s * 0.38, cy - s * 0.25, s * 0.26, s * 0.34, sx * -0.15, 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = 'rgb(255,220,80)'; c.beginPath(); c.arc(cx + s * 0.38, cy - s * 0.22, s * 0.05, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgb(120,30,40)'; c.beginPath(); c.ellipse(cx, cy + s * 0.42, s * 0.7, s * 0.28, 0, 0, Math.PI); c.fill();
+    c.fillStyle = 'rgb(232,226,206)'; for (let i = -5; i <= 5; i++) c.fillRect(cx + i * s * 0.11 - s * 0.045, cy + s * 0.4, s * 0.09, s * 0.16 - Math.abs(i) * 0.008 * s);
+  } else {
+    const cx = x + w / 2, kid = !!P.child, hs = h * (kid ? 0.25 : 0.29), cy = y + h * (kid ? 0.5 : 0.44);
+    const sk = P.skin, col = (r, gg, b, a) => 'rgba(' + r + ',' + gg + ',' + b + ',' + (a === undefined ? 1 : a) + ')';
+    const shade = (k, a) => col((sk[0] * k) | 0, (sk[1] * k) | 0, (sk[2] * k) | 0, a);
+    // shoulders and clothes
+    c.fillStyle = col(P.suit[0], P.suit[1], P.suit[2]);
+    c.beginPath(); c.ellipse(cx, y + h + hs * 0.6, hs * 2.1, hs * 1.6, 0, 0, Math.PI * 2); c.fill();
+    if (!P.female || who === 'varga') { c.fillStyle = 'rgb(232,228,218)'; c.beginPath(); c.moveTo(cx - hs * 0.45, cy + hs * 1.25); c.lineTo(cx, cy + hs * 1.9); c.lineTo(cx + hs * 0.45, cy + hs * 1.25); c.fill(); }
+    if (P.tie) { c.fillStyle = col(P.tie[0], P.tie[1], P.tie[2]); c.beginPath(); c.moveTo(cx - hs * 0.1, cy + hs * 1.3); c.lineTo(cx + hs * 0.1, cy + hs * 1.3); c.lineTo(cx + hs * 0.14, cy + hs * 2.1); c.lineTo(cx, cy + hs * 2.3); c.lineTo(cx - hs * 0.14, cy + hs * 2.1); c.fill(); }
+    // neck
+    c.fillStyle = shade(0.8); c.fillRect(cx - hs * 0.3, cy + hs * 0.7, hs * 0.6, hs * 0.65);
+    // hair behind the head
+    c.fillStyle = col(P.hair[0], P.hair[1], P.hair[2]);
+    if (P.hairStyle === 'curls') for (let k = 0; k < 14; k++) { const a = Math.PI * (0.9 + k / 13 * 1.2); c.beginPath(); c.arc(cx + Math.cos(a) * hs * 0.95, cy + Math.sin(a) * hs * 1.05 + hs * 0.1, hs * 0.32, 0, Math.PI * 2); c.fill(); }
+    if (P.hairStyle === 'bob' || P.hairStyle === 'pigtails') { c.beginPath(); c.ellipse(cx, cy - hs * 0.05, hs * 1.08, hs * 1.12, 0, 0, Math.PI * 2); c.fill(); }
+    if (P.hairStyle === 'pigtails') for (const sx of [-1, 1]) { c.beginPath(); c.ellipse(cx + sx * hs * 1.1, cy + hs * 0.4, hs * 0.25, hs * 0.55, sx * 0.3, 0, Math.PI * 2); c.fill(); }
+    // the face: an oval lit from the upper left with soft shadow on the far side
+    g = c.createRadialGradient(cx - hs * 0.35, cy - hs * 0.35, hs * 0.1, cx, cy, hs * 1.15);
+    g.addColorStop(0, shade(1.08)); g.addColorStop(0.6, shade(0.92)); g.addColorStop(1, shade(0.62));
+    c.fillStyle = g; c.beginPath(); c.ellipse(cx, cy, hs * 0.82, hs * 1.02, 0, 0, Math.PI * 2); c.fill();
+    // ears
+    c.fillStyle = shade(0.85); for (const sx of [-1, 1]) { c.beginPath(); c.ellipse(cx + sx * hs * 0.82, cy + hs * 0.05, hs * 0.12, hs * 0.2, 0, 0, Math.PI * 2); c.fill(); }
+    // hair on top
+    c.fillStyle = col(P.hair[0], P.hair[1], P.hair[2]);
+    c.beginPath();
+    if (P.hairStyle === 'side' || P.hairStyle === 'slick') { c.ellipse(cx + hs * 0.05, cy - hs * 0.7, hs * 0.86, hs * 0.48, -0.08, Math.PI, Math.PI * 2.05); }
+    else if (P.hairStyle === 'bun') { c.ellipse(cx, cy - hs * 0.65, hs * 0.86, hs * 0.5, 0, Math.PI, Math.PI * 2); c.moveTo(cx + hs * 0.3, cy - hs * 1.15); c.arc(cx, cy - hs * 1.2, hs * 0.32, 0, Math.PI * 2); }
+    else { c.ellipse(cx, cy - hs * 0.55, hs * 0.9, hs * 0.6, 0, Math.PI, Math.PI * 2); }
+    c.fill();
+    if (P.hairStyle === 'bob' || P.hairStyle === 'pigtails') { c.fillRect(cx - hs * 0.82, cy - hs * 0.6, hs * 1.64, hs * 0.3); }
+    // eyes: whites, coloured iris, pupil, catchlight; brows; age lines
+    for (const sx of [-1, 1]) {
+      const ex = cx + sx * hs * 0.32, ey = cy - hs * 0.12;
+      c.fillStyle = shade(0.75); c.beginPath(); c.ellipse(ex, ey + hs * 0.02, hs * 0.2, hs * 0.12, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgb(236,232,224)'; c.beginPath(); c.ellipse(ex, ey, hs * 0.16, hs * 0.075, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = who === 'nora' || who === 'child' ? 'rgb(70,110,130)' : 'rgb(80,60,40)'; c.beginPath(); c.arc(ex, ey, hs * 0.066, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgb(12,10,10)'; c.beginPath(); c.arc(ex, ey, hs * 0.032, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.8)'; c.fillRect(ex - hs * 0.03, ey - hs * 0.04, hs * 0.025, hs * 0.025);
+      c.strokeStyle = col(P.hair[0] * 0.8 | 0, P.hair[1] * 0.8 | 0, P.hair[2] * 0.8 | 0); c.lineWidth = hs * 0.06;
+      c.beginPath(); c.moveTo(ex - hs * 0.18, ey - hs * 0.18 - (who === 'harlan' ? sx * -hs * 0.04 : 0)); c.lineTo(ex + hs * 0.18, ey - hs * 0.2); c.stroke();
+      if (P.age > 0.5) { c.strokeStyle = shade(0.7, 0.7); c.lineWidth = 1; c.beginPath(); c.moveTo(ex + sx * hs * 0.2, ey + hs * 0.04); c.lineTo(ex + sx * hs * 0.3, ey + hs * 0.12); c.stroke(); }
+      if (P.glasses) { c.strokeStyle = 'rgb(40,34,30)'; c.lineWidth = 2; c.beginPath(); c.arc(ex, ey, hs * 0.22, 0, Math.PI * 2); c.stroke(); }
+    }
+    // nose with a shadow on one side, a mouth that moves while they speak
+    c.fillStyle = shade(0.72); c.beginPath(); c.moveTo(cx, cy - hs * 0.05); c.lineTo(cx + hs * 0.1, cy + hs * 0.3); c.lineTo(cx - hs * 0.06, cy + hs * 0.32); c.fill();
+    const mo = talking ? Math.abs(Math.sin(t * 13)) * hs * 0.08 : 0;
+    c.fillStyle = P.female ? 'rgb(170,70,80)' : shade(0.55); c.beginPath(); c.ellipse(cx, cy + hs * 0.55, hs * 0.24, hs * 0.05 + mo, 0, 0, Math.PI * 2); c.fill();
+    if (mo > 1) { c.fillStyle = 'rgb(30,14,14)'; c.beginPath(); c.ellipse(cx, cy + hs * 0.56, hs * 0.18, mo * 0.7, 0, 0, Math.PI * 2); c.fill(); }
+    if (P.beard === 'moustache') { c.fillStyle = col(P.hair[0], P.hair[1], P.hair[2]); c.beginPath(); c.ellipse(cx - hs * 0.13, cy + hs * 0.43, hs * 0.16, hs * 0.06, 0.2, 0, Math.PI * 2); c.ellipse(cx + hs * 0.13, cy + hs * 0.43, hs * 0.16, hs * 0.06, -0.2, 0, Math.PI * 2); c.fill(); }
+    if (P.age > 0.5) { c.strokeStyle = shade(0.65, 0.6); c.lineWidth = 1.5; c.beginPath(); c.moveTo(cx - hs * 0.32, cy + hs * 0.35); c.quadraticCurveTo(cx - hs * 0.36, cy + hs * 0.55, cx - hs * 0.3, cy + hs * 0.66); c.moveTo(cx + hs * 0.32, cy + hs * 0.35); c.quadraticCurveTo(cx + hs * 0.36, cy + hs * 0.55, cx + hs * 0.3, cy + hs * 0.66); c.stroke(); }
+    // blush on the children
+    if (kid) { c.fillStyle = 'rgba(220,100,100,0.25)'; for (const sx of [-1, 1]) { c.beginPath(); c.arc(cx + sx * hs * 0.45, cy + hs * 0.25, hs * 0.16, 0, Math.PI * 2); c.fill(); } }
+  }
+  // old film: sepia wash, grain and a vignette
+  c.fillStyle = 'rgba(120,90,50,0.18)'; c.fillRect(x, y, w, h);
+  for (let i = 0; i < 140; i++) { c.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '255,255,255' : '0,0,0') + ',' + (Math.random() * 0.12) + ')'; c.fillRect(x + Math.random() * w, y + Math.random() * h, 1.5, 1.5); }
+  g = c.createRadialGradient(x + w / 2, y + h / 2, h * 0.3, x + w / 2, y + h / 2, w * 0.75); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
+  c.fillStyle = g; c.fillRect(x, y, w, h);
+  c.restore();
+}
 
 const VHS = {
   canvas: null, ctx: null, tape: null, tapeId: -1, line: 0, chars: 0, charAcc: 0, time: 0, glitch: 0, done: null,
@@ -159,6 +249,7 @@ const VHS = {
     // presenter
     const talking = this.chars < tp.lines[this.line].length;
     if (tp.presenter === 'mascot') this.drawMascot(c, 470, 170, t, talking);
+    else if (tp.presenter === 'portrait') { const who = tp.people[Math.min(this.line, tp.people.length - 1)]; drawPortrait(c, 360, 50, 250, 190, who, t, talking); }
     else this.drawWave(c, 360, 90, 250, 140, t, talking);
     // subtitle box with chroma-fringed text
     c.fillStyle = 'rgba(0,0,0,0.55)'; c.fillRect(24, 250, W - 48, 86);
@@ -502,7 +593,7 @@ const UI = {
         H[key] = code;
         const el = s === 0 ? E.hudHandL : E.hudHandR;
         const stateTxt = h.tethered ? 'LIVE' : h.state === HAND.DOCKED ? 'READY' : h.state === HAND.FLYING ? 'FIRED' : h.state === HAND.LATCHED ? 'GRIP' : 'RECALL';
-        el.textContent = (s === 0 ? 'L · TEAL ' : 'R · ' + HAND_TYPES[Gear.cur].id + ' ') + stateTxt;
+        el.textContent = (s === 0 ? 'L · BLUE ' : 'R · ' + HAND_TYPES[Gear.cur].id + ' ') + stateTxt;
         el.classList.toggle('away', h.state !== HAND.DOCKED && !h.tethered);
       }
     }

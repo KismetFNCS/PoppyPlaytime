@@ -11,31 +11,50 @@
 const LOVEY_TINT = [2.5, 0.85, 2.1];   // rose, on the shaggy light-fur material
 // Lovey is silent; the others speak for her
 const LOVEY_MEET = [
-  ['MARIGOLD', 'Lovey! You are still standing. Oh, your arm...'],
-  ['THIMBLE', 'She can\'t talk anymore, friend. They pulled out her voice box when she wouldn\'t sing for them.'],
-  ['MARIGOLD', 'She wants me up on her shoulder. She says - well, she nods - that nothing gets past her.']
+  ['MARIGOLD', 'Lovey! Lovey, it is us. It is only us. You are safe now.'],
+  ['THIMBLE', 'Easy, big girl... easy. Look at you - shaking like a loose bolt. Did it find you down here?'],
+  ['MARIGOLD', 'Her arm is still gone, and she has been hiding in the dark all this time. Let me up, Lovey. Like before.'],
+  ['THIMBLE', 'There she goes. She\'s with us now, partner - and anything that wants us goes through her first.']
 ];
+// where she is hiding when you reach the fabrication line: curled up in the far west corner behind the crates
+const LOVEY_HIDE = [-13.1, -196.6];
 
 const Lovey = {
   active: false, pos: V3.create(), yaw: 0, walk: 0, phase: 0, sector: 6,
   mode: 'FOLLOW', target: null, cool: 0, swingT: 0, patT: 0, stillT: 0, lineCool: 0, met: false,
   head: V3.create(), shoulder: V3.create(), tmp: V3.create(), tmp2: V3.create(), m: M4.create(),
 
-  // she is with you from the fabrication line to the vault
+  // she is with you from the moment you find her (hiding on the fabrication line) to the very end
+  found: false, shake: 0,
   reset() {
-    this.active = Game.stage >= 6 && Game.stage <= 16;
-    this.mode = 'FOLLOW'; this.target = null; this.cool = 4; this.swingT = 0; this.patT = 0; this.stillT = 0; this.lineCool = 0;
+    if (Game.stage >= 7) this.found = true;
+    this.active = this.found && Game.stage >= 6 && Game.stage <= 16;
+    this.mode = 'FOLLOW'; this.target = null; this.cool = 4; this.hurtT = 0; this.stabCool = 0; this.swingT = 0; this.patT = 0; this.stillT = 0; this.lineCool = 0;
     if (!this.active) return;
     const b = Player.body.pos;
     V3.set(this.pos, b[0] + 1.4, 0, b[2] + 2.6); this.yaw = Player.yaw;
     this.sector = Level.sectorAt(this.pos[0], this.pos[2]);
   },
-  // first meeting on arrival in the Deep Works
+  // arriving on the fabrication line: she is missing, somewhere on this floor
   meet() {
     this.reset();
-    if (!this.active || this.met) return;
-    this.met = true;
+    if (this.found) return;
+    Dialogue.say('MARIGOLD', 'Lovey was working this line the night the lights went out. She never came back up. She has to be here somewhere.');
+  },
+  // you find her, curled up and trembling
+  discover() {
+    this.found = true; this.met = true; this.active = true;
+    V3.set(this.pos, LOVEY_HIDE[0], 0, LOVEY_HIDE[1]); this.yaw = Math.PI / 2; this.mode = 'FOLLOW'; this.cool = 3;
+    this.sector = Level.sectorAt(this.pos[0], this.pos[2]);
+    sfx('cherubFlee', this.pos); Player.addTrauma(0.2);
     for (const [who, line] of LOVEY_MEET) Dialogue.say(who, line);
+  },
+  // before you find her: hiding, shaking, facing the wall
+  updateHiding(dt) {
+    this.shake += dt;
+    if (Game.stage !== 6 || !Game.isGameplay()) return;
+    const b = Player.body.pos;
+    if (Math.hypot(b[0] - LOVEY_HIDE[0], b[2] - LOVEY_HIDE[1]) < 4.2) this.discover();
   },
   carrying() { return this.active; },
   // where Posie sits: on her shoulder
@@ -48,7 +67,23 @@ const Lovey = {
   },
 
   update(dt) {
+    if (!this.found) { this.updateHiding(dt); return; }
     if (!this.active) return;
+    // the Epxirtype fights back: if it reaches her it stabs her - she staggers, stuffing spills, then she gets
+    // back up and keeps going (she never goes down for good)
+    this.hurtT = Math.max(0, (this.hurtT || 0) - dt); this.stabCool = Math.max(0, (this.stabCool || 0) - dt);
+    { const M = Monster;
+      if (M.active && M.visible && !M.inVent && M.stunTimer <= 0 && this.stabCool <= 0 && Math.hypot(M.pos[0] - this.pos[0], M.pos[2] - this.pos[2]) < 2.6) {
+        this.stabCool = 9; this.hurtT = 1.6; this.wounds = (this.wounds || 0) + 1; this.mode = 'FOLLOW'; this.target = null;
+        V3.set(this.tmp, this.pos[0], 2.2, this.pos[2]);
+        Particles.burst(this.tmp, 22, 'debris'); Particles.burst(this.tmp, 8, 'spark');
+        sfx('handHitFlesh', this.tmp); sfx('screech', M.pos); M.armReach = 1;
+        const dx = this.pos[0] - M.pos[0], dz = this.pos[2] - M.pos[2], d = Math.hypot(dx, dz) || 1;
+        this.pos[0] += dx / d * 1.4; this.pos[2] += dz / d * 1.4;
+        if (this.wounds === 1) Dialogue.say('MARIGOLD', 'Lovey! ...She is up. She is still up. Keep going!');
+      }
+    }
+    if (this.hurtT > 0) { this.walk = damp(this.walk, 0, 6, dt); this.phase += dt * 2; return; }
     this.cool = Math.max(0, this.cool - dt); this.lineCool = Math.max(0, this.lineCool - dt); this.swingT = Math.max(0, this.swingT - dt);
     const b = Player.body.pos, P = this.pos;
     const dp = Math.hypot(b[0] - P[0], b[2] - P[2]);
@@ -116,6 +151,10 @@ const Lovey = {
       Monster.stunTimer = Math.max(Monster.stunTimer, 3.5); Monster.flinchAmt = 1;
       Particles.burst(this.tmp, 20, 'spark'); sfx('boom'); Audio.boom();
       Player.addTrauma(0.35); this.cool = 22;
+      // she pins it down for a long time - long enough for a train - and her blows count in the vault fight
+      Monster.stunTimer = Math.max(Monster.stunTimer, 7);
+      const V = DeepWorks.vault;
+      if (V && V.active && V.mode === 'P1') { V.hp = Math.max(4, V.hp - 1); V.hitFlash = 1; sfx('monsterHurt', Monster.pos); }
     } else if (T.kind === 'cherub') {
       T.c.dead = true; Particles.burst(this.tmp, 24, 'debris'); sfx('shatter', this.tmp);
       this.cool = 2;
@@ -125,11 +164,22 @@ const Lovey = {
     }
   },
 
+  submitHiding(vis) {
+    if (Game.stage !== 6 || !Sculpt.ready('lv_body')) return;
+    const sec = Level.sectorAt(LOVEY_HIDE[0], LOVEY_HIDE[1]); if (!vis[sec]) return;
+    const R = RenderQueue, x = LOVEY_HIDE[0], z = LOVEY_HIDE[1], sh = Math.sin(this.shake * 31) * 0.012;
+    const tint = it => { if (it) { it.tint[0] = LOVEY_TINT[0]; it.tint[1] = LOVEY_TINT[1]; it.tint[2] = LOVEY_TINT[2]; } return it; };
+    // curled up against the wall: knees drawn up, body hunched forward, head buried, her arm around her legs
+    tint(R.trs('lv_body', MAT.furLight, x + sh, 0, z, Math.PI / 2, 0.55, sh * 3, 1, 0.55, 1));
+    tint(R.trs('lv_head', MAT.furLight, x - 0.5 + sh, 1.55, z, Math.PI / 2, 0.9, 0.2, 1.1, 1.1, 1.1));
+    if (Sculpt.ready('lv_arm')) tint(R.trs('lv_arm', MAT.furLight, x - 0.2, 1.5, z - 0.35, Math.PI / 2, 1.2, 0.4, 1, 0.75, 1));
+  },
   submit(vis) {
+    if (!this.found) { this.submitHiding(vis); return; }
     if (!this.active || !vis[this.sector] || !Sculpt.ready('lv_body')) return;
     const R = RenderQueue, P = this.pos, yaw = this.yaw, sw = Math.sin(this.phase), walk = this.walk;
     const tint = it => { if (it) { it.tint[0] = LOVEY_TINT[0]; it.tint[1] = LOVEY_TINT[1]; it.tint[2] = LOVEY_TINT[2]; } return it; };
-    const lean = walk * 0.06 + (this.swingT > 0 ? 0.2 : 0);
+    const lean = walk * 0.06 + (this.swingT > 0 ? 0.2 : 0) - (this.hurtT > 0 ? Math.sin(Math.min(1, this.hurtT / 1.6) * Math.PI) * 0.45 : 0);
     const bob = Math.abs(sw) * 0.06 * walk;
     tint(R.trs('lv_body', MAT.furLight, P[0], P[1] + bob, P[2], yaw, lean, sw * 0.035 * walk, 1, 1, 1));
     // local point helper: (x right, y up, z back) -> world
@@ -144,6 +194,8 @@ const Lovey = {
       pt(this.shoulder, 0.38, 2.74, 0);
       const swing = this.swingT > 0 ? -2.5 * Math.sin(this.swingT / 0.6 * Math.PI) : sw * 0.3 * walk;
       tint(R.trs('lv_arm', MAT.furLight, this.shoulder[0], this.shoulder[1], this.shoulder[2], yaw, swing, -0.08, 1, 1, 1));
+      // her yellow plush hand with a worn black patch on the palm
+      if (Sculpt.ready('lv_hand')) { const h = R.trs('lv_hand', MAT.furLight, this.shoulder[0], this.shoulder[1], this.shoulder[2], yaw, swing, -0.08, 1, 1, 1); if (h) { h.tint[0] = 2.3; h.tint[1] = 1.95; h.tint[2] = 0.45; } }
     }
   }
 };

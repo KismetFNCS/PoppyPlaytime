@@ -42,9 +42,9 @@ void main() {
 const FS_GBUF = SHADER_COMMON + `
 uniform sampler2DArray uAlbedoTex;
 uniform sampler2DArray uNormalTex;
-uniform vec4 uMatA[24];
-uniform vec4 uMatB[24];
-uniform vec3 uMatE[24];
+uniform vec4 uMatA[32];
+uniform vec4 uMatB[32];
+uniform vec3 uMatE[32];
 uniform mat3 uNormalMat;
 uniform vec4 uTint;
 uniform vec3 uEmisAdd;
@@ -834,7 +834,7 @@ const Renderer = {
   },
   uploadMaterialUniforms() {
     const gl = this.gl, p = this.progs.gbuf;
-    const A = new Float32Array(96), B = new Float32Array(96), E = new Float32Array(72);
+    const A = new Float32Array(128), B = new Float32Array(128), E = new Float32Array(96);
     for (let i = 0; i < MATERIALS.length; i++) {
       const m = MATERIALS[i], base = hexToLinear(m.base), em = hexToLinear(m.emis);
       A[i * 4] = base[0]; A[i * 4 + 1] = base[1]; A[i * 4 + 2] = base[2]; A[i * 4 + 3] = m.rough;

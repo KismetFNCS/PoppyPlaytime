@@ -147,7 +147,25 @@ const Game = {
   },
 
   // ---------- UI actions ----------
+  // LEVEL SELECT: jump straight to any area or boss fight, with every hand you would have by then
+  startAtStage(st) {
+    document.getElementById('levelPanel').classList.remove('on');
+    this.resetGame();
+    if (st === 5) { DeepWorks.startOpening(); setState(STATE.GAMEPLAY_ACTIVE); return; }
+    Gear.handsLost = false;
+    const byStage = { THUMPER: 1, LANTERN: 2, STITCHER: 3, BELLOWS: 8, CONDUIT: 9, ANCHOR: 9, SPRING: 11, FLARE: 12, MAGNET: 15 };
+    for (let i = 0; i < HAND_COUNT; i++) { const need = byStage[HAND_TYPES[i].id]; if (need === undefined || st >= need) Gear.owned[i] = 1; }
+    for (const p of Gear.pickups) { if (p.kind === 'mask' || p.restore) p.taken = true; if (p.kind === 'hand' && Gear.owned[p.type]) p.taken = true; }
+    Gear.hasMask = true;
+    const keys = { OFFICE: 6, EXEC: 14 };
+    for (const p of Gear.pickups) if (p.kind === 'key' && st >= keys[p.key]) p.taken = true;
+    this.stage = st;
+    this.saveCheckpoint(st);
+    this.restoreCheckpoint();
+    setState(STATE.GAMEPLAY_ACTIVE);
+  },
   uiAction(act) {
+    if (typeof act === 'string' && act.indexOf('level:') === 0) { sfx('tapeInsert'); this.startAtStage(parseInt(act.slice(6), 10)); return; }
     switch (act) {
       case 'new': this.startNewGame(); break;
       case 'continue': if (this.hasSave) this.continueGame(); break;
@@ -164,6 +182,8 @@ const Game = {
       case 'load': this.refreshContinue(); if (this.hasSave) this.continueGame(); else UI.setMenuPage('chapters'); break;
       case 'exitChapters': sfx('uiBack'); UI.setMenuPage('title'); break;
       case 'chapter6': sfx('tapeInsert'); UI.setMenuPage('ch6'); break;
+      case 'levels': document.getElementById('levelPanel').classList.add('on'); break;
+      case 'levelsBack': sfx('uiBack'); document.getElementById('levelPanel').classList.remove('on'); break;
       case 'lockedChapter': {
         sfx('deny');
         const b = UI.menuButtons()[UI.menuIndex];
@@ -213,7 +233,7 @@ const Game = {
 
   // Resets every mutable gameplay field (the list is cross-checked against the declarations above)
   resetGame() {
-    if (typeof Lovey !== 'undefined') Lovey.met = false;
+    if (typeof Lovey !== 'undefined') { Lovey.met = false; Lovey.found = false; }
     if (this.tv) { this.tv = null; if (VHS.tape) { VHS.tape = null; VHS.done = null; } }
     this.stage = 0; this.time = 0; this.threat = 0; this.chaseActive = false; this.victoryTimer = -1; this.invulnerable = false; this.liftTimer = 0;
     Boss.reset();
@@ -477,8 +497,8 @@ const Game = {
         if (!d.key || d.target === 1) continue;
         const cx = d.axis === 'x' ? d.line : (d.a + d.b) / 2, cz = d.axis === 'x' ? (d.a + d.b) / 2 : d.line;
         if (Math.hypot(Player.body.pos[0] - cx, Player.body.pos[2] - cz) > 2.2) continue;
-        if (Gear.hasKey(d.key)) { Doors.setOpen(d.id, true); sfx('scanner', Player.body.pos); GrabPack.showHint('UNLOCKED with the ' + d.key + ' KEY'); }
-        else { sfx('deny', Player.body.pos); GrabPack.showHint('LOCKED - it needs the ' + d.key + ' KEY'); }
+        if (Gear.hasKey(d.key)) { Doors.setOpen(d.id, true); GrabPack.showHint('Unlocked with the ' + d.key.toLowerCase() + ' key.'); }
+        else { sfx('doorLocked', doorCenter(d)); d.rattle = 0.4; GrabPack.showHint('It\'s locked.'); }
       }
       // crawl ducts: a nudge to crouch at the entrance
       for (const D of Level.ducts) if (!Player.crouching && Player.body.pos[0] > D.x0 - 0.9 && Player.body.pos[0] < D.x1 + 0.9 && Player.body.pos[2] > D.z0 - 0.9 && Player.body.pos[2] < D.z1 + 0.9 && GrabPack.hintTimer <= 0) GrabPack.showHint('A crawl duct - hold [C] to crouch and crawl through');
@@ -979,61 +999,53 @@ const Game = {
     if (!this.tvAsset && VHS.canvas && Gear.canvasQuad) { this.tvAsset = Gear.canvasQuad(VHS.canvas, 'tv-screen', 1.5, false); this.tvAsset.materials[0].rough = 0.2; }
     for (const tp of Level.tapes) {
       if (!vis[tp.sector]) continue;
-      // the set stands on its own wheeled cart beside the desk, turned (to the nearest quarter) toward the
-      // side you first come at it from
+      // the set sits on the desk beside its VCR, its screen facing the open room (the direction with the most
+      // free space), so it never backs into a wall
       if (tp.tvYaw === undefined) {
-        const dx = Player.body.pos[0] - tp.pos[0], dz = Player.body.pos[2] - tp.pos[2];
-        if (Math.hypot(dx, dz) < 14) {
-          tp.tvYaw = Math.round(Math.atan2(-dx, -dz) / (Math.PI / 2)) * (Math.PI / 2);
-          // put the cart on whichever side of the desk has clear floor
-          const c = Math.cos(tp.tvYaw), sn = Math.sin(tp.tvYaw);
-          V3.set(_g.p0, tp.pos[0], tp.pos[1] - 0.4, tp.pos[2]);
-          tp.tvSide = 1.35;
-          for (const side of [1.35, -1.35]) {
-            V3.set(_g.p1, tp.pos[0] + (side + Math.sign(side) * 0.55) * c, tp.pos[1] - 0.4, tp.pos[2] - (side + Math.sign(side) * 0.55) * sn);
-            if (Physics.lineOfSight(_g.p0, _g.p1, LAYER.SIGHT)) { tp.tvSide = side; break; }
-          }
+        let best = -1, by = 0;
+        for (let k = 0; k < 4; k++) {
+          const yw = k * Math.PI / 2; V3.set(_g.d, -Math.sin(yw), 0, -Math.cos(yw)); V3.set(_g.p0, tp.pos[0], tp.pos[1] + 0.35, tp.pos[2]);
+          const dist = Physics.raycast(_g.p0, _g.d, 12, LAYER.WORLD_STATIC, GrabPack.hit) ? GrabPack.hit.t : 12;
+          if (dist > best) { best = dist; by = yw; }
         }
+        tp.tvYaw = by;
       }
-      const ty = tp.tvYaw === undefined ? Math.PI : tp.tvYaw, cy = Math.cos(ty), syaw = Math.sin(ty);
-      // local (lx, lz) -> world, local -z is the screen side
-      const lw = (lx, lz, o) => { o[0] = tp.pos[0] + lx * cy + lz * syaw; o[2] = tp.pos[2] - lx * syaw + lz * cy; return o; };
-      const floor = tp.pos[1] - 1.0, sy = floor + 0.72;
-      const sd = tp.tvSide || 1.35;
-      lw(sd, 0.05, _g.p1); const x = _g.p1[0], z = _g.p1[2];
-      R.trs('box', MAT.steel, x, floor + 0.36, z, ty, 0, 0, 0.9, 0.04, 0.66);
-      R.trs('box', MAT.steel, x, floor + 0.7, z, ty, 0, 0, 0.9, 0.04, 0.66);
-      for (const [a, b] of [[-0.42, -0.3], [0.42, -0.3], [-0.42, 0.3], [0.42, 0.3]]) { lw(sd + a, 0.05 + b, _g.p2); R.trs('box', MAT.steel, _g.p2[0], floor + 0.38, _g.p2[2], ty, 0, 0, 0.035, 0.7, 0.035); R.trs('sphereLow', MAT.rubber, _g.p2[0], floor + 0.04, _g.p2[2], 0, 0, 0, 0.045, 0.045, 0.045); }
-      if (Sculpt.ready('crt_tv')) { const tv = R.trs('crt_tv', MAT.wood, x, sy, z, ty, 0, 0, 1, 1, 1); if (tv) { tv.tint[0] = 0.8; tv.tint[1] = 0.68; tv.tint[2] = 0.55; } }
-      else R.trs('box', MAT.wood, x, sy + 0.4, z, ty, 0, 0, 0.84, 0.68, 0.6);
+      const ty = tp.tvYaw, cy = Math.cos(ty), syw = Math.sin(ty);
+      const top = tp.pos[1] - 0.05, sc = 0.6;
+      // local (lx right, lz back) -> world; the TV on the right half of the desk, the VCR and tape on the left
+      const lw = (lx, lz, o) => { o[0] = tp.pos[0] + lx * cy + lz * syw; o[2] = tp.pos[2] - lx * syw + lz * cy; return o; };
+      lw(0.36, 0.08, _g.p1); const x = _g.p1[0], z = _g.p1[2];
+      if (Sculpt.ready('crt_tv')) { const tv = R.trs('crt_tv', MAT.wood, x, top, z, ty, 0, 0, sc, sc, sc); if (tv) { tv.tint[0] = 0.8; tv.tint[1] = 0.68; tv.tint[2] = 0.55; } }
+      else R.trs('box', MAT.wood, x, top + 0.4 * sc, z, ty, 0, 0, 0.84 * sc, 0.68 * sc, 0.6 * sc);
       const playing = this.tv && this.tv.tp === tp;
-      lw(sd - 0.07, 0.05 - 0.3, _g.p2);
+      lw(0.36 - 0.07 * sc, 0.08 - 0.3 * sc, _g.p2);
       if (playing && this.tvAsset) {
-        M4.compose(_g.m, _g.p2[0], sy + 0.41, _g.p2[2], ty, 0, 0, 0.5, 0.44, 1);
+        M4.compose(_g.m, _g.p2[0], top + 0.41 * sc, _g.p2[2], ty, 0, 0, 0.5 * sc, 0.44 * sc, 1);
         const q = AssetQueue.push(this.tvAsset, _g.m, false); if (q) q.tint[3] = 0.15;
       } else {
-        const sc = R.trs('box', MAT.screen, _g.p2[0], sy + 0.41, _g.p2[2], ty, 0, 0, 0.5, 0.44, 0.01, false);
-        if (sc) { const n = 0.12 + 0.08 * noise1(t * 40 + x); sc.emis[0] = n * 0.8; sc.emis[1] = n; sc.emis[2] = n * 1.3; }
+        const sc2 = R.trs('box', MAT.screen, _g.p2[0], top + 0.41 * sc, _g.p2[2], ty, 0, 0, 0.5 * sc, 0.44 * sc, 0.01, false);
+        if (sc2) { const n = 0.12 + 0.08 * noise1(t * 40 + x); sc2.emis[0] = n * 0.8; sc2.emis[1] = n; sc2.emis[2] = n * 1.3; }
       }
-      const tsy = tp.pos[1] + 0.305;
-      const vx = tp.pos[0], vz = tp.pos[2] + 0.2;
-      if (Sculpt.ready('vcr')) { const v = R.trs('vcr', MAT.rubber, vx, tsy, vz, 0.3, 0, 0, 1, 1, 1); if (v) { v.tint[0] = v.tint[1] = v.tint[2] = 1.6; } }
+      const tsy = top;
+      lw(-0.4, 0.05, _g.p0); const vx = _g.p0[0], vz = _g.p0[2];
+      if (Sculpt.ready('vcr')) { const v = R.trs('vcr', MAT.rubber, vx, tsy, vz, ty, 0, 0, 1, 1, 1); if (v) { v.tint[0] = v.tint[1] = v.tint[2] = 1.6; } }
       // the VCR's clock blinks 12:00 (green while a tape plays)
-      const lx = vx + Math.cos(0.3) * 0.14 + Math.sin(0.3) * -0.17, lz = vz - Math.sin(0.3) * 0.14 + Math.cos(0.3) * -0.17;
-      const led = R.trs('box', MAT.screen, lx, tsy + 0.064, lz, 0.3, 0, 0, 0.1, 0.026, 0.004, false);
+      lw(-0.4 + 0.14, 0.05 - 0.17, _g.p0);
+      const led = R.trs('box', MAT.screen, _g.p0[0], tsy + 0.064, _g.p0[2], ty, 0, 0, 0.1, 0.026, 0.004, false);
       if (led) { const on = playing ? 1 : (Math.sin(t * 4) > 0 ? 1 : 0.1); if (playing) { led.emis[1] = 1.8 * on; led.emis[0] = 0.2; } else { led.emis[0] = 1.8 * on; led.emis[1] = 0.25 * on; } }
+      tp.vcr = tp.vcr || V3.create(); V3.set(tp.vcr, vx, tsy, vz);
     }
     for (const tp of Level.tapes) {
       if (!vis[tp.sector] || tp.collected) continue;
-      const ty = tp.pos[1] + 0.305 + 0.095;
+      const vp = tp.vcr || tp.pos, ty = (tp.vcr ? vp[1] : tp.pos[1]) + 0.095, tx = vp[0], tz = vp[2], tyaw = (tp.tvYaw || 0) + 0.15;
       if (customTape) {
-        M4.compose(_g.m, tp.pos[0], ty + 0.03, tp.pos[2] + 0.2, 0.3 + Math.sin(t) * 0.05, 0, 0, 1, 1, 1);
+        M4.compose(_g.m, tx, ty + 0.03, tz, tyaw, 0, 0, 1, 1, 1);
         const ci = AssetQueue.push(customTape, _g.m, true);
         if (ci) { const g = 0.15 + 0.15 * Math.sin(t * 3); ci.emis[0] = g; ci.emis[1] = g * 0.7; ci.emis[2] = g * 0.2; }
         continue;
       }
       const g = 0.12 + 0.12 * Math.sin(t * 3);
-      const it = Sculpt.ready('vhs_tape') ? R.trs('vhs_tape', MAT.rubber, tp.pos[0], ty, tp.pos[2] + 0.2, 0.3, 0, 0, 1, 1, 1) : R.trs('box', MAT.rubber, tp.pos[0], ty + 0.0125, tp.pos[2] + 0.2, 0.3, 0, 0, 0.19, 0.025, 0.105);
+      const it = Sculpt.ready('vhs_tape') ? R.trs('vhs_tape', MAT.rubber, tx, ty, tz, tyaw, 0, 0, 1, 1, 1) : R.trs('box', MAT.rubber, tx, ty + 0.0125, tz, tyaw, 0, 0, 0.19, 0.025, 0.105);
       if (it) { it.emis[0] = g; it.emis[1] = g * 0.7; it.emis[2] = g * 0.2; }
     }
   },
@@ -1156,7 +1168,7 @@ const Game = {
   drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
     const R = RenderQueue, HT = HAND_TYPES[Gear.cur], mat = side === 0 ? MAT.handTeal : HT.mat;
     // withered, grimy gloves: darker than new
-    const tr = side === 0 ? 0.4 : HT.tint[0], tg = side === 0 ? 0.48 : HT.tint[1], tb = side === 0 ? 0.44 : HT.tint[2];
+    const tr = side === 0 ? 0.38 : HT.tint[0], tg = side === 0 ? 0.5 : HT.tint[1], tb = side === 0 ? 1.0 : HT.tint[2];   // the left hand: a worn, dirty blue
     // right-handed basis (r = up x f) so back-face culling keeps the outside of the glove
     V3.cross(_g.r, upRef, f); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, f, _g.r); V3.normalize(_g.u, _g.u);

@@ -69,7 +69,7 @@ const Cast = {
       -0.5, -0.5, 0, 0, 0, -1, 1, 1, 0.5, -0.5, 0, 0, 0, -1, 0, 1, 0.5, 0.5, 0, 0, 0, -1, 0, 0, -0.5, 0.5, 0, 0, 0, -1, 1, 0
     ]);
     const idx = new Uint16Array([0, 2, 1, 0, 3, 2]);
-    const mat = { baseColor: new Float32Array([1, 1, 1, 1]), image: null, tex, rough: 0.12, metal: 0, emissive: new Float32Array(3), cutoff: -1, doubleSided: true, texEmissive: 3.2 };
+    const mat = { baseColor: new Float32Array([1, 1, 1, 1]), image: null, tex, rough: 0.7, metal: 0, emissive: new Float32Array(3), cutoff: -1, doubleSided: true, texEmissive: 1.15 };
     const asset = { name: 'usher-screen', prims: [{ vertices: v, indices: idx, node: M4.create(), material: mat, gpu: null, tris: 2 }], materials: [mat], fit: M4.create(), ready: true, size: V3.create(1, 1, 0) };
     Assets.upload(asset);
     mat.tex = tex;
@@ -145,9 +145,9 @@ const Cast = {
       const P = this.PERCHES[stagePerch];
       const sector = Level.sectorAt(P[0], P[1]);
       // only materialise when the player is in that sector but far away
+      // Harlan Smithers has no body: he only ever speaks through the screens and the PA
       if (Streaming.current === sector && Math.hypot(Player.body.pos[0] - P[0], Player.body.pos[2] - P[1]) > 12) {
-        U.state = 'WATCHING'; U.perch = stagePerch; U.timer = 0; U.stareTime = 0;
-        V3.set(U.pos, P[0], 0, P[1]); U.yaw = P[2]; U.headYaw = 0;
+        U.used[stagePerch] = 1;
         Dialogue.say('USHER', USHER_LINES[stagePerch]);
         sfx('tapeGlitch');
       }
@@ -206,13 +206,13 @@ const Cast = {
     const near = Math.hypot(Player.body.pos[0] - D.pos[0], Player.body.pos[2] - D.pos[2]);
     if (!D.met && near < 6.5 && D.sector === 1) {
       D.met = true;
-      Dialogue.say('MARIGOLD', '...You can see me? Nobody has looked at me in such a long time.');
-      Dialogue.say('MARIGOLD', 'They called this floor Reclamation. It never gave anything back.');
-      Dialogue.say('MARIGOLD', 'Close the circuit and the door will listen to you. It never listened to me.');
+      Dialogue.say('MARIGOLD', 'There you are. I was beginning to think Harlan had locked you in the intake again.');
+      Dialogue.say('MARIGOLD', 'Reclamation. We swore we would never come back to this floor, and here we are.');
+      Dialogue.say('MARIGOLD', 'Close the circuit for the door. Morsel and I will keep watch.');
     }
     if (D.sector === 4 && near < 3.5 && !D.farewell) {
       D.farewell = true;
-      Dialogue.say('MARIGOLD', 'You came all this way for a broken doll? ...Take me with you. Please.');
+      Dialogue.say('MARIGOLD', 'Down we go, then. Together, like always.');
     }
     const head = this.tmp;
     V3.set(head, D.pos[0], D.pos[1] + 0.62, D.pos[2]);
@@ -450,6 +450,12 @@ const Cast = {
     c.fillStyle = C.pupil; c.beginPath(); c.arc(ix, iy, 7 + Math.sin(t * 3) * 1.5, 0, Math.PI * 2); c.fill();
     c.fillStyle = C.sclera; c.fillRect(ix - 9, iy - 9, 4, 4);
     c.restore();
+    // red and blue static: colour-split snow, torn horizontal bars and a chromatic fringe
+    for (let i = 0; i < 70; i++) { c.fillStyle = gameRng() < 0.5 ? 'rgba(255,40,50,0.55)' : 'rgba(40,110,255,0.55)'; c.fillRect(gameRng() * W, gameRng() * H, 1 + gameRng() * 3, 1); }
+    if (gameRng() < 0.35) { const y = gameRng() * H; c.fillStyle = 'rgba(255,50,60,0.3)'; c.fillRect(0, y, W, 2 + gameRng() * 3); c.fillStyle = 'rgba(50,120,255,0.3)'; c.fillRect(2, y + 3, W, 2); }
+    c.globalCompositeOperation = 'lighter';
+    c.fillStyle = 'rgba(120,0,0,0.12)'; c.fillRect(0, 0, 2, H); c.fillStyle = 'rgba(0,30,140,0.12)'; c.fillRect(W - 2, 0, 2, H);
+    c.globalCompositeOperation = 'source-over';
     // scanlines + rolling band
     c.fillStyle = 'rgba(0,0,0,0.35)';
     for (let y = 0; y < H; y += 2) c.fillRect(0, y, W, 1);
@@ -458,7 +464,7 @@ const Cast = {
 
   // ---------- rendering ----------
   submit(vis) {
-    if (this.usher.state !== 'HIDDEN' && vis[Level.sectorAt(this.usher.pos[0], this.usher.pos[2])]) this.submitUsher();
+    // (Harlan Smithers has no body - he lives in the screens)
     if (vis[this.doll.sector]) this.submitDoll();
     Lovey.submit(vis);
     if (this.monitor.active && vis[this.monitor.sector] && this.screen) this.submitMonitor();
@@ -649,13 +655,18 @@ const Cast = {
     const TL = (x, y, z) => { V3.set(this.local, x, y, z); return M4.transformPoint(b, this.m, this.local); };
     TL(0.12, 0.06, -0.255);
     R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.055, 0.055, 0.04, false);
-    TL(0.12, 0.06, -0.29);
-    it = R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.032, 0.032, 0.01, false);
-    if (it) { it.tint[0] = 0.62; it.tint[1] = 0.32; it.tint[2] = 1.05; }   // violet iris, no glow
-    TL(0.12, 0.06, -0.297);
-    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, 0, 0, 0.013, 0.013, 0.004, false);
-    TL(0.108, 0.075, -0.3);
-    it = R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], 0, 0, 0, 0.006, 0.006, 0.006, false);
+    // a big violet iris sitting proud of the eyeball, with a darker violet flower-shaped pupil
+    TL(0.12, 0.06, -0.293);
+    it = R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.037, 0.037, 0.008, false);
+    if (it) { it.tint[0] = 0.75; it.tint[1] = 0.25; it.tint[2] = 1.35; }
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + 0.4; TL(0.12 + Math.cos(a) * 0.008, 0.06 + Math.sin(a) * 0.008, -0.3);
+      const pe = R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.009, 0.009, 0.003, false); if (pe) { pe.tint[0] = 0.32; pe.tint[1] = 0.06; pe.tint[2] = 0.55; }
+    }
+    TL(0.12, 0.06, -0.302);
+    R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, 0, 0, 0.006, 0.006, 0.003, false);
+    TL(0.106, 0.077, -0.304);
+    it = R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], 0, 0, 0, 0.006, 0.006, 0.003, false);
     if (it) { it.tint[0] = it.tint[1] = it.tint[2] = 1.6; }
   }
 };

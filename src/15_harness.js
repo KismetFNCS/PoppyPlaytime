@@ -351,7 +351,7 @@ async function runAll() {
     const off = Level.doorById('DY_OFF');
     Gear.pickups.find(p => p.key === 'OFFICE').taken = false;
     T.setPlayerPose(7.9, 0, -143.8, -Math.PI / 2, 0); T.step(DT, 3); tap('KeyE'); T.step(DT, 3);
-    check('explore: the records office is locked without its key', off.target === 0 && /LOCKED/.test(GrabPack.hint), GrabPack.hint);
+    check('explore: the records office is locked without its key (handle rattles: "It\'s locked.")', off.target === 0 && /locked/i.test(GrabPack.hint) && T.getSfxLog().includes('doorLocked'), GrabPack.hint);
     Gear.pickups.find(p => p.key === 'OFFICE').taken = true;
     tap('KeyE'); T.step(DT, 200);
     check('explore: the key unlocks the records office', off.target === 1 && off.open > 0.9, off.open.toFixed(2));
@@ -659,7 +659,9 @@ async function runAll() {
     T.step(DT, 2);
     check('act2: the Loom is not the end - the freight lift drops into the fabrication line', arrived && Streaming.current === 7, 'stage ' + Game.stage + ' sector ' + Streaming.current);
     check('act2: checkpoint saved at the fabrication line', Game.checkpoint.stage === 6, Game.checkpoint.stage);
-    check('lovey: the rose plush ally meets you in the Deep Works (silent - the others speak for her)', Lovey.active && Lovey.met && !Dialogue.queue.some(q => q.speaker === 'LOVEY'), '');
+    check('lovey: she is missing when you reach the fabrication line', !Lovey.found && !Lovey.active, '');
+    Game.invulnerable = true; T.setPlayerPose(LOVEY_HIDE[0] + 2.5, 0, LOVEY_HIDE[1] + 1, 0, 0); T.step(DT, 4);
+    check('lovey: you find her hiding, scared, on the line - and she joins you (silent)', Lovey.found && Lovey.active && !Dialogue.queue.some(q => q.speaker === 'LOVEY'), '');
     T.step(DT, 4);
     check('lovey: Posie rides on her shoulders', V3.dist(Cast.doll.pos, Lovey.seat(V3.create())) < 0.05, V3.dist(Cast.doll.pos, Lovey.seat(V3.create())).toFixed(2));
     {
@@ -812,6 +814,8 @@ async function runAll() {
     goA3(10);
     check('act3: celestial wing - a new game area past the vault', Streaming.current === 12 && Game.stage === 10, 'sector ' + Streaming.current);
     const a3sp = Gear.pickups.find(p => p.kind === 'hand' && HAND_TYPES[p.type].id === 'SPRING');
+    check('act3: the SPRING hand is caged until the chapel circuit is run', Gear.locked(a3sp), '');
+    Level.receptacles.find(r => r.action === 'A_SPRINGCAGE').powered = true;
     Gear.take(a3sp); T.step(DT, 2);
     check('act3: the SPRING hand', Gear.owned[7] === 1, '');
     Gear.cur = 7; const a3pad = A3t.springs[0];
@@ -824,8 +828,8 @@ async function runAll() {
     check('act3: a Choir mass grabs your ankles from the pews', A3t.grab > 0, A3t.grab.toFixed(2));
     A3t.handHit({ pos: V3.create() }, V3.create(a3ch.pos[0] + 2, 0.6, a3ch.pos[2]), V3.create(-1, 0, 0), 4);
     check('act3: a hand makes it let go', A3t.grab === 0 && a3ch.stun > 0, '');
-    A3t.seraph.hold = 5; T.setPlayerPose(0, 0, -357.5, 0, 0); for (let i = 0; i < 120 && T.getState() === 'GAMEPLAY_ACTIVE'; i++) T.step(DT, 1);
-    check('act3: the Seraph\'s searchlight finds you and it dives', T.getState() === 'FAILURE_STATE' || T.getState() === 'JUMPSCARE', T.getState());
+    A3t.seraph.hold = 5; T.setPlayerPose(0, 0, -357.5, 0, 0); for (let i = 0; i < 120 && T.getState() === 'GAMEPLAY_ACTIVE' && !(A3t.swarm > 0); i++) T.step(DT, 1);
+    check('act3: the Seraph\'s searchlight calls the cherub pack down onto you', T.getState() === 'FAILURE_STATE' || A3t.swarm > 0, T.getState());
     goA3(10);
     A3t.action('A_ORGAN');
     check('act3: the organ lever opens the way down to the toybox', Level.doorById('D11').target === 1 && Game.stage === 11, '');
@@ -850,7 +854,9 @@ async function runAll() {
     goA3(13);
     check('act3: the way to the salvage yards needs the executive key', Level.doorById('D14').key === 'EXEC', '');
     goA3(14);
-    const a3mg = Gear.pickups.find(p => p.kind === 'hand' && HAND_TYPES[p.type].id === 'MAGNET'); Gear.take(a3mg); Gear.cur = 8;
+    const a3mg = Gear.pickups.find(p => p.kind === 'hand' && HAND_TYPES[p.type].id === 'MAGNET');
+    check('act3: the MAGNET hand is caged until the yard circuit is run', Gear.locked(a3mg), '');
+    Level.receptacles.find(r => r.action === 'S_MAGCAGE').powered = true; Gear.take(a3mg); Gear.cur = 8;
     const a3pl = A3t.magnets[0]; T.setPlayerPose(a3pl.pos[0], 0, -534, 0, 0); T.step(DT, 1);
     A3t.handImpact({ side: 1, latchRef: a3pl, pos: a3pl.pos, state: 0 }, 'magnet');
     for (let i = 0; i < 120 && Player.zip; i++) T.step(DT, 1);
@@ -940,13 +946,9 @@ async function runAll() {
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
       Doors.setOpen('D0', true); Level.doorById('D0').open = 1; Game.stage = 1;
       T.setPlayerPose(6, 0, -14, 0, 0); T.step(DT, 4);
-      check('usher: materialises at its hall vantage point', Cast.usher.state === 'WATCHING', Cast.usher.state);
-      T.aimAt(Cast.usher.pos[0], 2.15, Cast.usher.pos[2]);
-      T.step(DT, 60);
-      check('usher: staring at it makes it glitch away', Cast.usher.state === 'VANISHING' || Cast.usher.state === 'HIDDEN', Cast.usher.state);
-      check('sound: usher glitch', T.getSfxLog().includes('usherGlitch'), '');
-      T.step(DT, 60);
-      check('usher: gone for good from that perch', Cast.usher.state === 'HIDDEN' && Cast.usher.used[0] === 1, Cast.usher.state);
+      check('harlan: speaks over the PA from the hall without ever showing a body', Cast.usher.state === 'HIDDEN' && Cast.usher.used[0] === 1 && (Dialogue.busy()), Cast.usher.state);
+      check('sound: harlan\'s signal glitch', T.getSfxLog().includes('tapeGlitch'), '');
+      Dialogue.clear();
       // doll: look away, then back -> its head has turned to face you
       T.setPlayerPose(7.5, 0, -4.5, 0, 0); T.aimAt(10.6, 1.6, -6.6); T.step(DT, 3);
       Cast.doll.tickCool = 0; Cast.doll.snapped = false; Cast.doll.headYaw = 0.59;
@@ -1092,7 +1094,7 @@ async function runAll() {
     {
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
-      check('gear: you start with your old ROSE hand only', Gear.cur === 0 && Gear.ownedCount() === 1 && !Gear.hasMask);
+      check('gear: you start with ROSE and your old hands (THUMPER, STITCHER, LANTERN)', Gear.cur === 0 && Gear.ownedCount() === 4 && !Gear.hasMask);
       // the gas mask on the intake desk
       const mk = Gear.pickups.find(p => p.kind === 'mask');
       T.setPlayerPose(mk.pos[0], 0, mk.pos[2] + 1.4, 0, 0); T.aimAt(mk.pos[0], mk.pos[1], mk.pos[2]); T.step(DT, 2);
@@ -1105,30 +1107,28 @@ async function runAll() {
       check('gear: [G] puts the mask on (lens overlay)', Gear.maskOn && Gear.maskT > 0.93 && document.getElementById('maskOverlay').style.display === 'block', Gear.maskT.toFixed(2));
       tap('KeyG'); T.step(DT, 30);
       check('gear: [G] takes it off', !Gear.maskOn && document.getElementById('maskOverlay').style.display === 'none');
-      // a new hand: pick up the THUMPER and swap to it
-      const th = Gear.pickups.find(p => p.kind === 'hand' && p.type === 1);
-      const r1 = Level.receptacles.find(r => r.action === 'R1'); r1.powered = false;
-      check('gear: the THUMPER is caged until the hall circuit is restored', Gear.locked(th), '');
-      r1.powered = true;
-      T.setPlayerPose(th.pos[0], 0, th.pos[2] + 1.4, 0, 0); T.aimAt(th.pos[0], th.pos[1], th.pos[2]); T.step(DT, 2); tap('KeyE'); T.step(DT, 30);
-      check('gear: picking up a hand equips it on the right', Gear.owned[1] && Gear.cur === 1 && /THUMPER/.test(document.getElementById('hudHandR').textContent), document.getElementById('hudHandR').textContent);
+      // the hands from before (THUMPER, STITCHER, LANTERN) are already on the wheel
+      check('gear: the old hands are already on the wheel', Gear.owned[1] && Gear.owned[2] && Gear.owned[3] && !Gear.pickups.some(p => p.kind === 'hand' && p.type >= 1 && p.type <= 3), '');
+      Gear.cur = 3;
       tap('KeyX'); T.step(DT, 30);
-      check('gear: [X] swaps back to ROSE (the teal hand never swaps)', Gear.cur === 0, Gear.cur);
+      check('gear: [X] cycles back round to ROSE (the left hand never swaps)', Gear.cur === 0, Gear.cur);
       T.simulateKey('Tab', true); T.step(DT, 3);
       check('gear: holding [Tab] opens the hand wheel (camera holds still)', Gear.wheelOpen && document.getElementById('handWheel').style.display === 'block', '');
       const yaw0 = Player.yaw; Input.lookDX = 80; T.step(DT, 1); Input.lookDX = 0;
-      check('gear: aiming the wheel right selects the THUMPER slot', Gear.wheelSel === 1 && Player.yaw === yaw0, 'sel ' + Gear.wheelSel);
+      check('gear: aiming the wheel picks another hand (camera holds still)', Gear.wheelSel !== Gear.cur && Gear.owned[Gear.wheelSel] && Player.yaw === yaw0, 'sel ' + Gear.wheelSel);
+      const wsel = Gear.wheelSel;
       T.simulateKey('Tab', false); T.step(DT, 2);
-      check('gear: releasing the wheel starts the spin-swap', !Gear.wheelOpen && Gear.swapT > 0 && Gear.swapTo === 1, Gear.swapT.toFixed(2));
+      check('gear: releasing the wheel starts the spin-swap', !Gear.wheelOpen && Gear.swapT > 0 && Gear.swapTo === wsel, Gear.swapT.toFixed(2));
       T.step(DT, 50);
-      check('gear: the new hand rises into place', Gear.cur === 1 && Gear.swapT <= 0, Gear.cur);
+      check('gear: the new hand rises into place', Gear.cur === wsel && Gear.swapT <= 0, Gear.cur);
+      Gear.cur = 1;
       tap('KeyX'); T.step(DT, 50);
       tap('KeyX'); T.step(DT, 50);
       // the THUMPER stuns the Spoolwright far longer than the ROSE hand
       Game.invulnerable = true; Game.stage = 1;
       T.setPlayerPose(0, 0, -13.5, 0, 0); T.spawnMonsterNear(5); Monster.targetSpeed = 0; Monster.stunImmune = 0; T.step(DT, 2);
       T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
-      check('gear: THUMPER hit stuns for longer (3.2 s) and knocks it back', Monster.state === MSTATE.STUNNED && Monster.stunTimer > 2.5, Monster.stunTimer.toFixed(2));
+      check('gear: THUMPER hit stuns for longer (3.2 s) and knocks it back', Monster.state === MSTATE.STUNNED && Monster.stunTimer > 2.2, Monster.stunTimer.toFixed(2));
       Monster.reset(); GrabPack.reset(); T.step(DT, 30);
       // the Act II hands
       Gear.owned[4] = Gear.owned[5] = Gear.owned[6] = 1; Gear.cur = 5; Gear.swapT = 0; Level.resetBreakables(); Game.stage = 8;

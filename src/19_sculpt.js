@@ -328,48 +328,37 @@ function sculptThimbleHead(open) {
 
 // Battered harlequin top hat nodes (base at y 0); sewn onto the crown of the Spoolwright's hood (sp_hood)
 function hatNodes() {
-    // battered harlequin top hat: crown pieced from rose, teal and gold panels with diamond patches, a gold
-    // brim, a teal band, frayed ribbon tails, a crushed dent, a torn hole and stuck pins
-    const RO = MAT.clothWine, TE = MAT.handTeal, GO = MAT.paint, n = [
-      { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: RO, n: [0.008, 22] },
-      { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: RO, k: 0.05 },
-      { t: 'sph', c: [0.13, 0.36, -0.12], r: 0.07, op: 's', k: 0.04, sm: RO },
-      { t: 'cyl', c: [0, 0.015, 0], r: 0.29, h: 0.012, rr: 0.01, m: GO, k: 0.02, n: [0.01, 18] },
-      { t: 'tor', c: [0, 0.03, 0], R: 0.28, r: 0.016, m: GO, k: 0.02, n: [0.008, 30] },
-      { t: 'cyl', c: [0, 0.07, 0], r: 0.177, h: 0.034, rr: 0.004, m: TE, k: 0.004 },
-      { t: 'sph', c: [-0.16, 0.26, 0.06], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.012, 60] }
+    // a soft, stuffed jester cap: a gathered crown band and three long tapering tails - teal straight up, gold
+    // out to the left, rose out to the right - each stitched from worn canvas with a seam down its length.
+    // (the brass bells on the tips are a separate model, sp_bell)
+    const RO = MAT.clothWine, TE = MAT.clothTeal, GO = MAT.paint, n = [
+      { t: 'ell', c: [0, 0.08, 0.02], r: [0.3, 0.16, 0.28], m: TE, n: [0.006, 24] },
+      { t: 'tor', c: [0, 0.0, 0.02], R: 0.29, r: 0.028, m: GO, k: 0.02, n: [0.004, 40] }
     ];
-    // pieced crown: teal and gold panels sewn over the rose felt
-    for (let k = 0; k < 6; k++) {
-      if (k % 3 === 0) continue;
-      const ang = k / 6 * Math.PI * 2;
-      n.push({ t: 'box', c: [Math.sin(ang) * 0.172, 0.23, Math.cos(ang) * 0.172], h: [0.075, 0.15, 0.01], rr: 0.008, rot: [ang, 0, 0], m: k % 3 === 1 ? TE : GO, k: 0.012, n: [0.006, 40] });
-    }
-    // harlequin diamonds on the panels
-    for (let k = 0; k < 6; k++) {
-      const ang = k / 6 * Math.PI * 2 + 0.5;
-      n.push({ t: 'box', c: [Math.sin(ang) * 0.181, 0.27, Math.cos(ang) * 0.181], h: [0.03, 0.03, 0.006], rot: [ang, 0, Math.PI / 4], m: k % 2 ? GO : TE, k: 0.004 });
-    }
-    // two long, drooping cloth tails flopping off the crown, each ending in a brass jingle bell
-    for (const [sx, m] of [[-1, TE], [1, GO]]) {
-      // they flop out past the sides of the hood and hang beside the head, clear of the mask
-      const pts = [[sx * 0.08, 0.38, 0.0], [sx * 0.28, 0.44, 0.05], [sx * 0.48, 0.32, 0.08], [sx * 0.6, 0.08, 0.08], [sx * 0.63, -0.2, 0.06]];
+    const tail = (pts, r0, m) => {
       for (let i = 0; i < pts.length - 1; i++) {
-        const r0 = 0.055 - i * 0.011, r1 = 0.055 - (i + 1) * 0.011;
-        n.push({ t: 'cap', a: pts[i], b: pts[i + 1], r: r0, r2: Math.max(0.012, r1), m, k: 0.03, n: [0.008, 30] });
+        const a0 = r0 * (1 - i / (pts.length - 1)) + 0.008, a1 = r0 * (1 - (i + 1) / (pts.length - 1)) + 0.008;
+        n.push({ t: 'cap', a: pts[i], b: pts[i + 1], r: a0, r2: a1, m, k: 0.04, n: [0.006, 26] });
+        n.push({ t: 'cap', a: [pts[i][0], pts[i][1] + a0 * 0.9, pts[i][2]], b: [pts[i + 1][0], pts[i + 1][1] + a1 * 0.9, pts[i + 1][2]], r: 0.004, m: MAT.rubber });
       }
-      // the tail narrows to a frayed tip; its brass jingle bell is a separate fine model (sp_bell) hung here
-      const e = pts[pts.length - 1];
-      n.push({ t: 'cap', a: e, b: [e[0], e[1] - 0.04, e[2]], r: 0.012, r2: 0.006, m, k: 0.01 });
-    }
-    for (const [x, z, h] of [[-0.08, -0.15, 0.3], [0.12, 0.1, 0.25]]) {
-      n.push({ t: 'cap', a: [x * 0.6, h - 0.05, z * 0.6], b: [x * 1.6, h + 0.08, z * 1.6], r: 0.006, m: MAT.steel, k: 0.002 });
-      n.push({ t: 'sph', c: [x * 1.6, h + 0.08, z * 1.6], r: 0.022, m: MAT.lining, k: 0.004 });
-    }
-    // grime and scorch smudges
-    for (let k = 0; k < 7; k++) { const ang = k * 2.3; n.push({ t: 'sph', c: [Math.sin(ang) * 0.175, 0.08 + (k * 0.047) % 0.3, Math.cos(ang) * 0.175], r: 0.03, m: MAT.burnt, k: 0.01 }); }
+    };
+    tail(HAT_TIPS.up, 0.15, TE);
+    tail(HAT_TIPS.left, 0.14, GO);
+    tail(HAT_TIPS.right, 0.14, RO);
+    // a little brass stem at the tip of each tail that the bell hangs from
+    for (const k of ['up', 'left', 'right']) { const p = HAT_TIPS[k], e = p[p.length - 1], d = p[p.length - 2]; const ux = e[0] - d[0], uy = e[1] - d[1], uz = e[2] - d[2], l = Math.hypot(ux, uy, uz); n.push({ t: 'cap', a: e, b: [e[0] + ux / l * 0.07, e[1] + uy / l * 0.07, e[2] + uz / l * 0.07], r: 0.014, m: MAT.copper }); }
+    // grime and scorch on the cloth
+    for (let k = 0; k < 9; k++) { const a = k * 2.3; n.push({ t: 'sph', c: [Math.sin(a) * 0.27, 0.1 + (k % 3) * 0.05, Math.cos(a) * 0.25], r: 0.035, m: MAT.burnt, k: 0.015, n: [0.01, 40] }); }
     return n;
 }
+// the three tail centrelines of the jester cap (cap space; the cap sits on the hood's crown)
+const HAT_TIPS = {
+  // heavy, limp tails: the side ones arc out over the shoulders and droop down past the face, the top one
+  // rises and flops over the back of the head
+  up: [[0, 0.12, 0.04], [0.02, 0.46, 0.1], [0.06, 0.68, 0.32], [0.1, 0.62, 0.6], [0.14, 0.36, 0.8]],
+  left: [[-0.12, 0.1, 0.02], [-0.45, 0.26, -0.02], [-0.76, 0.12, -0.06], [-0.92, -0.25, -0.08], [-0.96, -0.62, -0.1]],
+  right: [[0.12, 0.1, 0.02], [0.45, 0.24, -0.02], [0.76, 0.08, -0.06], [0.9, -0.3, -0.08], [0.93, -0.68, -0.1]]
+};
 
 // ---------- character models ----------
 const SCULPTS = {
@@ -396,9 +385,9 @@ const SCULPTS = {
       // sunken, withered hollows
       { t: 'sph', c: [0.25, -0.05, -0.22], r: 0.07, op: 's', k: 0.06, sm: P },
       { t: 'sph', c: [-0.25, -0.05, -0.22], r: 0.07, op: 's', k: 0.06, sm: P },
-      // big, round, staring eye sockets
-      { t: 'sph', c: [0.135, 0.085, -0.3], r: 0.108, op: 's', k: 0.02, sm: D },
-      { t: 'sph', c: [-0.135, 0.085, -0.3], r: 0.108, op: 's', k: 0.02, sm: D },
+      // huge, tall oval eye sockets, deep and black
+      { t: 'ell', c: [0.14, 0.1, -0.29], r: [0.105, 0.135, 0.11], rot: [0, 0, -0.12], op: 's', k: 0.02, sm: D },
+      { t: 'ell', c: [-0.14, 0.1, -0.29], r: [0.105, 0.135, 0.11], rot: [0, 0, 0.12], op: 's', k: 0.02, sm: D },
       { t: 'box', c: [0.17, 0.33, -0.1], h: [0.09, 0.07, 0.1], rot: [0.5, 0.4, 0.8], op: 's', k: 0.003, sm: D, n: [0.02, 40] },
       { t: 'box', c: [-0.24, 0.24, -0.12], h: [0.05, 0.04, 0.08], rot: [0.2, -0.6, 0.3], op: 's', k: 0.002, sm: D, n: [0.015, 50] }
     ];   // no nose: just the eyes and the grin
@@ -409,6 +398,8 @@ const SCULPTS = {
       const a = -1.26 + i * 0.126, [x, y, z] = arc(a), edge = Math.abs(a) > 1.1;
       n.push({ t: 'ell', c: [x, y, z], r: [0.058, edge ? 0.05 : 0.115, 0.1], rot: [a, 0, 0], op: 's', k: 0.01, sm: D });
     }
+    // raw rose gums above and below the teeth
+    for (let i = 0; i <= 14; i++) { const a = -1.16 + i * 0.166, [x, y, z] = arc(a); n.push({ t: 'ell', c: [x * 0.99, y + 0.115 - Math.abs(a) * 0.035, z + 0.02], r: [0.05, 0.022, 0.02], rot: [a, 0, 0], m: MAT.lining, k: 0.01 }); n.push({ t: 'ell', c: [x * 0.99, y - 0.105 + Math.abs(a) * 0.03, z + 0.02], r: [0.05, 0.02, 0.02], rot: [a, 0, 0], m: MAT.lining, k: 0.01 }); }
     // two full rows of tall, square, slightly uneven teeth, with dark gaps between them
     for (let i = 0; i < 17; i++) {
       const a = -1.14 + i * 0.1425;
@@ -429,6 +420,13 @@ const SCULPTS = {
       const z = -0.33 * Math.sqrt(Math.max(0.02, 1 - (x / 0.37) ** 2 - (y / 0.41) ** 2)) + 0.01;
       n.push({ t: 'ell', c: [x, y, z], r: [sx, sy, 0.018], m: MAT.burnt, k: 0.03, n: [0.006, 45] });
     }
+    const surf = (x, y) => -0.33 * Math.sqrt(Math.max(0.02, 1 - (x / 0.37) ** 2 - (y / 0.41) ** 2)) + 0.006;
+    // a spider of deep cracks across the right side of the face (as you look at it): from the eye socket up over
+    // the brow and out to the rim, with a few flakes of porcelain chipped clean off
+    const CR = [[-0.2, 0.22, -0.33, 0.36], [-0.26, 0.28, -0.24, 0.4], [-0.27, 0.3, -0.34, 0.2], [-0.24, 0.12, -0.33, 0.05], [-0.33, 0.06, -0.36, -0.08],
+      [-0.2, 0.22, -0.12, 0.31], [-0.12, 0.31, -0.08, 0.4], [-0.33, 0.36, -0.3, 0.27], [-0.3, -0.02, -0.25, -0.1]];
+    for (const [x0, y0, x1, y1] of CR) n.push({ t: 'cap', a: [x0, y0, surf(x0, y0) - 0.004], b: [x1, y1, surf(x1, y1) - 0.004], r: 0.0075, op: 's', k: 0.001, sm: D, n: [0.003, 110] });
+    for (const [x, y, r] of [[-0.31, 0.3, 0.03], [-0.27, 0.36, 0.022], [-0.34, 0.12, 0.022]]) n.push({ t: 'sph', c: [x, y, surf(x, y) - 0.012], r, op: 's', k: 0.002, sm: D, n: [0.006, 80] });
     // chunks broken out of the rim
     for (const c of [[0.33, 0.2, -0.08], [-0.3, -0.28, -0.1], [0.08, 0.4, -0.12]]) n.push({ t: 'box', c, h: [0.05, 0.04, 0.06], rot: [c[0] * 3, 0.4, 0.7], op: 's', k: 0.002, sm: D, n: [0.012, 50] });
     return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 84);
@@ -484,11 +482,12 @@ const SCULPTS = {
     for (let k = 0; k < 9; k++) {
       const ang = -2.2 + k * 0.55, y = 0.05 + ((k * 3) % 4) * 0.08;
       const rr = Math.sqrt(Math.max(0.05, 1 - ((y - 0.04) / 0.5) ** 2));
-      n.push({ t: 'box', c: [Math.sin(ang) * 0.43 * rr, y, 0.07 + Math.cos(ang) * 0.42 * rr], h: [0.12, 0.16, 0.014], rr: 0.01, rot: [ang, -0.2, 0], m: k % 2 ? TE : GO, k: 0.015, n: [0.008, 40] });
+      n.push({ t: 'box', c: [Math.sin(ang) * 0.43 * rr, y, 0.07 + Math.cos(ang) * 0.42 * rr], h: [0.12, 0.16, 0.014], rr: 0.01, rot: [ang, -0.2, 0], m: k % 3 === 0 ? MAT.clothTeal : k % 3 === 1 ? GO : RO, k: 0.015, n: [0.008, 40] });
     }
     // a thick, padded gold band round the face opening, sewn to the hood all the way round and wide enough to
     // overlap the edge of the mask, with dark cloth filling the opening behind the mask so no gap shows
-    n.push({ t: 'tor', c: [0, -0.02, -0.25], R: 0.39, r: 0.06, rot: [0, Math.PI / 2, 0], m: GO, k: 0.05, n: [0.008, 40] });
+    n.push({ t: 'tor', c: [0, -0.02, -0.25], R: 0.39, r: 0.05, rot: [0, Math.PI / 2, 0], m: RO, k: 0.05, n: [0.008, 40] });
+    for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + 0.4; n.push({ t: 'sph', c: [Math.cos(a) * 0.39, -0.02 + Math.sin(a) * 0.39, -0.25], r: 0.058, m: k % 2 ? MAT.clothTeal : GO, k: 0.05, n: [0.006, 40] }); }
     n.push({ t: 'cyl', c: [0, -0.02, -0.05], r: 0.42, h: 0.03, rot: [0, Math.PI / 2, 0], m: MAT.canvas, k: 0.06 });
     // stitched seam down the back, grime and soot
     for (let k = 0; k < 6; k++) { const y = 0.36 - k * 0.07; n.push({ t: 'cap', a: [-0.015, y, 0.49 - k * 0.01], b: [0.015, y - 0.03, 0.49 - k * 0.01], r: 0.005, m: GO, k: 0.002 }); }
@@ -502,7 +501,7 @@ const SCULPTS = {
     }
     // torn, scorched holes in the hood cloth
     for (const c of [[0.36, 0.05, 0.25], [-0.38, -0.2, 0.18], [0.2, 0.32, 0.36], [-0.25, 0.3, 0.3]]) n.push({ t: 'sph', c, r: 0.06, op: 's', k: 0.01, sm: MAT.rubber, n: [0.025, 35] });
-    return SDF.mesh(n, [-0.76, -0.66, -0.45], [0.76, 1.0, 0.78], 92);
+    return SDF.mesh(n, [-1.25, -0.8, -0.5], [1.25, 1.35, 1.05], 116);
   },
   // Filthy, ragged jester's motley on a skeletal upper torso (origin at the chest, facing -z): ruby cloth with
   // teal and orange harlequin diamonds, a pleated teal/ruby ruff, a dagged hem of pointed tatters, pom-pom
@@ -511,7 +510,7 @@ const SCULPTS = {
   // frayed gold epaulettes, teal-lined lapels with tarnished gold piping, a stand-up collar and red bow, a front
   // torn open over the ribcage, long ragged tails, burn holes, soot and grime everywhere
   sp_coat: () => {
-    const RU = MAT.clothWine, TE = MAT.handTeal, GO = MAT.paint, OR = MAT.copper, P = MAT.porcelain, G = MAT.burnt, n = [
+    const RU = MAT.clothTeal, TE = MAT.clothWine, GO = MAT.paint, OR = MAT.paint, P = MAT.porcelain, G = MAT.burnt, n = [
       { t: 'ell', c: [0, -0.04, 0], r: [0.27, 0.3, 0.16], m: RU, n: [0.012, 16] },
       { t: 'cap', a: [-0.33, 0.13, 0.01], b: [0.33, 0.13, 0.01], r: 0.085, m: RU, k: 0.07, n: [0.01, 20] },
       { t: 'cap', a: [0, -0.25, 0.01], b: [0, -0.72, 0.03], r: 0.17, r2: 0.13, m: RU, k: 0.08, n: [0.014, 14] },
@@ -524,7 +523,7 @@ const SCULPTS = {
     }
     // lapels: teal lining folded back from the collar to the waist, edged in tarnished gold piping
     for (const sx of [-1, 1]) {
-      n.push({ t: 'box', c: [sx * 0.1, 0.02, -0.158], h: [0.055, 0.2, 0.012], rot: [0, 0, sx * 0.22], m: MAT.furBlue, k: 0.01, n: [0.004, 40] });
+      n.push({ t: 'box', c: [sx * 0.1, 0.02, -0.158], h: [0.055, 0.2, 0.012], rot: [0, 0, sx * 0.22], m: TE, k: 0.01, n: [0.004, 40] });
       n.push({ t: 'cap', a: [sx * 0.05, 0.22, -0.17], b: [sx * 0.15, -0.18, -0.168], r: 0.009, m: GO, k: 0.004 });
       n.push({ t: 'cap', a: [sx * 0.15, -0.18, -0.168], b: [sx * 0.06, -0.3, -0.16], r: 0.008, m: GO, k: 0.004 });
     }
@@ -535,9 +534,16 @@ const SCULPTS = {
       n.push({ t: 'cap', a: [sx * 0.07, -0.5, 0.13], b: [sx * 0.15, -1.05 + (sx > 0 ? 0.12 : 0), 0.2], r: 0.085, r2: 0.025, m: RU, k: 0.05, n: [0.016, 18] });
       n.push({ t: 'sph', c: [sx * 0.13, -0.8, 0.22], r: 0.035, op: 's', k: 0.01, sm: MAT.rubber, n: [0.015, 40] });
     }
-    // a tall stand-up collar flaring round the neck: wine outside, teal inside, open at the front
-    n.push({ t: 'cap', a: [0, 0.18, -0.01], b: [0, 0.5, -0.05], r: 0.16, r2: 0.3, m: RU, k: 0.02, n: [0.008, 30] });
-    n.push({ t: 'cap', a: [0, 0.16, -0.01], b: [0, 0.54, -0.05], r: 0.13, r2: 0.27, op: 's', k: 0.01, sm: TE });
+    // a tall stand-up collar: rose outside with gold piping, and inside it a stiff grey shirt collar standing up
+    // round the neck in two points
+    n.push({ t: 'cap', a: [0, 0.18, -0.01], b: [0, 0.5, -0.05], r: 0.16, r2: 0.3, m: TE, k: 0.02, n: [0.008, 30] });
+    n.push({ t: 'cap', a: [0, 0.16, -0.01], b: [0, 0.54, -0.05], r: 0.13, r2: 0.27, op: 's', k: 0.01, sm: MAT.vest });
+    n.push({ t: 'tor', c: [0, 0.5, -0.05], R: 0.29, r: 0.012, m: GO, k: 0.005 });
+    for (const sx of [-1, 1]) n.push({ t: 'box', c: [sx * 0.06, 0.32, -0.12], h: [0.045, 0.1, 0.01], rot: [0.25, 0, sx * 0.25], m: MAT.vest, k: 0.01, n: [0.003, 50] });
+    // a curved gold chest plate below the lapels and gold piping down the front edge
+    n.push({ t: 'box', c: [0, -0.3, -0.165], h: [0.11, 0.06, 0.02], rr: 0.01, rot: [0.1, 0, 0], m: GO, k: 0.01, n: [0.002, 60] });
+    n.push({ t: 'cap', a: [0, -0.05, -0.17], b: [0, -0.24, -0.172], r: 0.008, m: GO });
+    for (const y of [-0.1, -0.17]) for (const sx of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.05, y, -0.172], r: 0.014, h: 0.006, rot: [0, Math.PI / 2, 0], m: GO });
     n.push({ t: 'box', c: [0, 0.38, -0.24], h: [0.08, 0.16, 0.12], op: 's', k: 0.02, sm: TE });
     n.push({ t: 'ell', c: [0, 0.3, 0], r: [0.1, 0.1, 0.08], op: 's', k: 0.02, sm: RU });
     // a big, crumpled red bow at the throat with long tails hanging down the shirt front
@@ -1141,17 +1147,19 @@ const SCULPTS = {
       // ribbed teal filter snout
       { t: 'cyl', c: [0, -0.075, -0.115], r: 0.04, h: 0.035, rot: [0, Math.PI / 2, 0], rr: 0.01, m: TE, k: 0.02 },
       { t: 'cyl', c: [0, -0.075, -0.155], r: 0.018, h: 0.012, rot: [0, Math.PI / 2, 0], op: 's', k: 0.004, sm: K },
-      // gold-orange canisters on the cheeks
-      { t: 'cyl', c: [-0.105, -0.07, -0.06], r: 0.038, h: 0.03, rot: [-0.9, Math.PI / 2, 0], rr: 0.006, m: GO, k: 0.015 },
-      { t: 'cyl', c: [0.105, -0.07, -0.06], r: 0.038, h: 0.03, rot: [0.9, Math.PI / 2, 0], rr: 0.006, m: GO, k: 0.015 },
-      // the strap round the back of the head
-      { t: 'cap', a: [-0.11, 0.04, 0.0], b: [-0.08, 0.06, 0.14], r: 0.01, m: TE }, { t: 'cap', a: [0.11, 0.04, 0.0], b: [0.08, 0.06, 0.14], r: 0.01, m: TE },
-      { t: 'cap', a: [-0.08, 0.06, 0.14], b: [0.08, 0.06, 0.14], r: 0.01, m: TE }
+      // two big gold-orange filter canisters set sideways at the jaw, each face ringed with filter grooves
+      { t: 'cyl', c: [-0.125, -0.085, -0.075], r: 0.052, h: 0.036, rot: [0, 0, Math.PI / 2], rr: 0.008, m: GO, k: 0.02, n: [0.0015, 70] },
+      { t: 'cyl', c: [0.125, -0.085, -0.075], r: 0.052, h: 0.036, rot: [0, 0, Math.PI / 2], rr: 0.008, m: GO, k: 0.02, n: [0.0015, 70] },
+      // flat teal strap tabs and buckles at the temples (no loop over the top)
+      { t: 'box', c: [-0.118, 0.04, 0.01], h: [0.006, 0.014, 0.035], m: TE, k: 0.004 }, { t: 'box', c: [0.118, 0.04, 0.01], h: [0.006, 0.014, 0.035], m: TE, k: 0.004 },
+      { t: 'box', c: [-0.122, 0.04, 0.03], h: [0.004, 0.018, 0.008], m: MAT.steel }, { t: 'box', c: [0.122, 0.04, 0.03], h: [0.004, 0.018, 0.008], m: MAT.steel }
     ];
-    for (let i = 0; i < 3; i++) n.push({ t: 'tor', c: [0, -0.075, -0.09 - i * 0.022], R: 0.042, r: 0.006, rot: [0, Math.PI / 2, 0], m: TE, k: 0.004 });
+    // filter grooves on the canister faces, the snout's breathing valve ring
+    for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) n.push({ t: 'tor', c: [sx * 0.162, -0.085, -0.075], R: 0.012 + i * 0.01, r: 0.0025, rot: [0, 0, Math.PI / 2], op: 's', sm: K });
+    n.push({ t: 'tor', c: [0, -0.075, -0.158], R: 0.022, r: 0.008, rot: [0, Math.PI / 2, 0], m: TE, k: 0.004 });
     // scuffs: darker grime in the rubber
     for (const c of [[0.07, 0.1, -0.05], [-0.08, -0.03, -0.07], [0.02, 0.12, -0.06]]) n.push({ t: 'sph', c, r: 0.018, m: MAT.burnt, k: 0.01, n: [0.006, 80] });
-    return SDF.mesh(n, [-0.17, -0.2, -0.18], [0.17, 0.17, 0.17], 72);
+    return SDF.mesh(n, [-0.19, -0.2, -0.19], [0.19, 0.17, 0.17], 80);
   },
   // LOVEY (our own rose-pink plush ally, drawn in rose-tinted shaggy fur): very tall (about 3.4 m to the top of
   // her head), skinny and long-limbed, badly hurt - her left arm torn clean off at the shoulder (a ragged
@@ -1200,18 +1208,17 @@ const SCULPTS = {
       { t: 'sph', c: [0.15, 0.36, 0], r: 0.22, m: F, k: 0.1, n: [0.008, 18] },
       { t: 'ell', c: [0, 0.2, 0], r: [0.28, 0.24, 0.2], m: F, k: 0.12 },
       { t: 'cap', a: [0, 0.2, -0.02], b: [0, 0.02, -0.02], r: 0.17, r2: 0.07, m: F, k: 0.1 },
-      // two big, round, domed button eyes, each with a raised rim (four thread holes added below)
-      { t: 'ell', c: [-0.12, 0.33, -0.205], r: [0.078, 0.078, 0.03], m: K, k: 0.004 },
-      { t: 'tor', c: [-0.12, 0.33, -0.222], R: 0.07, r: 0.008, rot: [0, Math.PI / 2, 0], m: K, k: 0.002 },
-      { t: 'ell', c: [0.12, 0.33, -0.205], r: [0.074, 0.074, 0.03], m: K, k: 0.004 },
-      { t: 'tor', c: [0.12, 0.33, -0.222], R: 0.066, r: 0.008, rot: [0, Math.PI / 2, 0], m: K, k: 0.002 },
+      // two big, round, glossy glass eyes: a white rim of eyeball round a huge wet black iris
+      { t: 'sph', c: [-0.12, 0.33, -0.17], r: 0.075, m: W, k: 0.01 },
+      { t: 'sph', c: [0.12, 0.33, -0.17], r: 0.072, m: W, k: 0.01 },
+      { t: 'sph', c: [-0.12, 0.33, -0.2], r: 0.058, m: MAT.screen },
+      { t: 'sph', c: [0.12, 0.33, -0.2], r: 0.055, m: MAT.screen },
       // rosy cheeks
       { t: 'ell', c: [-0.17, 0.2, -0.17], r: [0.05, 0.03, 0.02], m: L, k: 0.012 },
       { t: 'ell', c: [0.17, 0.2, -0.17], r: [0.05, 0.03, 0.02], m: L, k: 0.012 }
     ];
-    for (const ex of [-0.12, 0.12]) for (const [dx, dy] of [[-0.016, 0.016], [0.016, 0.016], [-0.016, -0.016], [0.016, -0.016]]) n.push({ t: 'sph', c: [ex + dx, 0.33 + dy, -0.234], r: 0.0075, m: W });
-    // a crack across the right button
-    n.push({ t: 'cap', a: [0.07, 0.36, -0.236], b: [0.16, 0.3, -0.236], r: 0.004, m: W });
+    // a catchlight in each eye and a heavy fur brow over them
+    for (const ex of [-0.12, 0.12]) { n.push({ t: 'sph', c: [ex - 0.022, 0.355, -0.252], r: 0.011, m: W }); n.push({ t: 'cap', a: [ex - 0.07, 0.42, -0.18], b: [ex + 0.06, 0.43, -0.19], r: 0.03, m: F, k: 0.03, n: [0.01, 40] }); }
     // pink painted lipstick over the stitched smile
     for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.04, 0.135, -0.19], r: [0.05, 0.018, 0.014], rot: [0, 0, sx * -0.2], m: MAT.handRose, k: 0.006 });
     n.push({ t: 'ell', c: [0, 0.112, -0.188], r: [0.07, 0.024, 0.016], m: MAT.handRose, k: 0.006 });
@@ -1238,11 +1245,30 @@ const SCULPTS = {
   lv_arm: () => {
     const F = -1, W = MAT.porcelain, fur = [0.012, 22], n = [
       { t: 'cap', a: [0, 0, 0], b: [0, -1.65, -0.03], r: 0.082, r2: 0.066, m: F, n: fur },
-      { t: 'ell', c: [0, -1.82, -0.04], r: [0.1, 0.18, 0.075], m: F, k: 0.05, n: fur },
-      { t: 'cap', a: [-0.07, -1.74, -0.07], b: [-0.12, -1.88, -0.09], r: 0.04, m: F, k: 0.03, n: fur }
+      { t: 'cap', a: [0, -1.6, -0.03], b: [0, -1.7, -0.035], r: 0.07, m: F, k: 0.03, n: fur }
     ];
     for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, -1.05 - i * 0.07, -0.02], R: 0.075, r: 0.015, rot: [0.15 * (i % 2 ? 1 : -1), 0, 0], m: W, k: 0.006, n: [0.004, 50] });
     return SDF.mesh(n, [-0.2, -2.05, -0.18], [0.2, 0.12, 0.16], 84);
+  },
+  // Lovey's hand (same origin as lv_arm): a big soft yellow plush mitten with stitched finger lines and a worn
+  // black square patch on the palm
+  lv_hand: () => {
+    const Y = -1, K = MAT.rubber, n = [
+      { t: 'ell', c: [0, -1.84, -0.04], r: [0.115, 0.2, 0.07], m: Y, n: [0.006, 40] },
+      { t: 'cap', a: [-0.09, -1.76, -0.06], b: [-0.15, -1.92, -0.08], r: 0.042, m: Y, k: 0.03 },
+      { t: 'box', c: [0, -1.82, -0.105], h: [0.055, 0.06, 0.01], rr: 0.008, m: K, k: 0.004 }
+    ];
+    for (let i = 0; i < 3; i++) n.push({ t: 'cap', a: [-0.04 + i * 0.04, -1.94, -0.105], b: [-0.04 + i * 0.04, -2.02, -0.09], r: 0.005, m: K });
+    return SDF.mesh(n, [-0.22, -2.1, -0.16], [0.18, -1.62, 0.08], 64);
+  },
+  // a flared, stuffed sleeve puff (axis +y, 0..1): gathered at the top, belling out to a padded rim with folds
+  sp_puff: () => {
+    const C = -1, n = [
+      { t: 'cap', a: [0, 0.05, 0], b: [0, 0.8, 0], r: 0.45, r2: 0.95, m: C, k: 0.1, n: [0.02, 7] },
+      { t: 'tor', c: [0, 0.82, 0], R: 0.85, r: 0.14, m: C, k: 0.08, n: [0.02, 9] }
+    ];
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; n.push({ t: 'cap', a: [Math.cos(a) * 0.42, 0.12, Math.sin(a) * 0.42], b: [Math.cos(a) * 0.92, 0.8, Math.sin(a) * 0.92], r: 0.07, m: C, k: 0.08 }); }
+    return SDF.mesh(n, [-1.15, -0.05, -1.15], [1.15, 1.0, 1.15], 48);
   },
   // a brass jingle bell (origin at its centre): a ball with a hanging ring on top, a band round its middle,
   // a slot cut round the lower half ending in two round sound holes, and the dark clapper ball inside
@@ -1266,62 +1292,64 @@ const SCULPTS = {
   // ===================== ACT III CREATURES (origin at the feet / centre) =====================
   // THE CHOIR: porcelain doll heads and torsos melted into one crawling mass on a skirt of skeletal metal arms
   a3_choir: () => {
-    const P = MAT.porcelain, K = MAT.rubber, S = MAT.steel, L = MAT.lining, n = [
-      { t: 'ell', c: [0, 0.55, 0], r: [0.7, 0.42, 0.55], m: P, n: [0.03, 7] }
+    // THE CHOIR: a heap of porcelain doll heads fused onto one small doll torso in a sailor shirt, carried on a
+    // crowd of long, black, multi-jointed metal legs with hooked claw feet
+    const P = MAT.porcelain, K = MAT.rubber, S = MAT.steel, W = MAT.furLight, n = [
+      { t: 'ell', c: [0, 0.95, -0.05], r: [0.2, 0.24, 0.15], m: W, k: 0.05, n: [0.004, 40] },          // the sailor shirt
+      { t: 'box', c: [0, 1.12, 0.02], h: [0.2, 0.05, 0.14], rot: [0.3, 0, 0], m: MAT.clothTeal, k: 0.04 },   // the sailor collar
+      { t: 'cap', a: [-0.18, 1.08, -0.05], b: [-0.42, 0.75, -0.25], r: 0.045, m: P, k: 0.03 },          // doll arms
+      { t: 'cap', a: [0.18, 1.08, -0.05], b: [0.44, 0.8, -0.22], r: 0.045, m: P, k: 0.03 },
+      { t: 'ell', c: [0, 0.72, 0.1], r: [0.45, 0.22, 0.42], m: K, k: 0.1, n: [0.02, 12] }                  // the fused underbelly
     ];
-    const heads = [[-0.42, 0.78, -0.2, 0.22], [0.0, 0.98, -0.12, 0.26], [0.4, 0.82, -0.18, 0.21], [-0.2, 0.62, -0.46, 0.2], [0.24, 0.6, -0.44, 0.19], [-0.5, 0.5, 0.2, 0.18], [0.5, 0.52, 0.15, 0.18], [0.0, 0.85, 0.3, 0.2]];
+    const heads = [[0, 1.42, -0.12, 0.17], [-0.24, 1.36, -0.02, 0.15], [0.25, 1.38, 0.0, 0.15], [-0.12, 1.62, 0.1, 0.15], [0.14, 1.64, 0.12, 0.14],
+      [-0.36, 1.18, 0.15, 0.13], [0.38, 1.2, 0.16, 0.13], [0, 1.4, 0.3, 0.16], [-0.26, 1.55, 0.32, 0.13], [0.26, 1.56, 0.3, 0.13]];
     heads.forEach(([x, y, z, r], i) => {
-      n.push({ t: 'sph', c: [x, y, z], r, m: P, k: 0.08, n: [0.004, 30] });
-      // hollow black eyes and a small open mouth on every face that looks out
-      if (z < 0.1) {
-        for (const ex of [-1, 1]) n.push({ t: 'sph', c: [x + ex * r * 0.36, y + r * 0.12, z - r * 0.86], r: r * 0.2, op: 's', k: 0.01, sm: K });
-        n.push({ t: 'ell', c: [x, y - r * 0.38, z - r * 0.85], r: [r * 0.16, r * 0.1, r * 0.1], op: 's', k: 0.01, sm: K });
-        if (i % 3 === 0) n.push({ t: 'cap', a: [x - r * 0.3, y + r * 0.5, z - r * 0.8], b: [x + r * 0.1, y - r * 0.2, z - r * 0.92], r: 0.008, op: 's', sm: K });
-      }
+      n.push({ t: 'sph', c: [x, y, z], r, m: P, k: 0.04, n: [0.003, 40] });
+      const fz = z - r * 0.88;
+      for (const ex of [-1, 1]) { n.push({ t: 'sph', c: [x + ex * r * 0.35, y + r * 0.1, fz], r: r * 0.17, op: 's', k: 0.008, sm: K }); n.push({ t: 'sph', c: [x + ex * r * 0.35, y + r * 0.1, fz + r * 0.1], r: r * 0.1, m: MAT.screen }); }
+      n.push({ t: 'ell', c: [x, y - r * 0.4, fz + 0.01], r: [r * 0.14, r * 0.07, r * 0.08], op: 's', k: 0.005, sm: MAT.lining });
+      n.push({ t: 'cap', a: [x - r * 0.45, y + r * 0.6, z - r * 0.6], b: [x - r * 0.1, y - r * 0.1, fz], r: 0.005, op: 's', sm: K });   // a crack
+      n.push({ t: 'ell', c: [x, y + r * 0.55, z + r * 0.15], r: [r * 0.8, r * 0.4, r * 0.8], m: MAT.hairDark, k: 0.03, n: [0.006, 50] });
     });
-    // melted, cracked seams and a few doll hands reaching out of the mass
-    for (let k = 0; k < 4; k++) { const a = k * 1.7; n.push({ t: 'cap', a: [Math.sin(a) * 0.5, 0.6, Math.cos(a) * 0.4], b: [Math.sin(a) * 0.85, 0.75 + (k % 2) * 0.2, Math.cos(a) * 0.7 - 0.2], r: 0.045, r2: 0.03, m: P, k: 0.04 }); }
-    for (let k = 0; k < 5; k++) n.push({ t: 'sph', c: [Math.sin(k * 2.3) * 0.6, 0.45 + (k % 3) * 0.12, Math.cos(k * 2.3) * 0.45], r: 0.07, m: L, k: 0.05, n: [0.01, 40] });
-    // the underbelly: a ring of jointed metal limbs
+    // the legs: ten long black jointed legs splayed out in every direction, two joints each, hooked claws
     for (let k = 0; k < 10; k++) {
-      const a = k / 10 * Math.PI * 2, x = Math.sin(a), z = Math.cos(a);
-      n.push({ t: 'cap', a: [x * 0.45, 0.35, z * 0.35], b: [x * 0.85, 0.32, z * 0.7], r: 0.03, m: S, k: 0.01 });
-      n.push({ t: 'sph', c: [x * 0.85, 0.32, z * 0.7], r: 0.04, m: S });
-      n.push({ t: 'cap', a: [x * 0.85, 0.32, z * 0.7], b: [x * 1.0, 0.02, z * 0.82], r: 0.025, r2: 0.01, m: S, k: 0.01 });
+      const a = k / 10 * Math.PI * 2 + 0.3, x = Math.sin(a), z = Math.cos(a), reach = 1.05 + (k % 3) * 0.15;
+      const hip = [x * 0.3, 0.72, z * 0.28], knee = [x * reach * 0.62, 1.15 + (k % 2) * 0.15, z * reach * 0.6], foot = [x * reach, 0.03, z * reach];
+      n.push({ t: 'cap', a: hip, b: knee, r: 0.028, r2: 0.022, m: K, k: 0.01 });
+      n.push({ t: 'sph', c: knee, r: 0.035, m: S });
+      n.push({ t: 'cap', a: knee, b: foot, r: 0.02, r2: 0.012, m: K, k: 0.01 });
+      for (const sp of [-0.06, 0.06]) n.push({ t: 'cap', a: foot, b: [foot[0] + x * 0.12 + z * sp, 0.0, foot[2] + z * 0.12 - x * sp], r: 0.008, r2: 0.003, m: S });
     }
-    // more faces pressed half into the mass, matted doll hair, rust weeping from the joints, a tiny bonnet
-    for (const [x, y, z, r] of [[-0.62, 0.72, -0.05, 0.15], [0.66, 0.7, -0.02, 0.14], [0.2, 1.08, 0.1, 0.15], [-0.25, 1.02, 0.05, 0.14]]) {
-      n.push({ t: 'sph', c: [x, y, z], r, m: P, k: 0.06, n: [0.004, 30] });
-      for (const ex of [-1, 1]) n.push({ t: 'sph', c: [x + ex * r * 0.35, y + r * 0.1, z - r * 0.85], r: r * 0.18, op: 's', k: 0.01, sm: K });
-    }
-    for (let k = 0; k < 14; k++) { const a = k * 2.2, x = Math.sin(a) * 0.35, z = Math.cos(a) * 0.25 + 0.15; n.push({ t: 'cap', a: [x, 1.05, z], b: [x * 1.5, 0.75 - (k % 3) * 0.08, z * 1.4 + 0.1], r: 0.02, r2: 0.006, m: MAT.hairDark, k: 0.01 }); }
-    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; n.push({ t: 'cap', a: [Math.sin(a) * 0.85, 0.34, Math.cos(a) * 0.7], b: [Math.sin(a) * 0.86, 0.18, Math.cos(a) * 0.71], r: 0.012, r2: 0.004, m: MAT.rustIron }); }
-    n.push({ t: 'ell', c: [0, 1.17, -0.05], r: [0.2, 0.08, 0.18], m: MAT.clothWine, k: 0.03, n: [0.006, 40] });
-    return SDF.mesh(n, [-1.1, -0.02, -1.0], [1.1, 1.4, 1.0], 96);
+    return SDF.mesh(n, [-1.45, -0.02, -1.45], [1.45, 1.85, 1.45], 104);
   },
+
   // PUFFER: a bloated vinyl fish-sack around a rose gas core, a bulging lens eye, a pressure valve and a lure
   a3_puffer: () => {
-    const V = -1, K = MAT.rubber, S = MAT.steel, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.42, 0.36, 0.48], m: V, n: [0.01, 9] },
-      { t: 'cap', a: [0, 0, 0.42], b: [0, 0.02, 0.7], r: 0.12, r2: 0.2, m: V, k: 0.08 },
-      { t: 'ell', c: [0, 0.03, 0.74], r: [0.04, 0.2, 0.12], m: V, k: 0.03 },
-      { t: 'sph', c: [0.18, 0.1, -0.36], r: 0.11, m: MAT.lens, k: 0.02 },
-      { t: 'tor', c: [0.18, 0.1, -0.38], R: 0.11, r: 0.018, rot: [0, Math.PI / 2, 0], m: S, k: 0.01 },
-      { t: 'sph', c: [-0.16, 0.12, -0.38], r: 0.06, op: 's', k: 0.01, sm: K },
-      { t: 'cyl', c: [0, 0.38, 0.05], r: 0.05, h: 0.05, m: S, k: 0.01 },
-      { t: 'cyl', c: [0, 0.44, 0.05], r: 0.07, h: 0.012, m: MAT.copper },
-      { t: 'ell', c: [0, -0.12, -0.42], r: [0.14, 0.04, 0.06], op: 's', k: 0.01, sm: K }
+    // PUFFER: a bloated pink vinyl fish, stitched all over, two bulging mismatched eyes, a wide red-lipped grin,
+    // ragged fins, and brass gas valves underneath trailing chains and little ballast weights
+    const V = MAT.handRose, P = MAT.porcelain, K = MAT.rubber, L = MAT.lining, C = MAT.copper, S = MAT.steel, n = [
+      { t: 'sph', c: [0, 0, 0], r: 0.5, m: V, n: [0.008, 9] },
+      { t: 'sph', c: [-0.2, 0.18, -0.4], r: 0.15, m: P, k: 0.03 }, { t: 'sph', c: [0.22, 0.2, -0.38], r: 0.12, m: P, k: 0.03 },
+      { t: 'sph', c: [-0.21, 0.19, -0.53], r: 0.06, m: MAT.screen }, { t: 'sph', c: [0.23, 0.21, -0.48], r: 0.05, m: MAT.screen },
+      { t: 'ell', c: [0, -0.12, -0.42], r: [0.32, 0.07, 0.12], rot: [0, 0, 0.05], op: 's', k: 0.02, sm: K },
+      { t: 'tor', c: [0, -0.12, -0.44], R: 0.3, r: 0.035, rot: [Math.PI / 2, 0, 0], m: L, k: 0.03 },
+      { t: 'ell', c: [0, 0.48, 0.05], r: [0.025, 0.16, 0.22], m: V, k: 0.03, n: [0.02, 20] },           // dorsal fin
+      { t: 'ell', c: [0, 0.02, 0.6], r: [0.03, 0.22, 0.14], m: V, k: 0.05, n: [0.02, 20] }               // tail
     ];
-    // stitched rupture seam and stubby spines
-    for (let i = 0; i < 8; i++) n.push({ t: 'cap', a: [-0.3 + i * 0.08, 0.3 - Math.abs(i - 3.5) * 0.02, 0.1], b: [-0.3 + i * 0.08, 0.36, 0.1], r: 0.008, m: K });
-    for (let i = 0; i < 12; i++) { const a = i * 2.4, y = -0.2 + (i % 5) * 0.1; n.push({ t: 'cap', a: [Math.cos(a) * 0.38, y, Math.sin(a) * 0.42], b: [Math.cos(a) * 0.5, y, Math.sin(a) * 0.55], r: 0.018, r2: 0.004, m: V }); }
-    // patched vinyl panels, a corrugated valve hose, side fins and a bandaged split
-    for (const [x, y, z] of [[0.3, 0.1, 0.2], [-0.32, -0.05, 0.1], [0.05, -0.28, 0.25]]) n.push({ t: 'box', c: [x, y, z], h: [0.08, 0.07, 0.01], rot: [x * 2, y * 2, 0.3], m: MAT.rubber, k: 0.02, n: [0.004, 50] });
-    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, 0.44 + i * 0.03, 0.05 + i * 0.03], R: 0.04, r: 0.012, m: S });
-    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.42, -0.05, 0.12], r: [0.03, 0.14, 0.18], rot: [0, 0, sx * 0.5], m: V, k: 0.05 });
-    for (let i = 0; i < 4; i++) n.push({ t: 'tor', c: [-0.15, -0.1, -0.3 + i * 0.06], R: 0.33, r: 0.01, rot: [0, Math.PI / 2, 0.2], m: MAT.porcelain });
-    return SDF.mesh(n, [-0.62, -0.5, -0.62], [0.62, 0.65, 0.9], 84);
+    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.5, -0.05, 0.05], r: [0.03, 0.12, 0.18], rot: [0, 0, sx * 0.4], m: V, k: 0.03, n: [0.02, 20] });
+    // stitched seams round the body and peeled patches
+    for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; n.push({ t: 'cap', a: [Math.cos(a) * 0.49, Math.sin(a) * 0.49, 0.05], b: [Math.cos(a) * 0.5, Math.sin(a) * 0.5, 0.11], r: 0.008, m: K }); }
+    for (let i = 0; i < 10; i++) { const a = -1 + i * 0.22; n.push({ t: 'cap', a: [Math.sin(a) * 0.5, 0.25, Math.cos(a) * 0.43 - 0.05], b: [Math.sin(a) * 0.5, 0.31, Math.cos(a) * 0.4 - 0.05], r: 0.007, m: K }); }
+    for (const [x, y, z] of [[0.35, 0.25, 0.15], [-0.3, -0.25, 0.2]]) n.push({ t: 'sph', c: [x, y, z], r: 0.09, op: 's', k: 0.01, sm: L, n: [0.01, 40] });
+    // brass valves underneath with chains and ballast weights
+    for (const [x, z] of [[-0.2, -0.1], [0.2, -0.05], [0, 0.22]]) {
+      n.push({ t: 'cyl', c: [x, -0.47, z], r: 0.05, h: 0.04, m: C }); n.push({ t: 'tor', c: [x, -0.52, z], R: 0.06, r: 0.012, m: C });
+      for (let k = 0; k < 4; k++) n.push({ t: 'tor', c: [x, -0.58 - k * 0.06, z], R: 0.018, r: 0.006, rot: [k % 2 ? Math.PI / 2 : 0, 0, 0], m: S });
+      n.push({ t: 'box', c: [x, -0.86, z], h: [0.04, 0.04, 0.04], rr: 0.008, m: MAT.rustIron });
+    }
+    return SDF.mesh(n, [-0.65, -0.95, -0.72], [0.65, 0.7, 0.78], 96);
   },
+
   // ANGLER head (the telescoping neck is drawn in segments): a long, jagged-toothed jaw, an eye cluster, the lure
   a3_angler: () => {
     const M = MAT.burnt, K = MAT.rubber, P = MAT.porcelain, S = MAT.steel, n = [
@@ -1348,39 +1376,46 @@ const SCULPTS = {
   },
   // LEECH: plush limbs (an arm, a leg, a duck bill) fused by rose-purple gel around a gear ring
   a3_leech: () => {
-    const F = MAT.furLight, G = MAT.lining, S = MAT.copper, n = [
-      { t: 'ell', c: [0, 0.08, 0], r: [0.16, 0.08, 0.14], m: G, n: [0.01, 20] },
-      { t: 'tor', c: [0, 0.1, 0], R: 0.13, r: 0.02, m: S },
-      { t: 'cap', a: [0.05, 0.08, 0], b: [0.32, 0.04, -0.1], r: 0.04, r2: 0.03, m: F, n: [0.008, 30] },
-      { t: 'cap', a: [-0.05, 0.08, 0.02], b: [-0.3, 0.03, 0.12], r: 0.05, r2: 0.035, m: MAT.handTeal, n: [0.008, 30] },
-      { t: 'ell', c: [0.05, 0.1, -0.18], r: [0.06, 0.02, 0.1], m: MAT.paint, k: 0.02 },
-      { t: 'cap', a: [0, 0.06, 0.05], b: [0.05, 0.02, 0.3], r: 0.035, r2: 0.02, m: F, n: [0.008, 30] }
+    // LEECH: a lump of glossy pink Posie Gel with discarded plush bits fused into it (a monkey face, a duck bill,
+    // a little arm) and a cluster of camera lenses set in brass gears
+    const G = MAT.gel, F = MAT.furLight, C = MAT.copper, n = [
+      { t: 'sph', c: [0, 0.12, 0], r: 0.14, m: G, n: [0.012, 18] },
+      { t: 'sph', c: [0.1, 0.17, -0.07], r: 0.06, m: F, k: 0.02, n: [0.006, 40] },
+      { t: 'ell', c: [-0.11, 0.1, -0.09], r: [0.05, 0.02, 0.06], m: MAT.paint, k: 0.02 },
+      { t: 'cap', a: [0.05, 0.08, 0.08], b: [0.2, 0.02, 0.18], r: 0.025, r2: 0.02, m: F, k: 0.02 },
+      { t: 'tor', c: [0, 0.17, -0.12], R: 0.035, r: 0.01, rot: [0, Math.PI / 2, 0], m: C },
+      { t: 'sph', c: [0, 0.17, -0.13], r: 0.025, m: MAT.screen }
     ];
-    return SDF.mesh(n, [-0.4, -0.04, -0.34], [0.4, 0.22, 0.38], 56);
+    for (let k = 0; k < 5; k++) { const a = k * 1.3; n.push({ t: 'sph', c: [Math.cos(a) * 0.12, 0.14 + Math.sin(a) * 0.08, Math.sin(a) * 0.1], r: 0.04, m: G, k: 0.04 }); }
+    return SDF.mesh(n, [-0.3, -0.02, -0.25], [0.3, 0.3, 0.25], 64);
   },
+
   // DROWNED OUTIMAL: a rotting moss-and-burlap plush crawler with a screw for an eye and gears in its seams
   a3_outimal: () => {
-    const M = MAT.furLight, K = MAT.rubber, S = MAT.steel, P = MAT.porcelain, n = [
-      { t: 'ell', c: [0, 0.38, 0.1], r: [0.34, 0.26, 0.6], m: M, n: [0.02, 10] },
-      { t: 'ell', c: [0, 0.5, -0.55], r: [0.26, 0.24, 0.26], m: M, k: 0.1, n: [0.015, 12] },
-      { t: 'ell', c: [0, 0.4, -0.78], r: [0.18, 0.1, 0.16], m: M, k: 0.05 },
-      { t: 'box', c: [0, 0.36, -0.86], h: [0.14, 0.03, 0.1], op: 's', k: 0.01, sm: K },
-      { t: 'cyl', c: [0.11, 0.6, -0.76], r: 0.03, h: 0.04, rot: [0, Math.PI / 2, 0], m: S },
-      { t: 'cap', a: [0.11, 0.6, -0.78], b: [0.11, 0.6, -0.9], r: 0.01, m: S },
-      { t: 'sph', c: [-0.12, 0.62, -0.74], r: 0.06, m: MAT.lens, k: 0.01 },
-      { t: 'ell', c: [0, 0.3, 0.0], r: [0.2, 0.12, 0.3], op: 's', k: 0.02, sm: MAT.lining, n: [0.02, 30] }
+    // DROWNED OUTIMALS: a fused heap of waterlogged plush toys - a crocodile, a shark and a duck head pushed
+    // out of a matted fur core with a cluster of lenses in brass gears - carried on four rusty wheeled legs
+    const F = MAT.furLight, K = MAT.rubber, S = MAT.rustIron, C = MAT.copper, n = [
+      { t: 'sph', c: [0, 0.75, 0], r: 0.42, m: F, n: [0.025, 9] },
+      { t: 'ell', c: [-0.35, 0.85, -0.3], r: [0.14, 0.12, 0.34], rot: [0.3, 0.5, 0], m: MAT.handTeal, k: 0.06, n: [0.008, 30] },    // crocodile snout
+      { t: 'ell', c: [0.38, 0.95, -0.22], r: [0.13, 0.12, 0.3], rot: [-0.3, -0.5, 0], m: MAT.steel, k: 0.06, n: [0.004, 30] },      // shark
+      { t: 'sph', c: [0.18, 1.18, -0.05], r: 0.14, m: MAT.paint, k: 0.04 },                                                          // duck head
+      { t: 'ell', c: [0.18, 1.15, -0.22], r: [0.07, 0.025, 0.08], m: MAT.copper, k: 0.02 }                                           // duck bill
     ];
-    for (let i = 0; i < 7; i++) n.push({ t: 'cap', a: [-0.1 + i * 0.033, 0.36, -0.86], b: [-0.1 + i * 0.033, 0.3, -0.87], r: 0.01, r2: 0.002, m: P });
-    for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [Math.sin(i * 2) * 0.12, 0.3, -0.05 + i * 0.08], r: 0.05, h: 0.01, rot: [0, Math.PI / 2, i], m: MAT.copper });
-    for (const [x, z] of [[-0.3, -0.35], [0.3, -0.35], [-0.3, 0.45], [0.3, 0.45]]) { n.push({ t: 'cap', a: [x * 0.8, 0.35, z], b: [x * 1.3, 0.08, z], r: 0.07, r2: 0.05, m: M, k: 0.04 }); n.push({ t: 'cyl', c: [x * 1.3, 0.06, z], r: 0.06, h: 0.02, rot: [0, 0, Math.PI / 2], m: K }); }
-    for (let k = 0; k < 9; k++) n.push({ t: 'sph', c: [Math.sin(k * 2.2) * 0.3, 0.55 + (k % 3) * 0.05, -0.4 + k * 0.1], r: 0.06, m: MAT.handTeal, k: 0.04, n: [0.02, 35] });   // moss
-    // the torn belly shows porcelain ribs; burlap seams, a dangling stitched ear, a spilled tuft of rose stuffing
-    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, 0.3, -0.12 + i * 0.07], R: 0.15, r: 0.012, rot: [0, Math.PI / 2, Math.PI / 2], m: P });
-    for (let i = 0; i < 8; i++) n.push({ t: 'cap', a: [-0.3 + i * 0.08, 0.6, 0.0 + (i % 2) * 0.05], b: [-0.3 + i * 0.08, 0.66, 0.02], r: 0.006, m: K });
-    n.push({ t: 'cap', a: [0.18, 0.68, -0.5], b: [0.32, 0.45, -0.42], r: 0.06, r2: 0.04, m: M, k: 0.03, n: [0.01, 30] });
-    for (let k = 0; k < 6; k++) n.push({ t: 'sph', c: [-0.02 + Math.sin(k) * 0.05, 0.36 - k * 0.02, -0.86 - k * 0.02], r: 0.03, m: MAT.handRose, k: 0.02, n: [0.01, 50] });
-    return SDF.mesh(n, [-0.55, -0.02, -1.05], [0.55, 0.85, 0.8], 88);
+    for (const [x, y, z, r] of [[0, 0.78, -0.42, 0.07], [-0.1, 0.9, -0.38, 0.05], [0.1, 0.86, -0.39, 0.045], [-0.04, 0.66, -0.4, 0.04], [0.09, 0.68, -0.4, 0.035]]) {
+      n.push({ t: 'tor', c: [x, y, z], R: r, r: r * 0.25, rot: [0, Math.PI / 2, 0], m: C }); n.push({ t: 'sph', c: [x, y, z - 0.01], r: r * 0.75, m: MAT.screen });
+    }
+    for (const sx of [-1, 1]) n.push({ t: 'sph', c: [-0.35 + sx * 0.07, 0.96, -0.36], r: 0.035, m: MAT.porcelain });
+    for (let i = 0; i < 6; i++) n.push({ t: 'cap', a: [0.32 + (i % 3) * 0.03, 0.88, -0.42 + i * 0.03], b: [0.33 + (i % 3) * 0.03, 0.83, -0.43 + i * 0.03], r: 0.008, r2: 0.002, m: MAT.porcelain });
+    for (let k = 0; k < 6; k++) { const a = k * 1.1; n.push({ t: 'cap', a: [Math.sin(a) * 0.38, 0.72 + Math.cos(a) * 0.3, Math.cos(a) * 0.2], b: [Math.sin(a + 0.6) * 0.4, 0.75 + Math.cos(a + 0.6) * 0.3, Math.cos(a + 0.6) * 0.22], r: 0.012, m: MAT.wood }); }   // rope lashing
+    for (const [x, z] of [[-0.3, -0.25], [0.3, -0.25], [-0.32, 0.28], [0.32, 0.28]]) {
+      n.push({ t: 'cap', a: [x * 0.6, 0.55, z * 0.6], b: [x * 1.2, 0.35, z * 1.15], r: 0.035, m: S });
+      n.push({ t: 'cyl', c: [x * 1.2, 0.35, z * 1.15], r: 0.05, h: 0.02, rot: [0, 0, Math.PI / 2], m: C });
+      n.push({ t: 'cap', a: [x * 1.2, 0.35, z * 1.15], b: [x * 1.25, 0.1, z * 1.2], r: 0.03, m: S });
+      n.push({ t: 'cyl', c: [x * 1.25, 0.08, z * 1.2], r: 0.08, h: 0.03, rot: [0, 0, Math.PI / 2], m: K });
+    }
+    return SDF.mesh(n, [-0.6, -0.02, -0.75], [0.6, 1.35, 0.6], 96);
   },
+
   // CONDUCTOR: a faceless mannequin torso fused into the nose of a subway engine (origin at rail level)
   a3_conductor: () => {
     const B = -1, S = MAT.steel, P = MAT.porcelain, K = MAT.rubber, C = MAT.copper, n = [
@@ -1408,54 +1443,54 @@ const SCULPTS = {
   },
   // SUIT: an immaculate, empty 1950s business suit walking on its own; a brass head-stump with a lens cluster
   a3_suit: () => {
-    const C = -1, W = MAT.porcelain, K = MAT.rubber, B = MAT.copper, n = [
+    // SUIT: a grey 1950s suit walking on its own - the shirt hangs open over a chest packed with brass gears,
+    // skeletal brass hands, and in place of a head a smooth black egg with a ring of teal lenses on one side
+    const C = MAT.vest, W = MAT.porcelain, K = MAT.rubber, B = MAT.copper, n = [
       { t: 'box', c: [0, 1.25, 0], h: [0.24, 0.3, 0.13], rr: 0.06, m: C },
-      { t: 'cap', a: [-0.25, 1.5, 0], b: [0.25, 1.5, 0], r: 0.09, m: C, k: 0.06 },
-      { t: 'box', c: [0, 1.36, -0.125], h: [0.05, 0.16, 0.01], m: W, k: 0.01 },
-      { t: 'box', c: [0, 1.32, -0.14], h: [0.022, 0.12, 0.008], m: MAT.lining },
-      { t: 'cyl', c: [0, 1.66, 0], r: 0.075, h: 0.06, m: B },
-      { t: 'sph', c: [0, 1.76, -0.02], r: 0.09, m: B, k: 0.02 }
+      { t: 'cap', a: [-0.26, 1.5, 0], b: [0.26, 1.5, 0], r: 0.09, m: C, k: 0.06 },
+      { t: 'box', c: [0, 1.28, -0.12], h: [0.08, 0.2, 0.03], op: 's', k: 0.02, sm: B },
+      { t: 'cyl', c: [0, 1.66, 0], r: 0.05, h: 0.05, m: B },
+      { t: 'ell', c: [0, 1.84, 0], r: [0.11, 0.15, 0.12], m: MAT.screen, k: 0.01 }
     ];
-    for (const [x, y, r] of [[-0.04, 1.78, 0.025], [0.04, 1.77, 0.03], [0, 1.72, 0.022]]) n.push({ t: 'sph', c: [x, y, -0.09], r, m: MAT.lens });
+    for (const [x, y, r] of [[-0.04, 1.36, 0.045], [0.04, 1.28, 0.05], [-0.03, 1.2, 0.035], [0.05, 1.42, 0.03]]) n.push({ t: 'cyl', c: [x, y, -0.13], r, h: 0.008, rot: [0, Math.PI / 2, 0], m: B, n: [0.003, 80] });
+    for (const [x, y, r] of [[0.06, 1.86, 0.02], [0.08, 1.82, 0.016], [0.05, 1.8, 0.014]]) n.push({ t: 'sph', c: [x, y, -0.1], r, m: MAT.lens });
     for (const sx of [-1, 1]) {
-      n.push({ t: 'cap', a: [sx * 0.3, 1.48, 0], b: [sx * 0.34, 0.98, 0.02], r: 0.07, r2: 0.06, m: C, k: 0.02 });
-      n.push({ t: 'cap', a: [sx * 0.34, 0.98, 0.02], b: [sx * 0.34, 0.92, 0.01], r: 0.045, m: W });
+      n.push({ t: 'cap', a: [sx * 0.3, 1.48, 0], b: [sx * 0.36, 0.98, 0.02], r: 0.07, r2: 0.06, m: C, k: 0.02 });
+      n.push({ t: 'tor', c: [sx * 0.36, 0.98, 0.02], R: 0.05, r: 0.012, m: W });
+      for (let f = 0; f < 4; f++) n.push({ t: 'cap', a: [sx * 0.36, 0.94, 0.02], b: [sx * (0.37 + f * 0.012), 0.8, -0.04 + f * 0.025], r: 0.007, m: B });
       n.push({ t: 'cap', a: [sx * 0.11, 0.95, 0], b: [sx * 0.12, 0.08, 0.02], r: 0.085, r2: 0.075, m: C, k: 0.03 });
       n.push({ t: 'ell', c: [sx * 0.12, 0.05, -0.06], r: [0.07, 0.05, 0.14], m: K, k: 0.01 });
-      n.push({ t: 'box', c: [sx * 0.13, 1.33, -0.13], h: [0.06, 0.13, 0.01], rot: [0, 0, sx * 0.3], m: C, k: 0.01 });   // lapels
+      n.push({ t: 'box', c: [sx * 0.13, 1.33, -0.13], h: [0.06, 0.13, 0.01], rot: [0, 0, sx * 0.3], m: C, k: 0.01 });
+      n.push({ t: 'box', c: [sx * 0.05, 1.48, -0.12], h: [0.03, 0.05, 0.01], rot: [0, 0, sx * 0.4], m: W });
     }
-    for (let i = 0; i < 3; i++) n.push({ t: 'cyl', c: [0.06, 1.18 - i * 0.1, -0.135], r: 0.012, h: 0.004, rot: [0, Math.PI / 2, 0], m: K });
-    // a folded pocket square, shirt cuffs, a tie clip, shiny shoes, brass gears turning in the open collar
     n.push({ t: 'box', c: [-0.15, 1.42, -0.135], h: [0.04, 0.02, 0.008], m: W });
-    for (const sx of [-1, 1]) n.push({ t: 'tor', c: [sx * 0.34, 0.98, 0.02], R: 0.05, r: 0.012, m: W });
-    n.push({ t: 'box', c: [0, 1.28, -0.15], h: [0.04, 0.006, 0.006], m: B });
-    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.12, 0.06, -0.1], r: [0.05, 0.03, 0.06], m: MAT.screen, k: 0.01 });
-    for (let i = 0; i < 3; i++) n.push({ t: 'cyl', c: [-0.04 + i * 0.04, 1.6, -0.04], r: 0.03, h: 0.006, rot: [0, Math.PI / 2, i], m: B });
-    return SDF.mesh(n, [-0.5, -0.02, -0.3], [0.5, 1.92, 0.3], 92);
+    return SDF.mesh(n, [-0.5, -0.02, -0.3], [0.5, 2.02, 0.3], 96);
   },
+
   // SCRAPLING: a doll head bolted onto a little dinosaur body with a mechanical claw and a wind-up key
   a3_scrapling: () => {
-    const D = MAT.handTeal, P = MAT.porcelain, S = MAT.steel, C = MAT.copper, K = MAT.rubber, n = [
-      { t: 'ell', c: [0, 0.32, 0.05], r: [0.16, 0.14, 0.28], m: D, n: [0.008, 20] },
-      { t: 'cap', a: [0, 0.32, 0.3], b: [0, 0.2, 0.62], r: 0.08, r2: 0.02, m: D, k: 0.04 },
-      { t: 'sph', c: [0, 0.48, -0.26], r: 0.14, m: P, k: 0.03 },
-      { t: 'sph', c: [-0.05, 0.5, -0.38], r: 0.03, op: 's', sm: K },
-      { t: 'sph', c: [0.05, 0.5, -0.38], r: 0.03, op: 's', sm: K },
-      { t: 'cap', a: [0.12, 0.34, -0.08], b: [0.28, 0.26, -0.3], r: 0.03, m: S },
-      { t: 'cap', a: [0.28, 0.26, -0.3], b: [0.3, 0.18, -0.42], r: 0.02, r2: 0.008, m: S },
-      { t: 'cap', a: [0.28, 0.26, -0.3], b: [0.36, 0.24, -0.4], r: 0.02, r2: 0.008, m: S },
-      { t: 'cyl', c: [0, 0.48, 0.1], r: 0.015, h: 0.05, m: C },
-      { t: 'tor', c: [0, 0.56, 0.1], R: 0.04, r: 0.01, rot: [Math.PI / 2, 0, 0], m: C },
-      { t: 'sph', c: [0, 0.36, -0.06], r: 0.035, m: MAT.lens }
+    // SCRAPLING: a scrambling knot of salvage - a cracked doll head, a horned plastic dinosaur, a blue teddy arm,
+    // coloured gears with lenses in them, a mechanical claw and a toy wheel, all bolted together
+    const P = MAT.porcelain, D = MAT.paint, C = MAT.copper, S = MAT.steel, K = MAT.rubber, n = [
+      { t: 'sph', c: [0, 0.32, 0], r: 0.16, m: S, k: 0.02 },
+      { t: 'sph', c: [-0.02, 0.52, -0.12], r: 0.11, m: P, k: 0.02 },
+      { t: 'sph', c: [-0.06, 0.54, -0.22], r: 0.022, op: 's', sm: K }, { t: 'sph', c: [0.03, 0.54, -0.22], r: 0.022, op: 's', sm: K },
+      { t: 'ell', c: [0.22, 0.38, 0.05], r: [0.18, 0.08, 0.08], rot: [0, 0.4, 0.2], m: D, k: 0.04 },              // dinosaur body
+      { t: 'cap', a: [0.36, 0.42, -0.02], b: [0.45, 0.5, -0.1], r: 0.05, r2: 0.035, m: D, k: 0.02 },            // dinosaur head
+      { t: 'cap', a: [0.46, 0.53, -0.1], b: [0.53, 0.62, -0.13], r: 0.01, r2: 0.003, m: P },                     // horn
+      { t: 'cap', a: [-0.12, 0.3, 0.05], b: [-0.32, 0.2, 0.18], r: 0.05, r2: 0.04, m: MAT.furBlue, k: 0.02, n: [0.006, 40] }   // teddy arm
     ];
-    for (const [x, z] of [[-0.1, -0.1], [0.1, -0.1], [-0.12, 0.18], [0.12, 0.18]]) n.push({ t: 'cap', a: [x, 0.25, z], b: [x * 1.5, 0.02, z - 0.03], r: 0.035, r2: 0.025, m: D, k: 0.02 });
-    // a doll's ponytail, a back of welded gears and bolts, a stitched teddy patch on its flank
-    n.push({ t: 'cap', a: [0, 0.6, -0.22], b: [0.02, 0.5, -0.05], r: 0.035, r2: 0.015, m: MAT.hairDark, k: 0.01 });
-    for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [0, 0.45, -0.05 + i * 0.09], r: 0.05, h: 0.008, rot: [0, 0, Math.PI / 2], m: C });
-    n.push({ t: 'ell', c: [-0.15, 0.3, 0.1], r: [0.02, 0.08, 0.1], m: MAT.furLight, k: 0.02, n: [0.006, 50] });
-    for (let i = 0; i < 4; i++) n.push({ t: 'sph', c: [0.15, 0.36, -0.05 + i * 0.08], r: 0.014, m: S });
-    return SDF.mesh(n, [-0.3, -0.02, -0.48], [0.45, 0.66, 0.66], 76);
+    for (const [x, y, z, r, m] of [[0.0, 0.3, -0.16, 0.07, MAT.handTeal], [-0.12, 0.22, -0.12, 0.05, MAT.handRose], [0.12, 0.22, -0.13, 0.05, C]]) {
+      n.push({ t: 'cyl', c: [x, y, z], r, h: 0.015, rot: [0, Math.PI / 2, 0], m, n: [0.004, 60] }); n.push({ t: 'sph', c: [x, y, z - 0.015], r: r * 0.45, m: MAT.screen });
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; n.push({ t: 'box', c: [x + Math.cos(a) * r, y + Math.sin(a) * r, z], h: [0.012, 0.012, 0.014], rot: [0, 0, a], m }); }
+    }
+    n.push({ t: 'cap', a: [0.1, 0.25, -0.05], b: [0.25, 0.1, -0.3], r: 0.02, m: S });
+    for (const sp of [-1, 1]) n.push({ t: 'cap', a: [0.25, 0.1, -0.3], b: [0.25 + sp * 0.05, 0.05, -0.38], r: 0.012, r2: 0.004, m: S });
+    n.push({ t: 'cyl', c: [-0.15, 0.08, 0.15], r: 0.08, h: 0.03, rot: [0, 0, Math.PI / 2], m: K });
+    for (const [x, z] of [[-0.1, -0.08], [0.12, 0.12], [0.05, -0.1]]) n.push({ t: 'cap', a: [x, 0.2, z], b: [x * 1.6, 0.02, z * 1.6], r: 0.02, r2: 0.012, m: S });
+    return SDF.mesh(n, [-0.45, -0.02, -0.45], [0.6, 0.68, 0.35], 84);
   },
+
   // the Seraph's wing: rusted razor feathers fanned from a jointed iron spar (root at the origin, spans +x)
   a3_wing: () => {
     const R = MAT.rustIron, S = MAT.steel, n = [
@@ -1467,6 +1502,22 @@ const SCULPTS = {
       n.push({ t: 'box', c: [x, y - 0.45 - t * 0.2, 0.1 + t * 0.15], h: [0.07, 0.42 + t * 0.15, 0.008], rot: [0, 0, -0.15 - t * 0.25], m: R, n: [0.006, 50] });
     }
     return SDF.mesh(n, [-0.15, -1.2, -0.1], [2.0, 0.5, 0.45], 72);
+  },
+  // an old brass door key (origin at the bow, shaft along +x): an ornate trefoil bow, a collar, a long shaft
+  // and a stepped bit, worn and tarnished
+  key_brass: () => {
+    const B = -1, n = [
+      { t: 'tor', c: [0, 0, 0], R: 0.028, r: 0.007, rot: [0, 0, Math.PI / 2], m: B },
+      { t: 'tor', c: [-0.022, 0.016, 0], R: 0.014, r: 0.005, rot: [0, 0, Math.PI / 2], m: B },
+      { t: 'tor', c: [-0.022, -0.016, 0], R: 0.014, r: 0.005, rot: [0, 0, Math.PI / 2], m: B },
+      { t: 'cyl', c: [0.04, 0, 0], r: 0.009, h: 0.006, rot: [0, 0, Math.PI / 2], m: B },
+      { t: 'cap', a: [0.03, 0, 0], b: [0.15, 0, 0], r: 0.0055, m: B },
+      { t: 'box', c: [0.135, -0.012, 0], h: [0.014, 0.012, 0.003], m: B },
+      { t: 'box', c: [0.112, -0.009, 0], h: [0.006, 0.009, 0.003], m: B },
+      { t: 'box', c: [0.137, -0.022, 0], h: [0.004, 0.004, 0.0035], op: 's', sm: B },
+      { t: 'sph', c: [0.015, 0.012, 0.004], r: 0.006, m: MAT.burnt, k: 0.003, n: [0.001, 120] }
+    ];
+    return SDF.mesh(n, [-0.05, -0.05, -0.02], [0.17, 0.05, 0.02], 72);
   },
   // a big old wood-cased CRT television (draw material = the casing), screen facing -z, origin at its feet
   crt_tv: () => {

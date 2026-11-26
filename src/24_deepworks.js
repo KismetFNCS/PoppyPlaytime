@@ -194,8 +194,8 @@ const DeepWorks = {
     L.solid(S, 9, 0, -147.0, 14, 3.2, -146.8, MAT.paint);
     L.geom(S, 9, 3.2, -147.0, 14, 3.3, -140, MAT.steel);
     const od = L.door('DY_OFF', 6, 6, 'x', 9, -144.6, -143.0, 2.6, false); od.key = 'OFFICE';
-    L.desk(S, 12.4, -145.6);
-    L.tape(S, 12.1, 1.0, -145.6, 4);
+    L.desk(S, 12.4, -145.6, true);
+    L.tape(S, 12.4, 1.0, -145.6, 4);
     L.light(S, 11.5, 2.8, -143.5, LIGHTING.fillColor, 2.0, 5, 1, 'bulb', 0.3);
     // a crawl duct along the west wall between the tracks: crouch [C] to get in; the OFFICE KEY lies at its dead end
     L.duct(S, -14, -158.8, -12.6, -152, 'e', -153.6, -152.2);
@@ -555,8 +555,11 @@ const DeepWorks = {
         this.vault.armed = true;
         const M = Monster, tz = Math.abs(M.pos[2] - VAULT_TRACKS[0]) < Math.abs(M.pos[2] - VAULT_TRACKS[1]) ? 0 : 1;
         this.dispatchTrain(tz, 1.6, true);
+        // Lovey grabs it and holds it down on whatever line it is standing on; the train is switched onto THAT
+        // line (it keeps following the Epxirtype's track until it is too close to change)
+        if (Lovey.active && M.active && !M.inVent) { M.stunTimer = Math.max(M.stunTimer, 6); V3.set(Lovey.pos, M.pos[0] + 1.6, 0, M.pos[2] + 2.2); Lovey.swingT = 0.6; sfx('blast', M.pos); }
         Dialogue.clear();
-        Dialogue.say('THIMBLE', tz === 0 ? 'Switching! Train coming down the NEAR line!' : 'Switching! Train coming down the FAR line!');
+        Dialogue.say('THIMBLE', 'Switching it onto ITS line! Lovey - hold it there!');
         Cast.plush.wave = 1;
         return true;
       }
@@ -873,7 +876,7 @@ const DeepWorks = {
           V.mode = 'DONE';
           Game.stage = 10; UI.setObjective(OBJECTIVES[10]);
           Game.invulnerable = true; Game.chaseActive = false;
-          Dialogue.say('MARIGOLD', 'It is sealed. ...It is really sealed. Thank you for looking at me.');
+          Dialogue.say('MARIGOLD', 'It is sealed. After all these years... it is really sealed.');
           Act3.betray();
         }
         break;
@@ -882,6 +885,7 @@ const DeepWorks = {
     // trains
     for (let i = this.trains.length - 1; i >= 0; i--) {
       const T = this.trains[i];
+      if (T.redirect && !T.hit && Math.abs(T.x) > 14 && M.active) { const tr = Math.abs(M.pos[2] - VAULT_TRACKS[0]) < Math.abs(M.pos[2] - VAULT_TRACKS[1]) ? 0 : 1; T.track = tr; T.z = VAULT_TRACKS[tr]; }
       if (T.warn > 0) { T.warn -= dt; if (T.warn <= 0) sfx('trainHorn', V3.set(this.tmp, T.dir * -14, 2, T.z)); continue; }
       T.x += T.dir * T.speed * dt;
       if (!T.horn && Math.abs(T.x) < 20) { T.horn = true; sfx('trainRush', V3.set(this.tmp, T.x, 2, T.z)); }
@@ -976,12 +980,7 @@ const DeepWorks = {
       for (const g of this.gels) {
         for (let k = 0; k < 7; k++) {
           const x = lerp(g.x0 + 1, g.x1 - 1, (k * 0.37) % 1), z = lerp(g.z0 + 1, g.z1 - 1, (k * 0.61) % 1);
-          // Posie Gel: a dark, wet, fleshy rose-purple mass that pulses, with glossy bubbles swelling and popping
-          const it = R.trs('sphereLow', MAT.screen, x, 0.0, z, k * 0.7, 0, 0, 1.6 + (k % 3) * 0.5, 0.035 + 0.008 * Math.sin(t * 1.6 + k), 1.2 + (k % 2) * 0.6, false);
-          if (it) { const pu = 0.5 + 0.5 * Math.sin(t * 1.6 + k); it.tint[0] = 0.32; it.tint[1] = 0.06; it.tint[2] = 0.2; it.emis[0] = 0.03 + 0.03 * pu; it.emis[1] = 0.004; it.emis[2] = 0.025 + 0.02 * pu; }
-          const bp = (t * 0.7 + k * 0.31) % 1, br = Math.sin(bp * Math.PI) * 0.12;
-          const bb = R.trs('sphereLow', MAT.screen, x + Math.sin(k * 3) * 0.6, 0.02, z + Math.cos(k * 3) * 0.4, 0, 0, 0, br, br * 0.8, br, false);
-          if (bb) { bb.tint[0] = 0.5; bb.tint[1] = 0.1; bb.tint[2] = 0.32; bb.emis[0] = 0.05; bb.emis[2] = 0.04; }
+          Dressing.gelPile(R, x, z, 1.4 + (k % 3) * 0.4, k * 0.7, t);
         }
       }
       for (const c of this.cables) for (let z = c.z0; z < c.z1 - 0.5; z += 2.1) {

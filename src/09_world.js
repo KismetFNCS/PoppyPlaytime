@@ -253,7 +253,15 @@ const Lights = {
 };
 
 // ---------- doors ----------
+const _dw = { a: V3.create(), b: V3.create() };
 const Doors = {
+  submitShutterX(d) {
+    const H = d.height, bottom = d.open * H, h = H - bottom, w = d.b - d.a, cz = (d.a + d.b) / 2;
+    if (h > 0.02) {
+      RenderQueue.trs('box', MAT.rustIron, d.line, bottom + h / 2, cz, Math.PI / 2, 0, 0, w, h, d.thick * 0.6);
+      for (let y = bottom + 0.15; y < H; y += 0.32) RenderQueue.trs('box', MAT.steel, d.line, y, cz, Math.PI / 2, 0, 0, w + 0.02, 0.05, d.thick * 0.75, false);
+    }
+  },
   update(dt) {
     for (const d of Level.doors) {
       const prev = d.open;
@@ -261,8 +269,9 @@ const Doors = {
       if (d.open < d.target) d.open = Math.min(d.target, d.open + speed * dt);
       else if (d.open > d.target) d.open = Math.max(d.target, d.open - speed * dt);
       const moving = d.open !== prev;
-      if (moving && !d.moving) sfx(d.slam ? 'doorSlam' : 'doorStart', doorCenter(d));
-      if (!moving && d.moving) sfx('doorStop', doorCenter(d));
+      if (moving && !d.moving) sfx(d.key ? 'doorOpenWood' : d.slam ? 'doorSlam' : 'doorStart', doorCenter(d));
+      if (!moving && d.moving && !d.key) sfx('doorStop', doorCenter(d));
+      if (d.rattle > 0) d.rattle = Math.max(0, d.rattle - dt);
       d.moving = moving;
       if (d.open >= d.target) d.slam = false;
       const c = d.collider;
@@ -277,9 +286,32 @@ const Doors = {
     d.slam = !!slam;
     if (open) EventBus.emit(EV.DOOR_OPEN, d.a, 0, d.line, 0, 0);
   },
+  // a keyed door is an office door: a panelled wooden door with a brass handle that swings open on its hinges
+  submitOffice(d) {
+    const R = RenderQueue, H = d.height, w = d.b - d.a, th = d.open * 1.75 + (d.rattle > 0 ? Math.sin(d.rattle * 90) * 0.012 : 0);
+    const base = d.axis === 'z' ? 0 : -Math.PI / 2, yaw = base + th;
+    const hx = d.axis === 'z' ? d.a : d.line, hz = d.axis === 'z' ? d.line : d.a;
+    const ux = Math.cos(yaw), uz = -Math.sin(yaw), nx = -Math.sin(yaw), nz = -Math.cos(yaw);
+    const at = (o, s, y, n) => { o[0] = hx + ux * s + nx * n; o[1] = y; o[2] = hz + uz * s + nz * n; return o; };
+    at(_dw.a, w / 2, H / 2, 0);
+    let it = R.trs('box', MAT.wood, _dw.a[0], _dw.a[1], _dw.a[2], yaw, 0, 0, w, H, 0.07); if (it) { it.tint[0] = 0.85; it.tint[1] = 0.68; it.tint[2] = 0.52; }
+    // raised panels on both faces
+    for (const n of [-0.04, 0.04]) for (const [py, ph] of [[H * 0.72, H * 0.36], [H * 0.27, H * 0.38]]) { at(_dw.a, w / 2, py, n); it = R.trs('box', MAT.wood, _dw.a[0], _dw.a[1], _dw.a[2], yaw, 0, 0, w * 0.72, ph, 0.02); if (it) { it.tint[0] = 0.7; it.tint[1] = 0.55; it.tint[2] = 0.42; } }
+    // a frosted glass pane with the office lettering band, and the brass lever handle and keyhole plate
+    for (const n of [-0.05, 0.05]) {
+      at(_dw.a, w * 0.82, 1.0, n); it = R.trs('box', MAT.copper, _dw.a[0], _dw.a[1], _dw.a[2], yaw, 0, 0, 0.06, 0.2, 0.012); if (it) { it.tint[0] = 1.5; it.tint[1] = 1.15; it.tint[2] = 0.5; }
+      at(_dw.a, w * 0.82, 1.04, n * 1.6); at(_dw.b, w * 0.69, 1.04 - (d.rattle > 0 ? Math.abs(Math.sin(d.rattle * 60)) * 0.04 : 0), n * 1.6);
+      it = R.seg('cylLow', MAT.copper, _dw.a, _dw.b, 0.014); if (it) { it.tint[0] = 1.5; it.tint[1] = 1.15; it.tint[2] = 0.5; }
+      at(_dw.a, w * 0.82, 0.93, n * 1.3); R.trs('box', MAT.rubber, _dw.a[0], _dw.a[1], _dw.a[2], yaw, 0, 0, 0.012, 0.035, 0.01, false);
+    }
+    for (const y of [0.3, H - 0.3]) { at(_dw.a, 0.02, y, 0); R.trs('cyl', MAT.copper, _dw.a[0], _dw.a[1], _dw.a[2], 0, 0, 0, 0.018, 0.08, 0.018); }
+  },
   submit(sectorVisible) {
     for (const d of Level.doors) {
       if (!sectorVisible[d.sectorA] && !sectorVisible[d.sectorB]) continue;
+      if (d.key) { this.submitOffice(d); continue; }
+      // shutters on x-axis lines are drawn turned a quarter so they sit in their wall
+      if (d.axis === 'x') { this.submitShutterX(d); continue; }
       const H = d.height, bottom = d.open * H, h = H - bottom;
       const w = d.b - d.a, cx = (d.a + d.b) / 2;
       if (h > 0.02) {
@@ -296,7 +328,7 @@ const Doors = {
     }
   }
 };
-function doorCenter(d) { _dc[0] = (d.a + d.b) / 2; _dc[1] = 1.5; _dc[2] = d.line; return _dc; }
+function doorCenter(d) { if (d.axis === 'x') { _dc[0] = d.line; _dc[2] = (d.a + d.b) / 2; } else { _dc[0] = (d.a + d.b) / 2; _dc[2] = d.line; } _dc[1] = 1.5; return _dc; }
 const _dc = V3.create();
 
 // ---------- steam vents ----------

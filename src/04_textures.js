@@ -182,6 +182,17 @@ const TexSynth = {
       out[4] = 1;
       out[5] = lerp(1.05, 1.45, grime) - oil * 0.45 + scuff * 0.2;
     },
+    // Posie Gel: lumpy, bubbly, glossy - rose with orange streaks, dark pits between the bubbles
+    gelBlobs(s, t, out) {
+      const b = TexSynth.fbm(s, t, 9, 4, 391), cells = TexSynth.fbmA(s, t, 18, 2, 3, 392);
+      const bub = smoothstep(0.55, 0.8, cells), streak = smoothstep(0.5, 0.75, TexSynth.fbm(s, t, 4, 3, 393));
+      out[0] = 0.62 + 0.25 * streak + bub * 0.12; out[1] = 0.22 + 0.32 * streak * 0.6; out[2] = 0.3 - 0.12 * streak;
+      const pit = 1 - smoothstep(0.2, 0.35, cells) * 0.0;
+      out[0] *= 0.7 + b * 0.4; out[1] *= 0.7 + b * 0.4; out[2] *= 0.7 + b * 0.4;
+      out[3] = 0.3 + bub * 0.6 + b * 0.2;
+      out[4] = 1;
+      out[5] = 0.12 + (1 - bub) * 0.25;
+    },
     cable(s, t, out) {
       const rib = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * 24);
       const g = 0.7 + rib * 0.3;
@@ -347,7 +358,7 @@ const TexSynth = {
     ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelainAged', 3.0], ['furMatted', 5.0],
     ['furMatted', 5.0], ['steelGrime', 2.5], ['glove', 3.0], ['glove', 3.0], ['cable', 3.0], ['wood', 3.0],
     ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5],
-    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['furMatted', 5.0], ['furMatted', 4.5], ['clothRot', 3.5], ['lining', 3.0], ['clothRot', 3.0]
+    ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['furMatted', 5.0], ['furMatted', 4.5], ['clothRot', 3.5], ['lining', 3.0], ['clothRot', 3.0], ['clothRot', 3.0], ['gelBlobs', 4.0]
   ],
 
   // Synthesizes one layer into the given Uint8Array slices.

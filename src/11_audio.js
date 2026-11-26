@@ -44,6 +44,14 @@ const Audio = {
     const dl = ctx.createDelay(1.0), fb = ctx.createGain(), dlp = ctx.createBiquadFilter();
     dl.delayTime.value = 0.31; fb.gain.value = 0.42; dlp.type = 'lowpass'; dlp.frequency.value = 2400;
     this.verbIn.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(this.buses.music);
+    // a long, dark concrete-hall reverb (a generated impulse) under the whole score and the effects
+    const len = Math.floor(ctx.sampleRate * 3.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) { const k = i / len; d[i] = (Math.random() * 2 - 1) * Math.pow(1 - k, 2.6) * (i < 400 ? i / 400 : 1); } }
+    this.hall = ctx.createConvolver(); this.hall.buffer = ir;
+    const hallOut = ctx.createGain(); hallOut.gain.value = 0.32;
+    const hallLP = ctx.createBiquadFilter(); hallLP.type = 'lowpass'; hallLP.frequency.value = 3200;
+    this.verbIn.connect(this.hall); this.hall.connect(hallLP); hallLP.connect(hallOut); hallOut.connect(this.buses.music);
+    const sfxSend = ctx.createGain(); sfxSend.gain.value = 0.18; this.buses.sfx.connect(sfxSend); sfxSend.connect(this.hall);
     this.noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -177,7 +185,11 @@ const Audio = {
     if (i === 0 && bar % 2 === 0) {
       const root = [110, 87.31, 130.8, 98][(bar >> 1) % 4];
       this.note(t, 'sawtooth', root * 0.5, 5.4, 0.045 * v, 380, 1.4, warp, true);
+      // a slow, wide minor-chord string pad: detuned saws swelling in and out under everything
+      for (const [m, dt] of [[1, -7], [1.189, 5], [1.498, -4], [2, 8]]) this.note(t, 'sawtooth', root * m, 5.8, 0.016 * v, 900, 2.2, warp + dt, true);
     }
+    // now and then a lonely, slightly warped music-box phrase drifts in from somewhere far off
+    if (bar % 8 === 5 && i % 4 === 0) { const MB = [880, 783.99, 659.25, 587.33]; this.note(t, 'sine', MB[i >> 2], 1.6, 0.03 * v, 5000, 0.003, warp * 2, true); this.note(t, 'sine', MB[i >> 2] * 3, 0.4, 0.006 * v, 6000, 0.002, warp * 2, true); }
   },
   puzzleStep(t, i, bar, v) {
     if (i % 4 === 0) {
@@ -500,6 +512,10 @@ const SFX = {
     Audio.noise(t, 1.6, 0.18, 600, 'lowpass', out);
     Audio.ring(t, [210, 470], 0.5, 0.12, out);
   },
+  // a locked door: the handle rattles twice against the latch, then a dull thud
+  doorLocked(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.7); for (let i = 0; i < 4; i++) { Audio.ring(t + i * 0.07, [1900 + i * 140, 3100], 0.05, 0.12, out); Audio.noise(t + i * 0.07, 0.04, 0.25, 2600, 'bandpass', out, 4); } Audio.tone(t + 0.3, 'sine', 95, 70, 0.18, 0.4, out); Audio.noise(t + 0.3, 0.12, 0.3, 500, 'lowpass', out); },
+  // unlocking and swinging a wooden office door: key turn, latch click, then a long hinge creak
+  doorOpenWood(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.7); Audio.ring(t, [2400, 3600], 0.06, 0.2, out); Audio.ring(t + 0.12, [1500, 2900], 0.05, 0.25, out); Audio.tone(t + 0.25, 'sawtooth', 310, 190, 1.1, 0.06, out, 0.12); Audio.noise(t + 0.25, 1.0, 0.08, 1400, 'bandpass', out, 9); Audio.tone(t + 1.25, 'sine', 110, 80, 0.15, 0.3, out); },
   doorStop(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.6); Audio.ring(t, [140, 380, 760], 0.7, 0.3, out); Audio.noise(t, 0.2, 0.4, 1200, 'lowpass', out); },
   doorSlam(t, pos) {
     const out = Audio.dest(pos, 'sfx', 5, 0.4);

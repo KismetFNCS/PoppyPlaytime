@@ -729,7 +729,7 @@ const Monster = {
       // the mask turns up to ~30 degrees inside the hood and rolls freely; anything past that, the hood snaps too
       const my = clamp(this.lookYaw, -0.55, 0.55), mp = clamp(this.lookPitch, -0.35, 0.35);
       const hoodYaw = yaw + (this.lookYaw - my), hoodPitch = -0.15 + lean * 0.5 - (this.lookPitch - mp);
-      this.submitHead(this.head, hoodYaw, hoodPitch, 0, 1.15, hoodYaw + my, hoodPitch - mp, this.lookRoll);
+      this.submitHead(this.head, hoodYaw, hoodPitch, 0, 1.26, hoodYaw + my, hoodPitch - mp, this.lookRoll);
     }
     // ---- arms: long thin machine arms ending in needle fingers ----
     if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
@@ -831,15 +831,16 @@ const Monster = {
     V3.sub(d, H, B); const len = V3.len(d) || 1; V3.scale(d, d, 1 / len);
     V3.set(r, -d[2], 0, d[0]); if (V3.len(r) < 1e-3) V3.set(r, 1, 0, 0); V3.normalize(r, r);
     V3.cross(f, r, d);
-    const mats = side < 0 ? [MAT.handTeal, MAT.clothWine, MAT.copper] : [MAT.clothWine, MAT.handTeal, MAT.copper];
-    for (let k = 0; k < 3; k++) {
-      V3.lerp(c, B, H, 0.17 + k * 0.3);
-      const it = R.push('sphere', mats[k]);
-      if (it) basisMatrix(it.model, c, r, d, f, 0.095 - k * 0.008, len * 0.15, 0.095 - k * 0.008);
-      V3.lerp(c, B, H, 0.32 + k * 0.3);
-      const ring = R.push('torus', MAT.copper);
-      if (ring) ringMatrix(ring.model, c, d, 0.07 - k * 0.006);
+    // a row of flared, stuffed puffs down the arm - rose, teal, gold - ending in a strapped gold cuff
+    const mats = [MAT.clothWine, MAT.clothTeal, MAT.paint, MAT.clothTeal];
+    for (let k = 0; k < 4; k++) {
+      V3.lerp(c, B, H, 0.04 + k * 0.23);
+      const sp = Sculpt.ready('sp_puff'), it = R.push(sp ? 'sp_puff' : 'sphere', mats[k]);
+      if (it) { const w = 0.1 - k * 0.006; basisMatrix(it.model, c, r, d, f, w, len * 0.22, w); if (mats[k] === MAT.paint) { it.tint[0] = 1.15; it.tint[1] = 0.95; it.tint[2] = 0.6; } }
     }
+    V3.lerp(c, B, H, 0.97);
+    const cuff = R.push('cyl', MAT.paint); if (cuff) { basisMatrix(cuff.model, c, r, d, f, 0.075, 0.07, 0.075); cuff.tint[0] = 1.3; cuff.tint[1] = 1.05; cuff.tint[2] = 0.5; }
+    const strap = R.push('torus', MAT.rubber); if (strap) ringMatrix(strap.model, c, d, 0.08);
   },
   // a bone-white forearm wrapped in red cables
   boneForearm(H, X) {
@@ -971,27 +972,30 @@ const Monster = {
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
       // the grin never moves: it is carved into the porcelain. Grimy, yellowed and stained.
-      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.68; it.tint[1] = 0.6; it.tint[2] = 0.47; }
+      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.9; it.tint[1] = 0.87; it.tint[2] = 0.8; }
     } else {
       R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }
     // both sockets are pitch black; the left one holds a single small yellow point of light
     // big round black eye sockets; the one on the viewer's left holds a small burning yellow pupil
-    this.headLocal(m, 0.135, 0.085, -0.25, this.eye);
-    R.trs('sphere', MAT.rubber, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.088 * s, 0.088 * s, 0.035 * s, false);
-    this.headLocal(m, 0.13, 0.08, -0.292, this.eye);
+    this.headLocal(m, 0.14, 0.1, -0.25, this.eye);
+    R.trs('sphere', MAT.rubber, this.eye[0], this.eye[1], this.eye[2], maskYaw, maskPitch, maskRoll, 0.095 * s, 0.122 * s, 0.035 * s, false);
+    this.headLocal(m, 0.135, 0.085, -0.3, this.eye);
     it = R.trs('sphereLow', MAT.screen, this.eye[0], this.eye[1], this.eye[2], 0, 0, 0, 0.016 * s, 0.016 * s, 0.016 * s, false);
     if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.2; it.emis[0] = 3.6; it.emis[1] = 2.9; it.emis[2] = 0.25; }
-    this.headLocal(m, -0.135, 0.085, -0.25, this.tmp3);
-    R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.088 * s, 0.088 * s, 0.035 * s, false);
+    this.headLocal(m, -0.14, 0.1, -0.25, this.tmp3);
+    R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], maskYaw, maskPitch, maskRoll, 0.095 * s, 0.122 * s, 0.035 * s, false);
     // the hood and its hat as one piece: rose / teal / gold patchwork with the battered harlequin top hat sewn on
     if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(mh); it.tint[0] = 0.74; it.tint[1] = 0.66; it.tint[2] = 0.6; } }
     // brass jingle bells hanging from the hat tails, swaying as he moves
     if (Sculpt.ready('sp_bell')) {
       const sway = Math.sin(Game.time * 3.1) * 0.25 * Math.min(1, 0.25 + this.speed * 0.3);
-      for (const sx of [-1, 1]) {
-        this.headLocal(mh, sx * 0.63 + 0.03, 0.175, 0.12, this.tmp3);
-        it = R.trs('sp_bell', MAT.copper, this.tmp3[0], this.tmp3[1] - 0.03 * s, this.tmp3[2], yaw, sway * sx, sway * 0.6, s * 1.45, s * 1.45, s * 1.45);
+      for (const k of ['up', 'left', 'right']) {
+        // the bell sits right on the brass stem at the end of its tail (cap space -> hood space -> world)
+        const P = HAT_TIPS[k], tp = P[P.length - 1], pr = P[P.length - 2], sx = k === 'left' ? -1 : 1;
+        const ux = tp[0] - pr[0], uy = tp[1] - pr[1], uz = tp[2] - pr[2], ul = Math.hypot(ux, uy, uz), o = 0.12;
+        this.headLocal(mh, tp[0] + ux / ul * o + 0.03, tp[1] + uy / ul * o + 0.47, tp[2] + uz / ul * o + 0.06, this.tmp3);
+        it = R.trs('sp_bell', MAT.copper, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, sway * sx, sway * 0.6, s * 1.45, s * 1.45, s * 1.45);
         if (it) { it.tint[0] = 1.7; it.tint[1] = 1.35; it.tint[2] = 0.6; }
       }
     }

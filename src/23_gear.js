@@ -32,28 +32,27 @@ const HAND_TYPES = [
   //   MAGNET  electromagnet hand: locks onto magnet plates and zips you across gaps (Salvage Yards)
   //   FLARE   flare-launcher hand: every impact bursts into a burning flare that scares small creatures off
   //           and stuns lurkers (Sunken Toybox)
-  { id: 'SPRING', mat: MAT.handTeal, tint: [0.75, 0.55, 1.25], glow: null, stun: 1.2, cool: 0.6, desc: 'fire it at a spring pad to launch yourself up and across' },
+  { id: 'SPRING', mat: MAT.handRose, tint: [0.62, 0.32, 1.25], glow: null, stun: 1.2, cool: 0.6, desc: 'fire it at a spring pad to launch yourself up and across' },
   { id: 'MAGNET', mat: MAT.steel, tint: [1.3, 0.6, 0.55], glow: null, stun: 1.2, cool: 0.6, desc: 'locks onto magnet plates and zips you across gaps' },
   { id: 'FLARE', mat: MAT.copper, tint: [1.4, 0.7, 0.35], glow: [0.5, 0.18, 0.04], stun: 2.0, cool: 1.2, desc: 'bursts into a burning flare - scatters small creatures, stuns lurkers' }
 ];
 const HAND_COUNT = HAND_TYPES.length;
 const PICKUP_SPOTS = [
   { kind: 'mask', sector: 0, pos: [-2.6, 0.97, 2.2] },
-  // THUMPER sits in a locked cage until the hall door circuit is restored; LANTERN is deep in the toxic smog
-  { kind: 'hand', type: 1, sector: 1, pos: [-3.5, 1.08, -14.5], lock: 'R1' },
-  { kind: 'hand', type: 3, sector: 2, pos: [-8.6, 1.08, -46.6] },
-  { kind: 'hand', type: 2, sector: 3, pos: [4.6, 1.18, -56] },
+  // (THUMPER, STITCHER and LANTERN are hands you already had: they are on the wheel from the start)
   // Act II: your own right hand, torn off in the drop to the station yard
   { kind: 'hand', type: 0, restore: true, sector: 6, pos: [-4.2, 0.98, -146.5] },
   { kind: 'key', key: 'OFFICE', label: 'OFFICE KEY', sector: 6, pos: [-13.3, 0.25, -158.2] },
   { kind: 'hand', type: 5, sector: 8, pos: [-9.6, 1.0, -220.5] },
   { kind: 'hand', type: 4, sector: 9, pos: [-12.8, 1.0, -259.6] },
   { kind: 'hand', type: 6, sector: 10, pos: [14.2, 1.0, -293.9], lock: 'V_CAGE' },
-  // Act III: SPRING at the chapel entrance, FLARE on a toy chest, the executive key, MAGNET by the chasm
-  { kind: 'hand', type: 7, sector: 12, pos: [11.0, 0.95, -335.2] },
-  { kind: 'hand', type: 9, sector: 13, pos: [13.8, 1.1, -398.0] },
+  // Act III (hard to get): SPRING caged on the altar until you run the chapel circuit past the Choir;
+  // FLARE on the bottom of the flooded pool, only reachable once both drains are open; the executive key;
+  // MAGNET caged by the chasm until you power the yard cage past the Scraplings
+  { kind: 'hand', type: 7, sector: 12, pos: [-6, 1.0, -375.5], lock: 'A_SPRINGCAGE' },
+  { kind: 'hand', type: 9, sector: 13, pos: [9.5, 0.12, -416.5], lockIf: 'drained' },
   { kind: 'key', key: 'EXEC', label: 'EXECUTIVE KEY', sector: 15, pos: [0, 1.0, -512.6] },
-  { kind: 'hand', type: 8, sector: 16, pos: [-12, 1.0, -534.4] }
+  { kind: 'hand', type: 8, sector: 16, pos: [-12, 1.0, -534.4], lock: 'S_MAGCAGE' }
 ];
 const GAS_ZONES = [{ sector: 2, x0: -10, z0: -48, x1: -4.6, z1: -39.2 }];
 const UV_SECRETS = [
@@ -71,7 +70,7 @@ const Gear = {
   tmp: V3.create(), m: M4.create(),
 
   init() {
-    this.pickups = PICKUP_SPOTS.map(p => ({ kind: p.kind, type: p.type || 0, key: p.key || null, label: p.label || '', restore: !!p.restore, lock: p.lock || null, sector: p.sector, pos: V3.create(p.pos[0], p.pos[1], p.pos[2]), taken: false }));
+    this.pickups = PICKUP_SPOTS.map(p => ({ kind: p.kind, type: p.type || 0, key: p.key || null, label: p.label || '', restore: !!p.restore, lock: p.lock || null, lockIf: p.lockIf || null, sector: p.sector, pos: V3.create(p.pos[0], p.pos[1], p.pos[2]), taken: false }));
     this.secrets = UV_SECRETS.map(s => ({ s, asset: this.textQuad(s.lines), reveal: 0 }));
     // PIP's face on the teal glove uses the HUD companion canvas as a live texture
     if (Pip.faceCanvas) this.pipAsset = this.canvasQuad(Pip.faceCanvas, 'pip-face', 2.4, false);
@@ -84,7 +83,7 @@ const Gear = {
     this.reset();
   },
   reset() {
-    this.owned.fill(0); this.owned[0] = 1; this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0; this.charge = 0;
+    this.owned.fill(0); this.owned[0] = 1; this.owned[1] = 1; this.owned[2] = 1; this.owned[3] = 1;   // ROSE + the old THUMPER, STITCHER, LANTERN this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0; this.charge = 0;
     this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
     this.blacklight = false; this.secretsFound.fill(0); this.handsLost = false;
     for (const p of this.pickups) p.taken = false;
@@ -287,7 +286,7 @@ const Gear = {
 
   // ---------- pickups ----------
   // a caged pickup opens when the receptacle named by its lock has been powered
-  locked(p) { if (!p.lock) return false; const r = Level.receptacles.find(q => q.action === p.lock); return !(r && r.powered); },
+  locked(p) { if (p.lockIf === 'drained') return !(Act3.drain >= 1); if (!p.lock) return false; const r = Level.receptacles.find(q => q.action === p.lock); return !(r && r.powered); },
   nearestPickup() {
     let best = null, bd = 2.4;
     for (const p of this.pickups) {
@@ -427,11 +426,12 @@ const Gear = {
       if (p.taken || !vis[p.sector]) continue;
       const bob = Math.sin(t * 2 + p.pos[0]) * 0.03;
       if (p.kind === 'key') {
-        // a brass key with a tag, turning slowly
-        const ky = t * 1.5, it = R.trs('torus', MAT.copper, p.pos[0], p.pos[1] + 0.1 + bob, p.pos[2], ky, Math.PI / 2, 0, 0.05, 0.35, 0.05);
-        if (it) { it.tint[0] = 1.4; it.tint[1] = 1.1; it.tint[2] = 0.5; }
-        Cast.pt(this.tmp, p.pos, ky, 0.12, 0.1 + bob, 0);
-        const sh = R.trs('box', MAT.copper, this.tmp[0], this.tmp[1], this.tmp[2], ky, 0, 0, 0.16, 0.02, 0.02); if (sh) { sh.tint[0] = 1.4; sh.tint[1] = 1.1; sh.tint[2] = 0.5; }
+        // an old brass key on a loop of string with a paper tag, turning slowly
+        const ky = t * 1.2;
+        const it = Sculpt.ready('key_brass') ? R.trs('key_brass', MAT.copper, p.pos[0], p.pos[1] + 0.1 + bob, p.pos[2], ky, 0, 0.25, 1.6, 1.6, 1.6) : null;
+        if (it) { it.tint[0] = 1.45; it.tint[1] = 1.12; it.tint[2] = 0.5; }
+        Cast.pt(this.tmp, p.pos, ky, -0.06, 0.1 + bob, 0);
+        const tg = R.trs('box', MAT.porcelain, this.tmp[0], this.tmp[1] - 0.04, this.tmp[2], ky, 0, 0.3, 0.07, 0.045, 0.004); if (tg) { tg.tint[0] = 1.1; tg.tint[1] = 1.0; tg.tint[2] = 0.8; }
       } else if (p.restore) { this.drawPackPickup(p.pos[0], p.pos[1], p.pos[2], bob); }
       else if (p.kind === 'hand') {
         const T = HAND_TYPES[p.type], gm = 'glove_L_open';
@@ -493,20 +493,26 @@ const Gear = {
     for (let k = -3; k <= 3; k++) { const c = P(k * 0.042, 0.45, 0.02); const r = R.push('torus', MAT.cable, false); if (r) M4.compose(r.model, c[0], c[1], c[2], A, 0, Math.PI / 2, 0.105, 0.35, 0.105); }
     // a pressure gauge on the lid
     { const c = P(-0.12, 0.38, -0.08); R.trs('cyl', MAT.steel, c[0], c[1], c[2], 0, 0, 0, 0.045, 0.02, 0.045, false); const f = R.trs('cyl', MAT.porcelain, c[0], c[1] + 0.012, c[2], 0, 0, 0, 0.036, 0.006, 0.036, false); if (f) { f.tint[0] = 1.2; f.tint[1] = 1.15; f.tint[2] = 1.0; } }
-    // two hoses out of the front, each into a gauntlet lying with its fingers pointing away from the pack
+    // two corrugated hoses out of the front that bend upward, each holding its gauntlet up with the fingers to
+    // the sky and the palm facing you
     for (const sx of [-1, 1]) {
-      const sxp = P(sx * 0.18, 0.12, -0.13), hand = P(sx * 0.42, -0.04, -0.62);
-      R.seg('cyl', MAT.rubber, sxp, hand, 0.035);
-      for (let k = 1; k < 5; k++) { V3.lerp(this.tmp, sxp, hand, k / 5); const d = V3.sub(V3.create(), hand, sxp); V3.normalize(d, d); const r = R.push('torus', MAT.steel, false); if (r) ringMatrix(r.model, this.tmp, d, 0.042); }
-      // the left (teal) gauntlet uses the R sculpt and the right (rose) the L sculpt, the same pairing as in
-      // first person, so each lies as the correct hand
+      const sxp = P(sx * 0.18, 0.12, -0.13), elbow = P(sx * 0.4, 0.02, -0.34), wrist = P(sx * 0.46, 0.4, -0.38);
+      for (const [p0, p1] of [[sxp, elbow], [elbow, wrist]]) {
+        R.seg('cyl', MAT.rubber, p0, p1, 0.035);
+        const d = V3.sub(V3.create(), p1, p0); V3.normalize(d, d);
+        for (let k = 1; k < 4; k++) { V3.lerp(this.tmp, p0, p1, k / 4); const r = R.push('torus', MAT.steel, false); if (r) ringMatrix(r.model, this.tmp, d, 0.042); }
+      }
+      R.trs('sphere', MAT.rubber, elbow[0], elbow[1], elbow[2], 0, 0, 0, 0.045, 0.045, 0.045);
+      // a hose clamp and the launcher collar at the wrist
+      { const c = R.push('torus', MAT.copper, false); if (c) ringMatrix(c.model, wrist, V3.create(0, 1, 0), 0.05); }
       const gm = sx < 0 ? 'glove_R_open' : 'glove_L_open';
       if (Sculpt.ready(gm)) {
         const h = R.push(gm, sx < 0 ? MAT.handTeal : MAT.handRose);
         if (h) {
-          const hp = P(sx * 0.45, 0.0, -0.74);
-          M4.compose(h.model, hp[0], hp[1], hp[2], A + Math.PI - sx * 0.35, 0.15, 0, 1.0, 1.0, 1.0);
-          if (sx < 0) { h.tint[0] = 0.4; h.tint[1] = 0.48; h.tint[2] = 0.44; } else { h.tint[0] = 0.6; h.tint[1] = 0.44; h.tint[2] = 0.44; }
+          const f = V3.create(0, 1, 0), u = V3.create(sa, 0, ca), r = V3.cross(V3.create(), u, f);
+          const hp = V3.create(wrist[0], wrist[1] + 0.12, wrist[2]);
+          basisMatrix(h.model, hp, r, u, f, 1.0, 1.0, 1.0);
+          if (sx < 0) { h.tint[0] = 0.38; h.tint[1] = 0.5; h.tint[2] = 1.0; } else { h.tint[0] = 0.6; h.tint[1] = 0.44; h.tint[2] = 0.44; }
           const st = Sculpt.ready(gm + '_st') ? R.push(gm + '_st', MAT.steel) : null; if (st) { st.model.set(h.model); st.tint[0] = st.tint[1] = st.tint[2] = 1.3; }
         }
       }

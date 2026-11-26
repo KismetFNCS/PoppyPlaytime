@@ -77,6 +77,24 @@ const Dressing = {
       }
     }
   },
+  // a sloppy, chunky pile of Posie Gel: a wet glossy base pool, heaped lumps, and bubbles swelling and popping,
+  // rose with orange streaks
+  gelPile(R, x, z, r, ph, t) {
+    let it = R.trs('sphere', MAT.gel, x, 0, z, ph, 0, 0, r * 1.35, 0.05, r, false);
+    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.85; it.tint[2] = 0.85; }
+    for (let k = 0; k < 7; k++) {
+      const a = ph * 3 + k * 2.4, d = r * (0.2 + (k % 3) * 0.25), lx = x + Math.cos(a) * d, lz = z + Math.sin(a) * d * 0.8;
+      const s = r * (0.28 - (k % 3) * 0.05), h = s * (0.5 + 0.08 * Math.sin(t * 1.3 + k + ph));
+      it = R.trs('sphere', MAT.gel, lx, h * 0.3, lz, a, 0, 0, s, h, s * 0.9, false);
+      if (it) { const o = k % 3 === 1; it.tint[0] = o ? 1.25 : 0.95; it.tint[1] = o ? 1.25 : 0.8; it.tint[2] = o ? 0.6 : 0.9; }
+    }
+    for (let k = 0; k < 3; k++) {
+      const bp = (t * 0.5 + k * 0.33 + ph) % 1, br = Math.sin(bp * Math.PI) * r * 0.14;
+      const a = ph + k * 2.1, bx = x + Math.cos(a) * r * 0.5, bz = z + Math.sin(a) * r * 0.4;
+      it = R.trs('sphereLow', MAT.gel, bx, 0.06 + br * 0.4, bz, 0, 0, 0, br, br, br, false);
+      if (it) { it.tint[0] = 1.1; it.tint[1] = 0.95; it.tint[2] = 0.95; }
+    }
+  },
   posterCanvas(kind) {
     const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176;
     const c = cv.getContext('2d');
@@ -85,7 +103,7 @@ const Dressing = {
     c.textAlign = 'center';
     if (kind === 0) { c.fillStyle = rose; c.fillRect(0, 0, 128, 40); c.fillStyle = 'rgb(239,227,196)'; c.font = 'bold 18px sans-serif'; c.fillText('SAFETY', 64, 27); c.fillStyle = ink; c.font = 'bold 13px sans-serif'; c.fillText('HANDS STAY', 64, 80); c.fillText('ON THE PACK', 64, 98); c.beginPath(); c.arc(64, 135, 22, 0, 7); c.strokeStyle = teal; c.lineWidth = 5; c.stroke(); }
     else if (kind === 1) { c.fillStyle = teal; c.fillRect(0, 0, 128, 176); c.fillStyle = 'rgb(239,227,196)'; c.font = 'bold 16px sans-serif'; c.fillText('SMILE!', 64, 40); c.font = '11px sans-serif'; c.fillText("YOU'RE ON THE LINE", 64, 60); c.beginPath(); c.arc(64, 112, 34, 0, 7); c.fill(); c.fillStyle = ink; c.beginPath(); c.arc(52, 104, 5, 0, 7); c.arc(76, 104, 5, 0, 7); c.fill(); c.beginPath(); c.arc(64, 116, 18, 0.2, Math.PI - 0.2); c.lineWidth = 4; c.strokeStyle = ink; c.stroke(); }
-    else if (kind === 2) { c.fillStyle = ink; c.font = 'bold 14px sans-serif'; c.fillText('HAVE YOU SEEN', 64, 28); c.fillText('THIS CHILD?', 64, 46); c.fillStyle = 'rgb(160,150,130)'; c.fillRect(30, 58, 68, 80); c.fillStyle = ink; c.font = '10px sans-serif'; c.fillText('HOLLOW PINES HOME', 64, 158); }
+    else if (kind === 2) { c.fillStyle = ink; c.font = 'bold 14px sans-serif'; c.fillText('HAVE YOU SEEN', 64, 28); c.fillText('THIS CHILD?', 64, 46); drawPortrait(c, 30, 56, 68, 84, (Math.random() < 0.5 ? 'child' : 'child2'), 0, false); c.fillStyle = ink; c.font = '10px sans-serif'; c.fillText('HOLLOW PINES HOME', 64, 158); }
     else { c.fillStyle = 'rgb(239,227,196)'; c.fillRect(0, 0, 128, 176); c.fillStyle = rose; c.font = 'bold 30px serif'; c.fillText('M', 64, 60); c.fillStyle = ink; c.font = 'bold 12px sans-serif'; c.fillText('MERRIWEATHER', 64, 92); c.fillText('TOY WORKS', 64, 108); c.font = '9px sans-serif'; c.fillText('EVERY TOY COMES HOME', 64, 140); }
     // age it: stains, tears and fading
     for (let i = 0; i < 400; i++) { c.fillStyle = 'rgba(60,40,20,' + (Math.random() * 0.08) + ')'; c.fillRect(Math.random() * 128, Math.random() * 176, 3, 3); }
@@ -103,9 +121,7 @@ const Dressing = {
     }
     for (const g of this.gels) {
       if (!vis[g.sector]) continue;
-      const pu = 0.5 + 0.5 * Math.sin(t * 1.4 + g.ph);
-      const it = R.trs('sphereLow', MAT.screen, g.x, 0.0, g.z, g.ph, 0, 0, g.r * 1.3, 0.03 + pu * 0.01, g.r, false);
-      if (it) { it.tint[0] = 0.32; it.tint[1] = 0.06; it.tint[2] = 0.2; it.emis[0] = 0.025 + 0.025 * pu; it.emis[1] = 0.004; it.emis[2] = 0.02 + 0.018 * pu; }
+      Dressing.gelPile(R, g.x, g.z, g.r, g.ph, t);
     }
   }
 };

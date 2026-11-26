@@ -11,18 +11,18 @@ const TRAIL_N = 96;
 
 const COMPANION_LINES = {
   ambient: [
-    ['So... uh... you don\'t talk much, do you? No, no, it\'s fine! Honestly, it\'s kind of nice.',
-      'Around here most things only open their mouths to screech or grind their gears. You\'re a fantastic listener, partner.'],
-    ['Hey, are those straps on your back holding up okay? That pack looks heavy as a forge.',
-      'If you ever need to rest your shoulders, just... tap your foot or something. You know what I mean.'],
-    ['Man... look at the size of this place. Sometimes I forget how small we are next to all these lines.',
-      'Ever wonder what it was like when the lights were bright and people were actually walking around? Must\'ve been something else.'],
-    ['Hey, friend? Thanks for sticking around. It gets pretty lonely wandering the vents by yourself.',
-      'Having you here makes the ticking in my chest feel a whole lot lighter.']
+    ['Same old factory, same old dust. You\'d think after everything we\'ve been through down here, it would at least learn to sweep.',
+      'Still not much of a talker, partner. That\'s alright. You never were - and you\'ve never once left me behind.'],
+    ['Those straps holding? You\'ve hauled that pack through every floor of this place. Your shoulders must hate us both.',
+      'When this is over, I\'m buying you the softest chair Merriweather ever made. If any are left.'],
+    ['We used to clock in through that gate, remember? Rows of lights, the presses singing... it all worked, once.',
+      'Then the Director moved in upstairs and the lights went out one floor at a time.'],
+    ['Posie\'s been quiet. She does that when she\'s worried. Lovey too - well, Lovey\'s always quiet now.',
+      'We\'ll get them out. All of us. That\'s the deal we made, isn\'t it?']
   ],
   sprint: ['Hey - wait up! These legs are mostly stuffing, partner!', 'Slow down a little? I can\'t run that fast with a needle this big!'],
-  dark: ['Wait! Stop... it\'s too dark like this. Stick close behind me - my eye can throw enough purple light to show the floor.'],
-  idle: ['Find anything interesting back there? Let me guess... rusted screws and old lint? Yeah. This place is a goldmine for junk.'],
+  dark: ['Too dark, partner. Stay right behind me - I\'ve got my little lantern, it\'ll show you the floor.'],
+  idle: ['Anything back there? Same as always, I bet - rust, lint and old memos nobody read. We should move.'],
   bump: ['Whoa - easy! You okay? That one sounded like it hurt.', 'Careful! The floors in here bite back.'],
   seraph: ['It\'s coming down! Run - find a locker!'],
   cherubs: ['Shh... stay away from the dolls. If one of them screams, the thing up in the rafters comes down.'],
@@ -37,18 +37,19 @@ const COMPANION_LINES = {
     'I see you, little thread! And you brought the matching set along! Morsel, my boy, you really must get that head restitched... it\'s sagging lower every time you cross my monitors!'
   ],
   ambush: [
-    ['SPOOLWRIGHT', 'Well, well... look what dragged itself out of the rag bin. And it brought the silent little employee along for the ride!'],
-    ['THIMBLE', 'Leave them alone, Epxirtype! They... they don\'t talk, but they\'re fixing the power! They\'re putting this place back together!'],
-    ['SPOOLWRIGHT', 'Fixing it? Or winding the gears tight enough to snap every mainspring we have? That broken doll already cries in the dark because of their cables!'],
-    ['THIMBLE', '(whispering) When I strike the floor with my needle... you run. Don\'t answer me - just watch for the sparks!'],
-    ['SPOOLWRIGHT', 'Whispering in patches won\'t save your seams! Let\'s see how your stitching holds under pressure!']
+    ['SPOOLWRIGHT', 'Well, well. The rag doll, the broken bear and the silent little employee. Back on my floor again.'],
+    ['THIMBLE', 'Leave us ALONE, Epxirtype. We worked here before you were ever stitched together. We\'ve spent years trying to make this place better!'],
+    ['SPOOLWRIGHT', 'Better? You CLOCKED IN. You wore the badge. Merriweather\'s little helpers, tightening the straps on every toy he ruined - on ME.'],
+    ['THIMBLE', 'That was the old man, not us! Augustus is gone. Harlan is the one still pulling your strings and you know it!'],
+    ['SPOOLWRIGHT', 'Then I will start with his employees and work my way UP.'],
+    ['THIMBLE', '(whispering) When my staff hits the floor... run. Don\'t look back for me.']
   ],
   banter: [
-    ['THIMBLE', 'I\'m just saying, Posie... if we get to the main lift, we might actually see the sky. Real light. Not these humming tubes.'],
-    ['MARIGOLD', 'Is the sky as wide as the showroom floor, Morsel? I don\'t remember the colour of the outside... only the white tiles.'],
-    ['THIMBLE', 'Oh, it\'s bigger... way bigger. Right, friend? Tell her! ...Well, you know what I mean. She doesn\'t believe me.'],
-    ['MARIGOLD', 'I believe our friend. Their hands are strong... and careful. If they say the sky is out there, I\'ll walk with you.'],
-    ['THIMBLE', 'See? Teamwork! Keep those gauntlets ready, partner.']
+    ['THIMBLE', 'Posie, if we reach the main lift, we might finally see the sky again. Real light. Not these humming tubes.'],
+    ['MARIGOLD', 'I remember it, Morsel. Gold over the rooftops when the whistle blew for the end of the shift. We will see it again.'],
+    ['THIMBLE', 'You hear that, partner? Posie\'s planning our escape. Again.'],
+    ['MARIGOLD', 'Someone has to. You two would wander into every vent in the building.'],
+    ['THIMBLE', 'Fair. Keep those gauntlets ready, partner.']
   ]
 };
 
