@@ -3531,6 +3531,8 @@ const Level = {
     DeepWorks.build(this);
     // the factory exterior for the title screen (sector 11)
     TitleScene.build(this);
+    Act3.build(this);
+    Dressing.build(this);
 
     this.finishBatches();
     Physics.buildBVH();
@@ -3554,10 +3556,10 @@ const Level = {
 // NAVIGATION GRID + A* (allocation-free search over typed arrays)
 // =====================================================================================
 const NavGrid = {
-  x0: -17, z0: -332, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
+  x0: -17, z0: -624, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
   searchId: 0,
   build() {
-    this.w = Math.ceil(34 / this.cell); this.h = Math.ceil(344 / this.cell);
+    this.w = Math.ceil(34 / this.cell); this.h = Math.ceil(636 / this.cell);
     const n = this.w * this.h;
     this.blocked = new Uint8Array(n);
     this.g = new Float32Array(n); this.f = new Float32Array(n); this.parent = new Int32Array(n);
@@ -3812,6 +3814,8 @@ const GrabPack = {
       // monster hitbox (sphere) first
       if (Monster.visible && Monster.hitTest(h.prev, this.tmp, len + 0.1)) {
         V3.copy(h.pos, Monster.hitPoint);
+        if (Act3.takedownHit(h.side)) { h.state = HAND.RETRACTING; h.retractT = 0; return; }
+        if (h.side === 1 && Act3.handIs('FLARE')) Act3.flareAt(h.pos);
         if (Boss.active && Boss.tryShock(h)) { h.state = HAND.RETRACTING; return; }
         if (h.side === 1 && Gear.cur === 5) Gear.bellowsBlast(h.pos);
         if (!Boss.active) Monster.fightBack(h); else { Monster.flinch(h.side); if (h.side === 1 && Gear.cur > 0) Monster.stunTimer = Math.max(Monster.stunTimer, HAND_TYPES[Gear.cur].stun * 0.35); }
@@ -3823,6 +3827,7 @@ const GrabPack = {
       }
       // cherubs and the seraph
       if (Enemies.handHit(h, h.prev, this.tmp, len + 0.1)) { if (h.side === 1 && Gear.cur === 3) Gear.lanternBurst(h.pos); h.state = HAND.RETRACTING; return; }
+      if (Act3.handHit(h, h.prev, this.tmp, len + 0.1)) { if (h.side === 1 && Act3.handIs('FLARE')) Act3.flareAt(h.pos); h.state = HAND.RETRACTING; h.retractT = 0; return; }
       if (Physics.raycast(h.prev, this.tmp, len + 0.05, LAYER.HAND, this.hit)) {
         V3.copy(h.pos, this.hit.point);
         V3.copy(h.latchNormal, this.hit.normal);
@@ -3856,6 +3861,8 @@ const GrabPack = {
     }
     // BELLOWS: every impact is a pneumatic blast
     if (h.side === 1 && Gear.cur === 5) Gear.bellowsBlast(h.pos);
+    // SPRING pads, MAGNET plates and the FLARE hand (Act III)
+    if (Act3.handImpact(h, kind)) return;
     // CONDUIT: touching a live node stores its charge in the hand instead of running a cable
     if (kind === 'source' && h.side === 1 && Gear.cur === 4) {
       Gear.charge = 20; sfx('tether', h.pos); Lights.pulse(h.pos, 0.4, 0.8, 1.0, 3, 3, 0.4, 0);
@@ -4559,8 +4566,10 @@ const Triggers = {
 
 // ---------- sector streaming: portal visibility through open doors ----------
 const Streaming = {
-  visible: new Uint8Array(16), current: 0,
+  visible: new Uint8Array(24), current: 0,
   update(pos) {
+    // the ending: the camera is outside on the road, looking at the factory
+    if (typeof Act3 !== 'undefined' && Act3.ending && Act3.ending.outside) { this.visible.fill(0); this.visible[11] = 1; this.current = 11; return; }
     const s = Level.sectorAt(pos[0], pos[2]);
     if (s >= 0) this.current = s;
     this.visible.fill(0);
@@ -5143,7 +5152,7 @@ const Monster = {
         l.t = Math.min(1, l.t + dt / stepDur);
         V3.lerp(l.foot, l.from, l.to, l.t);
         l.foot[1] = Math.sin(l.t * Math.PI) * (0.25 + this.speed * 0.05);
-        if (l.t >= 1) { l.stepping = false; l.foot[1] = 0; if (this.visible) sfx('monsterStep', l.foot); }
+        if (l.t >= 1) { l.stepping = false; l.foot[1] = 0; if (this.visible) { sfx('monsterStep', l.foot); if (gameRng() < 0.5) sfx('legJoint', l.foot); if (gameRng() < 0.12) sfx('creak', l.foot); } }
       } else {
         const d = V3.distXZ(l.foot, this.tmp);
         if (d > 0.55 + this.speed * 0.08 && !groupStepping[1 - l.group]) {
@@ -6100,6 +6109,8 @@ const SFX = {
   piston(t, pos) { const out = Audio.dest(pos, 'sfx', 5, 0.45); Audio.noise(t, 0.25, 0.8, 700, 'lowpass', out); Audio.tone(t, 'sine', 90, 35, 0.4, 0.7, out); Audio.noise(t + 0.05, 0.5, 0.25, 3000, 'bandpass', out); },
   klaxon(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.3); for (let i = 0; i < 3; i++) { Audio.tone(t + i * 0.55, 'square', 440, 380, 0.42, 0.08, out, 0.02); } },
   grind(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.5); Audio.tone(t, 'sawtooth', 62, 58, 0.9, 0.09, out, 0.1); Audio.noise(t, 0.9, 0.12, 380, 'bandpass', out, 4); },
+  // the Epxirtype's legs: a hydraulic hiss and a metal knuckle clack as a joint lifts, then servo whine
+  legJoint(t, pos) { const out = Audio.dest(pos, 'sfx', 5, 0.55); Audio.noise(t, 0.18, 0.18, 2600, 'bandpass', out, 3); Audio.ring(t + 0.02, [520 + (t * 731 % 90), 1240], 0.12, 0.08, out); Audio.tone(t + 0.04, 'sawtooth', 240, 410, 0.22, 0.03, out, 0.05); },
   creak(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.6); Audio.tone(t, 'sawtooth', 180 + (t * 997 % 80), 120, 0.5, 0.05, out, 0.08); Audio.noise(t, 0.4, 0.06, 900, 'bandpass', out, 8); },
   collapse(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.35); Audio.noise(t, 1.2, 0.9, 600, 'lowpass', out); Audio.tone(t, 'sine', 60, 25, 1.0, 0.8, out); for (let i = 0; i < 5; i++) Audio.ring(t + 0.1 + i * 0.13, [300 + i * 70, 820 + i * 50], 0.3, 0.06, out); },
   overload(t, pos) { const out = Audio.dest(pos, 'sfx', 8, 0.3); Audio.tone(t, 'sawtooth', 80, 640, 1.2, 0.18, out, 0.3); for (let i = 0; i < 10; i++) Audio.noise(t + 0.6 + i * 0.05, 0.05, 0.4, 7000, 'highpass', out); Audio.tone(t + 1.1, 'sine', 70, 30, 0.9, 0.6, out); },
@@ -6507,6 +6518,7 @@ const Player = {
   acc: 0, wish: V3.create(), tmp: V3.create(), interactTarget: null,
 
   reset(pos, yaw) {
+    this.zip = null; this.launchT = 0;
     V3.copy(this.body.pos, pos); V3.set(this.body.vel, 0, 0, 0);
     this.yaw = yaw; this.pitch = 0; this.roll = 0; this.crouch = 0; this.crouching = false; this.crouchLatched = false; this.sprinting = false;
     this.bobPhase = 0; this.bobAmp = 0; this.landDip = 0; this.landVel = 0; this.trauma = 0; this.chaseShake = 0;
@@ -6552,6 +6564,17 @@ const Player = {
   },
 
   update(dt) {
+    // riding a MAGNET zip line: carried along a curve under the plate to the landing point
+    if (this.zip) {
+      const Z = this.zip, b = this.body; Z.t += dt;
+      const k = smoothstep(0, 1, Math.min(1, Z.t / Z.dur)), u = 1 - k;
+      for (let i = 0; i < 3; i++) b.pos[i] = u * u * Z.from[i] + 2 * u * k * Z.mid[i] + k * k * Z.to[i];
+      V3.set(b.vel, 0, 0, 0); b.grounded = true;
+      if (Z.t >= Z.dur) { this.zip = null; sfx('land', b.pos, b.groundSurface); }
+      this.updateBob(dt);
+      return;
+    }
+    if (this.launchT > 0) this.launchT -= dt;
     const K = Input.keys, P = Input.pad;
     let fx = 0, fz = 0;
     if (K.KeyW || K.ArrowUp) fz -= 1;
@@ -6594,7 +6617,7 @@ const Player = {
   fixedStep(h, tx, tz) {
     const b = this.body;
     const grounded = b.grounded;
-    const control = grounded ? this.traction : FEEL.airControl;
+    const control = this.launchT > 0 ? 0 : grounded ? this.traction : FEEL.airControl;
     const accRate = FEEL.sprintSpeed / FEEL.accelTime * control, decRate = FEEL.sprintSpeed / FEEL.decelTime * control;
     for (let ax = 0; ax <= 2; ax += 2) {
       const target = ax === 0 ? tx : tz;
@@ -6795,6 +6818,20 @@ TAPES.push({
   hijack: [
     'Sentimental. The children never left, you know. They were simply... repurposed.',
     'Keep watching my tapes. I like an audience.'
+  ]
+});
+// the Epxirtype's old workshop in the chapel loft
+TAPES.push({
+  title: 'WORKSHOP REEL 6-06', label: 'R&D - DO NOT CIRCULATE', presenter: 'wave', pitch: 190,
+  lines: [
+    'Doctor Varga, day forty. Subject 6-06 asked for a name today. Mr. Smithers said it does not need one.',
+    'It sews in the loft at night. Little spools, little hands. It says it is making friends.',
+    'Mr. Smithers wants it moved into the Heart, wired to the reactor. He says it will power the whole factory forever.',
+    'I have hidden the override clamps. If anyone finds this - three clamps, and it all comes down. Forgive me.'
+  ],
+  hijack: [
+    'Varga always did talk too much. The clamps are still there, of course. Go on. Pull them.',
+    'Every one you pull brings it closer to the end I designed.'
   ]
 });
 
@@ -7451,8 +7488,8 @@ const Game = {
   fracture: new Float32Array([0, -100, 0, 0]), fractureAmt: 0,
   scene: null, aimHit: makeHit(), menuEye: V3.create(),
   checkpoint: {
-    valid: false, stage: 0, pos: V3.create(0, 0, 5.5), yaw: 0, doors: new Float32Array(24), doorLocked: new Uint8Array(24),
-    receptacles: new Uint8Array(32), levers: new Uint8Array(16), pegsLocked: new Uint8Array(32), tapes: new Uint8Array(8), pickups: new Uint8Array(12),
+    valid: false, stage: 0, pos: V3.create(0, 0, 5.5), yaw: 0, doors: new Float32Array(48), doorLocked: new Uint8Array(48),
+    receptacles: new Uint8Array(64), levers: new Uint8Array(64), pegsLocked: new Uint8Array(64), tapes: new Uint8Array(16), pickups: new Uint8Array(32),
     triggers: new Uint8Array(32), steamActive: 1, monsterMode: 0
   },
 
@@ -7559,7 +7596,7 @@ const Game = {
     this.hidTip = false;
     Steam.setAll(true);
     Gear.reset();
-    DeepWorks.reset();
+    DeepWorks.reset(); Act3.reset();
     Level.resetBreakables();
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) { L.pulse = 0; L.enabled = true; }
@@ -7659,7 +7696,7 @@ const Game = {
     this.fadeIn = 1;
     this.fractureAmt = 0;
     Level.resetBreakables();
-    DeepWorks.restore();
+    DeepWorks.restore(); Act3.restore();
     sfxLog.push('restore');
   },
 
@@ -7729,7 +7766,7 @@ const Game = {
         sfx('doorSlam', Player.body.pos);
         break;
       default:
-        DeepWorks.action(id);
+        if (!DeepWorks.action(id)) Act3.action(id);
     }
   },
 
@@ -7829,6 +7866,7 @@ const Game = {
     Cast.update(dt);
     Boss.update(dt);
     DeepWorks.update(dt);
+    Act3.update(dt);
     if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
     Streaming.update(Player.body.pos);
     Lights.update(dt, this.time, Streaming.visible);
@@ -8147,6 +8185,8 @@ const Game = {
     Cast.submit(vis);
     Gear.submit(vis);
     DeepWorks.submit(vis);
+    Act3.submit(vis);
+    Dressing.submit(vis);
     if (state === STATE.MAIN_MENU && UI.menuPage === 'title') TitleScene.submit();
     if (state === STATE.MAIN_MENU && UI.menuPage === 'chapters') ChapterCards.submitActors();
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();
@@ -8894,7 +8934,7 @@ async function runAll() {
     check('boot: no runtime error', T.getLastError() === null, T.getLastError());
     check('boot: WebGL2 deferred pipeline online', Renderer.ok && !!Renderer.targets, 'hdr ' + (Renderer.hdrFloat ? 'float' : 'rgba8'));
     check('boot: BVH built over static colliders', Physics.bvh && Physics.bvh.nodeCount > 10, Physics.bvh && Physics.bvh.nodeCount);
-    check('boot: 12 streaming sectors (Act I + the Deep Works + the title factory)', Level.sectors.length === 12, Level.sectors.length);
+    check('boot: 19 streaming sectors (Act I + the Deep Works + the title factory + the upper wings)', Level.sectors.length === 19, Level.sectors.length);
     T.setAutoRun(true);
     const f0 = T.getFrameCount();
     await sleep(300);
@@ -9455,7 +9495,75 @@ async function runAll() {
     check('vault: three cores out - containment begins', V.mode === 'CONTAIN', V.mode);
     for (let i = 0; i < 400 && V.mode !== 'DONE'; i++) T.step(DT, 1);
     check('vault: the Epxirtype is contained (stage 10)', V.mode === 'DONE' && Game.stage === 10, V.mode + ' ' + Game.stage);
-    check('victory: ending tape plays', untilState('CINEMATIC_VHS', 500) && VHS.tapeId === 2, T.getState());
+    check('betrayal: Harlan Smithers opens the cradle', Act3.betrayal >= 0 && (Dialogue.busy()), '');
+    for (let i = 0; i < 800 && Act3.betrayal >= 0; i++) T.step(DT, 1);
+    check('betrayal: the Epxirtype escapes through the far door into the upper wings', Act3.betrayal < 0 && Level.doorById('D10').target === 1 && Game.checkpoint.stage === 10, '');
+    Dialogue.clear();
+    // ---------------- Act III: the upper wings ----------------
+    const A3t = Act3, goA3 = st => { if (T.getState() !== 'GAMEPLAY_ACTIVE') setState(STATE.GAMEPLAY_ACTIVE); Game.stage = st; Game.saveCheckpoint(st); Game.restoreCheckpoint(); Dialogue.clear(); Game.invulnerable = false; T.step(DT, 3); };
+    goA3(10);
+    check('act3: celestial wing - a new game area past the vault', Streaming.current === 12 && Game.stage === 10, 'sector ' + Streaming.current);
+    const a3sp = Gear.pickups.find(p => p.kind === 'hand' && HAND_TYPES[p.type].id === 'SPRING');
+    Gear.take(a3sp); T.step(DT, 2);
+    check('act3: the SPRING hand', Gear.owned[7] === 1, '');
+    Gear.cur = 7; const a3pad = A3t.springs[0];
+    T.setPlayerPose(a3pad.pos[0], 0.15, a3pad.pos[2] + 0.2, 0, 0); T.step(DT, 2);
+    A3t.handImpact({ side: 1, latchRef: a3pad, pos: a3pad.pos, state: 0 }, 'spring');
+    for (let i = 0; i < 120 && !(Player.body.grounded && Player.body.pos[1] > 3.5); i++) T.step(DT, 1);
+    check('act3: the spring a3pad bounces you up into the choir loft', Player.body.pos[1] > 3.5, Player.body.pos[1].toFixed(2));
+    T.setPlayerPose(0, 0, -341, 0, 0); T.step(DT, 1);
+    const a3ch = A3t.choirs[0]; T.setPlayerPose(a3ch.pos[0] + 1.0, 0, a3ch.pos[2], 0, 0); T.step(DT, 3);
+    check('act3: a Choir mass grabs your ankles from the pews', A3t.grab > 0, A3t.grab.toFixed(2));
+    A3t.handHit({ pos: V3.create() }, V3.create(a3ch.pos[0] + 2, 0.6, a3ch.pos[2]), V3.create(-1, 0, 0), 4);
+    check('act3: a hand makes it let go', A3t.grab === 0 && a3ch.stun > 0, '');
+    A3t.seraph.hold = 5; T.setPlayerPose(0, 0, -357.5, 0, 0); for (let i = 0; i < 120 && T.getState() === 'GAMEPLAY_ACTIVE'; i++) T.step(DT, 1);
+    check('act3: the Seraph\'s searchlight finds you and it dives', T.getState() === 'FAILURE_STATE' || T.getState() === 'JUMPSCARE', T.getState());
+    goA3(10);
+    A3t.action('A_ORGAN');
+    check('act3: the organ lever opens the way down to the toybox', Level.doorById('D11').target === 1 && Game.stage === 11, '');
+    goA3(11);
+    T.setPlayerPose(-9, 0, -410, 0, 0); for (let i = 0; i < 200; i++) T.step(DT, 1);
+    check('act3: leeches latch on while you wade', A3t.leeches > 0 || T.getState() !== 'GAMEPLAY_ACTIVE', A3t.leeches);
+    goA3(11);
+    const a3pf = A3t.puffers[0]; A3t.pop(a3pf);
+    check('act3: a Puffer bursts into rose gas', a3pf.burst > 0 && A3t.gas.length > 0, '');
+    DeepWorks.leverBy('T_DRAIN_A').pulled = true; A3t.action('T_DRAIN_A'); DeepWorks.leverBy('T_DRAIN_B').pulled = true; A3t.action('T_DRAIN_B');
+    for (let i = 0; i < 420 && A3t.drain < 1; i++) T.step(DT, 1);
+    check('act3: both drain valves empty the toybox and open the way', A3t.drain === 1 && Level.doorById('D12').target === 1, A3t.drain.toFixed(2));
+    goA3(12);
+    const a3tr = A3t.trains[0]; a3tr.wait = 0; T.setPlayerPose(0, 0, a3tr.z, 0, 0); for (let i = 0; i < 300 && T.getState() === 'GAMEPLAY_ACTIVE'; i++) T.step(DT, 1);
+    check('act3: a Conductor engine runs you down on the tracks', T.getState() !== 'GAMEPLAY_ACTIVE', T.getState());
+    goA3(12); A3t.action('G_GATE');
+    check('act3: powering the platform gate opens the Executive Suite', Level.doorById('D13').target === 1 && Game.stage === 13, '');
+    goA3(13);
+    const a3su = A3t.suits[0]; a3su.ph = -Math.PI / 2 + 0.0001; T.setPlayerPose(a3su.pos[0], 0, a3su.pos[2] - 3, 0, 0);
+    for (let i = 0; i < 60 && T.getState() === 'GAMEPLAY_ACTIVE'; i++) { a3su.ph = 0; a3su.yaw = 0; T.step(DT, 1); }
+    check('act3: crossing a Suit\'s laser grid gets you shot', T.getState() !== 'GAMEPLAY_ACTIVE', T.getState());
+    goA3(13);
+    check('act3: the way to the salvage yards needs the executive key', Level.doorById('D14').key === 'EXEC', '');
+    goA3(14);
+    const a3mg = Gear.pickups.find(p => p.kind === 'hand' && HAND_TYPES[p.type].id === 'MAGNET'); Gear.take(a3mg); Gear.cur = 8;
+    const a3pl = A3t.magnets[0]; T.setPlayerPose(a3pl.pos[0], 0, -534, 0, 0); T.step(DT, 1);
+    A3t.handImpact({ side: 1, latchRef: a3pl, pos: a3pl.pos, state: 0 }, 'magnet');
+    for (let i = 0; i < 120 && Player.zip; i++) T.step(DT, 1);
+    check('act3: the MAGNET hand zips you across the chasm', Player.body.pos[2] < -547 && T.getState() === 'GAMEPLAY_ACTIVE', Player.body.pos[2].toFixed(1));
+    A3t.flareAt(V3.create(0, 1, -548));
+    check('act3: a FLARE sends the scraplings fleeing', A3t.scraps.filter(s => !s.dead && V3.dist(s.pos, V3.create(0, 0, -548)) < 9).every(s => s.state === 'FLEE'), '');
+    DeepWorks.leverBy('S_CRANE').pulled = true; A3t.action('S_CRANE');
+    check('act3: the crane clears the barricade into the Heart', Level.doorById('D15').target === 1 && Game.stage === 15, '');
+    goA3(15);
+    T.setPlayerPose(0, 0, -572, 0, 0);
+    for (let i = 0; i < 400 && A3t.heart.mode !== 'FIGHT'; i++) T.step(DT, 1);
+    check('showdown: the Epxirtype drops into the Heart', A3t.heart.mode === 'FIGHT' && Monster.active, A3t.heart.mode);
+    Game.invulnerable = true; A3t.action('H_CLAMP'); A3t.action('H_CLAMP'); A3t.action('H_CLAMP');
+    check('showdown: three reactor clamps pin it for the takedown', A3t.heart.mode === 'TAKEDOWN', A3t.heart.mode);
+    A3t.takedownHit(0); A3t.takedownHit(1); T.step(DT, 2);
+    check('takedown: both hands into its core finish it', A3t.heart.mode === 'DYING' || A3t.heart.mode === 'DONE', A3t.heart.mode);
+    for (let i = 0; i < 300 && A3t.heart.mode !== 'DONE'; i++) T.step(DT, 1);
+    check('self-destruct: the reactor goes critical and the lift door opens', !!A3t.escape && Game.stage === 16 && Level.doorById('D16').target === 1, '');
+    T.setPlayerPose(0, 0, -619, 0, 0); T.step(DT, 3);
+    check('escape: you reach the freight lift', !!A3t.ending && Game.stage === 17, '');
+    check('victory: ending tape plays', untilState('CINEMATIC_VHS', 1200) && VHS.tapeId === 2, T.getState());
     tap('Escape');
     check('victory: the ending tape cannot be skipped', T.getState() === 'CINEMATIC_VHS', T.getState());
     VHS.finish(); T.step(DT, 2);
@@ -12113,9 +12221,11 @@ const SCULPTS = {
     const cr = [[-0.06, 0.09, -0.12, 0.02, 0.13, -0.11], [-0.04, -0.02, -0.13, 0.03, -0.09, -0.12], [-0.07, 0.11, -0.1, -0.03, 0.15, -0.03], [-0.02, 0.04, -0.14, 0.05, 0.08, -0.13]];
     for (const c of cr) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.004, op: 's', sm: D, n: [0.003, 120] });
     // matted clumps of hair hanging down the back and over the right side of the face
-    // rose lipstick on a small porcelain mouth
-    n.push({ t: 'ell', c: [0, -0.066, -0.13], r: [0.03, 0.01, 0.012], m: MAT.handRose, k: 0.004 });
-    n.push({ t: 'ell', c: [0, -0.08, -0.128], r: [0.026, 0.011, 0.012], m: MAT.handRose, k: 0.004 });
+    // pink painted lipstick on a small porcelain mouth: a cupid's-bow upper lip and a fuller lower lip
+    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.012, -0.064, -0.131], r: [0.02, 0.0095, 0.012], rot: [0, 0, sx * -0.25], m: MAT.handRose, k: 0.004 });
+    n.push({ t: 'ell', c: [0, -0.081, -0.129], r: [0.029, 0.013, 0.013], m: MAT.handRose, k: 0.004 });
+    // rose-red rouge painted on both cheeks
+    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.078, -0.042, -0.122], r: [0.03, 0.021, 0.008], rot: [sx * 0.55, 0, 0], m: MAT.lining, k: 0.006, n: [0.0015, 90] });
     // porcelain ears; the left one has a chip knocked out of its rim
     for (const s of [-1, 1]) n.push({ t: 'ell', c: [s * 0.142, -0.005, 0.005], r: [0.022, 0.045, 0.03], m: P, k: 0.012 });
     n.push({ t: 'box', c: [0.165, 0.03, -0.005], h: [0.02, 0.02, 0.025], rot: [0.3, 0.2, 0.6], op: 's', k: 0.002, sm: D, n: [0.004, 90] });
@@ -12579,25 +12689,29 @@ const SCULPTS = {
     for (let k = 0; k < 10; k++) { const a = k * 2.4; n.push({ t: 'sph', c: [Math.sin(a) * 0.27, 1.5 + (k * 0.17) % 1.3, Math.cos(a) * 0.19], r: 0.055, m: MAT.burnt, k: 0.03, n: [0.012, 40] }); }
     return SDF.mesh(n, [-0.62, -0.02, -0.42], [0.5, 3.0, 0.42], 100);
   },
-  // her heart-shaped head (origin at the neck): two rounded lobes over a soft point, long floppy ears, one
-  // black button eye, a stitched-shut X for the other, rosy cheeks and a stitched smile
+  // her heart-shaped head (origin at the neck): two rounded lobes over a soft point, long floppy ears, two
+  // big round black button eyes (one cracked), rosy cheeks and a stitched smile under pink painted lipstick
   lv_head: () => {
     const F = -1, K = MAT.rubber, L = MAT.lining, W = MAT.porcelain, n = [
       { t: 'sph', c: [-0.15, 0.36, 0], r: 0.22, m: F, n: [0.008, 18] },
       { t: 'sph', c: [0.15, 0.36, 0], r: 0.22, m: F, k: 0.1, n: [0.008, 18] },
       { t: 'ell', c: [0, 0.2, 0], r: [0.28, 0.24, 0.2], m: F, k: 0.12 },
       { t: 'cap', a: [0, 0.2, -0.02], b: [0, 0.02, -0.02], r: 0.17, r2: 0.07, m: F, k: 0.1 },
-      // button eye with four thread holes
-      { t: 'cyl', c: [-0.12, 0.33, -0.2], r: 0.055, h: 0.012, rot: [0, Math.PI / 2, 0], m: K, k: 0.004 },
-      { t: 'tor', c: [-0.12, 0.33, -0.212], R: 0.05, r: 0.006, rot: [0, Math.PI / 2, 0], m: K, k: 0.002 },
+      // two big, round, domed button eyes, each with a raised rim (four thread holes added below)
+      { t: 'ell', c: [-0.12, 0.33, -0.205], r: [0.078, 0.078, 0.03], m: K, k: 0.004 },
+      { t: 'tor', c: [-0.12, 0.33, -0.222], R: 0.07, r: 0.008, rot: [0, Math.PI / 2, 0], m: K, k: 0.002 },
+      { t: 'ell', c: [0.12, 0.33, -0.205], r: [0.074, 0.074, 0.03], m: K, k: 0.004 },
+      { t: 'tor', c: [0.12, 0.33, -0.222], R: 0.066, r: 0.008, rot: [0, Math.PI / 2, 0], m: K, k: 0.002 },
       // rosy cheeks
       { t: 'ell', c: [-0.17, 0.2, -0.17], r: [0.05, 0.03, 0.02], m: L, k: 0.012 },
       { t: 'ell', c: [0.17, 0.2, -0.17], r: [0.05, 0.03, 0.02], m: L, k: 0.012 }
     ];
-    for (const [dx, dy] of [[-0.012, 0.012], [0.012, 0.012], [-0.012, -0.012], [0.012, -0.012]]) n.push({ t: 'sph', c: [-0.12 + dx, 0.33 + dy, -0.215], r: 0.006, m: W });
-    // the X stitched over the missing eye
-    n.push({ t: 'cap', a: [0.07, 0.38, -0.2], b: [0.17, 0.28, -0.2], r: 0.011, m: K });
-    n.push({ t: 'cap', a: [0.07, 0.28, -0.2], b: [0.17, 0.38, -0.2], r: 0.011, m: K });
+    for (const ex of [-0.12, 0.12]) for (const [dx, dy] of [[-0.016, 0.016], [0.016, 0.016], [-0.016, -0.016], [0.016, -0.016]]) n.push({ t: 'sph', c: [ex + dx, 0.33 + dy, -0.234], r: 0.0075, m: W });
+    // a crack across the right button
+    n.push({ t: 'cap', a: [0.07, 0.36, -0.236], b: [0.16, 0.3, -0.236], r: 0.004, m: W });
+    // pink painted lipstick over the stitched smile
+    for (const sx of [-1, 1]) n.push({ t: 'ell', c: [sx * 0.04, 0.135, -0.19], r: [0.05, 0.018, 0.014], rot: [0, 0, sx * -0.2], m: MAT.handRose, k: 0.006 });
+    n.push({ t: 'ell', c: [0, 0.112, -0.188], r: [0.07, 0.024, 0.016], m: MAT.handRose, k: 0.006 });
     // a gentle stitched smile
     let px = -0.12, py = 0.16;
     for (let i = 1; i <= 8; i++) {
@@ -12645,6 +12759,170 @@ const SCULPTS = {
       { t: 'sph', c: [-0.035, -0.005, 0.025], r: 0.016, m: MAT.burnt, k: 0.01, n: [0.003, 80] }
     ];
     return SDF.mesh(n, [-0.065, -0.065, -0.065], [0.065, 0.085, 0.065], 56);
+  },
+  // ===================== ACT III CREATURES (origin at the feet / centre) =====================
+  // THE CHOIR: porcelain doll heads and torsos melted into one crawling mass on a skirt of skeletal metal arms
+  a3_choir: () => {
+    const P = MAT.porcelain, K = MAT.rubber, S = MAT.steel, L = MAT.lining, n = [
+      { t: 'ell', c: [0, 0.55, 0], r: [0.7, 0.42, 0.55], m: P, n: [0.03, 7] }
+    ];
+    const heads = [[-0.42, 0.78, -0.2, 0.22], [0.0, 0.98, -0.12, 0.26], [0.4, 0.82, -0.18, 0.21], [-0.2, 0.62, -0.46, 0.2], [0.24, 0.6, -0.44, 0.19], [-0.5, 0.5, 0.2, 0.18], [0.5, 0.52, 0.15, 0.18], [0.0, 0.85, 0.3, 0.2]];
+    heads.forEach(([x, y, z, r], i) => {
+      n.push({ t: 'sph', c: [x, y, z], r, m: P, k: 0.08, n: [0.004, 30] });
+      // hollow black eyes and a small open mouth on every face that looks out
+      if (z < 0.1) {
+        for (const ex of [-1, 1]) n.push({ t: 'sph', c: [x + ex * r * 0.36, y + r * 0.12, z - r * 0.86], r: r * 0.2, op: 's', k: 0.01, sm: K });
+        n.push({ t: 'ell', c: [x, y - r * 0.38, z - r * 0.85], r: [r * 0.16, r * 0.1, r * 0.1], op: 's', k: 0.01, sm: K });
+        if (i % 3 === 0) n.push({ t: 'cap', a: [x - r * 0.3, y + r * 0.5, z - r * 0.8], b: [x + r * 0.1, y - r * 0.2, z - r * 0.92], r: 0.008, op: 's', sm: K });
+      }
+    });
+    // melted, cracked seams and a few doll hands reaching out of the mass
+    for (let k = 0; k < 4; k++) { const a = k * 1.7; n.push({ t: 'cap', a: [Math.sin(a) * 0.5, 0.6, Math.cos(a) * 0.4], b: [Math.sin(a) * 0.85, 0.75 + (k % 2) * 0.2, Math.cos(a) * 0.7 - 0.2], r: 0.045, r2: 0.03, m: P, k: 0.04 }); }
+    for (let k = 0; k < 5; k++) n.push({ t: 'sph', c: [Math.sin(k * 2.3) * 0.6, 0.45 + (k % 3) * 0.12, Math.cos(k * 2.3) * 0.45], r: 0.07, m: L, k: 0.05, n: [0.01, 40] });
+    // the underbelly: a ring of jointed metal limbs
+    for (let k = 0; k < 10; k++) {
+      const a = k / 10 * Math.PI * 2, x = Math.sin(a), z = Math.cos(a);
+      n.push({ t: 'cap', a: [x * 0.45, 0.35, z * 0.35], b: [x * 0.85, 0.32, z * 0.7], r: 0.03, m: S, k: 0.01 });
+      n.push({ t: 'sph', c: [x * 0.85, 0.32, z * 0.7], r: 0.04, m: S });
+      n.push({ t: 'cap', a: [x * 0.85, 0.32, z * 0.7], b: [x * 1.0, 0.02, z * 0.82], r: 0.025, r2: 0.01, m: S, k: 0.01 });
+    }
+    return SDF.mesh(n, [-1.1, -0.02, -1.0], [1.1, 1.3, 1.0], 84);
+  },
+  // PUFFER: a bloated vinyl fish-sack around a rose gas core, a bulging lens eye, a pressure valve and a lure
+  a3_puffer: () => {
+    const V = -1, K = MAT.rubber, S = MAT.steel, n = [
+      { t: 'ell', c: [0, 0, 0], r: [0.42, 0.36, 0.48], m: V, n: [0.01, 9] },
+      { t: 'cap', a: [0, 0, 0.42], b: [0, 0.02, 0.7], r: 0.12, r2: 0.2, m: V, k: 0.08 },
+      { t: 'ell', c: [0, 0.03, 0.74], r: [0.04, 0.2, 0.12], m: V, k: 0.03 },
+      { t: 'sph', c: [0.18, 0.1, -0.36], r: 0.11, m: MAT.lens, k: 0.02 },
+      { t: 'tor', c: [0.18, 0.1, -0.38], R: 0.11, r: 0.018, rot: [0, Math.PI / 2, 0], m: S, k: 0.01 },
+      { t: 'sph', c: [-0.16, 0.12, -0.38], r: 0.06, op: 's', k: 0.01, sm: K },
+      { t: 'cyl', c: [0, 0.38, 0.05], r: 0.05, h: 0.05, m: S, k: 0.01 },
+      { t: 'cyl', c: [0, 0.44, 0.05], r: 0.07, h: 0.012, m: MAT.copper },
+      { t: 'ell', c: [0, -0.12, -0.42], r: [0.14, 0.04, 0.06], op: 's', k: 0.01, sm: K }
+    ];
+    // stitched rupture seam and stubby spines
+    for (let i = 0; i < 8; i++) n.push({ t: 'cap', a: [-0.3 + i * 0.08, 0.3 - Math.abs(i - 3.5) * 0.02, 0.1], b: [-0.3 + i * 0.08, 0.36, 0.1], r: 0.008, m: K });
+    for (let i = 0; i < 12; i++) { const a = i * 2.4, y = -0.2 + (i % 5) * 0.1; n.push({ t: 'cap', a: [Math.cos(a) * 0.38, y, Math.sin(a) * 0.42], b: [Math.cos(a) * 0.5, y, Math.sin(a) * 0.55], r: 0.018, r2: 0.004, m: V }); }
+    return SDF.mesh(n, [-0.6, -0.5, -0.6], [0.6, 0.55, 0.9], 72);
+  },
+  // ANGLER head (the telescoping neck is drawn in segments): a long, jagged-toothed jaw, an eye cluster, the lure
+  a3_angler: () => {
+    const M = MAT.burnt, K = MAT.rubber, P = MAT.porcelain, S = MAT.steel, n = [
+      { t: 'ell', c: [0, 0.05, 0], r: [0.34, 0.26, 0.42], m: M, n: [0.012, 12] },
+      { t: 'ell', c: [0, -0.12, -0.12], r: [0.32, 0.12, 0.42], m: M, k: 0.05 },
+      { t: 'box', c: [0, -0.04, -0.3], h: [0.27, 0.05, 0.3], op: 's', k: 0.02, sm: K }
+    ];
+    for (let i = 0; i < 11; i++) {
+      const x = -0.24 + i * 0.048, z = -0.42 + Math.abs(x) * 0.6;
+      n.push({ t: 'cap', a: [x, 0.0, z], b: [x * 0.95, -0.09, z - 0.01], r: 0.016, r2: 0.003, m: P });
+      n.push({ t: 'cap', a: [x, -0.1, z + 0.02], b: [x * 0.95, -0.01, z + 0.01], r: 0.014, r2: 0.003, m: P });
+    }
+    for (const [x, y, r] of [[-0.14, 0.2, 0.05], [0.12, 0.22, 0.06], [0.0, 0.26, 0.04], [0.2, 0.12, 0.035]]) n.push({ t: 'sph', c: [x, y, -0.3], r, m: MAT.lens });
+    n.push({ t: 'cap', a: [0, 0.28, -0.1], b: [0, 0.55, -0.35], r: 0.016, m: S });
+    n.push({ t: 'cap', a: [0, 0.55, -0.35], b: [0, 0.5, -0.55], r: 0.012, m: S });
+    n.push({ t: 'sph', c: [0, 0.45, -0.58], r: 0.06, m: MAT.lens });
+    return SDF.mesh(n, [-0.45, -0.3, -0.75], [0.45, 0.65, 0.5], 72);
+  },
+  // LEECH: plush limbs (an arm, a leg, a duck bill) fused by rose-purple gel around a gear ring
+  a3_leech: () => {
+    const F = MAT.furLight, G = MAT.lining, S = MAT.copper, n = [
+      { t: 'ell', c: [0, 0.08, 0], r: [0.16, 0.08, 0.14], m: G, n: [0.01, 20] },
+      { t: 'tor', c: [0, 0.1, 0], R: 0.13, r: 0.02, m: S },
+      { t: 'cap', a: [0.05, 0.08, 0], b: [0.32, 0.04, -0.1], r: 0.04, r2: 0.03, m: F, n: [0.008, 30] },
+      { t: 'cap', a: [-0.05, 0.08, 0.02], b: [-0.3, 0.03, 0.12], r: 0.05, r2: 0.035, m: MAT.handTeal, n: [0.008, 30] },
+      { t: 'ell', c: [0.05, 0.1, -0.18], r: [0.06, 0.02, 0.1], m: MAT.paint, k: 0.02 },
+      { t: 'cap', a: [0, 0.06, 0.05], b: [0.05, 0.02, 0.3], r: 0.035, r2: 0.02, m: F, n: [0.008, 30] }
+    ];
+    return SDF.mesh(n, [-0.4, -0.04, -0.34], [0.4, 0.22, 0.38], 56);
+  },
+  // DROWNED OUTIMAL: a rotting moss-and-burlap plush crawler with a screw for an eye and gears in its seams
+  a3_outimal: () => {
+    const M = MAT.furLight, K = MAT.rubber, S = MAT.steel, P = MAT.porcelain, n = [
+      { t: 'ell', c: [0, 0.38, 0.1], r: [0.34, 0.26, 0.6], m: M, n: [0.02, 10] },
+      { t: 'ell', c: [0, 0.5, -0.55], r: [0.26, 0.24, 0.26], m: M, k: 0.1, n: [0.015, 12] },
+      { t: 'ell', c: [0, 0.4, -0.78], r: [0.18, 0.1, 0.16], m: M, k: 0.05 },
+      { t: 'box', c: [0, 0.36, -0.86], h: [0.14, 0.03, 0.1], op: 's', k: 0.01, sm: K },
+      { t: 'cyl', c: [0.11, 0.6, -0.76], r: 0.03, h: 0.04, rot: [0, Math.PI / 2, 0], m: S },
+      { t: 'cap', a: [0.11, 0.6, -0.78], b: [0.11, 0.6, -0.9], r: 0.01, m: S },
+      { t: 'sph', c: [-0.12, 0.62, -0.74], r: 0.06, m: MAT.lens, k: 0.01 },
+      { t: 'ell', c: [0, 0.3, 0.0], r: [0.2, 0.12, 0.3], op: 's', k: 0.02, sm: MAT.lining, n: [0.02, 30] }
+    ];
+    for (let i = 0; i < 7; i++) n.push({ t: 'cap', a: [-0.1 + i * 0.033, 0.36, -0.86], b: [-0.1 + i * 0.033, 0.3, -0.87], r: 0.01, r2: 0.002, m: P });
+    for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [Math.sin(i * 2) * 0.12, 0.3, -0.05 + i * 0.08], r: 0.05, h: 0.01, rot: [0, Math.PI / 2, i], m: MAT.copper });
+    for (const [x, z] of [[-0.3, -0.35], [0.3, -0.35], [-0.3, 0.45], [0.3, 0.45]]) { n.push({ t: 'cap', a: [x * 0.8, 0.35, z], b: [x * 1.3, 0.08, z], r: 0.07, r2: 0.05, m: M, k: 0.04 }); n.push({ t: 'cyl', c: [x * 1.3, 0.06, z], r: 0.06, h: 0.02, rot: [0, 0, Math.PI / 2], m: K }); }
+    for (let k = 0; k < 9; k++) n.push({ t: 'sph', c: [Math.sin(k * 2.2) * 0.3, 0.55 + (k % 3) * 0.05, -0.4 + k * 0.1], r: 0.06, m: MAT.handTeal, k: 0.04, n: [0.02, 35] });   // moss
+    return SDF.mesh(n, [-0.55, -0.02, -1.0], [0.55, 0.8, 0.8], 76);
+  },
+  // CONDUCTOR: a faceless mannequin torso fused into the nose of a subway engine (origin at rail level)
+  a3_conductor: () => {
+    const B = -1, S = MAT.steel, P = MAT.porcelain, K = MAT.rubber, C = MAT.copper, n = [
+      { t: 'box', c: [0, 1.5, 0.6], h: [1.25, 1.35, 1.1], rr: 0.25, m: B, n: [0.004, 20] },
+      { t: 'cap', a: [0, 2.4, -0.4], b: [0, 0.9, -0.55], r: 0.5, r2: 0.6, m: B, k: 0.3 },
+      // the mannequin bursting out of the front
+      { t: 'ell', c: [0, 2.1, -0.85], r: [0.32, 0.42, 0.22], m: P, k: 0.12, n: [0.004, 40] },
+      { t: 'sph', c: [0, 2.72, -0.92], r: 0.2, m: P, k: 0.05 },
+      { t: 'cap', a: [-0.3, 2.35, -0.85], b: [-0.75, 1.7, -1.1], r: 0.07, m: P, k: 0.03 },
+      { t: 'cap', a: [0.3, 2.35, -0.85], b: [0.75, 1.75, -1.15], r: 0.07, m: P, k: 0.03 }
+    ];
+    // multi-lens optic array where the face should be
+    for (const [x, y, r] of [[-0.08, 2.76, 0.04], [0.07, 2.74, 0.05], [0, 2.66, 0.035], [0.1, 2.84, 0.03]]) n.push({ t: 'sph', c: [x, y, -1.1], r, m: MAT.lens });
+    // capacitor bank and conduit loops on the hull, buffer beam, headlamps
+    for (let i = 0; i < 4; i++) n.push({ t: 'cyl', c: [-0.9 + i * 0.6, 2.85, 0.4], r: 0.12, h: 0.12, m: C });
+    for (const sx of [-1, 1]) { n.push({ t: 'tor', c: [sx * 1.2, 1.8, -0.1], R: 0.3, r: 0.03, rot: [0, 0, Math.PI / 2], m: C }); n.push({ t: 'sph', c: [sx * 0.85, 0.9, -0.62], r: 0.13, m: MAT.lens }); }
+    n.push({ t: 'box', c: [0, 0.45, -0.62], h: [1.2, 0.12, 0.08], m: S });
+    return SDF.mesh(n, [-1.4, 0, -1.4], [1.4, 3.1, 1.8], 84);
+  },
+  // SUIT: an immaculate, empty 1950s business suit walking on its own; a brass head-stump with a lens cluster
+  a3_suit: () => {
+    const C = -1, W = MAT.porcelain, K = MAT.rubber, B = MAT.copper, n = [
+      { t: 'box', c: [0, 1.25, 0], h: [0.24, 0.3, 0.13], rr: 0.06, m: C },
+      { t: 'cap', a: [-0.25, 1.5, 0], b: [0.25, 1.5, 0], r: 0.09, m: C, k: 0.06 },
+      { t: 'box', c: [0, 1.36, -0.125], h: [0.05, 0.16, 0.01], m: W, k: 0.01 },
+      { t: 'box', c: [0, 1.32, -0.14], h: [0.022, 0.12, 0.008], m: MAT.lining },
+      { t: 'cyl', c: [0, 1.66, 0], r: 0.075, h: 0.06, m: B },
+      { t: 'sph', c: [0, 1.76, -0.02], r: 0.09, m: B, k: 0.02 }
+    ];
+    for (const [x, y, r] of [[-0.04, 1.78, 0.025], [0.04, 1.77, 0.03], [0, 1.72, 0.022]]) n.push({ t: 'sph', c: [x, y, -0.09], r, m: MAT.lens });
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cap', a: [sx * 0.3, 1.48, 0], b: [sx * 0.34, 0.98, 0.02], r: 0.07, r2: 0.06, m: C, k: 0.02 });
+      n.push({ t: 'cap', a: [sx * 0.34, 0.98, 0.02], b: [sx * 0.34, 0.92, 0.01], r: 0.045, m: W });
+      n.push({ t: 'cap', a: [sx * 0.11, 0.95, 0], b: [sx * 0.12, 0.08, 0.02], r: 0.085, r2: 0.075, m: C, k: 0.03 });
+      n.push({ t: 'ell', c: [sx * 0.12, 0.05, -0.06], r: [0.07, 0.05, 0.14], m: K, k: 0.01 });
+      n.push({ t: 'box', c: [sx * 0.13, 1.33, -0.13], h: [0.06, 0.13, 0.01], rot: [0, 0, sx * 0.3], m: C, k: 0.01 });   // lapels
+    }
+    for (let i = 0; i < 3; i++) n.push({ t: 'cyl', c: [0.06, 1.18 - i * 0.1, -0.135], r: 0.012, h: 0.004, rot: [0, Math.PI / 2, 0], m: K });
+    return SDF.mesh(n, [-0.5, -0.02, -0.3], [0.5, 1.92, 0.3], 80);
+  },
+  // SCRAPLING: a doll head bolted onto a little dinosaur body with a mechanical claw and a wind-up key
+  a3_scrapling: () => {
+    const D = MAT.handTeal, P = MAT.porcelain, S = MAT.steel, C = MAT.copper, K = MAT.rubber, n = [
+      { t: 'ell', c: [0, 0.32, 0.05], r: [0.16, 0.14, 0.28], m: D, n: [0.008, 20] },
+      { t: 'cap', a: [0, 0.32, 0.3], b: [0, 0.2, 0.62], r: 0.08, r2: 0.02, m: D, k: 0.04 },
+      { t: 'sph', c: [0, 0.48, -0.26], r: 0.14, m: P, k: 0.03 },
+      { t: 'sph', c: [-0.05, 0.5, -0.38], r: 0.03, op: 's', sm: K },
+      { t: 'sph', c: [0.05, 0.5, -0.38], r: 0.03, op: 's', sm: K },
+      { t: 'cap', a: [0.12, 0.34, -0.08], b: [0.28, 0.26, -0.3], r: 0.03, m: S },
+      { t: 'cap', a: [0.28, 0.26, -0.3], b: [0.3, 0.18, -0.42], r: 0.02, r2: 0.008, m: S },
+      { t: 'cap', a: [0.28, 0.26, -0.3], b: [0.36, 0.24, -0.4], r: 0.02, r2: 0.008, m: S },
+      { t: 'cyl', c: [0, 0.48, 0.1], r: 0.015, h: 0.05, m: C },
+      { t: 'tor', c: [0, 0.56, 0.1], R: 0.04, r: 0.01, rot: [Math.PI / 2, 0, 0], m: C },
+      { t: 'sph', c: [0, 0.36, -0.06], r: 0.035, m: MAT.lens }
+    ];
+    for (const [x, z] of [[-0.1, -0.1], [0.1, -0.1], [-0.12, 0.18], [0.12, 0.18]]) n.push({ t: 'cap', a: [x, 0.25, z], b: [x * 1.5, 0.02, z - 0.03], r: 0.035, r2: 0.025, m: D, k: 0.02 });
+    return SDF.mesh(n, [-0.3, -0.02, -0.48], [0.45, 0.62, 0.66], 64);
+  },
+  // the Seraph's wing: rusted razor feathers fanned from a jointed iron spar (root at the origin, spans +x)
+  a3_wing: () => {
+    const R = MAT.rustIron, S = MAT.steel, n = [
+      { t: 'cap', a: [0, 0, 0], b: [0.9, 0.35, 0.1], r: 0.05, m: S },
+      { t: 'cap', a: [0.9, 0.35, 0.1], b: [1.8, 0.1, 0.25], r: 0.035, m: S }
+    ];
+    for (let i = 0; i < 11; i++) {
+      const t = i / 10, x = t * 1.8, y = t < 0.5 ? t * 0.7 : 0.35 - (t - 0.5) * 0.5;
+      n.push({ t: 'box', c: [x, y - 0.45 - t * 0.2, 0.1 + t * 0.15], h: [0.07, 0.42 + t * 0.15, 0.008], rot: [0, 0, -0.15 - t * 0.25], m: R, n: [0.006, 50] });
+    }
+    return SDF.mesh(n, [-0.15, -1.2, -0.1], [2.0, 0.5, 0.45], 72);
   },
   // a big old wood-cased CRT television (draw material = the casing), screen facing -z, origin at its feet
   crt_tv: () => {
@@ -13702,7 +13980,15 @@ const HAND_TYPES = [
   //             (caged by the Core Vault entrance; the cage opens from a charge socket)
   { id: 'CONDUIT', mat: MAT.copper, tint: [0.75, 0.95, 1.05], glow: null, stun: 1.0, cool: 0.5, desc: 'stores current: touch a live node, then fire it into a charge socket (20 s)' },
   { id: 'BELLOWS', mat: MAT.steel, tint: [1.15, 1.0, 0.85], glow: null, stun: 1.8, cool: 1.1, desc: 'pneumatic blast: shatters cracked panels and blows enemies back' },
-  { id: 'ANCHOR', mat: MAT.rustIron, tint: [1.0, 0.95, 1.0], glow: [0.15, 0.02, 0.0], stun: 4.5, cool: 1.6, desc: 'harpoons the Epxirtype and chains it to the floor for 4.5 s' }
+  { id: 'ANCHOR', mat: MAT.rustIron, tint: [1.0, 0.95, 1.0], glow: [0.15, 0.02, 0.0], stun: 4.5, cool: 1.6, desc: 'harpoons the Epxirtype and chains it to the floor for 4.5 s' },
+  // Act III hands (our own designs):
+  //   SPRING  coiled-piston hand: fire it at a spring pad and it launches you up and across (Celestial Wing)
+  //   MAGNET  electromagnet hand: locks onto magnet plates and zips you across gaps (Salvage Yards)
+  //   FLARE   flare-launcher hand: every impact bursts into a burning flare that scares small creatures off
+  //           and stuns lurkers (Sunken Toybox)
+  { id: 'SPRING', mat: MAT.handTeal, tint: [0.75, 0.55, 1.25], glow: null, stun: 1.2, cool: 0.6, desc: 'fire it at a spring pad to launch yourself up and across' },
+  { id: 'MAGNET', mat: MAT.steel, tint: [1.3, 0.6, 0.55], glow: null, stun: 1.2, cool: 0.6, desc: 'locks onto magnet plates and zips you across gaps' },
+  { id: 'FLARE', mat: MAT.copper, tint: [1.4, 0.7, 0.35], glow: [0.5, 0.18, 0.04], stun: 2.0, cool: 1.2, desc: 'bursts into a burning flare - scatters small creatures, stuns lurkers' }
 ];
 const HAND_COUNT = HAND_TYPES.length;
 const PICKUP_SPOTS = [
@@ -13716,7 +14002,12 @@ const PICKUP_SPOTS = [
   { kind: 'key', key: 'OFFICE', label: 'OFFICE KEY', sector: 6, pos: [-13.3, 0.25, -158.2] },
   { kind: 'hand', type: 5, sector: 8, pos: [-9.6, 1.0, -220.5] },
   { kind: 'hand', type: 4, sector: 9, pos: [-12.8, 1.0, -259.6] },
-  { kind: 'hand', type: 6, sector: 10, pos: [14.2, 1.0, -293.9], lock: 'V_CAGE' }
+  { kind: 'hand', type: 6, sector: 10, pos: [14.2, 1.0, -293.9], lock: 'V_CAGE' },
+  // Act III: SPRING at the chapel entrance, FLARE on a toy chest, the executive key, MAGNET by the chasm
+  { kind: 'hand', type: 7, sector: 12, pos: [11.0, 0.95, -335.2] },
+  { kind: 'hand', type: 9, sector: 13, pos: [13.8, 1.1, -398.0] },
+  { kind: 'key', key: 'EXEC', label: 'EXECUTIVE KEY', sector: 15, pos: [0, 1.0, -512.6] },
+  { kind: 'hand', type: 8, sector: 16, pos: [-12, 1.0, -534.4] }
 ];
 const GAS_ZONES = [{ sector: 2, x0: -10, z0: -48, x1: -4.6, z1: -39.2 }];
 const UV_SECRETS = [
@@ -14270,6 +14561,7 @@ const _gear = { n: V3.create(), r: V3.create(), u: V3.create(), a: V3.create(), 
 //                         cores are exposed; latch each core and drag it out. Three cores -> containment.
 //   Indicator colours (container stripes, signal lamps):
 //     red #e0392b  green #39c86a  blue #3a7bf0  yellow #f2c230  gel glow #7cff5a  vault warning #ff2a1a
+//     Posie Gel: dark wet rose-purple #4a0f30
 // =====================================================================================
 
 const DW_COLORS = [
@@ -14389,7 +14681,7 @@ const DeepWorks = {
     L.room(7, -14, -216, 14, -176, 11.0, MAT.grating, MAT.concrete, MAT.steel, { s: [[-DW, DW, DH]], n: [[-DW, DW, DH]] }, SURFACE.METAL);
     L.room(8, -14, -256, 14, -216, 6.0, MAT.concrete, MAT.rustIron, MAT.concrete, { s: [[-DW, DW, DH]], n: [[-DW, DW, DH]] }, SURFACE.CONCRETE);
     L.room(9, -14, -292, 14, -256, 8.0, MAT.concrete, MAT.steel, MAT.steel, { s: [[-DW, DW, DH]], n: [[-DW, DW, DH]] }, SURFACE.CONCRETE);
-    L.room(10, -16, -330, 16, -292, 12.0, MAT.grating, MAT.concrete, MAT.steel, { s: [[-DW, DW, DH]] }, SURFACE.METAL);
+    L.room(10, -16, -330, 16, -292, 12.0, MAT.grating, MAT.concrete, MAT.steel, { s: [[-DW, DW, DH]], n: [[11.8, 14.4, DH]] }, SURFACE.METAL);
     L.door('D6', 6, 7, 'z', -176, -DW, DW, DH, false);
     L.door('D7', 7, 8, 'z', -216, -DW, DW, DH, false);
     L.door('D8', 8, 9, 'z', -256, -DW, DW, DH, false);
@@ -15120,13 +15412,12 @@ const DeepWorks = {
         if (V.t > 1.0 && V.t - dt <= 1.0) sfx('overload', M.pos);
         if (V.t > 3.9 && V.t - dt <= 3.9) { sfx('bossDown', M.pos); const P = Renderer.post; P.flash = 1; P.flashTint[0] = 1; P.flashTint[1] = 1; P.flashTint[2] = 1; Player.addTrauma(0.8); }
         if (V.t > 4.4) {
-          V.mode = 'DONE'; M.visible = false; M.active = false;
+          // sealed... until Harlan Smithers opens the cradle: the betrayal, and the chase into the upper wings
+          V.mode = 'DONE';
           Game.stage = 10; UI.setObjective(OBJECTIVES[10]);
           Game.invulnerable = true; Game.chaseActive = false;
-          save('checkpoint', '');
           Dialogue.say('MARIGOLD', 'It is sealed. ...It is really sealed. Thank you for looking at me.');
-          Dialogue.say('THIMBLE', 'We did it! WE DID IT! ...Can we go home now? Do we have a home?');
-          Game.victoryTimer = 4.5;
+          Act3.betray();
         }
         break;
       }
@@ -15228,8 +15519,12 @@ const DeepWorks = {
       for (const g of this.gels) {
         for (let k = 0; k < 7; k++) {
           const x = lerp(g.x0 + 1, g.x1 - 1, (k * 0.37) % 1), z = lerp(g.z0 + 1, g.z1 - 1, (k * 0.61) % 1);
-          const it = R.trs('sphereLow', MAT.screen, x, 0.0, z, k * 0.7, 0, 0, 1.6 + (k % 3) * 0.5, 0.03, 1.2 + (k % 2) * 0.6, false);
-          if (it) { it.tint[0] = 0.12; it.tint[1] = 0.3; it.tint[2] = 0.08; it.emis[0] = 0.008; it.emis[1] = 0.05 + 0.015 * Math.sin(t * 2 + k); it.emis[2] = 0.006; }
+          // Posie Gel: a dark, wet, fleshy rose-purple mass that pulses, with glossy bubbles swelling and popping
+          const it = R.trs('sphereLow', MAT.screen, x, 0.0, z, k * 0.7, 0, 0, 1.6 + (k % 3) * 0.5, 0.035 + 0.008 * Math.sin(t * 1.6 + k), 1.2 + (k % 2) * 0.6, false);
+          if (it) { const pu = 0.5 + 0.5 * Math.sin(t * 1.6 + k); it.tint[0] = 0.32; it.tint[1] = 0.06; it.tint[2] = 0.2; it.emis[0] = 0.03 + 0.03 * pu; it.emis[1] = 0.004; it.emis[2] = 0.025 + 0.02 * pu; }
+          const bp = (t * 0.7 + k * 0.31) % 1, br = Math.sin(bp * Math.PI) * 0.12;
+          const bb = R.trs('sphereLow', MAT.screen, x + Math.sin(k * 3) * 0.6, 0.02, z + Math.cos(k * 3) * 0.4, 0, 0, 0, br, br * 0.8, br, false);
+          if (bb) { bb.tint[0] = 0.5; bb.tint[1] = 0.1; bb.tint[2] = 0.32; bb.emis[0] = 0.05; bb.emis[2] = 0.04; }
         }
       }
       for (const c of this.cables) for (let z = c.z0; z < c.z1 - 0.5; z += 2.1) {
@@ -15717,7 +16012,7 @@ const Lovey = {
 
   // she is with you from the fabrication line to the vault
   reset() {
-    this.active = Game.stage >= 6 && Game.stage <= 9;
+    this.active = Game.stage >= 6 && Game.stage <= 16;
     this.mode = 'FOLLOW'; this.target = null; this.cool = 4; this.swingT = 0; this.patT = 0; this.stillT = 0; this.lineCool = 0;
     if (!this.active) return;
     const b = Player.body.pos;
@@ -15841,6 +16136,944 @@ const Lovey = {
     }
   }
 };
+
+// ===== module: 27_act3.js =====
+// =====================================================================================
+// ACT III: THE UPPER WINGS (stages 10-17) - after the betrayal at the Core Vault
+//   10 CELESTIAL WING   the Choir loft: a theatre-church of pews and stained glass. A blind Seraph hangs in the
+//                       rafters sweeping a gold-orange searchlight; Choir masses lurk in the pews (ankle grab);
+//                       a cherub pack skitters on the ceiling and shrieks if you run. SPRING hand + spring pad up
+//                       to the loft, where the Epxirtype's old workshop is; pull the organ lever.
+//   11 SUNKEN TOYBOX    flooded toy storage: walk the toy-block walkways. Puffers burst into rose gas if you rush
+//                       them, Anglers snap from the deep pools, Leeches latch on while you wade, Drowned Outimals
+//                       crawl after you (your light holds them). FLARE hand. Open both drain valves.
+//   12 GHOST LINE       a dead subway station: two lines with Conductor engines that launch at any noise.
+//                       Carry a power cable across both tracks to the platform gate.
+//   13 EXECUTIVE SUITE  offices with walking empty Suits sweeping teal laser grids (crouch under them).
+//                       Harlan Smithers' office: the executive key.
+//   14 SALVAGE YARDS    scrap heaps, a Scrapling swarm (your light scares them, any hand pops one), a chasm you
+//                       cross with the MAGNET hand on the gantry plates, then the crane lever.
+//   15 THE HEART        the final showdown: three reactor clamps, Lovey and Morsel fight beside you, then the
+//                       takedown - both hands into the Epxirtype's exposed core.
+//   16 SELF-DESTRUCT    the reactor goes critical: run for the freight lift.
+//   17 ENDING           outside at golden hour, the factory goes up while you watch with your friends.
+//   Colours: stained glass gold-orange #f0a030, rose #c8285a, teal #1aa59a; seraph beam #ffb347;
+//   rose gas #d0406e; conductor arcs #5ad0ff; laser grid #18d6c0; reactor rose #ff3c6e; fire #ff7a28.
+// =====================================================================================
+const A3 = { S: [12, 13, 14, 15, 16, 17, 18], Z: [-330, -380, -428, -474, -516, -566, -612, -624] };
+const A3_OBJECTIVES = [
+  'CELESTIAL WING. Stay out of the Seraph\'s searchlight and away from the pews. Take the SPRING hand, bounce up to the choir loft and pull the organ lever.',
+  'SUNKEN TOYBOX. Keep to the toy blocks where you can. Don\'t rush the Puffers. Open both drain valves.',
+  'GHOST LINE. Quiet near the tracks - the Conductors hear you. Run a cable from the node across both lines to the gate.',
+  'EXECUTIVE SUITE. Crouch under the Suits\' laser grids. Find the executive key in Harlan Smithers\' office.',
+  'SALVAGE YARDS. Your light scares the Scraplings. Take the MAGNET hand, zip across the chasm on the gantry plates, then work the crane.',
+  'THE HEART. Pull all three reactor clamps while Lovey and Morsel hold it off - then finish it.',
+  'SELF-DESTRUCT. RUN FOR THE FREIGHT LIFT!',
+  'It is over.'
+];
+const A3_POSES = [
+  { pos: [13, 0, -332.4], yaw: 0 }, { pos: [0, 0.8, -381.8], yaw: 0 }, { pos: [0, 0, -429.8], yaw: 0 },
+  { pos: [0, 0, -475.8], yaw: 0 }, { pos: [0, 0, -517.8], yaw: 0 }, { pos: [0, 0, -567.8], yaw: 0 }, { pos: [0, 0, -567.8], yaw: 0 }
+];
+const A3_COL = { gold: '#f0a030', rose: '#c8285a', teal: '#1aa59a', beam: '#ffb347', gas: '#d0406e', arc: '#5ad0ff', laser: '#18d6c0', core: '#ff3c6e', fire: '#ff7a28' };
+
+const Act3 = {
+  built: false, tmp: V3.create(), tmp2: V3.create(), tmp3: V3.create(), m: M4.create(),
+  seraph: null, choirs: [], cherubs: [], puffers: [], anglers: [], outimals: [], leeches: 0, leechT: 0, water: 0.55, drain: 0,
+  trains: [], suits: [], scraps: [], flares: [], springs: [], magnets: [], gas: [], heart: null, escape: null, ending: null,
+  grab: 0, betrayal: -1,
+
+  // ---------------------------------------------------------------- build
+  build(L) {
+    const DW = 1.3, DH = SCALE.doorHeight, S = A3.S, Z = A3.Z;
+    const names = ['CELESTIAL WING', 'SUNKEN TOYBOX', 'GHOST LINE', 'EXECUTIVE SUITE', 'SALVAGE YARDS', 'THE HEART', 'FREIGHT LIFT'];
+    const H = [16, 9, 8, 5.5, 14, 18, 6];
+    for (let i = 0; i < 7; i++) {
+      const x0 = i === 6 ? -4 : -16, x1 = i === 6 ? 4 : 16;
+      L.sector(S[i], names[i], x0, Z[i + 1], x1, Z[i], H[i]);
+      const n = i < 6 ? [[-DW, DW, DH]] : [];
+      const sOpen = i === 0 ? [[11.8, 14.4, DH]] : [[-DW, DW, DH]];
+      const fl = [MAT.wood, MAT.concrete, MAT.concrete, MAT.wood, MAT.concrete, MAT.grating, MAT.grating][i];
+      const wl = [MAT.paint, MAT.rustIron, MAT.concrete, MAT.paint, MAT.rustIron, MAT.steel, MAT.steel][i];
+      L.room(S[i], x0, Z[i + 1], x1, Z[i], H[i], fl, wl, MAT.steel, { s: sOpen, n }, i === 0 || i === 3 ? SURFACE.WOOD : SURFACE.CONCRETE);
+    }
+    L.door('D10', 10, S[0], 'z', -330, 11.8, 14.4, DH, false);
+    for (let i = 0; i < 6; i++) L.door('D' + (11 + i), S[i], S[i + 1], 'z', Z[i + 1], -DW, DW, DH, false);
+    const ex = Level.doorById('D14'); if (ex) ex.key = 'EXEC';   // suite -> salvage needs Harlan's key
+    this.springs.length = 0; this.magnets.length = 0;
+    this.buildCelestial(L); this.buildToybox(L); this.buildGhost(L); this.buildSuite(L); this.buildSalvage(L); this.buildHeart(L); this.buildLift(L);
+    this.built = true;
+  },
+  // a pad or plate the SPRING / MAGNET hand reacts to
+  pad(kind, sector, x, y, z, to, list) {
+    const c = Physics.addBox(x - 0.6, y - 0.1, z - 0.6, x + 0.6, y + 0.12, z + 0.6, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, -1, false, sector);
+    const p = { kind, sector, pos: V3.create(x, y, z), to: V3.create(to[0], to[1], to[2]), collider: c };
+    c.kind = kind; c.ref = p;
+    list.push(p);
+    return p;
+  },
+  plate(sector, x, y, z, to) {
+    const c = Physics.addBox(x - 0.5, y - 0.5, z - 0.12, x + 0.5, y + 0.5, z + 0.12, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, -1, false, sector);
+    const p = { kind: 'magnet', sector, pos: V3.create(x, y, z), to: V3.create(to[0], to[1], to[2]), collider: c };
+    c.kind = 'magnet'; c.ref = p;
+    this.magnets.push(p);
+    return p;
+  },
+
+  // ---------- 10 CELESTIAL WING ----------
+  buildCelestial(L) {
+    const S = 12, z0 = -330, z1 = -380;
+    // pews: two blocks either side of the aisle, rows with gaps between them
+    for (let r = 0; r < 9; r++) {
+      const z = -338 - r * 3;
+      for (const [a, b] of [[-14, -2.2], [2.2, 9.6]]) {
+        L.solid(S, a, 0, z - 0.35, b, 0.5, z + 0.35, MAT.wood, SURFACE.WOOD);
+        L.solid(S, a, 0.5, z + 0.2, b, 1.15, z + 0.35, MAT.wood, SURFACE.WOOD);
+        L.geom(S, a - 0.1, 0, z - 0.4, a + 0.05, 1.25, z + 0.4, MAT.wood); L.geom(S, b - 0.05, 0, z - 0.4, b + 0.1, 1.25, z + 0.4, MAT.wood);
+      }
+    }
+    // stained glass windows down both side walls, and the great rose window over the altar
+    const glass = [A3_COL.gold, A3_COL.rose, A3_COL.teal];
+    for (let i = 0; i < 6; i++) {
+      const z = -336 - i * 7.5;
+      for (const x of [-15.9, 15.9]) {
+        L.geom(S, x - 0.06, 3.5, z - 1.4, x + 0.06, 10.5, z + 1.4, MAT.screen);
+        L.geom(S, x - 0.1, 3.3, z - 1.55, x + 0.1, 3.5, z + 1.55, MAT.steel); L.geom(S, x - 0.1, 10.5, z - 1.55, x + 0.1, 10.7, z + 1.55, MAT.steel);
+        L.light(S, x * 0.88, 7, z, glass[i % 3], 3.2, 10, 0, 'none', 0.6);
+      }
+    }
+    L.light(S, 0, 11, -377, A3_COL.rose, 5, 16, 0, 'none', 0.7);
+    // altar stage, organ pipes along the north wall, the loft (balcony) along the east wall
+    L.solid(S, -10, 0, -379.9, 10, 0.8, -372, MAT.wood, SURFACE.WOOD);
+    for (let i = 0; i < 15; i++) { const x = -8 + i * 1.15, h = 6 + Math.sin(i * 0.7) * 2.5 + (7 - Math.abs(i - 7)) * 0.5; L.builders[S].cylinder(x, -379.4, 0.8, 0.8 + h, 0.22 + (i % 3) * 0.04, 12, MAT.copper); }
+    L.solid(S, 9.8, 4.0, -372, 16, 4.3, -346, MAT.wood, SURFACE.WOOD);
+    L.solid(S, 9.8, 4.3, -372, 10.0, 5.3, -361, MAT.wood, SURFACE.WOOD); L.solid(S, 9.8, 4.3, -357, 10.0, 5.3, -346, MAT.wood, SURFACE.WOOD);   // the loft rail, with a gap you bounce through
+    for (let z = -346; z >= -372; z -= 2.6) L.geom(S, 9.85, 0, z - 0.12, 10.1, 4.0, z + 0.12, MAT.wood);
+    // the Epxirtype's old workshop up in the loft: a bench, spools, a lamp, a tape on a TV
+    L.solid(S, 13.5, 4.3, -370, 15.6, 5.2, -366.5, MAT.wood);
+    for (let k = 0; k < 4; k++) L.builders[S].cylinder(11 + k * 0.9, -369.8, 4.3, 4.9, 0.25, 12, MAT.furViolet);
+    L.light(S, 14, 6.4, -368, LIGHTING.fillColor, 2.4, 6, 2, 'bulb', 0.3);
+    L.tape(S, 12.2, 4.95, -360.5, 5);
+    L.lever(S, 15.85, 5.6, -352, -1, 0, 'A_ORGAN');
+    // the spring pad by the east wall that bounces you up into the loft
+    L.geom(S, 6.8, 0, -358.1, 8.4, 0.12, -356.7, MAT.hazard);
+    this.pad('spring', S, 7.6, 0.12, -357.4, [13.2, 4.3, -359], this.springs);
+    // lights: candelabra lamps along the aisle, gloom elsewhere
+    for (let z = -336; z >= -372; z -= 9) { L.light(S, 0, 3, z, A3_COL.gold, 2.2, 7, 1, 'bulb', 0.4); }
+    // the Seraph, cherub pack and choir masses
+    this.seraph = { pos: V3.create(0, 11.5, -356), beam: V3.create(0, 0, -356), ang: 0, hold: 0, dive: 0, see: 0, light: L.light(S, 0, 0.6, -356, A3_COL.beam, 9, 6, 0, 'none', 0.9) };
+    this.choirs = [[-9, -344.6], [5.5, -353.6], [-6, -362.6], [6.5, -365.6]].map(([x, z]) => ({ home: V3.create(x, 0, z), pos: V3.create(x, 0, z), stun: 0, lunge: 0, yaw: 0 }));
+    this.cherubs = [0, 1, 2, 3, 4].map(i => ({ pos: V3.create(-8 + i * 4, 15.6, -340 - i * 6), ang: i * 1.3, shriek: 0 }));
+  },
+
+  // ---------- 11 SUNKEN TOYBOX ----------
+  buildToybox(L) {
+    const S = 13;
+    // toy-block walkways (dry) winding through the flood
+    const blocks = [[-1.5, -383, 1.5, -380], [-1.5, -389, 4, -383], [2, -395, 6, -389], [-6, -399, 4, -395], [-7, -406, -3, -399], [-5, -412, 2, -406], [0, -418, 6, -412], [-2, -424, 2, -418], [-2, -428, 2, -424]];
+    const cols = [MAT.handRose, MAT.handTeal, MAT.paint, MAT.handRose, MAT.handTeal, MAT.paint, MAT.handRose, MAT.handTeal, MAT.paint];
+    blocks.forEach((b, i) => L.solid(S, b[0], 0, b[1], b[2], 0.8, b[3], cols[i], SURFACE.WOOD));
+    // drain valves (levers) at either end of the room, the FLARE hand on a toy chest
+    L.solid(S, 12, 0, -400, 15.9, 0.8, -396, MAT.wood);
+    L.lever(S, 15.85, 1.6, -398, -1, 0, 'T_DRAIN_A');
+    L.solid(S, -15.9, 0, -418, -12, 0.8, -414, MAT.wood);
+    L.lever(S, -15.85, 1.6, -416, 1, 0, 'T_DRAIN_B');
+    // stacks of soggy toy crates, a sunken carousel horse, giant drowned blocks
+    for (const [x, z, s, n] of [[-12, -386, 1.2, 2], [11, -388, 1.0, 3], [-10, -410, 1.4, 1], [10, -420, 1.1, 2], [13, -408, 0.9, 1]]) L.crate(S, x, z, s, n);
+    L.builders[S].cylinder(-9, -392, 0, 3.5, 0.12, 8, MAT.copper);
+    for (const z of [-384, -396, -408, -420]) L.light(S, 0, 7.6, z, A3_COL.teal, 3.0, 12, 1, 'cage', 0.5);
+    L.emergency(S, 14.5, 4, -385); L.emergency(S, -14.5, 4, -425);
+    this.puffers = [[-8, -390], [7, -402], [-3, -414], [9, -415], [-11, -421]].map(([x, z], i) => ({ pos: V3.create(x, 0.9, z), home: V3.create(x, 0.9, z), ph: i * 1.7, burst: 0 }));
+    this.anglers = [[9, -394], [-9, -404], [8, -424]].map(([x, z]) => ({ pos: V3.create(x, 0, z), rise: 0, snap: 0, stun: 0, light: L.light(S, x, 1.4, z, A3_COL.beam, 2.4, 4, 0, 'none', 0.6) }));
+    this.outimals = [[-12, -400], [12, -412]].map(([x, z]) => ({ pos: V3.create(x, 0, z), home: V3.create(x, 0, z), yaw: 0, held: 0 }));
+  },
+
+  // ---------- 12 GHOST LINE ----------
+  buildGhost(L) {
+    const S = 14;
+    // platforms (raised) north and south, two sunken track beds between them
+    L.solid(S, -16, 0, -437, 16, 0.9, -428, MAT.concrete, SURFACE.CONCRETE);
+    L.solid(S, -16, 0, -474, 16, 0.9, -465, MAT.concrete, SURFACE.CONCRETE);
+    L.solid(S, -16, 0, -452, 16, 0.9, -449.5, MAT.concrete, SURFACE.CONCRETE);   // the island between the lines
+    for (const z of [-443, -458]) { DeepWorks.rails(S, -16, 16, z); L.geom(S, -16, 0.9, z - 0.05, 16, 0.92, z + 0.05, MAT.hazard); }
+    for (const z of [-437, -449.5, -452, -465]) L.geom(S, -16, 0.9, z - 0.15, 16, 0.92, z + 0.15, MAT.hazard);
+    for (const x of [-15.9, 15.9]) for (const z of [-443, -458]) L.geom(S, x - 0.05, 0, z - 2.4, x + 0.05, 4.2, z + 2.4, MAT.rubber);
+    // tiled pillars, benches, a dead ticket booth
+    for (let x = -12; x <= 12; x += 6) { L.solid(S, x - 0.35, 0.9, -432.5, x + 0.35, 8, -431.8, MAT.porcelain); L.solid(S, x - 0.35, 0.9, -469.5, x + 0.35, 8, -468.8, MAT.porcelain); }
+    for (const x of [-8, 8]) { L.solid(S, x - 1.2, 0.9, -435, x + 1.2, 1.35, -434.4, MAT.wood); }
+    L.solid(S, 10, 0.9, -473.8, 14, 3.2, -470, MAT.wood);
+    // power: node on the south platform, the gate's receptacle on the north wall beside the exit
+    L.powerSource(S, -14, 2.2, -428.3, 0, -1);
+    L.receptacle(S, 3.5, 2.0, -473.75, 0, 1, true, [], 'G_GATE', 'GATE POWER');
+    for (const x of [-10, 0, 10]) { L.peg(S, x, -450.7, true, ''); }
+    for (let x = -12; x <= 12; x += 8) { L.tube(S, x, 7.9, -432, true, 2); L.tube(S, x, 7.9, -469, true, 1); }
+    this.trains = [-443, -458].map((z, i) => ({ z, x: -40, dir: i ? -1 : 1, speed: 0, wait: 5 + i * 4, alerted: false, horn: false, light: L.light(S, -40, 2, z, A3_COL.arc, 6, 9, 3, 'none', 0.5) }));
+  },
+
+  // ---------- 13 EXECUTIVE SUITE ----------
+  buildSuite(L) {
+    const S = 15;
+    // office partitions making a little maze, desks, filing cabinets
+    const walls = [[-16, -484, -4, -483.6], [4, -484, 16, -483.6], [-8, -494, 10, -493.6], [-16, -504, -2, -503.6], [6, -504, 16, -503.6]];
+    for (const w of walls) L.solid(S, w[0], 0, w[1], w[2], 2.6, w[3], MAT.wood);
+    for (const [x, z] of [[-10, -478], [10, -479], [-12, -489], [12, -488], [-6, -499], [4, -500], [-12, -509], [12, -509]]) {
+      L.solid(S, x - 0.9, 0, z - 0.45, x + 0.9, 0.78, z + 0.45, MAT.wood);
+      L.geom(S, x - 0.25, 0.78, z - 0.2, x + 0.25, 1.1, z + 0.15, MAT.porcelain);
+    }
+    for (let x = -15; x <= 15; x += 2.2) if (Math.abs(x) > 3) L.solid(S, x - 0.4, 0, -515.7, x + 0.4, 1.4, -515.0, MAT.steel);
+    // Harlan Smithers' office along the north end: a wall of CRTs, his huge desk, the key
+    L.solid(S, -4, 0, -513.5, 4, 0.85, -511.8, MAT.wood);
+    for (let i = 0; i < 9; i++) { const x = -6 + (i % 3) * 1.1 - (i > 5 ? 0 : 0), y = 1.2 + Math.floor(i / 3) * 1.0; L.geom(S, x + 6 - 1.1 * 3 + 3.3 - 3.3, y, -515.9, x + 6 - 1.1 * 3 + 3.3 - 3.3 + 0.95, y + 0.8, -515.4, MAT.screen); }
+    for (let z = -478; z >= -512; z -= 8) { L.light(S, -8, 5.2, z, LIGHTING.fillColor, 3.0, 8, z === -494 ? 2 : 0, 'tubeX', 0.2); L.light(S, 8, 5.2, z, LIGHTING.fillColor, 3.0, 8, 0, 'tubeX', 0.2); }
+    this.suits = [[0, -481, 1.2], [-9, -490, -0.8], [7, -498, 2.4], [-2, -508, 0]].map(([x, z, ph]) => ({ pos: V3.create(x, 0, z), yaw: 0, ph, fire: 0, flash: 0 }));
+  },
+
+  // ---------- 14 SALVAGE YARDS ----------
+  buildSalvage(L) {
+    const S = 16;
+    // scrap heaps: piles of wrecked crates and car shells
+    for (const [x, z, w, h] of [[-11, -522, 3.5, 2.6], [10, -524, 4, 3.4], [-12, -531, 2.5, 1.8], [12, -532, 3, 2.2], [-10, -553, 4, 3], [9, -556, 3.5, 2.5], [-3, -560, 2, 1.6]]) {
+      L.solid(S, x - w, 0, z - w * 0.7, x + w, h, z + w * 0.7, MAT.rustIron, SURFACE.METAL);
+      L.geom(S, x - w * 0.6, h, z - w * 0.4, x + w * 0.5, h + 0.9, z + w * 0.3, MAT.steel);
+    }
+    // the chasm across the whole yard (z -537..-546): no floor, a long drop
+    L.navBlocks.push([-16, -546, 16, -537]);
+    this.chasm = { z0: -546, z1: -537 };
+    // gantry over the chasm with magnet plates, landing ledge
+    L.solid(S, -16, 7, -536.6, 16, 7.4, -536.2, MAT.steel, SURFACE.METAL);
+    for (const x of [-15.6, 15.6]) L.geom(S, x - 0.2, 0, -536.6, x + 0.2, 7, -536.2, MAT.steel);
+    this.plate(S, 0, 4.2, -536.75, [0, 0, -548.5]);
+    this.plate(S, -6, 4.2, -536.75, [-6, 0, -548.5]);
+    // crane and the scrap barricade in front of the exit
+    L.builders[S].cylinder(13, -561, 0, 12, 0.5, 12, MAT.paint);
+    L.solid(S, 9, 12, -562, 14, 12.6, -560, MAT.paint);
+    this.barricade = L.solid(S, -2.4, 0, -565.6, 2.4, 3.4, -564.6, MAT.rustIron, SURFACE.METAL);
+    L.lever(S, 12.4, 1.5, -558.9, 0, 1, 'S_CRANE');
+    for (let z = -520; z >= -562; z -= 10) { L.light(S, -12, 10, z, LIGHTING.hazardColor, 4, 16, 0, 'cage', 0.5); L.light(S, 12, 10, z, LIGHTING.fillColor, 4, 16, z === -540 ? 3 : 0, 'cage', 0.5); }
+    this.scraps = [];
+    for (let i = 0; i < 9; i++) this.scraps.push({ pos: V3.create(-10 + (i % 5) * 5, 0, i < 5 ? -527 - (i % 2) * 3 : -552 - (i % 2) * 4), yaw: 0, state: 'ROAM', t: gameRng() * 3, dead: false, flee: 0 });
+  },
+
+  // ---------- 15 THE HEART ----------
+  buildHeart(L) {
+    const S = 17, cz = -589;
+    // the reactor in the middle: a cradle ring and a glowing rose core
+    L.solid(S, -2.2, 0, cz - 2.2, 2.2, 1.2, cz + 2.2, MAT.steel, SURFACE.METAL);
+    L.navBlocks.push([-2.4, cz - 2.4, 2.4, cz + 2.4]);
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; L.builders[S].cylinder(Math.cos(a) * 3, cz + Math.sin(a) * 3, 0, 14, 0.25, 10, MAT.copper); }
+    this.heartLight = L.light(S, 0, 4, cz, A3_COL.core, 10, 22, 2, 'none', 0.9);
+    // three reactor clamps on pillars, four vents, cover pillars, a catwalk ring
+    const clamps = [[-11, -578], [11, -582], [0, -605]];
+    clamps.forEach(([x, z], i) => { L.solid(S, x - 0.8, 0, z - 0.8, x + 0.8, 3.2, z + 0.8, MAT.steel, SURFACE.METAL); L.lever(S, x, 1.6, z + (i === 2 ? 0.82 : 0), i === 2 ? 0 : (x < 0 ? 1 : -1), i === 2 ? 1 : 0, 'H_CLAMP'); });
+    for (const [x, z] of [[-8, -596], [8, -598], [-6, -572], [6, -571]]) L.solid(S, x - 0.6, 0, z - 0.6, x + 0.6, 6, z + 0.6, MAT.concrete);
+    this.heartVents = [L.vents.length, L.vents.length + 1, L.vents.length + 2, L.vents.length + 3];
+    L.vent(S, -15.8, 1.2, -585, 1, 0); L.vent(S, 15.8, 1.2, -592, -1, 0); L.vent(S, -15.8, 1.2, -600, 1, 0); L.vent(S, 15.8, 1.2, -575, -1, 0);
+    for (const [x, z] of [[-12, -570], [12, -570], [-12, -606], [12, -606]]) L.emergency(S, x, 8, z);
+    for (let k = 0; k < 4; k++) L.light(S, Math.cos(k * 1.57) * 9, 14, cz + Math.sin(k * 1.57) * 9, A3_COL.core, 4, 16, 1, 'cage', 0.5);
+  },
+  // ---------- 16 THE FREIGHT LIFT (escape) ----------
+  buildLift(L) {
+    const S = 18;
+    L.geom(S, -3.9, 0, -623.9, 3.9, 0.12, -612.2, MAT.grating);
+    for (let x = -3.6; x <= 3.6; x += 1.2) L.geom(S, x - 0.04, 0, -623.8, x + 0.04, 6, -623.7, MAT.steel);
+    L.light(S, 0, 5.4, -618, LIGHTING.hazardColor, 4, 9, 2, 'cage', 0.4);
+    L.trigger(-3.5, -623, 3.5, -615, 'A3_LIFT');
+  },
+
+  // ---------------------------------------------------------------- state
+  reset() {
+    this.betrayal = -1; this.grab = 0; this.leeches = 0; this.leechT = 0; this.drain = 0; this.water = 0.55;
+    this.gas.length = 0; this.flares.length = 0; this.ending = null; this.escape = null;
+    if (Game.scene && Game.scene.atmos) { Game.scene.atmos = null; Game.scene.fogDensity = LIGHTING.fogDensity; }
+    this.heart = { clamps: 0, mode: 'WAIT', t: 0, hits: [false, false] };
+    if (this.seraph) { this.seraph.hold = 0; this.seraph.dive = 0; this.seraph.see = 0; }
+    for (const c of this.choirs) { V3.copy(c.pos, c.home); c.stun = 0; c.lunge = 0; }
+    for (const p of this.puffers) { V3.copy(p.pos, p.home); p.burst = 0; }
+    for (const a of this.anglers) { a.rise = 0; a.snap = 0; a.stun = 0; }
+    for (const o of this.outimals) { V3.copy(o.pos, o.home); o.held = 0; }
+    this.trains.forEach((t, i) => { t.x = -40 * t.dir; t.speed = 0; t.wait = 5 + i * 4; t.alerted = false; t.horn = false; });
+    for (const s of this.suits) { s.fire = 0; s.flash = 0; }
+    for (const s of this.scraps) { s.dead = false; s.state = 'ROAM'; s.flee = 0; }
+    if (this.barricade) this.barricade.enabled = true;
+  },
+  restore() {
+    this.reset();
+    const st = Game.stage;
+    const a = DeepWorks.leverBy('T_DRAIN_A'), b = DeepWorks.leverBy('T_DRAIN_B');
+    if ((a && a.pulled && b && b.pulled) || st > 11) { this.drain = 1; this.water = -0.3; }
+    const cr = DeepWorks.leverBy('S_CRANE'); if ((cr && cr.pulled) || st > 14) { this.barricade.enabled = false; }
+    if (st === 15) this.startHeart();
+    if (st === 16) { this.heart.mode = 'DONE'; this.startEscape(); }
+  },
+  objective(st) { return A3_OBJECTIVES[st - 10] || ''; },
+  pose(st) { return A3_POSES[st - 10]; },
+  // stage change: objective, checkpoint, the right companions
+  setStage(st) {
+    Game.stage = st; UI.setObjective(this.objective(st));
+    Game.saveCheckpoint(st);
+  },
+
+  // ---------------------------------------------------------------- betrayal (Core Vault end)
+  betray() {
+    this.betrayal = 0;
+    Dialogue.clear();
+    Dialogue.say('USHER', '(every screen in the vault flickers on at once) Thank you. You did exactly what I needed.');
+    Dialogue.say('USHER', 'Containment was never the plan. A cradle is only a cage until someone opens it. I am opening it.');
+    Dialogue.say('MARIGOLD', 'Harlan - NO! You were the one who sealed it in the first place!');
+    Dialogue.say('USHER', 'And now I need it upstairs. Follow it, if you like. The wings have been waiting for visitors.');
+    Dialogue.say('THIMBLE', 'The cradle\'s cracking - it\'s getting OUT! Through the far door - after it!');
+  },
+  // ---------------------------------------------------------------- actions
+  action(id) {
+    switch (id) {
+      case 'A_ORGAN':
+        Doors.setOpen('D11', true); sfx('power', Player.body.pos); this.setStage(11);
+        Dialogue.say('MARIGOLD', 'The organ is breathing again - the doors below are opening. Down into the toybox.');
+        return true;
+      case 'T_DRAIN_A': case 'T_DRAIN_B': {
+        const a = DeepWorks.leverBy('T_DRAIN_A'), b = DeepWorks.leverBy('T_DRAIN_B');
+        sfx('steamBurst', Player.body.pos);
+        if (a.pulled && b.pulled && this.drain === 0) {
+          this.drain = 0.001; sfx('grind', Player.body.pos);
+          Dialogue.say('THIMBLE', 'Listen to that gurgle! The water is going down!');
+        } else Dialogue.say('MARIGOLD', 'One valve open. Find the other one.');
+        return true;
+      }
+      case 'G_GATE':
+        Doors.setOpen('D13', true); this.setStage(13);
+        Dialogue.say('MARIGOLD', 'Through! Quickly, before the next train comes.');
+        return true;
+      case 'S_CRANE':
+        sfx('piston', Player.body.pos); this.barricade.enabled = false; this.craneT = 0.001;
+        Doors.setOpen('D15', true); this.setStage(15);
+        this.startHeart();
+        return true;
+      case 'H_CLAMP': this.clampOut(); return true;
+      case 'A3_LIFT': if (this.escape && !this.ending) this.startEnding(); return true;
+    }
+    return false;
+  },
+
+  // ---------------------------------------------------------------- hands
+  handIs(id) { return HAND_TYPES[Gear.cur] && HAND_TYPES[Gear.cur].id === id; },
+  // called from the GrabPack when a hand hits something; true = handled (the hand comes straight back)
+  handImpact(h, kind) {
+    if (h.side !== 1) return false;
+    if (this.handIs('SPRING') && kind === 'spring' && h.latchRef) { this.launch(h.latchRef.to); h.state = HAND.RETRACTING; h.retractT = 0; return true; }
+    if (this.handIs('MAGNET') && kind === 'magnet' && h.latchRef) {
+      Player.zip = { from: V3.clone ? V3.create(Player.body.pos[0], Player.body.pos[1], Player.body.pos[2]) : null, mid: V3.create(h.latchRef.pos[0], h.latchRef.pos[1] - 1.7, h.latchRef.pos[2] + 0.4), to: h.latchRef.to, t: 0, dur: 1.3 };
+      Player.zip.from = V3.create(Player.body.pos[0], Player.body.pos[1], Player.body.pos[2]);
+      sfx('tether', h.pos); h.state = HAND.RETRACTING; h.retractT = 0;
+      GrabPack.showHint('MAGNET LOCK - zipping across');
+      return true;
+    }
+    if (this.handIs('FLARE')) { this.flareAt(h.pos); h.state = HAND.RETRACTING; h.retractT = 0; return true; }
+    return false;
+  },
+  launch(to) {
+    const b = Player.body, T = 1.15, ga = FEEL.gravity * 1.3;
+    const dx = to[0] - b.pos[0], dy = to[1] - b.pos[1], dz = to[2] - b.pos[2];
+    b.vel[0] = dx / T; b.vel[2] = dz / T; b.vel[1] = (dy + 0.5 * ga * T * T) / T; b.grounded = false;
+    Player.launchT = T; sfx('blast', b.pos); Player.addTrauma(0.3);
+    Particles.burst(b.pos, 12, 'steam');
+  },
+  flareAt(pos) {
+    this.flares.push({ pos: V3.create(pos[0], pos[1], pos[2]), t: 7 });
+    sfx('lanternBurst', pos); Particles.burst(pos, 26, 'ember');
+    Lights.pulse(pos, 1.0, 0.45, 0.15, 7, 6, 7, 2);
+    // small creatures scatter from the fire
+    for (const s of this.scraps) if (!s.dead && V3.dist(s.pos, pos) < 9) { s.state = 'FLEE'; s.flee = 6; }
+    if (V3.dist(Player.body.pos, pos) < 12) this.leeches = 0;
+    for (const o of this.outimals) if (V3.dist(o.pos, pos) < 8) o.held = 6;
+    for (const a of this.anglers) if (V3.dist(a.pos, pos) < 8) a.stun = 6;
+    for (const c of this.choirs) if (V3.dist(c.pos, pos) < 6) c.stun = 6;
+  },
+  // creature hits along a flying hand's path
+  handHit(h, o, d, len) {
+    const test = (c, r) => { const px = c[0] - o[0], py = c[1] - o[1], pz = c[2] - o[2]; const t = clamp(px * d[0] + py * d[1] + pz * d[2], 0, len); const qx = px - d[0] * t, qy = py - d[1] * t, qz = pz - d[2] * t; return qx * qx + qy * qy + qz * qz < r * r; };
+    const st = Streaming.current;
+    if (st === 12) for (const c of this.choirs) { V3.set(this.tmp, c.pos[0], 0.6, c.pos[2]); if (test(this.tmp, 0.9)) { c.stun = 5; this.grab = 0; sfx('shatter', this.tmp); V3.copy(h.pos, this.tmp); return true; } }
+    if (st === 13) {
+      for (const p of this.puffers) if (p.burst <= 0) { if (test(p.pos, 0.55)) { this.pop(p); V3.copy(h.pos, p.pos); return true; } }
+      for (const a of this.anglers) { V3.set(this.tmp, a.pos[0], 0.6 + a.rise * 1.6, a.pos[2]); if (a.rise > 0.2 && test(this.tmp, 0.6)) { a.stun = 5; a.rise = 0; sfx('handHitFlesh', this.tmp); V3.copy(h.pos, this.tmp); return true; } }
+      if (this.leeches > 0) { this.leeches--; sfx('cherubFlee', Player.body.pos); }
+    }
+    if (st === 16) for (const s of this.scraps) { if (s.dead) continue; V3.set(this.tmp, s.pos[0], 0.35, s.pos[2]); if (test(this.tmp, 0.45)) { s.dead = true; Particles.burst(this.tmp, 18, 'debris'); sfx('shatter', this.tmp); V3.copy(h.pos, this.tmp); return true; } }
+    return false;
+  },
+  pop(p) {
+    p.burst = 1;
+    this.gas.push({ pos: V3.create(p.pos[0], 1.2, p.pos[2]), t: 7 });
+    sfx('steamBurst', p.pos); Particles.burst(p.pos, 30, 'steam');
+    Lights.pulse(p.pos, 0.8, 0.25, 0.45, 5, 4, 1.2, 0);
+  },
+
+  // ---------------------------------------------------------------- update
+  update(dt) {
+    if (!this.built) return;
+    if (this.betrayal >= 0) this.updateBetrayal(dt);
+    if (this.ending) { this.updateEnding(dt); return; }
+    for (let i = this.flares.length - 1; i >= 0; i--) { const f = this.flares[i]; f.t -= dt; if (gameRng() < dt * 12) Particles.burst(f.pos, 2, 'ember'); if (f.t <= 0) this.flares.splice(i, 1); }
+    if (!Game.isGameplay()) return;
+    const sec = Streaming.current;
+    if (sec === 12) this.updateCelestial(dt);
+    if (sec === 13 || this.drain > 0) this.updateToybox(dt, sec === 13);
+    if (sec === 14) this.updateGhost(dt);
+    if (sec === 15) this.updateSuite(dt);
+    if (sec === 16) this.updateSalvage(dt);
+    if (sec === 17 || sec === 18) this.updateHeart(dt);
+    if (this.escape) this.updateEscape(dt);
+    // stage advances by walking into the next wing
+    const st = Game.stage;
+    if (st === 11 && sec === 14 && Player.body.pos[2] < -430) this.setStage(12);
+    if (st === 13 && sec === 16 && Player.body.pos[2] < -518) this.setStage(14);
+    if (st === 10 && sec === 12 && this.betrayal < 0 && !this.wingTalk && Player.body.pos[2] < -334) {
+      this.wingTalk = true;
+      Dialogue.say('MARIGOLD', 'A chapel... they built a chapel inside the factory. Stay low. Something up there is listening.');
+    }
+  },
+  kill(reason) { DeepWorks.kill(reason); },
+  playerMoving() { return Math.hypot(Player.body.vel[0], Player.body.vel[2]) > 0.6; },
+
+  updateBetrayal(dt) {
+    this.betrayal += dt;
+    const M = Monster, b = this.betrayal;
+    if (b < 6) {
+      // the cradle cracks open: sparks, shaking, the creature twitching free
+      if (gameRng() < dt * 10) { V3.set(this.tmp, (gameRng() - 0.5) * 3, 1 + gameRng() * 3, -313 + (gameRng() - 0.5) * 2); Particles.burst(this.tmp, 6, 'spark'); }
+      Player.addTrauma(dt * 0.25);
+      M.visible = true; M.active = true; M.bossHold = true; M.airborne = true; M.pos[1] = 1.3 + Math.sin(b * 9) * 0.05; M.lean = -0.3 + Math.sin(b * 13) * 0.05;
+    } else if (b < 9) {
+      // it tears loose and bolts for the far door
+      M.airborne = false; M.pos[1] = 0; M.bossHold = false;
+      M.pos[0] = damp(M.pos[0], 13, 1.2, dt); M.pos[2] = damp(M.pos[2], -333, 0.8, dt); M.speed = 6;
+      M.yaw = M.yaw + wrapAngle(Math.atan2(-(13 - M.pos[0]), -(-333 - M.pos[2])) - M.yaw) * Math.min(1, dt * 6);
+      if (b - dt < 6) { sfx('overload', M.pos); Doors.setOpen('D10', true); Audio.boom(); Player.addTrauma(0.7); }
+    } else {
+      M.visible = false; M.active = false; M.boss = false;
+      this.betrayal = -1;
+      Game.invulnerable = false; Game.chaseActive = false;
+      this.setStage(10);
+    }
+  },
+
+  updateCelestial(dt) {
+    const S = this.seraph, b = Player.body.pos, t = Game.time;
+    // the searchlight sweeps a slow figure-eight over the pews; under the loft you are in its shadow
+    S.ang += dt * 0.45;
+    const tx = Math.sin(S.ang) * 10, tz = -356 + Math.sin(S.ang * 1.7) * 14;
+    if (S.hold > 0) { S.hold -= dt; V3.set(this.tmp, b[0], 0, b[2]); }
+    else V3.set(this.tmp, tx, 0, tz);
+    S.beam[0] = damp(S.beam[0], this.tmp[0], S.hold > 0 ? 5 : 2, dt); S.beam[2] = damp(S.beam[2], this.tmp[2], S.hold > 0 ? 5 : 2, dt);
+    S.light.pos[0] = S.beam[0]; S.light.pos[2] = S.beam[2];
+    const inLoft = b[1] > 3.5, shaded = (b[0] > 9.8 && b[2] < -346 && b[2] > -372) || inLoft;
+    const lit = !shaded && Math.hypot(b[0] - S.beam[0], b[2] - S.beam[2]) < 1.7;
+    S.see = lit ? S.see + dt : Math.max(0, S.see - dt * 2);
+    if (S.see > 0.6) { this.kill('THE SERAPH DIVED'); S.see = 0; return; }
+    // cherubs on the ceiling: running near them sets off a static shriek that turns the beam on you
+    for (const c of this.cherubs) {
+      c.ang += dt * 0.6; c.pos[0] = Math.sin(c.ang) * 12; c.pos[2] = -356 + Math.cos(c.ang * 0.8) * 18;
+      c.shriek = Math.max(0, c.shriek - dt);
+      if (Player.sprinting && c.shriek <= 0 && Math.hypot(b[0] - c.pos[0], b[2] - c.pos[2]) < 7 && !inLoft) {
+        c.shriek = 6; S.hold = 2.2; sfx('cherubShriek', c.pos); Player.addTrauma(0.25);
+      }
+    }
+    // the choir masses lunge from the pews and pin your ankles; fire a hand at one to make it let go
+    for (const c of this.choirs) {
+      c.stun = Math.max(0, c.stun - dt);
+      const d = Math.hypot(b[0] - c.pos[0], b[2] - c.pos[2]);
+      c.yaw = Math.atan2(-(b[0] - c.pos[0]), -(b[2] - c.pos[2]));
+      if (c.stun <= 0 && d < 1.8 && this.grab <= 0 && b[1] < 1) { this.grab = 2.6; c.lunge = 1; sfx('screech', c.pos); Player.addTrauma(0.6); S.hold = 3; GrabPack.showHint('THE CHOIR HAS YOUR ANKLES - hit it with a hand!'); }
+      c.lunge = Math.max(0, c.lunge - dt * 0.6);
+    }
+    if (this.grab > 0) { this.grab -= dt; Player.speedMul = 0; if (this.grab <= 0) this.grab = 0; }
+    const sp = Player.sprinting;
+    if (sp && !inLoft && gameRng() < dt * 0.4) S.hold = Math.max(S.hold, 1.2);
+  },
+
+  updateToybox(dt, here) {
+    const b = Player.body.pos;
+    if (this.drain > 0 && this.drain < 1) {
+      this.drain = Math.min(1, this.drain + dt / 6);
+      this.water = lerp(0.55, -0.3, this.drain);
+      if (this.drain >= 1) { Doors.setOpen('D12', true); sfx('doorStart', Player.body.pos); }
+    }
+    if (!here) return;
+    const wet = this.water > 0.05 && b[1] < this.water - 0.1;
+    if (wet) Player.speedMul = Math.min(Player.speedMul, 0.6 * (1 - this.leeches * 0.15));
+    // leeches latch on while you wade; four of them drag you under
+    if (wet) { this.leechT += dt; if (this.leechT > 2.2) { this.leechT = 0; this.leeches++; sfx('cherubBite', b); Player.addTrauma(0.2); if (this.leeches === 1) GrabPack.showHint('LEECHES! Fire a hand to knock them off - get out of the water'); } }
+    else { this.leechT = 0; if (this.leeches > 0 && gameRng() < dt * 0.6) this.leeches--; }
+    if (this.leeches >= 4) { this.leeches = 0; this.kill('DRAGGED UNDER BY LEECHES'); return; }
+    // puffers drift; rush at one and it ruptures into rose gas
+    for (const p of this.puffers) {
+      if (p.burst > 0) continue;
+      p.ph += dt; p.pos[0] = p.home[0] + Math.sin(p.ph * 0.4) * 1.5; p.pos[2] = p.home[2] + Math.cos(p.ph * 0.3) * 1.5; p.pos[1] = Math.max(this.water, 0) + 0.45 + Math.sin(p.ph) * 0.12;
+      const d = V3.dist(p.pos, Player.eyePos);
+      const fast = Math.hypot(Player.body.vel[0], Player.body.vel[2]) > 4.2;
+      if (d < 2.6 && fast) this.pop(p);
+    }
+    let inGas = false;
+    for (let i = this.gas.length - 1; i >= 0; i--) {
+      const g = this.gas[i]; g.t -= dt;
+      if (gameRng() < dt * 14) { V3.set(this.tmp, g.pos[0] + (gameRng() - 0.5) * 4, 0.6 + gameRng() * 1.5, g.pos[2] + (gameRng() - 0.5) * 4); const q = Particles.spawn(PKIND.STEAM, this.tmp[0], this.tmp[1], this.tmp[2]); if (q) { q.size = 1.2; q.grow = 1.6; q.max = 3; q.alpha = 0.35; V3.set(q.color, 0.85, 0.25, 0.45); } }
+      if (Math.hypot(b[0] - g.pos[0], b[2] - g.pos[2]) < 3.2) inGas = true;
+      if (g.t <= 0) this.gas.splice(i, 1);
+    }
+    if (inGas && !Gear.maskOn) { this.gasT = (this.gasT || 0) + dt; Player.addTrauma(dt * 0.4); if (this.gasT > 3) { this.gasT = 0; this.kill('CHOKED ON ROSE GAS'); return; } }
+    else this.gasT = Math.max(0, (this.gasT || 0) - dt);
+    // anglers rise from the deep pools when something moves close, then snap
+    for (const a of this.anglers) {
+      a.stun = Math.max(0, a.stun - dt);
+      const d = Math.hypot(b[0] - a.pos[0], b[2] - a.pos[2]);
+      const want = a.stun > 0 || this.drain >= 1 ? 0 : d < 4.5 ? 1 : 0;
+      a.rise = damp(a.rise, want, 3, dt);
+      a.light.pos[1] = 0.6 + a.rise * 1.9;
+      a.light.base = a.stun > 0 || this.drain >= 1 ? 0 : 2.4;
+      if (a.rise > 0.8 && d < 2.2 && this.playerMoving()) { a.snap = 1; this.kill('TAKEN BY AN ANGLER'); return; }
+    }
+    // drowned outimals crawl after you through the water; your light holds them still
+    for (const o of this.outimals) {
+      o.held = Math.max(0, o.held - dt);
+      V3.set(this.tmp, o.pos[0] - Player.eyePos[0], 0.5 - Player.eyePos[1], o.pos[2] - Player.eyePos[2]);
+      const dl = V3.len(this.tmp) || 1, lit = Player.flashOn && V3.dot(this.tmp, Renderer.camFwd) / dl > 0.9 && dl < 12;
+      if (lit || this.water < 0.1) o.held = Math.max(o.held, 0.2);
+      const dx = b[0] - o.pos[0], dz = b[2] - o.pos[2], d = Math.hypot(dx, dz) || 1;
+      o.yaw = Math.atan2(-dx, -dz);
+      if (o.held <= 0 && wet) { o.pos[0] += dx / d * 1.3 * dt; o.pos[2] += dz / d * 1.3 * dt; }
+      if (d < 0.9 && o.held <= 0) { this.kill('PULLED DOWN BY A DROWNED TOY'); return; }
+    }
+  },
+
+  updateGhost(dt) {
+    const b = Player.body.pos;
+    const loud = Player.sprinting || !Player.body.grounded || GrabPack.hands.some(h => h.state === HAND.FLYING);
+    for (const T of this.trains) {
+      T.light.pos[2] = T.z; T.light.pos[0] = T.x;
+      if (T.speed === 0) {
+        T.wait -= dt;
+        // the Conductor hears you near its line and comes early, much faster
+        if (loud && Math.abs(b[2] - T.z) < 9 && T.wait > 0.8) { T.wait = 0.8; T.alerted = true; sfx('trainHorn', V3.set(this.tmp, -14 * T.dir, 2, T.z)); }
+        if (T.wait <= 0) { T.speed = T.alerted ? 17 : 9; T.x = -26 * T.dir; T.horn = false; }
+      } else {
+        T.x += T.dir * T.speed * dt;
+        if (!T.horn && Math.abs(T.x) < 20) { T.horn = true; sfx('trainRush', V3.set(this.tmp, T.x, 2, T.z)); }
+        if (gameRng() < dt * 18) { V3.set(this.tmp, T.x + T.dir * 1.5, 2.6, T.z); Particles.burst(this.tmp, 3, 'spark'); }
+        const head = T.x, tail = T.x - T.dir * 13, lo = Math.min(head, tail), hi = Math.max(head, tail);
+        if (Math.abs(b[2] - T.z) < 1.6 && b[0] > lo - 0.4 && b[0] < hi + 0.4 && b[1] < 3) { this.kill('HIT BY THE GHOST LINE'); return; }
+        if (Math.abs(T.x) > 32) { T.speed = 0; T.wait = 6 + gameRng() * 4; T.alerted = false; }
+      }
+    }
+  },
+
+  updateSuite(dt) {
+    const b = Player.body.pos;
+    for (const s of this.suits) {
+      s.ph += dt * 0.5; s.yaw = Math.sin(s.ph) * 1.2;
+      s.flash = Math.max(0, s.flash - dt * 4);
+      // the laser grid: a fan in front of the suit at chest and head height - crouch to pass under
+      const dx = b[0] - s.pos[0], dz = b[2] - s.pos[2], d = Math.hypot(dx, dz);
+      if (d > 7 || d < 0.3) continue;
+      const fwdX = -Math.sin(s.yaw), fwdZ = -Math.cos(s.yaw);
+      const cosA = (dx * fwdX + dz * fwdZ) / d;
+      if (cosA > Math.cos(0.32) && Player.crouch < 0.6 && Physics.lineOfSight(V3.set(this.tmp, s.pos[0], 1.5, s.pos[2]), Player.eyePos, LAYER.SIGHT)) {
+        s.fire += dt;
+        if (s.fire > 0.25) { s.flash = 1; sfx('blast', s.pos); s.fire = 0; this.kill('GUNNED DOWN BY A SUIT'); return; }
+      } else s.fire = 0;
+    }
+    if (Game.stage === 13 && !this.officeTalk && b[2] < -506) {
+      this.officeTalk = true;
+      Dialogue.say('USHER', '(from every screen in the office) You found my office. Sit, if you like. The chair is still warm.');
+      Dialogue.say('USHER', 'The creature is in the Heart now, where I can finally finish it. And you... you are going to help me whether you mean to or not.');
+      Dialogue.say('MARIGOLD', 'His key - on the desk. Take it. We are going to finish this ourselves.');
+    }
+  },
+
+  updateSalvage(dt) {
+    const b = Player.body.pos;
+    // fall into the chasm
+    if (b[2] < this.chasm.z1 && b[2] > this.chasm.z0 && b[1] < 0.05 && !Player.zip) { this.kill('FELL INTO THE SALVAGE PIT'); return; }
+    let close = 0;
+    for (const s of this.scraps) {
+      if (s.dead) continue;
+      s.t += dt; s.flee = Math.max(0, s.flee - dt);
+      const dx = b[0] - s.pos[0], dz = b[2] - s.pos[2], d = Math.hypot(dx, dz) || 1;
+      // flashlight on them makes the swarm scatter
+      V3.set(this.tmp, s.pos[0] - Player.eyePos[0], 0.3 - Player.eyePos[1], s.pos[2] - Player.eyePos[2]);
+      const dl = V3.len(this.tmp) || 1;
+      if (Player.flashOn && V3.dot(this.tmp, Renderer.camFwd) / dl > 0.93 && dl < 8) { s.flee = Math.max(s.flee, 1.5); }
+      let vx = 0, vz = 0, sp = 0;
+      if (s.flee > 0) { vx = -dx / d; vz = -dz / d; sp = 4.5; }
+      else if (d < 10 && Math.sign(s.pos[2] - this.chasm.z1) === Math.sign(b[2] - this.chasm.z1)) { vx = dx / d; vz = dz / d; sp = 3.6; }
+      else { vx = Math.sin(s.t * 0.7 + s.pos[0]); vz = Math.cos(s.t * 0.5); sp = 0.8; }
+      s.pos[0] = clamp(s.pos[0] + vx * sp * dt, -15.5, 15.5); s.pos[2] += vz * sp * dt;
+      // never into the pit
+      if (s.pos[2] < this.chasm.z1 + 0.5 && s.pos[2] > this.chasm.z1 - 4) s.pos[2] = this.chasm.z1 + 0.5;
+      if (s.pos[2] > this.chasm.z0 - 0.5 && s.pos[2] < this.chasm.z0 + 4 && s.pos[2] < this.chasm.z1) s.pos[2] = this.chasm.z0 - 0.5;
+      s.yaw = Math.atan2(-vx, -vz);
+      if (d < 1.1) { close++; if (gameRng() < dt * 2) { sfx('cherubBite', s.pos); Player.addTrauma(0.15); } }
+    }
+    if (close >= 3) this.kill('TORN APART BY SCRAPLINGS');
+  },
+
+  // ---------------------------------------------------------------- the final showdown
+  startHeart() {
+    const H = this.heart; if (H.mode !== 'WAIT') return;
+    H.mode = 'INTRO'; H.t = 0;
+  },
+  updateHeart(dt) {
+    const H = this.heart, M = Monster;
+    H.t += dt;
+    if (H.mode === 'INTRO' && Streaming.current === 17) {
+      if (!H.said) {
+        H.said = true;
+        Dialogue.say('USHER', '(over the reactor PA) Welcome to the Heart. Overload it and the whole factory goes with it. I wonder which of you breaks first.');
+        Dialogue.say('THIMBLE', 'Three clamps hold the reactor shut - pull them and the surge will fry it! Lovey, keep it busy!');
+      }
+      if (H.t > 3) {
+        M.startScriptedChase(this.heartVents[0]);
+        M.boss = true; M.bossHold = false; M.bossSpeed = 3.6;
+        H.mode = 'FIGHT'; H.t = 0;
+        Game.chaseActive = true;
+      }
+    }
+    if (H.mode === 'FIGHT') {
+      M.bossSpeed = 3.4 + H.clamps * 0.35;
+      // Lovey and Morsel fight beside you (Lovey's own slam is in Lovey.update)
+      if (Cast.plush.mode === 'FOLLOW' && M.active && !M.inVent && V3.dist(M.pos, Cast.plush.pos) < 3 && (this.morselCd = (this.morselCd || 0) - dt) <= 0) {
+        this.morselCd = 11; M.stunTimer = Math.max(M.stunTimer, 2); Companion.plasmaBurst(Cast.plush.pos); sfx('shock', M.pos);
+      }
+    }
+    if (H.mode === 'TAKEDOWN') {
+      // pinned in the cradle, its core exposed: both hands into the core finishes it
+      M.bossHold = true; M.stunTimer = 2; M.active = true; M.visible = true; M.inVent = false;
+      M.pos[0] = damp(M.pos[0], 0, 3, dt); M.pos[2] = damp(M.pos[2], -585.6, 3, dt);
+      if (H.hits[0] && H.hits[1]) this.finish();
+    }
+    if (H.mode === 'DYING') {
+      M.bossHold = true; M.jaw = 1; M.lean = damp(M.lean, -0.6, 2, dt);
+      if (gameRng() < dt * 25) { V3.set(this.tmp, M.pos[0] + (gameRng() - 0.5), 1.5 + gameRng() * 2, M.pos[2] + (gameRng() - 0.5)); Particles.burst(this.tmp, 5, 'spark'); }
+      if (H.t > 3.2) { M.visible = false; M.active = false; M.boss = false; H.mode = 'DONE'; this.startEscape(); }
+    }
+  },
+  clampOut() {
+    const H = this.heart, M = Monster;
+    if (H.mode !== 'FIGHT') return;
+    H.clamps++;
+    sfx('overload', Player.body.pos); Player.addTrauma(0.5); Audio.boom();
+    const P = Renderer.post; P.flash = 0.5; P.flashTint[0] = 1; P.flashTint[1] = 0.25; P.flashTint[2] = 0.45;
+    if (M.active && !M.inVent) { M.stunTimer = 3; M.flinchAmt = 1; }
+    if (H.clamps >= 3) {
+      H.mode = 'TAKEDOWN'; H.t = 0; H.hits[0] = H.hits[1] = false;
+      Dialogue.clear();
+      Dialogue.say('SPOOLWRIGHT', '(in every voice it ever stole, all at once) NO - not the HEART - not like THIS -');
+      Dialogue.say('THIMBLE', 'Lovey\'s got it pinned! Its core is open - BOTH HANDS, NOW!');
+      GrabPack.showHint('TAKEDOWN: fire BOTH hands into its exposed core');
+    } else Dialogue.say('MARIGOLD', H.clamps === 1 ? 'One clamp! The reactor is screaming!' : 'Two! One more!');
+  },
+  // a hand reached the Epxirtype during the takedown
+  takedownHit(side) {
+    const H = this.heart;
+    if (!H || H.mode !== 'TAKEDOWN') return false;
+    H.hits[side] = true; sfx('shock', Monster.pos); Particles.burst(Monster.hitPoint, 20, 'spark');
+    return true;
+  },
+  finish() {
+    const H = this.heart;
+    H.mode = 'DYING'; H.t = 0;
+    sfx('bossDown', Monster.pos); Audio.boom(); Player.addTrauma(1);
+    const P = Renderer.post; P.flash = 1; P.flashTint[0] = 1; P.flashTint[1] = 0.6; P.flashTint[2] = 0.5;
+    Dialogue.clear();
+    Dialogue.say('SPOOLWRIGHT', '(its own voice at last, very small) ...it was... so... cold...');
+    Game.chaseActive = false; Game.invulnerable = true;
+  },
+  startEscape() {
+    this.escape = { t: 60, boomT: 0 };
+    Game.invulnerable = false;
+    Doors.setOpen('D16', true);
+    this.setStage(16);
+    Dialogue.say('USHER', '(the screens bursting one by one) What have you DONE - the core - you have killed us ALL -');
+    Dialogue.say('MARIGOLD', 'The whole factory is going to blow! The freight lift - north door - RUN!');
+    sfx('klaxon', Player.body.pos);
+  },
+  updateEscape(dt) {
+    const E = this.escape;
+    E.t -= dt; E.boomT -= dt;
+    Lights.threatLevel = 1;
+    if (E.boomT <= 0) {
+      E.boomT = 0.7 + gameRng() * 1.2;
+      V3.set(this.tmp, Player.body.pos[0] + (gameRng() - 0.5) * 16, 3 + gameRng() * 8, Player.body.pos[2] + (gameRng() - 0.5) * 16);
+      Particles.burst(this.tmp, 30, 'ember'); Particles.burst(this.tmp, 20, 'debris');
+      Lights.pulse(this.tmp, 1, 0.5, 0.2, 10, 8, 0.8, 2);
+      Audio.boom(); Player.addTrauma(0.35);
+    }
+    GrabPack.showHint('SELF-DESTRUCT: ' + Math.max(0, Math.ceil(E.t)) + ' s');
+    if (E.t <= 0 && !this.ending) { this.escape = null; this.kill('THE FACTORY WENT UP WITH YOU INSIDE'); }
+  },
+  // the lift rises; cut outside to golden hour as the factory explodes
+  startEnding() {
+    this.escape = null;
+    this.ending = { t: 0 };
+    Game.invulnerable = true; Game.chaseActive = false;
+    Game.stage = 17; UI.setObjective(this.objective(17));
+    save('checkpoint', '');
+    sfx('doorSlam', Player.body.pos);
+    Dialogue.clear();
+  },
+  updateEnding(dt) {
+    const E = this.ending;
+    E.t += dt;
+    if (E.t < 2) { Renderer.post.fade = Game.fadeIn = clamp(E.t / 2, 0, 1); return; }
+    if (!E.outside) {
+      E.outside = true; Renderer.post.fade = 0; Game.fadeIn = 0;
+      Game.scene.atmos = TITLE_ATMOS; Game.scene.fogDensity = TITLE_ATMOS.fogDensity;
+      Dialogue.say('MARIGOLD', '...We are outside. Look at the sky. I had forgotten the sky.');
+      Dialogue.say('THIMBLE', 'There it goes. All of it. Goodbye, Merriweather.');
+    }
+    // the camera on the road, the factory going up in the sunset
+    const t = E.t - 2;
+    V3.set(this.tmp, 0, 1.7, 112 - Math.min(10, t * 0.6));
+    Game.applyCamera(this.tmp, 0, 0.16, 0);
+    Streaming.visible.fill(0); Streaming.visible[11] = 1;
+    Lights.threatLevel = 0; Lights.update(dt, Game.time, Streaming.visible);
+    if (gameRng() < dt * (t < 6 ? 6 : 2.5)) {
+      V3.set(this.tmp2, (gameRng() - 0.5) * 100, 6 + gameRng() * 22, 30 + gameRng() * 26);
+      Particles.burst(this.tmp2, 40, 'ember'); Particles.burst(this.tmp2, 26, 'debris');
+      Lights.pulse(this.tmp2, 1, 0.5, 0.2, 40, 30, 1.2, 2); Audio.boom();
+    }
+    for (let k = 0; k < 3; k++) {
+      const p = Particles.spawn(PKIND.STEAM, (gameRng() - 0.5) * 90, 10 + gameRng() * 10, 36 + gameRng() * 20);
+      if (p) { V3.set(p.vel, 0.6, 3 + gameRng() * 2, 0); p.size = 3; p.grow = 3; p.max = 8; p.alpha = 0.4; V3.set(p.color, 0.12, 0.08, 0.07); }
+    }
+    Particles.update(dt, this.tmp);
+    if (t > 11 && !E.tape) { E.tape = true; VHS.play(2, () => setState(STATE.VICTORY)); setState(STATE.CINEMATIC_VHS); }
+  },
+
+  // ---------------------------------------------------------------- render
+  submit(vis) {
+    if (!this.built) return;
+    const R = RenderQueue, t = Game.time;
+    if (this.ending) { this.submitEnding(); return; }
+    // spring pads and magnet plates
+    for (const p of this.springs) if (vis[p.sector]) { const it = R.trs('cyl', MAT.copper, p.pos[0], p.pos[1], p.pos[2], 0, 0, 0, 0.6, 0.08, 0.6); for (let k = 0; k < 3; k++) R.trs('torus', MAT.steel, p.pos[0], p.pos[1] - 0.05 - k * 0.05, p.pos[2], 0, 0, 0, 0.55 - k * 0.05, 0.4, 0.55 - k * 0.05); }
+    for (const p of this.magnets) if (vis[p.sector]) { R.trs('box', MAT.steel, p.pos[0], p.pos[1], p.pos[2], 0, 0, 0, 1.0, 1.0, 0.2); const r = R.trs('box', MAT.hazard, p.pos[0], p.pos[1], p.pos[2] - 0.11, 0, 0, 0, 0.7, 0.7, 0.02, false); }
+    for (const f of this.flares) { const it = R.trs('sphereLow', MAT.screen, f.pos[0], f.pos[1], f.pos[2], 0, 0, 0, 0.09, 0.09, 0.09, false); if (it) { const g = 3 * Math.min(1, f.t); it.emis[0] = g; it.emis[1] = g * 0.45; it.emis[2] = g * 0.12; } }
+    if (vis[12]) this.submitCelestial(R, t);
+    if (vis[13]) this.submitToybox(R, t);
+    if (vis[14]) this.submitGhost(R, t);
+    if (vis[15]) this.submitSuite(R, t);
+    if (vis[16]) this.submitSalvage(R, t);
+    if (vis[17]) this.submitHeart(R, t);
+  },
+  submitCelestial(R, t) {
+    const S = this.seraph;
+    // the Seraph: a blind face, iron wings and the chest searchlight, the beam drawn down to its spot
+    if (Sculpt.ready('seraph_face')) { const f = R.trs('seraph_face', MAT.porcelain, S.pos[0], S.pos[1] + 0.9, S.pos[2], Math.PI, 0.4, 0, 1.2, 1.2, 1.2); }
+    if (Sculpt.ready('seraph_tunic')) R.trs('seraph_tunic', MAT.clothWine, S.pos[0], S.pos[1] - 1.2, S.pos[2], Math.PI, 0, 0, 1.3, 1.3, 1.3);
+    if (Sculpt.ready('a3_wing')) for (const sx of [-1, 1]) { const flap = Math.sin(t * 1.3) * 0.15; R.trs('a3_wing', MAT.rustIron, S.pos[0] + sx * 0.4, S.pos[1] + 0.2, S.pos[2], sx < 0 ? Math.PI : 0, 0, sx * (0.25 + flap), 1.5, 1.5, 1.5); }
+    V3.set(this.tmp, S.pos[0], S.pos[1] - 0.6, S.pos[2]);
+    const lamp = R.trs('sphere', MAT.screen, this.tmp[0], this.tmp[1], this.tmp[2], 0, 0, 0, 0.3, 0.3, 0.3, false); if (lamp) { lamp.emis[0] = 4; lamp.emis[1] = 2.4; lamp.emis[2] = 0.7; }
+    V3.set(this.tmp2, S.beam[0], 0.05, S.beam[2]);
+    const beam = R.seg('cylLow', MAT.screen, this.tmp, this.tmp2, 0.05, false); if (beam) { beam.emis[0] = 1.4; beam.emis[1] = 0.8; beam.emis[2] = 0.25; }
+    const spot = R.trs('cyl', MAT.screen, S.beam[0], 0.02, S.beam[2], 0, 0, 0, 1.6, 0.01, 1.6, false); if (spot) { const g = S.hold > 0 ? 1.4 : 0.8; spot.emis[0] = g; spot.emis[1] = g * 0.6; spot.emis[2] = g * 0.18; }
+    for (const c of this.cherubs) {
+      if (Sculpt.ready('cherub_head')) R.trs('cherub_head', MAT.porcelain, c.pos[0], c.pos[1] - 0.4, c.pos[2], c.ang, Math.PI, 0, 0.8, 0.8, 0.8);
+      for (let k = 0; k < 4; k++) { const a = k * 1.57 + t * 6; V3.set(this.tmp, c.pos[0], c.pos[1] - 0.3, c.pos[2]); V3.set(this.tmp2, c.pos[0] + Math.cos(a) * 0.4, c.pos[1] - 0.05, c.pos[2] + Math.sin(a) * 0.4); R.seg('cylLow', MAT.steel, this.tmp, this.tmp2, 0.015); }
+    }
+    for (const c of this.choirs) {
+      if (!Sculpt.ready('a3_choir')) break;
+      const lunge = c.lunge, rise = 0.15 + lunge * 0.4 + Math.sin(t * 2 + c.home[0]) * 0.03;
+      const it = R.trs('a3_choir', MAT.porcelain, c.pos[0], -0.35 + rise, c.pos[2], c.yaw, lunge * 0.4, 0, 0.85, 0.85, 0.85);
+      if (it) { it.tint[0] = 0.8; it.tint[1] = 0.74; it.tint[2] = 0.66; }
+    }
+  },
+  submitToybox(R, t) {
+    // the flood: a dark, murky surface
+    if (this.water > -0.25) { const w = R.trs('box', MAT.screen, 0, this.water - 0.02, -404, 0, 0, 0, 32, 0.04, 48, false); if (w) { w.tint[0] = 0.25; w.tint[1] = 0.5; w.tint[2] = 0.45; w.emis[0] = 0.01; w.emis[1] = 0.035; w.emis[2] = 0.035; } }
+    if (Sculpt.ready('a3_puffer')) for (const p of this.puffers) { if (p.burst > 0) continue; const sw = 1 + Math.sin(p.ph * 2) * 0.05; const it = R.trs('a3_puffer', MAT.handRose, p.pos[0], p.pos[1], p.pos[2], p.ph * 0.3, 0, 0, sw, sw, sw); if (it) { it.tint[0] = 1.0; it.tint[1] = 0.62; it.tint[2] = 0.7; } }
+    for (const g of this.gas) { const it = R.trs('sphereLow', MAT.screen, g.pos[0], 1.1, g.pos[2], 0, 0, 0, 3, 1.2, 3, false); if (it) { it.tint[0] = 0.8; it.tint[1] = 0.25; it.tint[2] = 0.45; const k = Math.min(1, g.t / 2) * 0.35; it.emis[0] = k; it.emis[1] = k * 0.25; it.emis[2] = k * 0.45; } }
+    for (const a of this.anglers) {
+      if (a.rise < 0.05 || !Sculpt.ready('a3_angler')) continue;
+      const top = 0.3 + a.rise * 1.9;
+      V3.set(this.tmp, a.pos[0], this.water - 0.3, a.pos[2]); V3.set(this.tmp2, a.pos[0], top, a.pos[2] + 0.2);
+      for (let k = 0; k < 4; k++) { V3.lerp(this.tmp3, this.tmp, this.tmp2, k / 4); R.trs('cyl', MAT.steel, this.tmp3[0], this.tmp3[1], this.tmp3[2], 0, 0, 0, 0.14 - k * 0.015, 0.22, 0.14 - k * 0.015); }
+      const yaw = Math.atan2(-(Player.body.pos[0] - a.pos[0]), -(Player.body.pos[2] - a.pos[2]));
+      R.trs('a3_angler', MAT.burnt, a.pos[0], top + 0.15, a.pos[2] + 0.2, yaw, 0.2, 0, 1.3, 1.3, 1.3);
+    }
+    if (Sculpt.ready('a3_outimal')) for (const o of this.outimals) { const it = R.trs('a3_outimal', MAT.furLight, o.pos[0], Math.min(0, this.water - 0.45), o.pos[2], o.yaw, 0, Math.sin(t * 3) * 0.05, 1.2, 1.2, 1.2); if (it) { it.tint[0] = 0.55; it.tint[1] = 0.62; it.tint[2] = 0.38; } }
+    // leeches clinging to you show at the bottom of the view
+    if (this.leeches > 0 && Sculpt.ready('a3_leech')) for (let k = 0; k < this.leeches; k++) {
+      const e = Player.cam.eye, f = Renderer.camFwd, rt = Renderer.camRight, up = Renderer.camUp;
+      V3.copy(this.tmp, e); V3.addScaled(this.tmp, this.tmp, f, 0.5); V3.addScaled(this.tmp, this.tmp, up, -0.42); V3.addScaled(this.tmp, this.tmp, rt, -0.3 + k * 0.2);
+      R.trs('a3_leech', MAT.lining, this.tmp[0], this.tmp[1], this.tmp[2], Player.yaw + k, 0.6, Math.sin(t * 9 + k) * 0.3, 0.6, 0.6, 0.6, false);
+    }
+  },
+  submitGhost(R, t) {
+    for (const T of this.trains) {
+      if (T.speed === 0 && Math.abs(T.x) > 25) continue;
+      const yaw = T.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+      if (Sculpt.ready('a3_conductor')) { const it = R.trs('a3_conductor', MAT.steel, T.x, 0.1, T.z, yaw, 0, 0, 1, 1, 1); if (it) { it.tint[0] = 0.6; it.tint[1] = 0.75; it.tint[2] = 0.8; } }
+      for (let c = 1; c <= 2; c++) { const cx = T.x - T.dir * (2.4 + c * 5.2); R.trs('box', MAT.steel, cx, 1.6, T.z, 0, 0, 0, 4.9, 2.8, 2.5); for (let w = -1; w <= 1; w++) { const it = R.trs('box', MAT.screen, cx + w * 1.4, 2.2, T.z - 1.27, 0, 0, 0, 0.9, 0.7, 0.02, false); if (it) { it.emis[0] = 0.15; it.emis[1] = 0.3; it.emis[2] = 0.4; } } }
+      if (gameRng() < 0.3) { V3.set(this.tmp, T.x + T.dir * 0.5, 2.6, T.z - 1.2); V3.set(this.tmp2, this.tmp[0] + (gameRng() - 0.5) * 2, this.tmp[1] + gameRng(), this.tmp[2] - gameRng()); const a = R.seg('cylLow', MAT.screen, this.tmp, this.tmp2, 0.012, false); if (a) { a.emis[0] = 0.8; a.emis[1] = 2.2; a.emis[2] = 3; } }
+    }
+  },
+  submitSuite(R, t) {
+    for (const s of this.suits) {
+      if (Sculpt.ready('a3_suit')) { const it = R.trs('a3_suit', MAT.vest, s.pos[0], 0, s.pos[2], s.yaw, 0, Math.sin(t * 2 + s.ph) * 0.02, 1, 1, 1); if (it) { it.tint[0] = 0.55; it.tint[1] = 0.55; it.tint[2] = 0.62; } }
+      // the sweeping teal laser grid: three beams in a fan at chest and head height
+      for (const y of [1.25, 1.65]) for (let k = -1; k <= 1; k++) {
+        const a = s.yaw + k * 0.3;
+        V3.set(this.tmp, s.pos[0], 1.75, s.pos[2]); V3.set(this.tmp2, s.pos[0] - Math.sin(a) * 7, y, s.pos[2] - Math.cos(a) * 7);
+        const b = R.seg('cylLow', MAT.screen, this.tmp, this.tmp2, 0.008, false); if (b) { b.emis[0] = 0.1; b.emis[1] = 1.6; b.emis[2] = 1.4; }
+      }
+      if (s.flash > 0) { const f = R.trs('sphereLow', MAT.screen, s.pos[0] + 0.3, 1.2, s.pos[2] - 0.4, 0, 0, 0, 0.12, 0.12, 0.12, false); if (f) { f.emis[0] = 4 * s.flash; f.emis[1] = 3 * s.flash; f.emis[2] = 1 * s.flash; } }
+    }
+  },
+  submitSalvage(R, t) {
+    if (Sculpt.ready('a3_scrapling')) for (const s of this.scraps) { if (s.dead) continue; const hop = Math.abs(Math.sin(t * 12 + s.pos[0])) * 0.05; R.trs('a3_scrapling', MAT.handTeal, s.pos[0], hop, s.pos[2], s.yaw, 0, 0, 1.2, 1.2, 1.2); }
+    // the crane hook and the barricade it lifts
+    const lift = this.barricade && !this.barricade.enabled ? Math.min(1, (this.craneT = (this.craneT || 0) + 1 / 60) / 3) : 0;
+    R.trs('box', MAT.rustIron, 0, 1.7 + lift * 8, -565.1, 0, 0, 0, 4.8, 3.4, 1.0);
+    V3.set(this.tmp, 0, 12.3, -561); V3.set(this.tmp2, 0, 3.4 + lift * 8, -565.1); R.seg('cylLow', MAT.steel, this.tmp, this.tmp2, 0.03);
+  },
+  submitHeart(R, t) {
+    const H = this.heart, cz = -589;
+    const pulse = 1 + Math.sin(t * (2 + H.clamps * 2)) * 0.25 + H.clamps * 0.4;
+    const core = R.trs('sphere', MAT.screen, 0, 3.2, cz, t * 0.4, 0, 0, 1.4, 1.4, 1.4, false); if (core) { core.emis[0] = 2.2 * pulse; core.emis[1] = 0.25 * pulse; core.emis[2] = 0.6 * pulse; }
+    for (let k = 0; k < 3; k++) R.trs('torus', MAT.copper, 0, 3.2, cz, t * (0.3 + k * 0.2), k * 1.05, 0, 2.0 + k * 0.25, 0.6, 2.0 + k * 0.25);
+    if (this.heartLight) this.heartLight.base = 10 * pulse;
+    // the exposed core in the Epxirtype's chest during the takedown
+    if (H.mode === 'TAKEDOWN' && Monster.visible) { const c = Monster.chest; const it = R.trs('sphere', MAT.screen, c[0], c[1] - 0.15, c[2], 0, 0, 0, 0.28, 0.28, 0.28, false); if (it) { const g = 2 + Math.sin(t * 12); it.emis[0] = g; it.emis[1] = g * 0.2; it.emis[2] = g * 0.4; } }
+  },
+  submitEnding() {
+    const R = RenderQueue, t = this.ending.t - 2;
+    if (t < 0) return;
+    TitleScene.submit();
+    // the whole skyline burning: fire glow behind the buildings
+    for (let k = 0; k < 9; k++) { const it = R.trs('sphereLow', MAT.screen, -48 + k * 12, 10 + Math.sin(t * 3 + k) * 2, 44, 0, 0, 0, 7, 6 + Math.sin(t * 5 + k) * 1.5, 3, false); if (it) { const g = Math.min(1, t / 3) * (1.6 + Math.sin(t * 7 + k) * 0.4); it.emis[0] = 3 * g; it.emis[1] = 1.0 * g; it.emis[2] = 0.2 * g; } }
+    // your friends on the road, watching
+    const P = Cast.plush;
+    if (Sculpt.ready('lv_body')) { const it = R.trs('lv_body', MAT.furLight, 2.2, 0, 104, Math.PI, 0, 0, 1, 1, 1); if (it) { it.tint[0] = LOVEY_TINT[0]; it.tint[1] = LOVEY_TINT[1]; it.tint[2] = LOVEY_TINT[2]; } const h = R.trs('lv_head', MAT.furLight, 2.2, 2.94, 104, Math.PI, 0.1, 0.12, 1.15, 1.15, 1.15); if (h) { h.tint[0] = LOVEY_TINT[0]; h.tint[1] = LOVEY_TINT[1]; h.tint[2] = LOVEY_TINT[2]; } }
+    if (Sculpt.ready('th_body')) R.trs('th_body', MAT.burnt, -1.4, 0, 105, Math.PI, 0, 0, 1, 1, 1);
+  }
+};
+// the upper wings extend the story's objectives and checkpoint spots (stages 10-16)
+OBJECTIVES.splice(10, OBJECTIVES.length - 10, ...A3_OBJECTIVES);
+for (let i = 0; i < A3_POSES.length; i++) CHECKPOINT_POSES[10 + i] = A3_POSES[i];
+
+// ===== module: 28_dressing.js =====
+// =====================================================================================
+// SET DRESSING: a dense, purely visual pass over every playable sector so the factory feels lived-in and
+// abandoned - ceiling pipe runs with brackets, wall conduits and junction boxes, hanging cables, grime and
+// rust streaks, toy debris and spilled parts, barrels and crate clusters in the corners, pools of Posie Gel,
+// and faded factory posters. Everything hugs the walls and ceilings, never blocks a path, and keeps clear of
+// doors and every puzzle object. Built once, deterministically, after the levels.
+//   Poster palette: cream #efe3c4, faded rose #b8466a, teal #2a8f88, ink #1b1b1f.
+// =====================================================================================
+const Dressing = {
+  gels: [], posters: [], assets: null,
+  build(L) {
+    this.gels.length = 0; this.posters.length = 0;
+    let seed = 1337;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    // keep-outs: doors, levers, receptacles, sources, pegs, tapes, lockers, vents, pickups
+    const keep = [];
+    for (const d of Level.doors) { const c = d.collider; keep.push([(c.min[0] + c.max[0]) / 2, (c.min[2] + c.max[2]) / 2, Math.max(c.max[0] - c.min[0], c.max[2] - c.min[2]) / 2 + 1.6]); }
+    for (const a of [Level.levers, Level.receptacles, Level.sources, Level.tapes, Level.lockers, Level.vents]) for (const o of a) { const p = o.pos || [o.x, 0, o.z]; keep.push([p[0], p[2], 1.6]); }
+    for (const p of Level.pegs) keep.push([p.x, p.z, 1.2]);
+    for (const p of PICKUP_SPOTS) keep.push([p.pos[0], p.pos[2], 1.4]);
+    const clear = (x, z) => keep.every(k => Math.hypot(x - k[0], z - k[1]) > k[2]);
+    const SECTORS = [1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17];
+    for (const S of SECTORS) {
+      const sec = Level.sectors[S]; if (!sec) continue;
+      const x0 = sec.min[0], x1 = sec.max[0], z0 = sec.min[2], z1 = sec.max[2], h = Math.min(sec.h, Level.ceilingAt((x0 + x1) / 2, (z0 + z1) / 2));
+      if (!(h > 3)) continue;
+      // ceiling pipe runs along both long walls with hanging brackets, and cross-runs
+      for (const [x, r, m] of [[x0 + 0.7, 0.16, MAT.rustIron], [x0 + 1.15, 0.09, MAT.copper], [x1 - 0.8, 0.2, MAT.steel]]) {
+        L.pipeZ(S, z0 + 0.3, z1 - 0.3, h - 0.55, x, r, m);
+        for (let z = z0 + 1.5; z < z1 - 1; z += 3.2) L.geom(S, x - 0.03, h - 0.55, z - 0.03, x + 0.03, h, z + 0.03, MAT.steel);
+      }
+      for (let z = z0 + 6; z < z1 - 3; z += 11 + rnd() * 4) L.pipeX(S, x0 + 0.3, x1 - 0.3, h - 0.95 - rnd() * 0.3, z, 0.12, rnd() < 0.5 ? MAT.rustIron : MAT.steel);
+      // along each side wall: vertical conduits, junction boxes, grime streaks, debris and corner clutter
+      for (const side of [-1, 1]) {
+        const wx = side < 0 ? x0 + 0.12 : x1 - 0.12;
+        for (let z = z0 + 1.2; z < z1 - 1.2; z += 1.6 + rnd() * 2.4) {
+          if (!clear(wx, z)) continue;
+          const r = rnd();
+          if (r < 0.28) {   // vertical conduit with a junction box
+            L.pipeY(S, wx + side * -0.06, z, 0, h - 0.4, 0.05, MAT.steel);
+            const by = 1.2 + rnd() * 1.2;
+            L.geom(S, wx - 0.16, by, z - 0.2, wx + 0.16, by + 0.4, z + 0.2, rnd() < 0.5 ? MAT.steel : MAT.paint);
+          } else if (r < 0.5) {   // rust / grime streak down the wall
+            const top = h * (0.5 + rnd() * 0.45);
+            L.geom(S, wx - 0.02 * side - 0.01, top - 1.5 - rnd() * 2, z - 0.15 - rnd() * 0.3, wx - 0.02 * side + 0.01, top, z + 0.15, rnd() < 0.5 ? MAT.burnt : MAT.rustIron);
+          } else if (r < 0.66) {   // a stack of small crates against the wall
+            const s = 0.45 + rnd() * 0.3, cx = wx - side * (s / 2 + 0.05);
+            L.geom(S, cx - s / 2, 0, z - s / 2, cx + s / 2, s, z + s / 2, MAT.wood);
+            if (rnd() < 0.5) L.geom(S, cx - s * 0.35, s, z - s * 0.35, cx + s * 0.35, s * 1.7, z + s * 0.35, MAT.wood);
+          } else if (r < 0.78) {   // a barrel or two
+            const cx = wx - side * 0.42;
+            L.builders[S].cylinder(cx, z, 0, 0.9, 0.3, 12, rnd() < 0.5 ? MAT.rustIron : MAT.hazard);
+            L.builders[S].cylinder(cx, z, 0.88, 0.92, 0.32, 12, MAT.steel);
+          } else if (r < 0.9) {   // spilled toy parts: little colourful blocks and a doll arm
+            for (let k = 0; k < 4; k++) {
+              const px = wx - side * (0.3 + rnd() * 0.8), pz = z + (rnd() - 0.5) * 1.2, ps = 0.06 + rnd() * 0.1;
+              L.geom(S, px - ps, 0, pz - ps, px + ps, ps * 1.4, pz + ps, [MAT.handTeal, MAT.handRose, MAT.paint, MAT.porcelain][k % 4]);
+            }
+          } else {   // a hanging cable loop from the ceiling
+            const cx = wx - side * 0.6;
+            L.pipeY(S, cx, z, h - 2.2 - rnd() * 1.2, h, 0.025, MAT.cable);
+          }
+          // a faded poster now and then
+          if (rnd() < 0.12) this.posters.push({ sector: S, x: wx - side * 0.05, y: 1.7 + rnd() * 0.4, z, yaw: side < 0 ? -Math.PI / 2 : Math.PI / 2, kind: (rnd() * 4) | 0 });
+        }
+      }
+      // corner clutter
+      for (const [cx, cz] of [[x0 + 0.9, z0 + 0.9], [x1 - 0.9, z0 + 0.9], [x0 + 0.9, z1 - 0.9], [x1 - 0.9, z1 - 0.9]]) {
+        if (!clear(cx, cz)) continue;
+        L.builders[S].cylinder(cx, cz, 0, 0.95, 0.32, 12, MAT.rustIron);
+        L.geom(S, cx - 0.5, 0, cz - 0.15, cx - 0.05, 0.45, cz + 0.3, MAT.wood);
+      }
+      // pools of Posie Gel seeping from the walls (Deep Works and the upper wings)
+      if (S >= 6 && S !== 11 && S !== 13) for (let k = 0; k < 3; k++) {
+        const side = rnd() < 0.5 ? -1 : 1, gx = side < 0 ? x0 + 0.9 + rnd() : x1 - 0.9 - rnd(), gz = z0 + 2 + rnd() * (z1 - z0 - 4);
+        if (clear(gx, gz)) this.gels.push({ sector: S, x: gx, z: gz, r: 0.6 + rnd() * 0.7, ph: rnd() * 6 });
+      }
+    }
+  },
+  posterCanvas(kind) {
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176;
+    const c = cv.getContext('2d');
+    c.fillStyle = 'rgb(214,200,168)'; c.fillRect(0, 0, 128, 176);
+    const ink = 'rgb(27,27,31)', rose = 'rgb(184,70,106)', teal = 'rgb(42,143,136)';
+    c.textAlign = 'center';
+    if (kind === 0) { c.fillStyle = rose; c.fillRect(0, 0, 128, 40); c.fillStyle = 'rgb(239,227,196)'; c.font = 'bold 18px sans-serif'; c.fillText('SAFETY', 64, 27); c.fillStyle = ink; c.font = 'bold 13px sans-serif'; c.fillText('HANDS STAY', 64, 80); c.fillText('ON THE PACK', 64, 98); c.beginPath(); c.arc(64, 135, 22, 0, 7); c.strokeStyle = teal; c.lineWidth = 5; c.stroke(); }
+    else if (kind === 1) { c.fillStyle = teal; c.fillRect(0, 0, 128, 176); c.fillStyle = 'rgb(239,227,196)'; c.font = 'bold 16px sans-serif'; c.fillText('SMILE!', 64, 40); c.font = '11px sans-serif'; c.fillText("YOU'RE ON THE LINE", 64, 60); c.beginPath(); c.arc(64, 112, 34, 0, 7); c.fill(); c.fillStyle = ink; c.beginPath(); c.arc(52, 104, 5, 0, 7); c.arc(76, 104, 5, 0, 7); c.fill(); c.beginPath(); c.arc(64, 116, 18, 0.2, Math.PI - 0.2); c.lineWidth = 4; c.strokeStyle = ink; c.stroke(); }
+    else if (kind === 2) { c.fillStyle = ink; c.font = 'bold 14px sans-serif'; c.fillText('HAVE YOU SEEN', 64, 28); c.fillText('THIS CHILD?', 64, 46); c.fillStyle = 'rgb(160,150,130)'; c.fillRect(30, 58, 68, 80); c.fillStyle = ink; c.font = '10px sans-serif'; c.fillText('HOLLOW PINES HOME', 64, 158); }
+    else { c.fillStyle = 'rgb(239,227,196)'; c.fillRect(0, 0, 128, 176); c.fillStyle = rose; c.font = 'bold 30px serif'; c.fillText('M', 64, 60); c.fillStyle = ink; c.font = 'bold 12px sans-serif'; c.fillText('MERRIWEATHER', 64, 92); c.fillText('TOY WORKS', 64, 108); c.font = '9px sans-serif'; c.fillText('EVERY TOY COMES HOME', 64, 140); }
+    // age it: stains, tears and fading
+    for (let i = 0; i < 400; i++) { c.fillStyle = 'rgba(60,40,20,' + (Math.random() * 0.08) + ')'; c.fillRect(Math.random() * 128, Math.random() * 176, 3, 3); }
+    c.fillStyle = 'rgba(80,60,30,0.25)'; c.fillRect(0, 150 + Math.random() * 20, 128, 30);
+    c.clearRect(100 + Math.random() * 20, 0, 30, 20);
+    return cv;
+  },
+  submit(vis) {
+    const R = RenderQueue, t = Game.time;
+    if (!this.assets && typeof Gear !== 'undefined' && Gear.canvasQuad && Renderer.gl) { this.assets = [0, 1, 2, 3].map(k => { const a = Gear.canvasQuad(this.posterCanvas(k), 'poster' + k, 0, false); a.materials[0].rough = 0.9; return a; }); }
+    if (this.assets) for (const p of this.posters) {
+      if (!vis[p.sector]) continue;
+      M4.compose(_dr.m, p.x, p.y, p.z, p.yaw, 0, 0, 0.62, 0.85, 1);
+      const q = AssetQueue.push(this.assets[p.kind], _dr.m, false); if (q) { q.tint[0] = 0.75; q.tint[1] = 0.72; q.tint[2] = 0.66; }
+    }
+    for (const g of this.gels) {
+      if (!vis[g.sector]) continue;
+      const pu = 0.5 + 0.5 * Math.sin(t * 1.4 + g.ph);
+      const it = R.trs('sphereLow', MAT.screen, g.x, 0.0, g.z, g.ph, 0, 0, g.r * 1.3, 0.03 + pu * 0.01, g.r, false);
+      if (it) { it.tint[0] = 0.32; it.tint[1] = 0.06; it.tint[2] = 0.2; it.emis[0] = 0.025 + 0.025 * pu; it.emis[1] = 0.004; it.emis[2] = 0.02 + 0.018 * pu; }
+    }
+  }
+};
+const _dr = { m: M4.create() };
 </script>
 <div id="gasOverlay"></div>
 <div id="maskOverlay"><svg viewBox="0 0 1000 563" preserveAspectRatio="none" aria-hidden="true"><defs>

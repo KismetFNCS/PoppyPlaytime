@@ -66,6 +66,20 @@ TAPES.push({
     'Keep watching my tapes. I like an audience.'
   ]
 });
+// the Epxirtype's old workshop in the chapel loft
+TAPES.push({
+  title: 'WORKSHOP REEL 6-06', label: 'R&D - DO NOT CIRCULATE', presenter: 'wave', pitch: 190,
+  lines: [
+    'Doctor Varga, day forty. Subject 6-06 asked for a name today. Mr. Smithers said it does not need one.',
+    'It sews in the loft at night. Little spools, little hands. It says it is making friends.',
+    'Mr. Smithers wants it moved into the Heart, wired to the reactor. He says it will power the whole factory forever.',
+    'I have hidden the override clamps. If anyone finds this - three clamps, and it all comes down. Forgive me.'
+  ],
+  hijack: [
+    'Varga always did talk too much. The clamps are still there, of course. Go on. Pull them.',
+    'Every one you pull brings it closer to the end I designed.'
+  ]
+});
 
 const VHS = {
   canvas: null, ctx: null, tape: null, tapeId: -1, line: 0, chars: 0, charAcc: 0, time: 0, glitch: 0, done: null,

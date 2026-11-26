@@ -130,6 +130,7 @@ const Player = {
   acc: 0, wish: V3.create(), tmp: V3.create(), interactTarget: null,
 
   reset(pos, yaw) {
+    this.zip = null; this.launchT = 0;
     V3.copy(this.body.pos, pos); V3.set(this.body.vel, 0, 0, 0);
     this.yaw = yaw; this.pitch = 0; this.roll = 0; this.crouch = 0; this.crouching = false; this.crouchLatched = false; this.sprinting = false;
     this.bobPhase = 0; this.bobAmp = 0; this.landDip = 0; this.landVel = 0; this.trauma = 0; this.chaseShake = 0;
@@ -175,6 +176,17 @@ const Player = {
   },
 
   update(dt) {
+    // riding a MAGNET zip line: carried along a curve under the plate to the landing point
+    if (this.zip) {
+      const Z = this.zip, b = this.body; Z.t += dt;
+      const k = smoothstep(0, 1, Math.min(1, Z.t / Z.dur)), u = 1 - k;
+      for (let i = 0; i < 3; i++) b.pos[i] = u * u * Z.from[i] + 2 * u * k * Z.mid[i] + k * k * Z.to[i];
+      V3.set(b.vel, 0, 0, 0); b.grounded = true;
+      if (Z.t >= Z.dur) { this.zip = null; sfx('land', b.pos, b.groundSurface); }
+      this.updateBob(dt);
+      return;
+    }
+    if (this.launchT > 0) this.launchT -= dt;
     const K = Input.keys, P = Input.pad;
     let fx = 0, fz = 0;
     if (K.KeyW || K.ArrowUp) fz -= 1;
@@ -217,7 +229,7 @@ const Player = {
   fixedStep(h, tx, tz) {
     const b = this.body;
     const grounded = b.grounded;
-    const control = grounded ? this.traction : FEEL.airControl;
+    const control = this.launchT > 0 ? 0 : grounded ? this.traction : FEEL.airControl;
     const accRate = FEEL.sprintSpeed / FEEL.accelTime * control, decRate = FEEL.sprintSpeed / FEEL.decelTime * control;
     for (let ax = 0; ax <= 2; ax += 2) {
       const target = ax === 0 ? tx : tz;

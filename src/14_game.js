@@ -121,8 +121,8 @@ const Game = {
   fracture: new Float32Array([0, -100, 0, 0]), fractureAmt: 0,
   scene: null, aimHit: makeHit(), menuEye: V3.create(),
   checkpoint: {
-    valid: false, stage: 0, pos: V3.create(0, 0, 5.5), yaw: 0, doors: new Float32Array(24), doorLocked: new Uint8Array(24),
-    receptacles: new Uint8Array(32), levers: new Uint8Array(16), pegsLocked: new Uint8Array(32), tapes: new Uint8Array(8), pickups: new Uint8Array(12),
+    valid: false, stage: 0, pos: V3.create(0, 0, 5.5), yaw: 0, doors: new Float32Array(48), doorLocked: new Uint8Array(48),
+    receptacles: new Uint8Array(64), levers: new Uint8Array(64), pegsLocked: new Uint8Array(64), tapes: new Uint8Array(16), pickups: new Uint8Array(32),
     triggers: new Uint8Array(32), steamActive: 1, monsterMode: 0
   },
 
@@ -229,7 +229,7 @@ const Game = {
     this.hidTip = false;
     Steam.setAll(true);
     Gear.reset();
-    DeepWorks.reset();
+    DeepWorks.reset(); Act3.reset();
     Level.resetBreakables();
     Lights.blackout = 0; Lights.threatLevel = 0;
     for (const L of Level.lightEntities) { L.pulse = 0; L.enabled = true; }
@@ -329,7 +329,7 @@ const Game = {
     this.fadeIn = 1;
     this.fractureAmt = 0;
     Level.resetBreakables();
-    DeepWorks.restore();
+    DeepWorks.restore(); Act3.restore();
     sfxLog.push('restore');
   },
 
@@ -399,7 +399,7 @@ const Game = {
         sfx('doorSlam', Player.body.pos);
         break;
       default:
-        DeepWorks.action(id);
+        if (!DeepWorks.action(id)) Act3.action(id);
     }
   },
 
@@ -499,6 +499,7 @@ const Game = {
     Cast.update(dt);
     Boss.update(dt);
     DeepWorks.update(dt);
+    Act3.update(dt);
     if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
     Streaming.update(Player.body.pos);
     Lights.update(dt, this.time, Streaming.visible);
@@ -817,6 +818,8 @@ const Game = {
     Cast.submit(vis);
     Gear.submit(vis);
     DeepWorks.submit(vis);
+    Act3.submit(vis);
+    Dressing.submit(vis);
     if (state === STATE.MAIN_MENU && UI.menuPage === 'title') TitleScene.submit();
     if (state === STATE.MAIN_MENU && UI.menuPage === 'chapters') ChapterCards.submitActors();
     if ((this.isGameplay() || state === STATE.PAUSED || state === STATE.JUMPSCARE) && !Player.hidden) this.submitHands();

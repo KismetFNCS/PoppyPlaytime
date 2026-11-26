@@ -336,8 +336,10 @@ const Triggers = {
 
 // ---------- sector streaming: portal visibility through open doors ----------
 const Streaming = {
-  visible: new Uint8Array(16), current: 0,
+  visible: new Uint8Array(24), current: 0,
   update(pos) {
+    // the ending: the camera is outside on the road, looking at the factory
+    if (typeof Act3 !== 'undefined' && Act3.ending && Act3.ending.outside) { this.visible.fill(0); this.visible[11] = 1; this.current = 11; return; }
     const s = Level.sectorAt(pos[0], pos[2]);
     if (s >= 0) this.current = s;
     this.visible.fill(0);

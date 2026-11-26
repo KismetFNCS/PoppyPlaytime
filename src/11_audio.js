@@ -487,6 +487,8 @@ const SFX = {
   piston(t, pos) { const out = Audio.dest(pos, 'sfx', 5, 0.45); Audio.noise(t, 0.25, 0.8, 700, 'lowpass', out); Audio.tone(t, 'sine', 90, 35, 0.4, 0.7, out); Audio.noise(t + 0.05, 0.5, 0.25, 3000, 'bandpass', out); },
   klaxon(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.3); for (let i = 0; i < 3; i++) { Audio.tone(t + i * 0.55, 'square', 440, 380, 0.42, 0.08, out, 0.02); } },
   grind(t, pos) { const out = Audio.dest(pos, 'sfx', 4, 0.5); Audio.tone(t, 'sawtooth', 62, 58, 0.9, 0.09, out, 0.1); Audio.noise(t, 0.9, 0.12, 380, 'bandpass', out, 4); },
+  // the Epxirtype's legs: a hydraulic hiss and a metal knuckle clack as a joint lifts, then servo whine
+  legJoint(t, pos) { const out = Audio.dest(pos, 'sfx', 5, 0.55); Audio.noise(t, 0.18, 0.18, 2600, 'bandpass', out, 3); Audio.ring(t + 0.02, [520 + (t * 731 % 90), 1240], 0.12, 0.08, out); Audio.tone(t + 0.04, 'sawtooth', 240, 410, 0.22, 0.03, out, 0.05); },
   creak(t, pos) { const out = Audio.dest(pos, 'sfx', 3, 0.6); Audio.tone(t, 'sawtooth', 180 + (t * 997 % 80), 120, 0.5, 0.05, out, 0.08); Audio.noise(t, 0.4, 0.06, 900, 'bandpass', out, 8); },
   collapse(t, pos) { const out = Audio.dest(pos, 'sfx', 6, 0.35); Audio.noise(t, 1.2, 0.9, 600, 'lowpass', out); Audio.tone(t, 'sine', 60, 25, 1.0, 0.8, out); for (let i = 0; i < 5; i++) Audio.ring(t + 0.1 + i * 0.13, [300 + i * 70, 820 + i * 50], 0.3, 0.06, out); },
   overload(t, pos) { const out = Audio.dest(pos, 'sfx', 8, 0.3); Audio.tone(t, 'sawtooth', 80, 640, 1.2, 0.18, out, 0.3); for (let i = 0; i < 10; i++) Audio.noise(t + 0.6 + i * 0.05, 0.05, 0.4, 7000, 'highpass', out); Audio.tone(t + 1.1, 'sine', 70, 30, 0.9, 0.6, out); },

@@ -23,7 +23,7 @@ const Lovey = {
 
   // she is with you from the fabrication line to the vault
   reset() {
-    this.active = Game.stage >= 6 && Game.stage <= 9;
+    this.active = Game.stage >= 6 && Game.stage <= 16;
     this.mode = 'FOLLOW'; this.target = null; this.cool = 4; this.swingT = 0; this.patT = 0; this.stillT = 0; this.lineCool = 0;
     if (!this.active) return;
     const b = Player.body.pos;

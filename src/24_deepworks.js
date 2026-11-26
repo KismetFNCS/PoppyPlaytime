@@ -18,6 +18,7 @@
 //                         cores are exposed; latch each core and drag it out. Three cores -> containment.
 //   Indicator colours (container stripes, signal lamps):
 //     red #e0392b  green #39c86a  blue #3a7bf0  yellow #f2c230  gel glow #7cff5a  vault warning #ff2a1a
+//     Posie Gel: dark wet rose-purple #4a0f30
 // =====================================================================================
 
 const DW_COLORS = [
@@ -137,7 +138,7 @@ const DeepWorks = {
     L.room(7, -14, -216, 14, -176, 11.0, MAT.grating, MAT.concrete, MAT.steel, { s: [[-DW, DW, DH]], n: [[-DW, DW, DH]] }, SURFACE.METAL);
     L.room(8, -14, -256, 14, -216, 6.0, MAT.concrete, MAT.rustIron, MAT.concrete, { s: [[-DW, DW, DH]], n: [[-DW, DW, DH]] }, SURFACE.CONCRETE);
     L.room(9, -14, -292, 14, -256, 8.0, MAT.concrete, MAT.steel, MAT.steel, { s: [[-DW, DW, DH]], n: [[-DW, DW, DH]] }, SURFACE.CONCRETE);
-    L.room(10, -16, -330, 16, -292, 12.0, MAT.grating, MAT.concrete, MAT.steel, { s: [[-DW, DW, DH]] }, SURFACE.METAL);
+    L.room(10, -16, -330, 16, -292, 12.0, MAT.grating, MAT.concrete, MAT.steel, { s: [[-DW, DW, DH]], n: [[11.8, 14.4, DH]] }, SURFACE.METAL);
     L.door('D6', 6, 7, 'z', -176, -DW, DW, DH, false);
     L.door('D7', 7, 8, 'z', -216, -DW, DW, DH, false);
     L.door('D8', 8, 9, 'z', -256, -DW, DW, DH, false);
@@ -868,13 +869,12 @@ const DeepWorks = {
         if (V.t > 1.0 && V.t - dt <= 1.0) sfx('overload', M.pos);
         if (V.t > 3.9 && V.t - dt <= 3.9) { sfx('bossDown', M.pos); const P = Renderer.post; P.flash = 1; P.flashTint[0] = 1; P.flashTint[1] = 1; P.flashTint[2] = 1; Player.addTrauma(0.8); }
         if (V.t > 4.4) {
-          V.mode = 'DONE'; M.visible = false; M.active = false;
+          // sealed... until Harlan Smithers opens the cradle: the betrayal, and the chase into the upper wings
+          V.mode = 'DONE';
           Game.stage = 10; UI.setObjective(OBJECTIVES[10]);
           Game.invulnerable = true; Game.chaseActive = false;
-          save('checkpoint', '');
           Dialogue.say('MARIGOLD', 'It is sealed. ...It is really sealed. Thank you for looking at me.');
-          Dialogue.say('THIMBLE', 'We did it! WE DID IT! ...Can we go home now? Do we have a home?');
-          Game.victoryTimer = 4.5;
+          Act3.betray();
         }
         break;
       }
@@ -976,8 +976,12 @@ const DeepWorks = {
       for (const g of this.gels) {
         for (let k = 0; k < 7; k++) {
           const x = lerp(g.x0 + 1, g.x1 - 1, (k * 0.37) % 1), z = lerp(g.z0 + 1, g.z1 - 1, (k * 0.61) % 1);
-          const it = R.trs('sphereLow', MAT.screen, x, 0.0, z, k * 0.7, 0, 0, 1.6 + (k % 3) * 0.5, 0.03, 1.2 + (k % 2) * 0.6, false);
-          if (it) { it.tint[0] = 0.12; it.tint[1] = 0.3; it.tint[2] = 0.08; it.emis[0] = 0.008; it.emis[1] = 0.05 + 0.015 * Math.sin(t * 2 + k); it.emis[2] = 0.006; }
+          // Posie Gel: a dark, wet, fleshy rose-purple mass that pulses, with glossy bubbles swelling and popping
+          const it = R.trs('sphereLow', MAT.screen, x, 0.0, z, k * 0.7, 0, 0, 1.6 + (k % 3) * 0.5, 0.035 + 0.008 * Math.sin(t * 1.6 + k), 1.2 + (k % 2) * 0.6, false);
+          if (it) { const pu = 0.5 + 0.5 * Math.sin(t * 1.6 + k); it.tint[0] = 0.32; it.tint[1] = 0.06; it.tint[2] = 0.2; it.emis[0] = 0.03 + 0.03 * pu; it.emis[1] = 0.004; it.emis[2] = 0.025 + 0.02 * pu; }
+          const bp = (t * 0.7 + k * 0.31) % 1, br = Math.sin(bp * Math.PI) * 0.12;
+          const bb = R.trs('sphereLow', MAT.screen, x + Math.sin(k * 3) * 0.6, 0.02, z + Math.cos(k * 3) * 0.4, 0, 0, 0, br, br * 0.8, br, false);
+          if (bb) { bb.tint[0] = 0.5; bb.tint[1] = 0.1; bb.tint[2] = 0.32; bb.emis[0] = 0.05; bb.emis[2] = 0.04; }
         }
       }
       for (const c of this.cables) for (let z = c.z0; z < c.z1 - 0.5; z += 2.1) {

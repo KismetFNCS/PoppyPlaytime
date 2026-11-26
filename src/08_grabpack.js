@@ -141,6 +141,8 @@ const GrabPack = {
       // monster hitbox (sphere) first
       if (Monster.visible && Monster.hitTest(h.prev, this.tmp, len + 0.1)) {
         V3.copy(h.pos, Monster.hitPoint);
+        if (Act3.takedownHit(h.side)) { h.state = HAND.RETRACTING; h.retractT = 0; return; }
+        if (h.side === 1 && Act3.handIs('FLARE')) Act3.flareAt(h.pos);
         if (Boss.active && Boss.tryShock(h)) { h.state = HAND.RETRACTING; return; }
         if (h.side === 1 && Gear.cur === 5) Gear.bellowsBlast(h.pos);
         if (!Boss.active) Monster.fightBack(h); else { Monster.flinch(h.side); if (h.side === 1 && Gear.cur > 0) Monster.stunTimer = Math.max(Monster.stunTimer, HAND_TYPES[Gear.cur].stun * 0.35); }
@@ -152,6 +154,7 @@ const GrabPack = {
       }
       // cherubs and the seraph
       if (Enemies.handHit(h, h.prev, this.tmp, len + 0.1)) { if (h.side === 1 && Gear.cur === 3) Gear.lanternBurst(h.pos); h.state = HAND.RETRACTING; return; }
+      if (Act3.handHit(h, h.prev, this.tmp, len + 0.1)) { if (h.side === 1 && Act3.handIs('FLARE')) Act3.flareAt(h.pos); h.state = HAND.RETRACTING; h.retractT = 0; return; }
       if (Physics.raycast(h.prev, this.tmp, len + 0.05, LAYER.HAND, this.hit)) {
         V3.copy(h.pos, this.hit.point);
         V3.copy(h.latchNormal, this.hit.normal);
@@ -185,6 +188,8 @@ const GrabPack = {
     }
     // BELLOWS: every impact is a pneumatic blast
     if (h.side === 1 && Gear.cur === 5) Gear.bellowsBlast(h.pos);
+    // SPRING pads, MAGNET plates and the FLARE hand (Act III)
+    if (Act3.handImpact(h, kind)) return;
     // CONDUIT: touching a live node stores its charge in the hand instead of running a cable
     if (kind === 'source' && h.side === 1 && Gear.cur === 4) {
       Gear.charge = 20; sfx('tether', h.pos); Lights.pulse(h.pos, 0.4, 0.8, 1.0, 3, 3, 0.4, 0);

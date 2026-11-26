@@ -482,6 +482,8 @@ const Level = {
     DeepWorks.build(this);
     // the factory exterior for the title screen (sector 11)
     TitleScene.build(this);
+    Act3.build(this);
+    Dressing.build(this);
 
     this.finishBatches();
     Physics.buildBVH();
@@ -505,10 +507,10 @@ const Level = {
 // NAVIGATION GRID + A* (allocation-free search over typed arrays)
 // =====================================================================================
 const NavGrid = {
-  x0: -17, z0: -332, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
+  x0: -17, z0: -624, cell: 0.75, w: 0, h: 0, blocked: null, g: null, f: null, parent: null, closed: null, heap: null, stamp: null,
   searchId: 0,
   build() {
-    this.w = Math.ceil(34 / this.cell); this.h = Math.ceil(344 / this.cell);
+    this.w = Math.ceil(34 / this.cell); this.h = Math.ceil(636 / this.cell);
     const n = this.w * this.h;
     this.blocked = new Uint8Array(n);
     this.g = new Float32Array(n); this.f = new Float32Array(n); this.parent = new Int32Array(n);

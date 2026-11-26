@@ -26,7 +26,15 @@ const HAND_TYPES = [
   //             (caged by the Core Vault entrance; the cage opens from a charge socket)
   { id: 'CONDUIT', mat: MAT.copper, tint: [0.75, 0.95, 1.05], glow: null, stun: 1.0, cool: 0.5, desc: 'stores current: touch a live node, then fire it into a charge socket (20 s)' },
   { id: 'BELLOWS', mat: MAT.steel, tint: [1.15, 1.0, 0.85], glow: null, stun: 1.8, cool: 1.1, desc: 'pneumatic blast: shatters cracked panels and blows enemies back' },
-  { id: 'ANCHOR', mat: MAT.rustIron, tint: [1.0, 0.95, 1.0], glow: [0.15, 0.02, 0.0], stun: 4.5, cool: 1.6, desc: 'harpoons the Epxirtype and chains it to the floor for 4.5 s' }
+  { id: 'ANCHOR', mat: MAT.rustIron, tint: [1.0, 0.95, 1.0], glow: [0.15, 0.02, 0.0], stun: 4.5, cool: 1.6, desc: 'harpoons the Epxirtype and chains it to the floor for 4.5 s' },
+  // Act III hands (our own designs):
+  //   SPRING  coiled-piston hand: fire it at a spring pad and it launches you up and across (Celestial Wing)
+  //   MAGNET  electromagnet hand: locks onto magnet plates and zips you across gaps (Salvage Yards)
+  //   FLARE   flare-launcher hand: every impact bursts into a burning flare that scares small creatures off
+  //           and stuns lurkers (Sunken Toybox)
+  { id: 'SPRING', mat: MAT.handTeal, tint: [0.75, 0.55, 1.25], glow: null, stun: 1.2, cool: 0.6, desc: 'fire it at a spring pad to launch yourself up and across' },
+  { id: 'MAGNET', mat: MAT.steel, tint: [1.3, 0.6, 0.55], glow: null, stun: 1.2, cool: 0.6, desc: 'locks onto magnet plates and zips you across gaps' },
+  { id: 'FLARE', mat: MAT.copper, tint: [1.4, 0.7, 0.35], glow: [0.5, 0.18, 0.04], stun: 2.0, cool: 1.2, desc: 'bursts into a burning flare - scatters small creatures, stuns lurkers' }
 ];
 const HAND_COUNT = HAND_TYPES.length;
 const PICKUP_SPOTS = [
@@ -40,7 +48,12 @@ const PICKUP_SPOTS = [
   { kind: 'key', key: 'OFFICE', label: 'OFFICE KEY', sector: 6, pos: [-13.3, 0.25, -158.2] },
   { kind: 'hand', type: 5, sector: 8, pos: [-9.6, 1.0, -220.5] },
   { kind: 'hand', type: 4, sector: 9, pos: [-12.8, 1.0, -259.6] },
-  { kind: 'hand', type: 6, sector: 10, pos: [14.2, 1.0, -293.9], lock: 'V_CAGE' }
+  { kind: 'hand', type: 6, sector: 10, pos: [14.2, 1.0, -293.9], lock: 'V_CAGE' },
+  // Act III: SPRING at the chapel entrance, FLARE on a toy chest, the executive key, MAGNET by the chasm
+  { kind: 'hand', type: 7, sector: 12, pos: [11.0, 0.95, -335.2] },
+  { kind: 'hand', type: 9, sector: 13, pos: [13.8, 1.1, -398.0] },
+  { kind: 'key', key: 'EXEC', label: 'EXECUTIVE KEY', sector: 15, pos: [0, 1.0, -512.6] },
+  { kind: 'hand', type: 8, sector: 16, pos: [-12, 1.0, -534.4] }
 ];
 const GAS_ZONES = [{ sector: 2, x0: -10, z0: -48, x1: -4.6, z1: -39.2 }];
 const UV_SECRETS = [

@@ -561,7 +561,7 @@ const Monster = {
         l.t = Math.min(1, l.t + dt / stepDur);
         V3.lerp(l.foot, l.from, l.to, l.t);
         l.foot[1] = Math.sin(l.t * Math.PI) * (0.25 + this.speed * 0.05);
-        if (l.t >= 1) { l.stepping = false; l.foot[1] = 0; if (this.visible) sfx('monsterStep', l.foot); }
+        if (l.t >= 1) { l.stepping = false; l.foot[1] = 0; if (this.visible) { sfx('monsterStep', l.foot); if (gameRng() < 0.5) sfx('legJoint', l.foot); if (gameRng() < 0.12) sfx('creak', l.foot); } }
       } else {
         const d = V3.distXZ(l.foot, this.tmp);
         if (d > 0.55 + this.speed * 0.08 && !groupStepping[1 - l.group]) {
