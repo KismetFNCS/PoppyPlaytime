@@ -169,6 +169,19 @@ const TexSynth = {
       out[4] = 1;
       out[5] = scratches < 1 ? 1.5 : 1;
     },
+    // worn, filthy work-glove coating: grime blotches, oil smears, scuffed lighter wear, dirt-packed seams
+    glove(s, t, out) {
+      const grime = smoothstep(0.42, 0.72, TexSynth.fbm(s, t, 5, 5, 281));
+      const oil = smoothstep(0.55, 0.75, TexSynth.fbmA(s, t, 9, 3, 4, 282));
+      const scuff = TexSynth.fbmA(s, t, 48, 4, 2, 283) > 0.72 ? 1 : 0;
+      const pore = TexSynth.fbm(s, t, 64, 2, 284);
+      const seam = Math.abs(((t * 4) % 1) - 0.5) < 0.012 ? 1 : 0;
+      let g = (0.8 + pore * 0.05) * (1 - grime * 0.3) * (1 - oil * 0.2) * (seam ? 0.55 : 1) + scuff * 0.03;
+      out[0] = g * lerp(1, 0.85, grime); out[1] = g * lerp(1, 0.8, grime); out[2] = g * lerp(1, 0.68, grime);
+      out[3] = 0.5 + pore * 0.12 - seam * 0.25 - scuff * 0.06 + grime * 0.05;
+      out[4] = 1;
+      out[5] = lerp(1.05, 1.45, grime) - oil * 0.45 + scuff * 0.2;
+    },
     cable(s, t, out) {
       const rib = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * 24);
       const g = 0.7 + rib * 0.3;
@@ -332,7 +345,7 @@ const TexSynth = {
   // Material index -> recipe name and normal strength. Order matches MATERIALS.
   layerPlan: [
     ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelainAged', 3.0], ['furMatted', 5.0],
-    ['furMatted', 5.0], ['steelGrime', 2.5], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
+    ['furMatted', 5.0], ['steelGrime', 2.5], ['glove', 3.0], ['glove', 3.0], ['cable', 3.0], ['wood', 3.0],
     ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5],
     ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['furMatted', 5.0], ['furMatted', 4.5], ['clothRot', 3.5], ['lining', 3.0], ['clothRot', 3.0]
   ],

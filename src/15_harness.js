@@ -277,6 +277,28 @@ async function runAll() {
     Settings.set('fov', 95);
     for (const q of QUALITY_ORDER) { Settings.set('quality', q); T.step(DT, 1); check('settings: quality ' + q + ' renders without error', T.getLastError() === null && Renderer.qualityName === q, Renderer.rw + 'x' + Renderer.rh); }
     Settings.set('quality', savedSettings.quality);
+    // the full settings spec: tabs, display/graphics/audio/controls options and key rebinding
+    const wantKeys = ['windowMode', 'resolution', 'fpsLimit', 'vsync', 'fov', 'motionBlur', 'filmGrain', 'brightness', 'resScale', 'textureQuality', 'shadowQuality', 'vfxQuality', 'postProcessing', 'antiAliasing', 'master', 'music', 'sfx', 'dialogue', 'subtitles', 'sensX', 'invertY', 'crouchToggle'];
+    check('settings: every option from the spec has a control', wantKeys.every(k => document.getElementById('set_' + k)), wantKeys.filter(k => !document.getElementById('set_' + k)).join(','));
+    check('settings: four tabs (display, graphics, audio, controls)', document.querySelectorAll('#settingsTabs .stab').length === 4, '');
+    check('settings: default FOV is 90', SETTINGS_DEFAULT.fov === 90, SETTINGS_DEFAULT.fov);
+    Settings.set('resScale', 50); T.step(DT, 1);
+    const halfW = Renderer.rw; Settings.set('resScale', 100); T.step(DT, 1);
+    check('settings: resolution scale shrinks the internal render', halfW < Renderer.rw * 0.6, halfW + ' vs ' + Renderer.rw);
+    Settings.set('resolution', '960x540'); T.step(DT, 1);
+    check('settings: a chosen resolution caps the render size', Renderer.rh <= 541, Renderer.rw + 'x' + Renderer.rh);
+    Settings.set('resolution', 'NATIVE');
+    Settings.set('textureQuality', 'LOW'); check('settings: texture quality applies', Renderer.textureLevel === 'LOW', Renderer.textureLevel);
+    Settings.set('textureQuality', 'HIGH');
+    for (const k of ['motionBlur', 'filmGrain', 'brightness', 'antiAliasing']) Settings.set(k, k === 'antiAliasing' ? 'OFF' : k === 'brightness' ? 1.3 : 0.8);
+    T.step(DT, 2);
+    check('settings: motion blur, grain, gamma and AA render without error', T.getLastError() === null, '');
+    for (const k of ['motionBlur', 'filmGrain', 'brightness', 'antiAliasing']) Settings.set(k, SETTINGS_DEFAULT[k]);
+    Settings.set('fpsLimit', '30'); check('settings: frame-rate limit sets a frame budget', Math.abs(Settings.frameBudget() - 33.3) < 0.5, Settings.frameBudget());
+    Settings.set('fpsLimit', 'UNLIMITED');
+    Settings.binds.jump = 'KeyJ'; Settings.rebuildKeyMap();
+    check('settings: a rebound key drives its action', Settings.translate('KeyJ') === 'Space' && Settings.translate('Space') === '', Settings.translate('KeyJ'));
+    Settings.binds = {}; Settings.rebuildKeyMap();
     T.setStepRender(false);
     tap('Escape');
     check('settings: Escape returns to menu', T.getState() === 'MAIN_MENU', T.getState());
@@ -305,7 +327,15 @@ async function runAll() {
     check('opening: Harlan Smithers\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
     const lockZ = Player.body.pos[2]; T.simulateKey('KeyW', true); T.step(DT, 30); T.simulateKey('KeyW', false);
     check('opening: you cannot walk away while he speaks', Math.abs(Player.body.pos[2] - lockZ) < 0.01, (Player.body.pos[2] - lockZ).toFixed(3));
-    Dialogue.clear(); T.step(DT, 2);
+    check('cutscene: the skip prompt shows during the broadcast', Game.cutsceneActive() && document.getElementById('skipHint').style.display === 'block', '');
+    tap('Enter'); T.step(DT, 2);
+    check('cutscene: Enter skips the broadcast', !DWo.broadcastLocked(), '');
+    Dialogue.clear(); Dialogue.say('THIMBLE', 'First line of a long chat between friends.'); Dialogue.say('PIP', 'Second line.'); Dialogue.say('MARIGOLD', 'Third line.'); T.step(DT, 3);
+    check('dialogue: the skip prompt shows while characters talk', document.getElementById('skipHint').style.display === 'block', '');
+    tap('Enter'); T.step(DT, 1);
+    check('dialogue: Enter skips to the next line', Dialogue.current && Dialogue.current.speaker === 'PIP', Dialogue.current ? Dialogue.current.speaker : 'none');
+    tap('Enter'); tap('Enter'); T.step(DT, 2);
+    check('dialogue: a double press skips the whole conversation', !Dialogue.busy(), Dialogue.queue.length);
     check('opening: when he finishes you are free to move', !DWo.broadcastLocked(), '');
     click(0); T.step(DT, 10);
     check('opening: firing does nothing until you have your hands', GrabPack.hands[0].state === HAND.DOCKED && /crate/.test(GrabPack.hint), GrabPack.hint);
@@ -326,7 +356,7 @@ async function runAll() {
     tap('KeyE'); T.step(DT, 200);
     check('explore: the key unlocks the records office', off.target === 1 && off.open > 0.9, off.open.toFixed(2));
     T.setPlayerPose(11.2, 0, -145.0, -Math.PI / 2, 0); T.step(DT, 3); T.aimAt(12.1, 1.0, -145.6); T.step(DT, 2); tap('KeyE'); T.step(DT, 2);
-    check('explore: a tape by a CRT set in the office', T.getState() === 'CINEMATIC_VHS' && VHS.tapeId === 4, T.getState());
+    check('explore: the office tape plays on the CRT beside it (you stay in the room)', T.getState() === 'GAMEPLAY_ACTIVE' && Game.tv && Game.tv.tp.tapeId === 4 && VHS.tapeId === 4, T.getState());
     VHS.finish(); T.step(DT, 2);
     check('explore: Harlan Smithers hijacks the tape as it ends', Dialogue.busy() && (Dialogue.current.speaker === 'USHER' || Dialogue.queue.some(q => q.speaker === 'USHER')), '');
     Dialogue.clear();
@@ -452,9 +482,11 @@ async function runAll() {
     T.setPlayerPose(9.2, 0, -1.6, 0, 0); T.aimAt(9.2, 1.3, -2.9); T.step(DT, 2);
     check('tape: interact prompt appears', Player.interactTarget === Level.tapes[0], '');
     tap('KeyE');
-    check('tape: E plays the found tape', T.getState() === 'CINEMATIC_VHS' && VHS.tapeId === 1, T.getState());
-    tap('Escape');
-    check('tape: returns to gameplay', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    check('tape: E plays the found tape on the TV beside it', T.getState() === 'GAMEPLAY_ACTIVE' && Game.tv && VHS.tapeId === 1, T.getState());
+    T.step(DT, 30);
+    check('tape: the tape keeps playing while you move about', !!VHS.tape && VHS.chars > 0, VHS.chars);
+    tap('Enter');
+    check('tape: Enter stops the tape', !VHS.tape && T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
 
     await breathe();
     // ---------------- pause ----------------
@@ -626,6 +658,21 @@ async function runAll() {
     T.step(DT, 2);
     check('act2: the Loom is not the end - the freight lift drops into the fabrication line', arrived && Streaming.current === 7, 'stage ' + Game.stage + ' sector ' + Streaming.current);
     check('act2: checkpoint saved at the fabrication line', Game.checkpoint.stage === 6, Game.checkpoint.stage);
+    check('lovey: the rose plush ally meets you in the Deep Works (silent - the others speak for her)', Lovey.active && Lovey.met && !Dialogue.queue.some(q => q.speaker === 'LOVEY'), '');
+    T.step(DT, 4);
+    check('lovey: Posie rides on her shoulders', V3.dist(Cast.doll.pos, Lovey.seat(V3.create())) < 0.05, V3.dist(Cast.doll.pos, Lovey.seat(V3.create())).toFixed(2));
+    {
+      const c0 = Enemies.cherubs[0];
+      if (c0) {
+        const was = { sector: c0.sector, dead: c0.dead, state: c0.state }, pv = Streaming.visible[c0.sector];
+        V3.set(c0.pos, Lovey.pos[0] + 2, 0, Lovey.pos[2]); c0.dead = false; c0.state = 'SIT'; c0.sector = Lovey.sector; Lovey.cool = 0; Lovey.mode = 'FOLLOW';
+        // drive her on her own (the Act I cherub logic would otherwise pack this one away)
+        Streaming.visible[c0.sector] = 1;
+        for (let i = 0; i < 90 && !c0.dead; i++) Lovey.update(DT);
+        check('lovey: she charges and swats a cherub to pieces', c0.dead, Lovey.mode);
+        c0.sector = was.sector; c0.dead = was.dead; c0.state = was.state;
+      }
+    }
     Game.invulnerable = true; T.step(DT, 60);
 
     // fabrication line: belts carry you, the cable crosses them
@@ -981,8 +1028,10 @@ async function runAll() {
       check('gear: prompt to take the gas mask', document.getElementById('hudPrompt').textContent === '[E] TAKE GAS MASK', document.getElementById('hudPrompt').textContent);
       tap('KeyE');
       check('gear: gas mask taken', Gear.hasMask && mk.taken);
-      tap('KeyG'); T.step(DT, 30);
-      check('gear: [G] puts the mask on (lens overlay)', Gear.maskOn && Gear.maskT > 0.8 && document.getElementById('maskOverlay').style.display === 'block', Gear.maskT.toFixed(2));
+      tap('KeyG'); T.step(DT, 10);
+      check('gear: while the mask comes down only its 3D inside shows (no lens overlay yet)', Gear.maskOn && Gear.maskT < 0.93 && document.getElementById('maskOverlay').style.display === 'none', Gear.maskT.toFixed(2));
+      T.step(DT, 50);
+      check('gear: [G] puts the mask on (lens overlay)', Gear.maskOn && Gear.maskT > 0.93 && document.getElementById('maskOverlay').style.display === 'block', Gear.maskT.toFixed(2));
       tap('KeyG'); T.step(DT, 30);
       check('gear: [G] takes it off', !Gear.maskOn && document.getElementById('maskOverlay').style.display === 'none');
       // a new hand: pick up the THUMPER and swap to it

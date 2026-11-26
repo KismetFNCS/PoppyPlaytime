@@ -120,6 +120,18 @@ const VHS = {
     if (gameRng() < dt * 0.35) { this.glitch = 0.5 + gameRng() * 0.4; sfx('tapeGlitch'); }
     this.draw();
   },
+  // Harlan Smithers breaks into the set: his face from the office monitors, smeared with red static
+  drawHijack(t) {
+    const c = this.ctx, W = 640, H = 360;
+    if (!c) return;
+    if (Cast.screenCanvas) { Cast.drawScreen(t); c.imageSmoothingEnabled = false; c.drawImage(Cast.screenCanvas, 0, 0, W, H); c.imageSmoothingEnabled = true; }
+    else { c.fillStyle = 'rgb(10,4,6)'; c.fillRect(0, 0, W, H); }
+    c.fillStyle = 'rgba(160,10,20,0.22)'; c.fillRect(0, 0, W, H);
+    for (let i = 0; i < 120; i++) { c.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.18) + ')'; c.fillRect(Math.random() * W, Math.random() * H, 2 + Math.random() * 40, 2); }
+    const band = (t * 90) % H; c.fillStyle = 'rgba(255,255,255,0.08)'; c.fillRect(0, band, W, 18);
+    c.fillStyle = 'rgba(255,70,60,0.9)'; c.font = 'bold 22px monospace'; c.textBaseline = 'top';
+    if (Math.sin(t * 5) > -0.3) c.fillText('SIGNAL OVERRIDE // H.SMITHERS', 20, 18);
+  },
   draw() {
     const c = this.ctx, W = 640, H = 360, t = this.time, tp = this.tape;
     if (!c || !tp) return;
@@ -223,22 +235,39 @@ const VHS = {
 };
 
 // ---------- settings ----------
+const pct = v => Math.round(v * 100) + '%';
 const Settings = {
   values: Object.assign({}, SETTINGS_DEFAULT),
+  binds: {}, capturing: null, tab: 'DISPLAY',
+  tabs: ['DISPLAY', 'GRAPHICS', 'AUDIO', 'CONTROLS'],
   schema: [
-    { key: 'fov', label: 'FIELD OF VIEW', type: 'range', min: SCALE.fovMin, max: SCALE.fovMax, step: 1, fmt: v => v + '°' },
-    { key: 'sensX', label: 'LOOK SENSITIVITY X', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: v => v.toFixed(2) },
-    { key: 'sensY', label: 'LOOK SENSITIVITY Y', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: v => v.toFixed(2) },
-    { key: 'invertY', label: 'INVERT Y', type: 'check' },
-    { key: 'master', label: 'MASTER VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
-    { key: 'music', label: 'MUSIC / DRONE', type: 'range', min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
-    { key: 'sfx', label: 'EFFECTS', type: 'range', min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
-    { key: 'quality', label: 'SHADER QUALITY', type: 'select', options: QUALITY_ORDER },
-    { key: 'vhs', label: 'VHS FILTER', type: 'range', min: 0, max: 1.5, step: 0.05, fmt: v => Math.round(v * 100) + '%' },
-    { key: 'flashlightShadows', label: 'FLASHLIGHT SHADOWS', type: 'check' },
-    { key: 'reduceMotion', label: 'REDUCE MOTION', type: 'check' },
-    { key: 'subtitles', label: 'HINTS & SUBTITLES', type: 'check' },
-    { key: 'voices', label: 'CHARACTER VOICES', type: 'check' }
+    { tab: 'DISPLAY', key: 'windowMode', label: 'WINDOW MODE', type: 'select', options: ['WINDOWED', 'BORDERLESS', 'FULLSCREEN'] },
+    { tab: 'DISPLAY', key: 'resolution', label: 'RESOLUTION', type: 'select', options: ['NATIVE', '2560x1440', '1920x1080', '1600x900', '1280x720', '960x540'] },
+    { tab: 'DISPLAY', key: 'fpsLimit', label: 'FRAME RATE LIMIT', type: 'select', options: ['30', '60', '120', '144', 'UNLIMITED'] },
+    { tab: 'DISPLAY', key: 'vsync', label: 'VSYNC', type: 'check' },
+    { tab: 'DISPLAY', key: 'fov', label: 'FIELD OF VIEW', type: 'range', min: SCALE.fovMin, max: SCALE.fovMax, step: 1, fmt: v => v + '°' },
+    { tab: 'DISPLAY', key: 'motionBlur', label: 'MOTION BLUR', type: 'range', min: 0, max: 1, step: 0.05, fmt: v => v > 0 ? pct(v) : 'OFF' },
+    { tab: 'DISPLAY', key: 'filmGrain', label: 'FILM GRAIN', type: 'range', min: 0, max: 1, step: 0.05, fmt: v => v > 0 ? pct(v) : 'OFF' },
+    { tab: 'DISPLAY', key: 'brightness', label: 'BRIGHTNESS / GAMMA', type: 'range', min: 0.5, max: 1.6, step: 0.02, fmt: v => v.toFixed(2) },
+    { tab: 'DISPLAY', key: 'reduceMotion', label: 'REDUCE CAMERA SHAKE', type: 'check' },
+    { tab: 'GRAPHICS', key: 'quality', label: 'QUALITY PRESET', type: 'select', options: QUALITY_ORDER },
+    { tab: 'GRAPHICS', key: 'resScale', label: 'RESOLUTION SCALE', type: 'range', min: 50, max: 100, step: 5, fmt: v => v + '%' },
+    { tab: 'GRAPHICS', key: 'textureQuality', label: 'TEXTURE QUALITY', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH'] },
+    { tab: 'GRAPHICS', key: 'shadowQuality', label: 'SHADOW QUALITY', type: 'select', options: ['OFF', 'LOW', 'MEDIUM', 'HIGH'] },
+    { tab: 'GRAPHICS', key: 'vfxQuality', label: 'VFX QUALITY', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH'] },
+    { tab: 'GRAPHICS', key: 'postProcessing', label: 'POST-PROCESSING', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH'] },
+    { tab: 'GRAPHICS', key: 'antiAliasing', label: 'ANTI-ALIASING', type: 'select', options: ['OFF', 'FXAA'] },
+    { tab: 'GRAPHICS', key: 'vhs', label: 'VHS FILTER', type: 'range', min: 0, max: 1.5, step: 0.05, fmt: pct },
+    { tab: 'AUDIO', key: 'master', label: 'MASTER VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: pct },
+    { tab: 'AUDIO', key: 'music', label: 'MUSIC VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: pct },
+    { tab: 'AUDIO', key: 'sfx', label: 'SFX VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: pct },
+    { tab: 'AUDIO', key: 'dialogue', label: 'DIALOGUE VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: pct },
+    { tab: 'AUDIO', key: 'subtitles', label: 'SUBTITLES', type: 'check' },
+    { tab: 'AUDIO', key: 'voices', label: 'CHARACTER VOICES', type: 'check' },
+    { tab: 'CONTROLS', key: 'sensX', label: 'SENSITIVITY', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: v => v.toFixed(2) },
+    { tab: 'CONTROLS', key: 'sensY', label: 'VERTICAL SENSITIVITY', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: v => v.toFixed(2) },
+    { tab: 'CONTROLS', key: 'invertY', label: 'INVERT Y', type: 'check' },
+    { tab: 'CONTROLS', key: 'crouchToggle', label: 'CROUCH TOGGLE', type: 'check' }
   ],
   load() {
     const saved = loadJSON('settings');
@@ -249,25 +278,87 @@ const Settings = {
         else if (s.type === 'check' && typeof v === 'boolean') this.values[s.key] = v;
         else if (s.type === 'select' && s.options.indexOf(v) >= 0) this.values[s.key] = v;
       }
+      if (saved.binds && typeof saved.binds === 'object') for (const a of KEY_ACTIONS) if (typeof saved.binds[a[0]] === 'string') this.binds[a[0]] = saved.binds[a[0]];
     }
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches && !saved) this.values.reduceMotion = true;
+    this.rebuildKeyMap();
   },
-  save() { save('settings', JSON.stringify(this.values)); },
+  save() { save('settings', JSON.stringify(Object.assign({ binds: this.binds }, this.values))); },
   set(key, value) {
     this.values[key] = value;
+    // the vertical slider follows the main sensitivity unless it was set on its own
+    if (key === 'sensX' && Math.abs(this.values.sensY - (this._lastSens || 1)) < 1e-6) this.values.sensY = value;
+    if (key === 'sensX') this._lastSens = value;
+    if (key === 'shadowQuality') this.values.flashlightShadows = value !== 'OFF';
+    if (key === 'windowMode') this.applyWindow();
     this.apply();
     this.save();
   },
+  // the renderer's working preset: the chosen quality preset refined by the individual graphics options
+  effectiveQuality(name) {
+    const V = this.values, q = Object.assign({}, QUALITY[name] || QUALITY.HIGH);
+    q.scale *= clamp(V.resScale || 100, 50, 100) / 100;
+    const sh = V.shadowQuality;
+    if (sh === 'OFF' || sh === 'LOW') { q.shadow = 512; q.pcf = 1; } else if (sh === 'MEDIUM') { q.shadow = 1024; q.pcf = Math.min(q.pcf, 2); } else q.shadow = Math.max(q.shadow, 1024);
+    if (V.postProcessing === 'LOW') { q.ssao = 0; q.aoSamples = 0; q.bloomPasses = 1; q.volSteps = 0; }
+    else if (V.postProcessing === 'MEDIUM') { q.aoSamples = Math.min(q.aoSamples, 6); q.bloomPasses = Math.min(q.bloomPasses, 1); q.volSteps = Math.min(q.volSteps, 8); }
+    if (V.vfxQuality === 'LOW') q.maxLights = Math.min(q.maxLights, 32); else if (V.vfxQuality === 'MEDIUM') q.maxLights = Math.min(q.maxLights, 64);
+    q.vfx = V.vfxQuality === 'LOW' ? 0.4 : V.vfxQuality === 'MEDIUM' ? 0.7 : 1;
+    if (V.resolution && V.resolution !== 'NATIVE') q.targetH = parseInt(V.resolution.split('x')[1], 10) || 0;
+    return q;
+  },
   apply() {
     Renderer.setQuality(this.values.quality);
+    Renderer.applyTextureQuality(this.values.textureQuality);
     Audio.applyVolumes();
   },
+  applyWindow() {
+    const m = this.values.windowMode, d = document;
+    try {
+      if (m === 'WINDOWED') { if (d.fullscreenElement && d.exitFullscreen) d.exitFullscreen().catch(() => {}); }
+      else if (!d.fullscreenElement && d.documentElement.requestFullscreen) d.documentElement.requestFullscreen({ navigationUI: m === 'BORDERLESS' ? 'hide' : 'auto' }).catch(() => {});
+    } catch (e) { /* fullscreen needs a click; the option stays chosen */ }
+  },
+  // frame pacing: minimum milliseconds between rendered frames (0 = no cap)
+  frameBudget() { const f = this.values.fpsLimit; return f === 'UNLIMITED' ? 0 : 1000 / parseInt(f, 10); },
+  // key remapping: pressed code -> the default code the game logic reads ('' = blocked)
+  keyMap: {},
+  bindOf(id) { const a = KEY_ACTIONS.find(k => k[0] === id); return this.binds[id] || (a ? a[2] : ''); },
+  rebuildKeyMap() {
+    const m = {};
+    for (const a of KEY_ACTIONS) { if (a[3]) continue; const b = this.binds[a[0]]; if (b && b !== a[2]) { if (!(a[2] in m)) m[a[2]] = ''; m[b] = a[2]; } }
+    this.keyMap = m;
+  },
+  translate(code) { return code in this.keyMap ? this.keyMap[code] : code; },
+  keyName(c) { return c.replace(/^Key/, '').replace(/^Digit/, '').replace(/Left$/, ' L').replace(/Right$/, ' R').toUpperCase(); },
+  captureKey(code) {
+    const id = this.capturing; this.capturing = null;
+    if (code !== 'Escape') {
+      // a key can only do one thing: whatever held it before takes this action's old key
+      const old = this.bindOf(id);
+      for (const a of KEY_ACTIONS) if (a[0] !== id && this.bindOf(a[0]) === code) this.binds[a[0]] = old;
+      this.binds[id] = code;
+      this.rebuildKeyMap(); this.save();
+    }
+    sfx('uiClick'); this.buildUI();
+  },
+  resetBinds() { this.binds = {}; this.rebuildKeyMap(); this.save(); this.buildUI(); },
+  setTab(t) { this.tab = t; this.buildUI(); sfx('uiHover'); },
   buildUI() {
     UI.refreshAssetList();
+    const tabs = document.getElementById('settingsTabs');
+    if (tabs) {
+      tabs.textContent = '';
+      for (const t of this.tabs) {
+        const b = document.createElement('button'); b.className = 'stab' + (t === this.tab ? ' on' : ''); b.textContent = t;
+        b.addEventListener('click', () => this.setTab(t)); tabs.appendChild(b);
+      }
+    }
     const root = document.getElementById('settingsRows');
     root.textContent = '';
     for (const s of this.schema) {
       const row = document.createElement('div'); row.className = 'row';
+      if (s.tab !== this.tab) row.style.display = 'none';
       const lab = document.createElement('label'); lab.textContent = s.label; lab.htmlFor = 'set_' + s.key;
       const val = document.createElement('span'); val.className = 'val';
       let input;
@@ -288,6 +379,24 @@ const Settings = {
       input.id = 'set_' + s.key;
       row.appendChild(lab); row.appendChild(input); row.appendChild(val);
       root.appendChild(row);
+    }
+    // key bindings (controls tab)
+    const binds = document.getElementById('bindRows');
+    if (binds) {
+      binds.textContent = '';
+      binds.style.display = this.tab === 'CONTROLS' ? '' : 'none';
+      const h = document.createElement('div'); h.className = 'bhead'; h.textContent = 'KEYBINDINGS  (click, then press a key - Esc cancels)'; binds.appendChild(h);
+      for (const a of KEY_ACTIONS) {
+        const r = document.createElement('div'); r.className = 'brow';
+        const l = document.createElement('span'); l.textContent = a[1];
+        const b = document.createElement('button'); b.className = 'bkey' + (this.capturing === a[0] ? ' wait' : '');
+        b.textContent = this.capturing === a[0] ? 'PRESS A KEY...' : this.keyName(this.bindOf(a[0]));
+        b.addEventListener('click', () => { this.capturing = a[0]; this.buildUI(); });
+        r.appendChild(l); r.appendChild(b); binds.appendChild(r);
+      }
+      const rb = document.createElement('button'); rb.className = 'bkey reset'; rb.textContent = 'RESET KEYS';
+      rb.addEventListener('click', () => this.resetBinds()); binds.appendChild(rb);
+      const mb = document.createElement('div'); mb.className = 'bhead'; mb.textContent = 'MOUSE: LEFT / RIGHT BUTTON FIRE THE LEFT / RIGHT HAND'; binds.appendChild(mb);
     }
   }
 };
@@ -366,6 +475,13 @@ const UI = {
   // Change-driven HUD writes (no DOM writes when nothing changed)
   updateHud(dt) {
     const H = this.lastHud, E = this.el;
+    // skip prompt while a scripted scene is playing
+    const cut = Game.isGameplay() && (Game.cutsceneActive() || Dialogue.busy() || !!Game.tv);
+    if (H.cut !== cut) {
+      H.cut = cut;
+      const sh = document.getElementById('skipHint');
+      if (sh) { sh.style.display = cut ? 'block' : 'none'; document.getElementById('skipKey').textContent = Settings.keyName(Settings.bindOf('skip')); }
+    }
     this.objectiveTimer -= dt;
     const objOn = this.objectiveTimer > 0 || Game.state === STATE.PAUSED;
     if (H.obj !== this.objective) { E.hudObjText.textContent = this.objective; H.obj = this.objective; }

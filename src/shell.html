@@ -36,6 +36,17 @@
   .row select { min-height: 40px; font: inherit; background: var(--btnFill); color: var(--btnText); border: 1px solid var(--btnBorder); }
   .row input[type=checkbox] { width: 26px; height: 26px; accent-color: var(--accent); }
   .row .val { text-align: right; color: var(--accent); }
+  #skipHint { position: absolute; right: 3%; bottom: 14%; padding: 6px 14px; font-size: clamp(12px, 1.9vh, 18px); letter-spacing: 0.14em; color: rgb(232,232,232); background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35); display: none; }
+  #skipHint b { color: var(--accent); margin-right: 6px; }
+  #settingsTabs { display: flex; gap: 6px; margin: 0 0 12px; border-bottom: 1px solid var(--btnBorder); }
+  .stab { flex: 1; min-height: 40px; font: inherit; letter-spacing: 0.12em; background: transparent; color: var(--btnText); opacity: 0.55; border: 0; border-bottom: 3px solid transparent; cursor: pointer; }
+  .stab.on { opacity: 1; border-bottom-color: var(--accent); color: var(--accent); }
+  .sscroll { max-height: 58vh; overflow-y: auto; padding-right: 6px; }
+  .brow { display: grid; grid-template-columns: 1fr 10em; align-items: center; min-height: 38px; font-size: clamp(13px, 1.9vh, 20px); }
+  .bkey { min-height: 32px; font: inherit; background: var(--btnFill); color: var(--btnText); border: 1px solid var(--btnBorder); cursor: pointer; }
+  .bkey.wait { color: var(--accent); border-color: var(--accent); }
+  .bkey.reset { margin: 10px 0; padding: 0 18px; }
+  .bhead { margin: 14px 0 6px; opacity: 0.6; font-size: clamp(11px, 1.6vh, 16px); letter-spacing: 0.1em; }
   .panel .mbtn { margin-top: 1.2vh; }
   .credits p { margin: 0.6vh 0; font-size: clamp(14px, 2vh, 20px); line-height: 1.4; }
   .credits .k { color: var(--dimText); }
@@ -66,8 +77,9 @@
   #hud .cable .bar { height: 6px; margin-top: 0.5vh; background: var(--panelFill); border: 1px solid var(--live); }
   #hud .cable .bar i { display: block; height: 100%; width: 0; background: var(--live); }
   #hud .sub { position: absolute; left: 50%; bottom: 14vh; transform: translateX(-50%); max-width: 80vw; text-align: center; font-size: clamp(14px, 2.3vh, 24px); color: var(--hudText); text-shadow: 0 0 6px var(--void), 0 1px 2px var(--void); transition: opacity 400ms; }
-  #hud .dialog { position: absolute; left: 50%; top: 13vh; transform: translateX(-50%); width: min(80vw, 760px); display: none; padding: 1vh 1.4vw; background: var(--panelFill); border-left: 3px solid var(--accent); font-size: clamp(14px, 2.2vh, 23px); line-height: 1.35; color: var(--hudText); }
+  #hud .dialog { position: absolute; left: 50%; bottom: 16vh; transform: translateX(-50%); width: min(66vw, 720px); text-align: center; display: none; padding: 1vh 1.4vw; background: var(--panelFill); border-left: 3px solid var(--accent); font-size: clamp(14px, 2.2vh, 23px); line-height: 1.35; color: var(--hudText); }
   #hud .dialog b { display: block; font-size: 0.72em; letter-spacing: 0.16em; margin-bottom: 0.4vh; }
+  #hud .dialog { border-left: none; border-top: 2px solid var(--accent); background: rgba(0,0,0,0.62); }
   #hud .boss { position: absolute; left: 50%; top: 3vh; transform: translateX(-50%); width: min(60vw, 520px); display: none; text-align: center; color: var(--danger); font-size: clamp(14px, 1.9vh, 20px); letter-spacing: 0.2em; text-shadow: 0 0 6px var(--void); }
   #hud .boss .segs { display: flex; gap: 6px; margin-top: 0.6vh; }
   #hud .boss .segs i { flex: 1; height: 10px; background: var(--danger); border: 1px solid var(--btnBorder); }
@@ -149,7 +161,8 @@
   #chapterPage .card canvas.cv { position: absolute; inset: 0; width: 100%; height: 100%; }
   #chapterPage .card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.85) 88%); z-index: 1; }
   #chapterPage .card .cn, #chapterPage .card .ct { z-index: 2; }
-  #chapterPage .card.locked { filter: none; }
+  #chapterPage .card.locked { filter: grayscale(1) brightness(0.82) contrast(1.12); }
+  #chapterPage .card.locked:hover, #chapterPage .card.locked.sel { filter: grayscale(0.85) brightness(0.95) contrast(1.1); }
   #chapterPage .card:nth-child(1)::before { background: linear-gradient(180deg, rgba(40,80,200,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
   #chapterPage .card:nth-child(2)::before { background: linear-gradient(180deg, rgba(220,80,170,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
   #chapterPage .card:nth-child(3)::before { background: linear-gradient(180deg, rgba(170,20,60,0.32), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
@@ -245,7 +258,8 @@
   <div id="settings" class="screen">
     <div class="panel">
       <h2>SETTINGS</h2>
-      <div id="settingsRows"></div>
+      <div id="settingsTabs"></div>
+      <div class="sscroll"><div id="settingsRows"></div><div id="bindRows"></div></div>
       <button class="mbtn" id="btnSettingsBack" data-act="settingsBack">BACK</button>
     </div>
   </div>
@@ -273,6 +287,7 @@
     <div class="objective" id="hudObjective"><b>OBJECTIVE</b><span id="hudObjText"></span></div>
     <div class="cross" id="hudCross"></div>
     <div class="prompt" id="hudPrompt"></div>
+    <div id="skipHint"><b id="skipKey">ENTER</b> SKIP</div>
     <div id="hudVhs"><svg width="64" height="40" viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="60" height="34" rx="3"/><rect x="12" y="10" width="40" height="15" rx="2"/><g class="reel"><circle cx="21" cy="17.5" r="5"/><path d="M21 12.5v10M16 17.5h10"/></g><g class="reel"><circle cx="43" cy="17.5" r="5"/><path d="M43 12.5v10M38 17.5h10"/></g><path d="M20 37l4-7h16l4 7"/></svg><span id="hudVhsText">SAVING</span></div>
     <div class="boss" id="hudBoss"><b>THE EPXIRTYPE</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
@@ -308,7 +323,7 @@
   <div id="vhs" class="screen">
     <canvas id="vhsCanvas" width="640" height="360"></canvas>
     <button class="skipbtn" id="btnSkipTape" data-act="skipTape">SKIP TAPE</button>
-    <div class="skip">SPACE / CLICK: next line &middot; ESC: skip tape</div>
+    <div class="skip">SPACE / CLICK: next line &middot; ENTER / ESC: skip tape</div>
   </div>
 </div>
 <div id="debug"></div>

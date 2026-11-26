@@ -36,6 +36,17 @@
   .row select { min-height: 40px; font: inherit; background: var(--btnFill); color: var(--btnText); border: 1px solid var(--btnBorder); }
   .row input[type=checkbox] { width: 26px; height: 26px; accent-color: var(--accent); }
   .row .val { text-align: right; color: var(--accent); }
+  #skipHint { position: absolute; right: 3%; bottom: 14%; padding: 6px 14px; font-size: clamp(12px, 1.9vh, 18px); letter-spacing: 0.14em; color: rgb(232,232,232); background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35); display: none; }
+  #skipHint b { color: var(--accent); margin-right: 6px; }
+  #settingsTabs { display: flex; gap: 6px; margin: 0 0 12px; border-bottom: 1px solid var(--btnBorder); }
+  .stab { flex: 1; min-height: 40px; font: inherit; letter-spacing: 0.12em; background: transparent; color: var(--btnText); opacity: 0.55; border: 0; border-bottom: 3px solid transparent; cursor: pointer; }
+  .stab.on { opacity: 1; border-bottom-color: var(--accent); color: var(--accent); }
+  .sscroll { max-height: 58vh; overflow-y: auto; padding-right: 6px; }
+  .brow { display: grid; grid-template-columns: 1fr 10em; align-items: center; min-height: 38px; font-size: clamp(13px, 1.9vh, 20px); }
+  .bkey { min-height: 32px; font: inherit; background: var(--btnFill); color: var(--btnText); border: 1px solid var(--btnBorder); cursor: pointer; }
+  .bkey.wait { color: var(--accent); border-color: var(--accent); }
+  .bkey.reset { margin: 10px 0; padding: 0 18px; }
+  .bhead { margin: 14px 0 6px; opacity: 0.6; font-size: clamp(11px, 1.6vh, 16px); letter-spacing: 0.1em; }
   .panel .mbtn { margin-top: 1.2vh; }
   .credits p { margin: 0.6vh 0; font-size: clamp(14px, 2vh, 20px); line-height: 1.4; }
   .credits .k { color: var(--dimText); }
@@ -66,8 +77,9 @@
   #hud .cable .bar { height: 6px; margin-top: 0.5vh; background: var(--panelFill); border: 1px solid var(--live); }
   #hud .cable .bar i { display: block; height: 100%; width: 0; background: var(--live); }
   #hud .sub { position: absolute; left: 50%; bottom: 14vh; transform: translateX(-50%); max-width: 80vw; text-align: center; font-size: clamp(14px, 2.3vh, 24px); color: var(--hudText); text-shadow: 0 0 6px var(--void), 0 1px 2px var(--void); transition: opacity 400ms; }
-  #hud .dialog { position: absolute; left: 50%; top: 13vh; transform: translateX(-50%); width: min(80vw, 760px); display: none; padding: 1vh 1.4vw; background: var(--panelFill); border-left: 3px solid var(--accent); font-size: clamp(14px, 2.2vh, 23px); line-height: 1.35; color: var(--hudText); }
+  #hud .dialog { position: absolute; left: 50%; bottom: 16vh; transform: translateX(-50%); width: min(66vw, 720px); text-align: center; display: none; padding: 1vh 1.4vw; background: var(--panelFill); border-left: 3px solid var(--accent); font-size: clamp(14px, 2.2vh, 23px); line-height: 1.35; color: var(--hudText); }
   #hud .dialog b { display: block; font-size: 0.72em; letter-spacing: 0.16em; margin-bottom: 0.4vh; }
+  #hud .dialog { border-left: none; border-top: 2px solid var(--accent); background: rgba(0,0,0,0.62); }
   #hud .boss { position: absolute; left: 50%; top: 3vh; transform: translateX(-50%); width: min(60vw, 520px); display: none; text-align: center; color: var(--danger); font-size: clamp(14px, 1.9vh, 20px); letter-spacing: 0.2em; text-shadow: 0 0 6px var(--void); }
   #hud .boss .segs { display: flex; gap: 6px; margin-top: 0.6vh; }
   #hud .boss .segs i { flex: 1; height: 10px; background: var(--danger); border: 1px solid var(--btnBorder); }
@@ -149,7 +161,8 @@
   #chapterPage .card canvas.cv { position: absolute; inset: 0; width: 100%; height: 100%; }
   #chapterPage .card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.85) 88%); z-index: 1; }
   #chapterPage .card .cn, #chapterPage .card .ct { z-index: 2; }
-  #chapterPage .card.locked { filter: none; }
+  #chapterPage .card.locked { filter: grayscale(1) brightness(0.82) contrast(1.12); }
+  #chapterPage .card.locked:hover, #chapterPage .card.locked.sel { filter: grayscale(0.85) brightness(0.95) contrast(1.1); }
   #chapterPage .card:nth-child(1)::before { background: linear-gradient(180deg, rgba(40,80,200,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
   #chapterPage .card:nth-child(2)::before { background: linear-gradient(180deg, rgba(220,80,170,0.28), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
   #chapterPage .card:nth-child(3)::before { background: linear-gradient(180deg, rgba(170,20,60,0.32), rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 88%); }
@@ -245,7 +258,8 @@
   <div id="settings" class="screen">
     <div class="panel">
       <h2>SETTINGS</h2>
-      <div id="settingsRows"></div>
+      <div id="settingsTabs"></div>
+      <div class="sscroll"><div id="settingsRows"></div><div id="bindRows"></div></div>
       <button class="mbtn" id="btnSettingsBack" data-act="settingsBack">BACK</button>
     </div>
   </div>
@@ -273,6 +287,7 @@
     <div class="objective" id="hudObjective"><b>OBJECTIVE</b><span id="hudObjText"></span></div>
     <div class="cross" id="hudCross"></div>
     <div class="prompt" id="hudPrompt"></div>
+    <div id="skipHint"><b id="skipKey">ENTER</b> SKIP</div>
     <div id="hudVhs"><svg width="64" height="40" viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="60" height="34" rx="3"/><rect x="12" y="10" width="40" height="15" rx="2"/><g class="reel"><circle cx="21" cy="17.5" r="5"/><path d="M21 12.5v10M16 17.5h10"/></g><g class="reel"><circle cx="43" cy="17.5" r="5"/><path d="M43 12.5v10M38 17.5h10"/></g><path d="M20 37l4-7h16l4 7"/></svg><span id="hudVhsText">SAVING</span></div>
     <div class="boss" id="hudBoss"><b>THE EPXIRTYPE</b><div class="segs" id="hudBossSegs"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="sub" id="hudSub"></div>
@@ -308,7 +323,7 @@
   <div id="vhs" class="screen">
     <canvas id="vhsCanvas" width="640" height="360"></canvas>
     <button class="skipbtn" id="btnSkipTape" data-act="skipTape">SKIP TAPE</button>
-    <div class="skip">SPACE / CLICK: next line &middot; ESC: skip tape</div>
+    <div class="skip">SPACE / CLICK: next line &middot; ENTER / ESC: skip tape</div>
   </div>
 </div>
 <div id="debug"></div>
@@ -548,8 +563,8 @@ const MATERIALS = [
   { name: 'furViolet', base: '#3a2150', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'furBlue', base: '#1d3a6b', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'steel', base: '#2b2729', rough: 0.45, metal: 0.8, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'handTeal', base: '#2fb8b0', rough: 0.4, metal: 0.3, tile: 2.0, emis: '#000000', emisStr: 0 },
-  { name: 'handRose', base: '#f4a3a8', rough: 0.42, metal: 0.2, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'handTeal', base: '#2fb8b0', rough: 0.78, metal: 0.12, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'handRose', base: '#f4a3a8', rough: 0.8, metal: 0.1, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'cable', base: '#1a1a1c', rough: 0.7, metal: 0.0, tile: 4.0, emis: '#4fe3ff', emisStr: 0 },
   { name: 'wood', base: '#6e5238', rough: 0.85, metal: 0.0, tile: 0.6, emis: '#000000', emisStr: 0 },
   { name: 'paint', base: '#b39a4a', rough: 0.8, metal: 0.0, tile: 0.25, emis: '#000000', emisStr: 0 },
@@ -570,7 +585,7 @@ for (let i = 0; i < MATERIALS.length; i++) MAT[MATERIALS[i].name] = i;
 
 const SCALE = {
   unit: 1, playerHeight: 1.75, playerRadius: 0.32, eyeHeight: 1.62, crouchEye: 1.05, crouchHeight: 1.15,
-  near: 0.05, far: 120, fovDefault: 95, fovMin: 90, fovMax: 100,
+  near: 0.05, far: 120, fovDefault: 90, fovMin: 60, fovMax: 120,
   doorWidth: 2.6, doorHeight: 3.2,
   monsterHeight: 2.6, monsterLegSpan: 4.2,
   levelMin: [-14, -1, -98], levelMax: [14, 9, 10],
@@ -622,9 +637,25 @@ const QUALITY = {
 const QUALITY_ORDER = ['LOW', 'MEDIUM', 'HIGH', 'CINEMATIC AAA'];
 
 const SETTINGS_DEFAULT = {
-  fov: 95, sensX: 1.0, sensY: 1.0, invertY: false, master: 0.8, music: 0.7, sfx: 0.9,
-  quality: 'HIGH', vhs: 1.0, reduceMotion: false, subtitles: true, flashlightShadows: true, voices: true
+  // DISPLAY
+  windowMode: 'WINDOWED', resolution: 'NATIVE', fpsLimit: 'UNLIMITED', vsync: true, fov: 90, motionBlur: 0.0,
+  filmGrain: 0.5, brightness: 1.0, reduceMotion: false,
+  // GRAPHICS
+  quality: 'HIGH', resScale: 100, textureQuality: 'HIGH', shadowQuality: 'HIGH', vfxQuality: 'HIGH',
+  postProcessing: 'HIGH', antiAliasing: 'FXAA', vhs: 1.0, flashlightShadows: true,
+  // AUDIO
+  master: 0.8, music: 0.7, sfx: 0.9, dialogue: 0.9, subtitles: true, voices: true,
+  // CONTROLS
+  sensX: 1.0, sensY: 1.0, invertY: false, crouchToggle: false
 };
+// Rebindable actions: id, label, default key code. Bindings remap a pressed key onto the default code the
+// game logic listens for.
+const KEY_ACTIONS = [
+  ['forward', 'MOVE FORWARD', 'KeyW'], ['back', 'MOVE BACK', 'KeyS'], ['left', 'STRAFE LEFT', 'KeyA'], ['right', 'STRAFE RIGHT', 'KeyD'],
+  ['jump', 'JUMP', 'Space'], ['sprint', 'SPRINT', 'ShiftLeft'], ['crouch', 'CROUCH', 'KeyC'], ['use', 'INTERACT', 'KeyE'],
+  ['fireL', 'FIRE LEFT HAND', 'KeyQ'], ['fireR', 'FIRE RIGHT HAND', 'KeyR'], ['flash', 'FLASHLIGHT', 'KeyF'],
+  ['wheel', 'HAND WHEEL', 'Tab'], ['mask', 'GAS MASK', 'KeyG'], ['skip', 'SKIP CUTSCENE', 'Enter', true]
+];
 
 // ANCHORS: measure functions resolve lazily against engine objects defined later in the file.
 const ANCHORS = [
@@ -1329,6 +1360,19 @@ const TexSynth = {
       out[4] = 1;
       out[5] = scratches < 1 ? 1.5 : 1;
     },
+    // worn, filthy work-glove coating: grime blotches, oil smears, scuffed lighter wear, dirt-packed seams
+    glove(s, t, out) {
+      const grime = smoothstep(0.42, 0.72, TexSynth.fbm(s, t, 5, 5, 281));
+      const oil = smoothstep(0.55, 0.75, TexSynth.fbmA(s, t, 9, 3, 4, 282));
+      const scuff = TexSynth.fbmA(s, t, 48, 4, 2, 283) > 0.72 ? 1 : 0;
+      const pore = TexSynth.fbm(s, t, 64, 2, 284);
+      const seam = Math.abs(((t * 4) % 1) - 0.5) < 0.012 ? 1 : 0;
+      let g = (0.8 + pore * 0.05) * (1 - grime * 0.3) * (1 - oil * 0.2) * (seam ? 0.55 : 1) + scuff * 0.03;
+      out[0] = g * lerp(1, 0.85, grime); out[1] = g * lerp(1, 0.8, grime); out[2] = g * lerp(1, 0.68, grime);
+      out[3] = 0.5 + pore * 0.12 - seam * 0.25 - scuff * 0.06 + grime * 0.05;
+      out[4] = 1;
+      out[5] = lerp(1.05, 1.45, grime) - oil * 0.45 + scuff * 0.2;
+    },
     cable(s, t, out) {
       const rib = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * 24);
       const g = 0.7 + rib * 0.3;
@@ -1492,7 +1536,7 @@ const TexSynth = {
   // Material index -> recipe name and normal strength. Order matches MATERIALS.
   layerPlan: [
     ['concrete', 3.0], ['rustIron', 4.0], ['hazard', 2.0], ['grating', 6.0], ['porcelainAged', 3.0], ['furMatted', 5.0],
-    ['furMatted', 5.0], ['steelGrime', 2.5], ['plastic', 2.0], ['plastic', 2.0], ['cable', 3.0], ['wood', 3.0],
+    ['furMatted', 5.0], ['steelGrime', 2.5], ['glove', 3.0], ['glove', 3.0], ['cable', 3.0], ['wood', 3.0],
     ['paint', 2.5], ['copper', 2.0], ['lens', 1.0], ['rubber', 1.5],
     ['furMatted', 4.0], ['clothRot', 3.5], ['glass', 0.5], ['furMatted', 5.0], ['furMatted', 4.5], ['clothRot', 3.5], ['lining', 3.0], ['clothRot', 3.0]
   ],
@@ -2164,6 +2208,10 @@ uniform float uFlash;
 uniform float uSlats;
 uniform vec3 uFlashTint;
 uniform vec2 uRes;
+uniform vec2 uSrcRes;
+uniform vec2 uBlur;
+uniform float uAA;
+uniform float uGamma;
 in vec2 vUv;
 out vec4 oColor;
 float hash(float n) { return fract(sin(n) * 43758.5453); }
@@ -2190,6 +2238,26 @@ void main() {
   col.r = sampleHdr(uv + dc * ca).r;
   col.g = sampleHdr(uv).g;
   col.b = sampleHdr(uv - dc * ca).b;
+  // anti-aliasing: blend across high-contrast edges toward the neighbourhood average (FXAA-style)
+  if (uAA > 0.5) {
+    vec2 px = 1.0 / uSrcRes;
+    vec3 nN = sampleHdr(uv + vec2(0.0, px.y)), nS = sampleHdr(uv - vec2(0.0, px.y));
+    vec3 nE = sampleHdr(uv + vec2(px.x, 0.0)), nW = sampleHdr(uv - vec2(px.x, 0.0));
+    vec3 lw = vec3(0.299, 0.587, 0.114);
+    float lC = dot(col, lw), lN = dot(nN, lw), lS = dot(nS, lw), lE = dot(nE, lw), lW = dot(nW, lw);
+    float lo = min(lC, min(min(lN, lS), min(lE, lW))), hi = max(lC, max(max(lN, lS), max(lE, lW)));
+    float contrast = (hi - lo) / (hi + 0.25);
+    float edge = smoothstep(0.08, 0.3, contrast);
+    vec2 dir = normalize(vec2(-(lN - lS), lE - lW) + 1e-5) * px;
+    vec3 along = 0.5 * (sampleHdr(uv + dir * 0.75) + sampleHdr(uv - dir * 0.75));
+    col = mix(col, mix(along, (nN + nS + nE + nW) * 0.25, 0.3), edge * 0.7);
+  }
+  // camera motion blur: smear along the screen-space direction the view is turning
+  if (dot(uBlur, uBlur) > 1e-7) {
+    vec3 acc = col;
+    for (int k = 1; k <= 6; k++) acc += sampleHdr(uv - uBlur * (float(k) / 6.0 - 0.5));
+    col = acc / 7.0;
+  }
   // VHS chroma bleed: horizontally smeared color difference
   vec3 smear = (sampleHdr(uv + vec2(0.004, 0.0)) + sampleHdr(uv + vec2(0.008, 0.0))) * 0.5;
   float luma = dot(col, vec3(0.299, 0.587, 0.114));
@@ -2217,7 +2285,7 @@ void main() {
   }
   col = mix(col, uFlashTint, uFlash);
   col *= 1.0 - uFade;
-  oColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / 2.2)), 1.0);
+  oColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / (2.2 * uGamma))), 1.0);
 }`;
 
 // ------------------------------------------------------------------------------------
@@ -2377,7 +2445,7 @@ const Renderer = {
 
   setQuality(name) {
     if (!QUALITY[name]) return;
-    this.quality = QUALITY[name];
+    this.quality = typeof Settings !== 'undefined' ? Settings.effectiveQuality(name) : QUALITY[name];
     this.qualityName = name;
     if (this.gl) this.allocTargets();
   },
@@ -2393,7 +2461,9 @@ const Renderer = {
     const gl = this.gl;
     if (!gl || !this.width) return;
     const q = this.quality;
-    const rw = Math.max(16, Math.floor(this.width * q.scale)), rh = Math.max(16, Math.floor(this.height * q.scale));
+    // a chosen output resolution caps the internal render size (the image is scaled up to the window)
+    const cap = q.targetH ? Math.min(1, q.targetH / this.height) : 1;
+    const rw = Math.max(16, Math.floor(this.width * q.scale * cap)), rh = Math.max(16, Math.floor(this.height * q.scale * cap));
     if (this.targets && this.rw === rw && this.rh === rh && this.shadowSize === q.shadow) return;
     if (this.targets) for (const k in this.targets.tex) gl.deleteTexture(this.targets.tex[k]);
     if (this.targets) for (const k in this.targets.fbo) gl.deleteFramebuffer(this.targets.fbo[k]);
@@ -2467,6 +2537,20 @@ const Renderer = {
     };
     this.albedoArray = mk(this.albedoData);
     this.normalArray = mk(this.normalData);
+    if (typeof Settings !== 'undefined') this.applyTextureQuality(Settings.values.textureQuality);
+  },
+  // texture quality: skip the sharpest mip levels and lower anisotropic filtering on LOW / MEDIUM
+  applyTextureQuality(level) {
+    const gl = this.gl;
+    if (!gl || !this.albedoArray) return;
+    const base = level === 'LOW' ? 2 : level === 'MEDIUM' ? 1 : 0, an = level === 'LOW' ? 1 : level === 'MEDIUM' ? 4 : 8;
+    const aniso = gl.getExtension('EXT_texture_filter_anisotropic');
+    for (const t of [this.albedoArray, this.normalArray]) {
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, t);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_BASE_LEVEL, base);
+      if (aniso) gl.texParameterf(gl.TEXTURE_2D_ARRAY, aniso.TEXTURE_MAX_ANISOTROPY_EXT, an);
+    }
+    this.textureLevel = level;
   },
   uploadMaterialUniforms() {
     const gl = this.gl, p = this.progs.gbuf;
@@ -2877,7 +2961,20 @@ const Renderer = {
     gl.uniform1f(this.u('composite', 'uRedWave'), cal ? 0 : P.redWave);
     gl.uniform1f(this.u('composite', 'uVignette'), cal ? 0 : LIGHTING.vignette);
     gl.uniform1f(this.u('composite', 'uFade'), cal ? 0 : P.fade);
-    gl.uniform1f(this.u('composite', 'uGrain'), cal ? 0 : 0.018);
+    const SV = Settings.values;
+    gl.uniform1f(this.u('composite', 'uGrain'), cal ? 0 : 0.036 * SV.filmGrain);
+    gl.uniform1f(this.u('composite', 'uAA'), SV.antiAliasing === 'FXAA' ? 1 : 0);
+    gl.uniform1f(this.u('composite', 'uGamma'), cal ? 1 : SV.brightness);
+    gl.uniform2f(this.u('composite', 'uSrcRes'), this.rw, this.rh);
+    // motion blur from how far the view turned since the last frame
+    const pf = this.prevFwd || (this.prevFwd = V3.create(0, 0, -1)), CF = this.camFwd;
+    const tf = 0.5 / Math.tan(this.fovDeg * Math.PI / 360);
+    let bx = (CF[0] - pf[0]) * this.camRight[0] + (CF[1] - pf[1]) * this.camRight[1] + (CF[2] - pf[2]) * this.camRight[2];
+    let by = (CF[0] - pf[0]) * this.camUp[0] + (CF[1] - pf[1]) * this.camUp[1] + (CF[2] - pf[2]) * this.camUp[2];
+    V3.copy(pf, CF);
+    const mb = cal ? 0 : SV.motionBlur * tf * 1.6;
+    bx = clamp(bx * mb, -0.04, 0.04); by = clamp(by * mb, -0.04, 0.04);
+    gl.uniform2f(this.u('composite', 'uBlur'), bx, by);
     gl.uniform1f(this.u('composite', 'uFlash'), cal ? 0 : P.flash);
     gl.uniform1f(this.u('composite', 'uSlats'), cal ? 0 : P.slats);
     gl.uniform3fv(this.u('composite', 'uFlashTint'), P.flashTint);
@@ -3040,8 +3137,15 @@ const Level = {
 
   // Room shell with 0.25 m half-walls per room (shared walls are two halves, no z-fighting).
   // openings: { n|s|e|w: [ [a, b, height], ... ] }  (n = min z side, s = max z side)
+  // ceiling height over a point (rooms built with room(); open areas count as tall)
+  ceilingAt(x, z) {
+    let h = 99;
+    if (this.roomBoxes) for (const b of this.roomBoxes) if (x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3]) h = Math.min(h, b[4]);
+    return h;
+  },
   room(id, x0, z0, x1, z1, h, floorMat, wallMat, ceilMat, openings, floorSurface) {
     const T = 0.25, s = this.sectors[id];
+    (this.roomBoxes || (this.roomBoxes = [])).push([x0, z0, x1, z1, h]);
     this.solid(id, x0 - T, -0.5, z0 - T, x1 + T, 0, z1 + T, floorMat, floorSurface);
     this.solid(id, x0 - T, h, z0 - T, x1 + T, h + 0.4, z1 + T, ceilMat);
     const wall = (side, a0, a1) => {
@@ -3274,9 +3378,9 @@ const Level = {
       }
     }
   },
-  desk(sector, x, z) {
+  desk(sector, x, z, bare) {
     this.solid(sector, x - 0.8, 0, z - 0.45, x + 0.8, 0.95, z + 0.45, MAT.wood, SURFACE.WOOD);
-    this.geom(sector, x - 0.25, 0.95, z - 0.3, x + 0.25, 1.3, z + 0.1, MAT.steel); // tape deck / monitor
+    if (!bare) this.geom(sector, x - 0.25, 0.95, z - 0.3, x + 0.25, 1.3, z + 0.1, MAT.steel); // tape deck / monitor
   },
 
   // ---------- build the whole level ----------
@@ -3308,7 +3412,7 @@ const Level = {
     this.geom(0, -3.9, 0, 7.6, 3.9, 0.12, 7.9, MAT.grating);            // lift floor plate
     for (let x = -3.6; x <= 3.6; x += 1.2) this.geom(0, x - 0.04, 0, 7.75, x + 0.04, 4.2, 7.85, MAT.steel); // cage bars
     this.geom(0, -3.95, 0.1, 0.4, -3.85, 4.1, 7.6, MAT.grating);
-    this.desk(0, -2.6, 2.2);
+    this.desk(0, -2.6, 2.2, true);   // bare: the gas mask lies on top
     this.crate(0, 2.8, 6.4, 0.9, 2);
     this.receptacle(0, 2.6, 1.45, 0.02, 0, 1, false, [], 'D0', 'HAND SCANNER');
     this.tube(0, 0, 4.15, 3.5, true, 1);
@@ -4240,7 +4344,7 @@ const Lights = {
   viewFill: { pos: V3.create(), color: hexToLinear(LIGHTING.flashColor), current: 0, base: 0.55, radius: 1.3, scatter: 0, fixture: 'none', sector: 0 },
   // red glow from the gas inside the Spoolwright's ribcage (linear RGB, deep red)
   // violet glow from Mister Thimble's eye while your flashlight is off (linear RGB)
-  thimbleGlow: { pos: V3.create(), color: new Float32Array([0.5, 0.1, 1.0]), current: 0, base: 1.4, radius: 4.5, scatter: 0.15, fixture: 'none', sector: 0 },
+  thimbleGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.78, 0.5]), current: 0, base: 1.0, radius: 4.5, scatter: 0.15, fixture: 'none', sector: 0 },
   // short-lived light flashes (clamp sparks, shocks, Thimble's grounding burst)
   pulses: Array.from({ length: 8 }, () => ({ pos: V3.create(), color: new Float32Array(3), current: 0, base: 0, radius: 3, scatter: 0.2, fixture: 'none', sector: 0, t: 0, dur: 0, flicker: 0, alive: false })),
   pulse(pos, r, g, b, radius, intensity, dur, flicker) {
@@ -4307,7 +4411,7 @@ const Lights = {
     }
     if (sectorVisible[2]) { const GG = this.gasGlow; GG.current = GG.base * (0.85 + 0.15 * Math.sin(time * 0.9)); if (list.count >= list.items.length) list.items.push(null); list.items[list.count++] = GG; }
     const DG = this.dollGlow, DD = Cast.doll;
-    if (DD.eyePos && sectorVisible[DD.sector] && (Game.isGameplay() || state === STATE.PAUSED)) {
+    if (false && DD.eyePos && sectorVisible[DD.sector] && (Game.isGameplay() || state === STATE.PAUSED)) {   // Posie's eye no longer glows
       V3.copy(DG.pos, DD.eyePos); DG.pos[2] += 0; DG.sector = DD.sector;
       DG.current = DG.base * (0.85 + 0.15 * Math.sin(time * 1.3)) * (1 - DD.blink * 0.8);
       if (list.count >= list.items.length) list.items.push(null);
@@ -4964,7 +5068,7 @@ const Monster = {
   },
   updateCreep(dt) {
     const eye = Player.cam.eye;
-    this.bodyPoint(this.head, 0, 3.33, -0.74);
+    this.bodyPoint(this.head, 0, 3.33 + this.rise(), -0.74);
     V3.sub(this.tmp, this.head, eye);
     const l = V3.len(this.tmp) || 1;
     const seen = V3.dot(this.tmp, Renderer.camFwd) / l > 0.6 && Enemies.clearLine(eye, this.head);
@@ -5064,6 +5168,15 @@ const Monster = {
     return out;
   },
 
+  // how far the long spine lifts the torso, arms and head above the base: he towers when he stands,
+  // and hunches down to your level for the kill
+  rise() {
+    if (this.kill.on) return 0.1;
+    // he ducks under low ceilings instead of putting his hood through them
+    const room = Level.ceilingAt(this.pos[0], this.pos[2]);
+    this.riseNow = damp(this.riseNow === undefined ? 0.5 : this.riseNow, clamp(room - 4.35, -0.3, 0.5), 3, 1 / 60);
+    return this.riseNow;
+  },
   submit(jumpscare) {
     if (!this.visible) return;
     const yaw = this.yaw, lean = this.lean, R = RenderQueue;
@@ -5081,7 +5194,7 @@ const Monster = {
     let it;
     if (Sculpt.ready('sp_body')) {
       it = R.push('sp_body', MAT.furViolet);
-      if (it) M4.compose(it.model, this.pos[0], this.pos[1] + 1.35 + this.bodyBob, this.pos[2], yaw, lean, 0, 1, 1, 1);
+      if (it) { M4.compose(it.model, this.pos[0], this.pos[1] + 1.35 + this.bodyBob, this.pos[2], yaw, lean, 0, 1, 1, 1); it.tint[0] = 0.72; it.tint[1] = 0.66; it.tint[2] = 0.62; }
     }
     // yellow measuring tape trailing from the rear like a shredded tail
     this.bodyPoint(B, 0, 1.3, 1.85);
@@ -5140,7 +5253,7 @@ const Monster = {
     }
     // ---- upper torso: a tattered tailor's coat over a skeletal frame ----
     this.bodyPoint(B, 0, 1.75, -0.38);
-    this.bodyPoint(this.chest, 0, 2.25, -0.48);
+    this.bodyPoint(this.chest, 0, 2.25 + this.rise(), -0.48);
     R.seg('cyl', MAT.steel, B, this.chest, 0.045);
     // a thin segmented spine of vertebrae and gold brackets holding the torso up high over the base
     for (let k = 1; k < 6; k++) {
@@ -5150,7 +5263,7 @@ const Monster = {
     if (Sculpt.ready('sp_coat')) {
       it = R.push('sp_coat', MAT.clothWine);
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
-      if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.8; }
+      if (it) { it.tint[0] = 0.9; it.tint[1] = 0.74; it.tint[2] = 0.64; }
     }
     this.trophyFrom = RenderQueue.count;
     // three stolen plush arms hang DEAD from under the chest: teal, rose (wearing a teal ring) and pink.
@@ -5168,10 +5281,11 @@ const Monster = {
       if (it) {
         M4.segment(it.model, B, H, 1);
         if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2]; }
-        const hd = Sculpt.ready('sp_trophyHand') ? R.push('sp_trophyHand', smooth ? MAT.handRose : MAT.furLight) : null;
+        // furry hands in the same shaggy fur as their arm (the smooth pink arm ends in a pink fur hand)
+        const hd = Sculpt.ready('sp_trophyHand') ? R.push('sp_trophyHand', MAT.furLight) : null;
         if (hd) {
           hd.model.set(it.model);
-          if (smooth) { hd.tint[0] = 0.62; hd.tint[1] = 0.36; hd.tint[2] = 0.42; } else { hd.tint[0] = 1.75; hd.tint[1] = 1.5; hd.tint[2] = 0.55; }
+          if (smooth) { hd.tint[0] = 2.1; hd.tint[1] = 0.75; hd.tint[2] = 1.7; } else { const c = TROPHY_TINT[k]; hd.tint[0] = c[0] * 0.85; hd.tint[1] = c[1] * 0.85; hd.tint[2] = c[2] * 0.85; }
         }
         if (smooth) {
           V3.set(_mh.local, 0, 0.76, 0); M4.transformPoint(X, it.model, _mh.local);
@@ -5183,13 +5297,13 @@ const Monster = {
     }
     this.trophyTo = RenderQueue.count;
     // ---- neck: segmented cable bundle up to the mask ----
-    this.bodyPoint(B, 0, 2.49, -0.5);
+    this.bodyPoint(B, 0, 2.49 + this.rise(), -0.5);
     const hx = 0;   // the neck holds still; only the mask moves
-    this.bodyPoint(this.head, hx, 3.33 + this.flinchAmt * 0.2, -0.74);
-    for (let k = 1; k < 4; k++) { V3.lerp(X, B, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
+    this.bodyPoint(this.head, hx, 3.33 + this.rise() + this.flinchAmt * 0.2, -0.74);
+    // (no beads on the neck: just a scorched rubber cable bundle)
     R.seg('cyl', MAT.rubber, B, this.head, 0.05);
     for (const off of [-0.05, 0.05]) {
-      this.bodyPoint(X, off, 2.45, -0.45);
+      this.bodyPoint(X, off, 2.45 + this.rise(), -0.45);
       it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
       if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
     }
@@ -5202,9 +5316,9 @@ const Monster = {
     // ---- arms: long thin machine arms ending in needle fingers ----
     if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
     for (const side of [-1, 1]) {
-      this.bodyPoint(B, side * 0.3, 2.39, -0.47);
+      this.bodyPoint(B, side * 0.3, 2.39 + this.rise(), -0.47);
       const reach = this.armReach;
-      this.bodyPoint(H, side * (0.95 - reach * 0.35), 2.0 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
+      this.bodyPoint(H, side * (1.05 - reach * 0.4), 1.85 + this.rise() * 0.5 + reach * 0.6 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
       R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
       R.seg('cyl', MAT.steel, B, H, 0.045);
       this.puffSleeve(B, H, side);
@@ -5283,9 +5397,9 @@ const Monster = {
   },
   drawKillArm(side, hx, hy, hz, cx, cy, cz, join, bony, grab) {
     const R = RenderQueue, B = this.tmp, H = this.tmp2, X = this.tmp3, L = _mh.kl;
-    this.bodyPoint(B, side * 0.3, 2.39, -0.47);
+    this.bodyPoint(B, side * 0.3, 2.39 + this.rise(), -0.47);
     this.bodyPoint(X, hx, hy, hz);
-    this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.3, (2.39 + hy) * 0.5 - 0.12, (-0.47 + hz) * 0.5 + 0.08);
+    this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.3, (2.39 + this.rise() + hy) * 0.5 - 0.12, (-0.47 + hz) * 0.5 + 0.08);
     R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
     R.seg('cyl', MAT.steel, B, H, 0.045);
     this.puffSleeve(B, H, side);
@@ -5400,20 +5514,30 @@ const Monster = {
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
       // the grin never moves: it is carved into the porcelain. Grimy, yellowed and stained.
-      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.72; it.tint[1] = 0.64; it.tint[2] = 0.5; }
+      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.68; it.tint[1] = 0.6; it.tint[2] = 0.47; }
     } else {
       R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }
     // both sockets are pitch black; the left one holds a single small yellow point of light
-    this.headLocal(m, -0.125, 0.06, -0.25, this.eye);
-    R.trs('sphere', MAT.rubber, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.062 * s, 0.062 * s, 0.035 * s, false);
-    this.headLocal(m, -0.125, 0.058, -0.29, this.eye);
-    it = R.trs('sphereLow', MAT.screen, this.eye[0], this.eye[1], this.eye[2], 0, 0, 0, 0.014 * s, 0.014 * s, 0.014 * s, false);
-    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.2; it.emis[0] = 3.2; it.emis[1] = 2.7; it.emis[2] = 0.25; }
-    this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
-    R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.07 * s, 0.07 * s, 0.035 * s, false);
+    // big round black eye sockets; the one on the viewer's left holds a small burning yellow pupil
+    this.headLocal(m, 0.135, 0.085, -0.25, this.eye);
+    R.trs('sphere', MAT.rubber, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.088 * s, 0.088 * s, 0.035 * s, false);
+    this.headLocal(m, 0.13, 0.08, -0.292, this.eye);
+    it = R.trs('sphereLow', MAT.screen, this.eye[0], this.eye[1], this.eye[2], 0, 0, 0, 0.016 * s, 0.016 * s, 0.016 * s, false);
+    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.2; it.emis[0] = 3.6; it.emis[1] = 2.9; it.emis[2] = 0.25; }
+    this.headLocal(m, -0.135, 0.085, -0.25, this.tmp3);
+    R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.088 * s, 0.088 * s, 0.035 * s, false);
     // the hood and its hat as one piece: rose / teal / gold patchwork with the battered harlequin top hat sewn on
-    if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(mh); it.tint[0] = 0.95; it.tint[1] = 0.88; it.tint[2] = 0.82; } }
+    if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(mh); it.tint[0] = 0.74; it.tint[1] = 0.66; it.tint[2] = 0.6; } }
+    // brass jingle bells hanging from the hat tails, swaying as he moves
+    if (Sculpt.ready('sp_bell')) {
+      const sway = Math.sin(Game.time * 3.1) * 0.25 * Math.min(1, 0.25 + this.speed * 0.3);
+      for (const sx of [-1, 1]) {
+        this.headLocal(mh, sx * 0.63 + 0.03, 0.175, 0.12, this.tmp3);
+        it = R.trs('sp_bell', MAT.copper, this.tmp3[0], this.tmp3[1] - 0.03 * s, this.tmp3[2], yaw, sway * sx, sway * 0.6, s * 1.45, s * 1.45, s * 1.45);
+        if (it) { it.tint[0] = 1.7; it.tint[1] = 1.35; it.tint[2] = 0.6; }
+      }
+    }
   },
   headLocal(m, x, y, z, out) { V3.set(_mh.local, x, y, z); return M4.transformPoint(out, m, _mh.local); },
 
@@ -5512,7 +5636,7 @@ const Audio = {
     this.buses.sfx.gain.setTargetAtTime(S.sfx, t, 0.05);
     this.buses.ambience.gain.setTargetAtTime(S.sfx * 0.9, t, 0.05);
     this.buses.ui.gain.setTargetAtTime(S.sfx * 0.7, t, 0.05);
-    this.buses.voice.gain.setTargetAtTime(Math.max(S.sfx, 0.5), t, 0.05);
+    this.buses.voice.gain.setTargetAtTime(S.dialogue, t, 0.05);
     this.buses.scare.gain.setTargetAtTime(1.0, t, 0.05);
   },
 
@@ -6226,16 +6350,23 @@ const Input = {
   onKeyDown(e) {
     if (Input.PREVENT.has(e.code) && e.preventDefault) e.preventDefault();
     if (e.repeat) return;
+    // the settings panel is waiting for a key to bind
+    if (Settings.capturing) { if (e.preventDefault) e.preventDefault(); Settings.captureKey(e.code); return; }
     if (e.code === 'F9') { runAll(); return; }
     if (e.code === 'F1') { DebugOverlay.toggle(); return; }
     if (e.code === 'F2') { FidelityOverlay.toggle(); return; }
     const panel = document.getElementById('report');
     if (e.code === 'Escape' && panel.style.display === 'block') { panel.style.display = 'none'; return; }
-    if (!Input.keys[e.code]) Input.justPressed.add(e.code);
-    Input.keys[e.code] = true;
+    // rebound keys arrive as the default key the game listens for; the skip key is also kept raw
+    const code = Settings.translate(e.code);
+    if (e.code !== code && e.code === Settings.bindOf('skip')) Input.justPressed.add(e.code);
+    if (code) {
+      if (!Input.keys[code]) Input.justPressed.add(code);
+      Input.keys[code] = true;
+    }
     Audio.init();
   },
-  onKeyUp(e) { Input.keys[e.code] = false; },
+  onKeyUp(e) { const code = Settings.translate(e.code); if (code) Input.keys[code] = false; },
   releaseAll() {
     for (const k in this.keys) this.keys[k] = false;
     this.mouse[0] = this.mouse[1] = this.mouse[2] = false;
@@ -6339,7 +6470,7 @@ const Player = {
 
   reset(pos, yaw) {
     V3.copy(this.body.pos, pos); V3.set(this.body.vel, 0, 0, 0);
-    this.yaw = yaw; this.pitch = 0; this.roll = 0; this.crouch = 0; this.crouching = false; this.sprinting = false;
+    this.yaw = yaw; this.pitch = 0; this.roll = 0; this.crouch = 0; this.crouching = false; this.crouchLatched = false; this.sprinting = false;
     this.bobPhase = 0; this.bobAmp = 0; this.landDip = 0; this.landVel = 0; this.trauma = 0; this.chaseShake = 0;
     this.recoilPitch = 0; this.recoilRoll = 0; this.coyote = 0; this.jumpBuffer = 0; this.wasGrounded = true; this.airTime = 0;
     this.health = 100; this.hurtTimer = 0; this.scaldCool = 0; this.traction = 1; this.speedMul = 1; this.climb = 0; this.lockAmt = 0; this.lockTarget = null; this.acc = 0;
@@ -6392,7 +6523,11 @@ const Player = {
     fx += P.lx + Input.stick.x; fz += P.ly + Input.stick.y;
     const il = Math.hypot(fx, fz);
     if (il > 1) { fx /= il; fz /= il; }
-    this.crouching = !!(K.KeyC || K.ControlLeft || P.buttons[1]);
+    // crouch: hold, or tap to toggle when CROUCH TOGGLE is on
+    if (Settings.values.crouchToggle) {
+      if (Input.justPressed.has('KeyC') || Input.justPressed.has('ControlLeft') || Input.padJust(1)) this.crouchLatched = !this.crouchLatched;
+      this.crouching = !!this.crouchLatched;
+    } else { this.crouchLatched = false; this.crouching = !!(K.KeyC || K.ControlLeft || P.buttons[1]); }
     const wantSprint = !this.crouching && (K.ShiftLeft || K.ShiftRight || P.buttons[10] || Input.touchRun) && fz < -0.3;
     this.sprinting = wantSprint && il > 0.1;
     const speed = (this.crouching ? FEEL.crouchSpeed : this.sprinting ? FEEL.sprintSpeed : FEEL.walkSpeed) * this.speedMul;
@@ -6678,6 +6813,18 @@ const VHS = {
     if (gameRng() < dt * 0.35) { this.glitch = 0.5 + gameRng() * 0.4; sfx('tapeGlitch'); }
     this.draw();
   },
+  // Harlan Smithers breaks into the set: his face from the office monitors, smeared with red static
+  drawHijack(t) {
+    const c = this.ctx, W = 640, H = 360;
+    if (!c) return;
+    if (Cast.screenCanvas) { Cast.drawScreen(t); c.imageSmoothingEnabled = false; c.drawImage(Cast.screenCanvas, 0, 0, W, H); c.imageSmoothingEnabled = true; }
+    else { c.fillStyle = 'rgb(10,4,6)'; c.fillRect(0, 0, W, H); }
+    c.fillStyle = 'rgba(160,10,20,0.22)'; c.fillRect(0, 0, W, H);
+    for (let i = 0; i < 120; i++) { c.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.18) + ')'; c.fillRect(Math.random() * W, Math.random() * H, 2 + Math.random() * 40, 2); }
+    const band = (t * 90) % H; c.fillStyle = 'rgba(255,255,255,0.08)'; c.fillRect(0, band, W, 18);
+    c.fillStyle = 'rgba(255,70,60,0.9)'; c.font = 'bold 22px monospace'; c.textBaseline = 'top';
+    if (Math.sin(t * 5) > -0.3) c.fillText('SIGNAL OVERRIDE // H.SMITHERS', 20, 18);
+  },
   draw() {
     const c = this.ctx, W = 640, H = 360, t = this.time, tp = this.tape;
     if (!c || !tp) return;
@@ -6781,22 +6928,39 @@ const VHS = {
 };
 
 // ---------- settings ----------
+const pct = v => Math.round(v * 100) + '%';
 const Settings = {
   values: Object.assign({}, SETTINGS_DEFAULT),
+  binds: {}, capturing: null, tab: 'DISPLAY',
+  tabs: ['DISPLAY', 'GRAPHICS', 'AUDIO', 'CONTROLS'],
   schema: [
-    { key: 'fov', label: 'FIELD OF VIEW', type: 'range', min: SCALE.fovMin, max: SCALE.fovMax, step: 1, fmt: v => v + '°' },
-    { key: 'sensX', label: 'LOOK SENSITIVITY X', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: v => v.toFixed(2) },
-    { key: 'sensY', label: 'LOOK SENSITIVITY Y', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: v => v.toFixed(2) },
-    { key: 'invertY', label: 'INVERT Y', type: 'check' },
-    { key: 'master', label: 'MASTER VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
-    { key: 'music', label: 'MUSIC / DRONE', type: 'range', min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
-    { key: 'sfx', label: 'EFFECTS', type: 'range', min: 0, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
-    { key: 'quality', label: 'SHADER QUALITY', type: 'select', options: QUALITY_ORDER },
-    { key: 'vhs', label: 'VHS FILTER', type: 'range', min: 0, max: 1.5, step: 0.05, fmt: v => Math.round(v * 100) + '%' },
-    { key: 'flashlightShadows', label: 'FLASHLIGHT SHADOWS', type: 'check' },
-    { key: 'reduceMotion', label: 'REDUCE MOTION', type: 'check' },
-    { key: 'subtitles', label: 'HINTS & SUBTITLES', type: 'check' },
-    { key: 'voices', label: 'CHARACTER VOICES', type: 'check' }
+    { tab: 'DISPLAY', key: 'windowMode', label: 'WINDOW MODE', type: 'select', options: ['WINDOWED', 'BORDERLESS', 'FULLSCREEN'] },
+    { tab: 'DISPLAY', key: 'resolution', label: 'RESOLUTION', type: 'select', options: ['NATIVE', '2560x1440', '1920x1080', '1600x900', '1280x720', '960x540'] },
+    { tab: 'DISPLAY', key: 'fpsLimit', label: 'FRAME RATE LIMIT', type: 'select', options: ['30', '60', '120', '144', 'UNLIMITED'] },
+    { tab: 'DISPLAY', key: 'vsync', label: 'VSYNC', type: 'check' },
+    { tab: 'DISPLAY', key: 'fov', label: 'FIELD OF VIEW', type: 'range', min: SCALE.fovMin, max: SCALE.fovMax, step: 1, fmt: v => v + '°' },
+    { tab: 'DISPLAY', key: 'motionBlur', label: 'MOTION BLUR', type: 'range', min: 0, max: 1, step: 0.05, fmt: v => v > 0 ? pct(v) : 'OFF' },
+    { tab: 'DISPLAY', key: 'filmGrain', label: 'FILM GRAIN', type: 'range', min: 0, max: 1, step: 0.05, fmt: v => v > 0 ? pct(v) : 'OFF' },
+    { tab: 'DISPLAY', key: 'brightness', label: 'BRIGHTNESS / GAMMA', type: 'range', min: 0.5, max: 1.6, step: 0.02, fmt: v => v.toFixed(2) },
+    { tab: 'DISPLAY', key: 'reduceMotion', label: 'REDUCE CAMERA SHAKE', type: 'check' },
+    { tab: 'GRAPHICS', key: 'quality', label: 'QUALITY PRESET', type: 'select', options: QUALITY_ORDER },
+    { tab: 'GRAPHICS', key: 'resScale', label: 'RESOLUTION SCALE', type: 'range', min: 50, max: 100, step: 5, fmt: v => v + '%' },
+    { tab: 'GRAPHICS', key: 'textureQuality', label: 'TEXTURE QUALITY', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH'] },
+    { tab: 'GRAPHICS', key: 'shadowQuality', label: 'SHADOW QUALITY', type: 'select', options: ['OFF', 'LOW', 'MEDIUM', 'HIGH'] },
+    { tab: 'GRAPHICS', key: 'vfxQuality', label: 'VFX QUALITY', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH'] },
+    { tab: 'GRAPHICS', key: 'postProcessing', label: 'POST-PROCESSING', type: 'select', options: ['LOW', 'MEDIUM', 'HIGH'] },
+    { tab: 'GRAPHICS', key: 'antiAliasing', label: 'ANTI-ALIASING', type: 'select', options: ['OFF', 'FXAA'] },
+    { tab: 'GRAPHICS', key: 'vhs', label: 'VHS FILTER', type: 'range', min: 0, max: 1.5, step: 0.05, fmt: pct },
+    { tab: 'AUDIO', key: 'master', label: 'MASTER VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: pct },
+    { tab: 'AUDIO', key: 'music', label: 'MUSIC VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: pct },
+    { tab: 'AUDIO', key: 'sfx', label: 'SFX VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: pct },
+    { tab: 'AUDIO', key: 'dialogue', label: 'DIALOGUE VOLUME', type: 'range', min: 0, max: 1, step: 0.01, fmt: pct },
+    { tab: 'AUDIO', key: 'subtitles', label: 'SUBTITLES', type: 'check' },
+    { tab: 'AUDIO', key: 'voices', label: 'CHARACTER VOICES', type: 'check' },
+    { tab: 'CONTROLS', key: 'sensX', label: 'SENSITIVITY', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: v => v.toFixed(2) },
+    { tab: 'CONTROLS', key: 'sensY', label: 'VERTICAL SENSITIVITY', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: v => v.toFixed(2) },
+    { tab: 'CONTROLS', key: 'invertY', label: 'INVERT Y', type: 'check' },
+    { tab: 'CONTROLS', key: 'crouchToggle', label: 'CROUCH TOGGLE', type: 'check' }
   ],
   load() {
     const saved = loadJSON('settings');
@@ -6807,25 +6971,87 @@ const Settings = {
         else if (s.type === 'check' && typeof v === 'boolean') this.values[s.key] = v;
         else if (s.type === 'select' && s.options.indexOf(v) >= 0) this.values[s.key] = v;
       }
+      if (saved.binds && typeof saved.binds === 'object') for (const a of KEY_ACTIONS) if (typeof saved.binds[a[0]] === 'string') this.binds[a[0]] = saved.binds[a[0]];
     }
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches && !saved) this.values.reduceMotion = true;
+    this.rebuildKeyMap();
   },
-  save() { save('settings', JSON.stringify(this.values)); },
+  save() { save('settings', JSON.stringify(Object.assign({ binds: this.binds }, this.values))); },
   set(key, value) {
     this.values[key] = value;
+    // the vertical slider follows the main sensitivity unless it was set on its own
+    if (key === 'sensX' && Math.abs(this.values.sensY - (this._lastSens || 1)) < 1e-6) this.values.sensY = value;
+    if (key === 'sensX') this._lastSens = value;
+    if (key === 'shadowQuality') this.values.flashlightShadows = value !== 'OFF';
+    if (key === 'windowMode') this.applyWindow();
     this.apply();
     this.save();
   },
+  // the renderer's working preset: the chosen quality preset refined by the individual graphics options
+  effectiveQuality(name) {
+    const V = this.values, q = Object.assign({}, QUALITY[name] || QUALITY.HIGH);
+    q.scale *= clamp(V.resScale || 100, 50, 100) / 100;
+    const sh = V.shadowQuality;
+    if (sh === 'OFF' || sh === 'LOW') { q.shadow = 512; q.pcf = 1; } else if (sh === 'MEDIUM') { q.shadow = 1024; q.pcf = Math.min(q.pcf, 2); } else q.shadow = Math.max(q.shadow, 1024);
+    if (V.postProcessing === 'LOW') { q.ssao = 0; q.aoSamples = 0; q.bloomPasses = 1; q.volSteps = 0; }
+    else if (V.postProcessing === 'MEDIUM') { q.aoSamples = Math.min(q.aoSamples, 6); q.bloomPasses = Math.min(q.bloomPasses, 1); q.volSteps = Math.min(q.volSteps, 8); }
+    if (V.vfxQuality === 'LOW') q.maxLights = Math.min(q.maxLights, 32); else if (V.vfxQuality === 'MEDIUM') q.maxLights = Math.min(q.maxLights, 64);
+    q.vfx = V.vfxQuality === 'LOW' ? 0.4 : V.vfxQuality === 'MEDIUM' ? 0.7 : 1;
+    if (V.resolution && V.resolution !== 'NATIVE') q.targetH = parseInt(V.resolution.split('x')[1], 10) || 0;
+    return q;
+  },
   apply() {
     Renderer.setQuality(this.values.quality);
+    Renderer.applyTextureQuality(this.values.textureQuality);
     Audio.applyVolumes();
   },
+  applyWindow() {
+    const m = this.values.windowMode, d = document;
+    try {
+      if (m === 'WINDOWED') { if (d.fullscreenElement && d.exitFullscreen) d.exitFullscreen().catch(() => {}); }
+      else if (!d.fullscreenElement && d.documentElement.requestFullscreen) d.documentElement.requestFullscreen({ navigationUI: m === 'BORDERLESS' ? 'hide' : 'auto' }).catch(() => {});
+    } catch (e) { /* fullscreen needs a click; the option stays chosen */ }
+  },
+  // frame pacing: minimum milliseconds between rendered frames (0 = no cap)
+  frameBudget() { const f = this.values.fpsLimit; return f === 'UNLIMITED' ? 0 : 1000 / parseInt(f, 10); },
+  // key remapping: pressed code -> the default code the game logic reads ('' = blocked)
+  keyMap: {},
+  bindOf(id) { const a = KEY_ACTIONS.find(k => k[0] === id); return this.binds[id] || (a ? a[2] : ''); },
+  rebuildKeyMap() {
+    const m = {};
+    for (const a of KEY_ACTIONS) { if (a[3]) continue; const b = this.binds[a[0]]; if (b && b !== a[2]) { if (!(a[2] in m)) m[a[2]] = ''; m[b] = a[2]; } }
+    this.keyMap = m;
+  },
+  translate(code) { return code in this.keyMap ? this.keyMap[code] : code; },
+  keyName(c) { return c.replace(/^Key/, '').replace(/^Digit/, '').replace(/Left$/, ' L').replace(/Right$/, ' R').toUpperCase(); },
+  captureKey(code) {
+    const id = this.capturing; this.capturing = null;
+    if (code !== 'Escape') {
+      // a key can only do one thing: whatever held it before takes this action's old key
+      const old = this.bindOf(id);
+      for (const a of KEY_ACTIONS) if (a[0] !== id && this.bindOf(a[0]) === code) this.binds[a[0]] = old;
+      this.binds[id] = code;
+      this.rebuildKeyMap(); this.save();
+    }
+    sfx('uiClick'); this.buildUI();
+  },
+  resetBinds() { this.binds = {}; this.rebuildKeyMap(); this.save(); this.buildUI(); },
+  setTab(t) { this.tab = t; this.buildUI(); sfx('uiHover'); },
   buildUI() {
     UI.refreshAssetList();
+    const tabs = document.getElementById('settingsTabs');
+    if (tabs) {
+      tabs.textContent = '';
+      for (const t of this.tabs) {
+        const b = document.createElement('button'); b.className = 'stab' + (t === this.tab ? ' on' : ''); b.textContent = t;
+        b.addEventListener('click', () => this.setTab(t)); tabs.appendChild(b);
+      }
+    }
     const root = document.getElementById('settingsRows');
     root.textContent = '';
     for (const s of this.schema) {
       const row = document.createElement('div'); row.className = 'row';
+      if (s.tab !== this.tab) row.style.display = 'none';
       const lab = document.createElement('label'); lab.textContent = s.label; lab.htmlFor = 'set_' + s.key;
       const val = document.createElement('span'); val.className = 'val';
       let input;
@@ -6846,6 +7072,24 @@ const Settings = {
       input.id = 'set_' + s.key;
       row.appendChild(lab); row.appendChild(input); row.appendChild(val);
       root.appendChild(row);
+    }
+    // key bindings (controls tab)
+    const binds = document.getElementById('bindRows');
+    if (binds) {
+      binds.textContent = '';
+      binds.style.display = this.tab === 'CONTROLS' ? '' : 'none';
+      const h = document.createElement('div'); h.className = 'bhead'; h.textContent = 'KEYBINDINGS  (click, then press a key - Esc cancels)'; binds.appendChild(h);
+      for (const a of KEY_ACTIONS) {
+        const r = document.createElement('div'); r.className = 'brow';
+        const l = document.createElement('span'); l.textContent = a[1];
+        const b = document.createElement('button'); b.className = 'bkey' + (this.capturing === a[0] ? ' wait' : '');
+        b.textContent = this.capturing === a[0] ? 'PRESS A KEY...' : this.keyName(this.bindOf(a[0]));
+        b.addEventListener('click', () => { this.capturing = a[0]; this.buildUI(); });
+        r.appendChild(l); r.appendChild(b); binds.appendChild(r);
+      }
+      const rb = document.createElement('button'); rb.className = 'bkey reset'; rb.textContent = 'RESET KEYS';
+      rb.addEventListener('click', () => this.resetBinds()); binds.appendChild(rb);
+      const mb = document.createElement('div'); mb.className = 'bhead'; mb.textContent = 'MOUSE: LEFT / RIGHT BUTTON FIRE THE LEFT / RIGHT HAND'; binds.appendChild(mb);
     }
   }
 };
@@ -6924,6 +7168,13 @@ const UI = {
   // Change-driven HUD writes (no DOM writes when nothing changed)
   updateHud(dt) {
     const H = this.lastHud, E = this.el;
+    // skip prompt while a scripted scene is playing
+    const cut = Game.isGameplay() && (Game.cutsceneActive() || Dialogue.busy() || !!Game.tv);
+    if (H.cut !== cut) {
+      H.cut = cut;
+      const sh = document.getElementById('skipHint');
+      if (sh) { sh.style.display = cut ? 'block' : 'none'; document.getElementById('skipKey').textContent = Settings.keyName(Settings.bindOf('skip')); }
+    }
     this.objectiveTimer -= dt;
     const objOn = this.objectiveTimer > 0 || Game.state === STATE.PAUSED;
     if (H.obj !== this.objective) { E.hudObjText.textContent = this.objective; H.obj = this.objective; }
@@ -7107,7 +7358,7 @@ const HANDLERS = {
   SETTINGS_PANEL: {
     enter() { UI.show('settings'); Input.exitLock(); Settings.buildUI(); },
     exit() { UI.hide('settings'); },
-    update(dt) { if (Input.justPressed.has('Escape') || Input.padJust(1)) Game.uiAction('settingsBack'); if (Game.settingsReturn === STATE.MAIN_MENU) Game.menuUpdate(dt); }
+    update(dt) { if (!Settings.capturing && (Input.justPressed.has('Escape') || Input.padJust(1))) Game.uiAction('settingsBack'); if (Game.settingsReturn === STATE.MAIN_MENU) Game.menuUpdate(dt); }
   },
   CREDITS: {
     enter() { UI.show('credits'); },
@@ -7118,8 +7369,8 @@ const HANDLERS = {
     enter() { UI.show('vhs'); Input.exitLock(); Renderer.post.vhsBoost = 0.6; },
     exit() { UI.hide('vhs'); Renderer.post.vhsBoost = 0; },
     update(dt) {
-      if (Input.justPressed.has('Escape') || Input.padJust(1)) { VHS.finish(); return; }
-      if (Input.justPressed.has('Space') || Input.justPressed.has('Enter') || Input.mouseJust[0] || Input.padJust(0)) VHS.advance();
+      if (Input.justPressed.has('Escape') || Input.justPressed.has(Settings.bindOf('skip')) || Input.padJust(1) || Input.padJust(8)) { VHS.finish(); return; }
+      if (Input.justPressed.has('Space') || Input.mouseJust[0] || Input.padJust(0)) VHS.advance();
       VHS.update(dt);
       Audio.updateDrone(0.1, true);
     }
@@ -7263,6 +7514,8 @@ const Game = {
 
   // Resets every mutable gameplay field (the list is cross-checked against the declarations above)
   resetGame() {
+    if (typeof Lovey !== 'undefined') Lovey.met = false;
+    if (this.tv) { this.tv = null; if (VHS.tape) { VHS.tape = null; VHS.done = null; } }
     this.stage = 0; this.time = 0; this.threat = 0; this.chaseActive = false; this.victoryTimer = -1; this.invulnerable = false; this.liftTimer = 0;
     Boss.reset();
     this.fracture[0] = 0; this.fracture[1] = -100; this.fracture[2] = 0; this.fracture[3] = 0; this.fractureAmt = 0;
@@ -7340,6 +7593,7 @@ const Game = {
     cp.valid = true;
   },
   restoreCheckpoint() {
+    if (this.tv) { this.tv = null; if (VHS.tape) { VHS.tape = null; VHS.done = null; } }
     const cp = this.checkpoint;
     if (!cp.valid) { this.resetGame(); return; }
     // physics loops, hands, particles, AI and events are cleaned before state is re-applied
@@ -7487,6 +7741,16 @@ const Game = {
     if (Input.justPressed.has('KeyF') || Input.padJust(3)) { Player.flashOn = !Player.flashOn; sfx('flashlight'); }
     const usePressed = Input.justPressed.has('KeyE') || Input.padJust(2);
     const wasHidden = !!Player.hidden;
+    // cutscenes: the skip key (Enter by default) or the pad's Back button cuts any of them short
+    // and any dialogue line (characters talking to you or to each other) can be skipped the same way
+    const skipKey = Input.justPressed.has(Settings.bindOf('skip')) || Input.justPressed.has('Backspace') || Input.padJust(8);
+    // in a locked scene (you can't move anyway) Space, E or a click skip too
+    const lockedSkip = this.cutsceneActive() && (Input.justPressed.has('Space') || Input.justPressed.has('KeyE') || Input.mouseJust[0] || Input.padJust(0));
+    if (skipKey || lockedSkip) {
+      if (this.cutsceneActive()) this.skipCutscene();
+      else if (this.tv && !this.tv.hijack) { VHS.finish(); sfx('uiClick'); }
+      else if (Dialogue.busy()) { Dialogue.skip(); sfx('uiClick'); }
+    }
     const broadcast = DeepWorks.broadcastLocked();
     if (broadcast) {
       // the Usher's broadcast: you can't move, look away or skip it; the view settles on his screen
@@ -7572,6 +7836,7 @@ const Game = {
     if (next !== state && this.isGameplay()) setState(next);
     Pip.update(dt);
     Dialogue.update(dt);
+    this.updateTv(dt);
     UI.updateHud(dt);
   },
 
@@ -7652,13 +7917,53 @@ const Game = {
     DeepWorks.beginDescent();
   },
 
+  // scripted scenes that hold the player: the opening broadcast, the ambush, the drop into the Deep Works
+  // and the ride down the freight lift
+  cutsceneActive() {
+    return DeepWorks.broadcastLocked() || Ambush.active || DeepWorks.descent > 1.7 || DeepWorks.toIntake > 1.7;
+  },
+  skipCutscene() {
+    sfx('uiClick');
+    if (DeepWorks.broadcastLocked()) { Cast.monitor.said = true; Dialogue.clear(); }
+    if (Ambush.active) Ambush.skip();
+    if (DeepWorks.descent > 1.7) { DeepWorks.descent = 1.6; Dialogue.clear(); }
+    if (DeepWorks.toIntake > 1.7) { DeepWorks.toIntake = 1.6; Dialogue.clear(); }
+  },
+  // a found tape plays on the TV beside it while you stay in control; Harlan Smithers can then break into
+  // that same screen. Enter (the skip key) stops it; walking away stops it too.
   playTape(tape) {
     tape.collected = true;
     sfx('pickup');
-    this.resumeState = state;
     const T = TAPES[tape.tapeId];
-    VHS.play(tape.tapeId, () => { setState(STATE.GAMEPLAY_ACTIVE); if (T && T.hijack) for (const l of T.hijack) Dialogue.say('USHER', l); });
-    setState(STATE.CINEMATIC_VHS);
+    const tv = this.tv = { tp: tape, hijack: false, t: 0 };
+    VHS.play(tape.tapeId, () => {
+      if (this.tv !== tv) return;
+      if (T && T.hijack) { tv.hijack = true; tv.t = 0; for (const l of T.hijack) Dialogue.say('USHER', l); sfx('usherGlitch'); }
+      else this.tv = null;
+    });
+  },
+  updateTv(dt) {
+    const tv = this.tv;
+    if (!tv) return;
+    tv.t += dt;
+    const p = tv.tp.pos, b = Player.body.pos;
+    if (Math.hypot(b[0] - p[0], b[2] - p[2]) > 16) { this.stopTv(); return; }
+    if (!tv.hijack) VHS.update(dt);
+    else { VHS.drawHijack(Game.time); if ((!Dialogue.busy() && tv.t > 1.5) || tv.t > 30) { this.tv = null; return; } }
+    // stream the tape canvas onto the TV screen at ~15 fps
+    tv.frame = (tv.frame || 0) - dt;
+    if (this.tvAsset && tv.frame <= 0) {
+      tv.frame = 1 / 15;
+      const gl = Renderer.gl;
+      gl.bindTexture(gl.TEXTURE_2D, this.tvAsset.materials[0].tex);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, VHS.canvas);
+    }
+  },
+  stopTv() {
+    const tv = this.tv;
+    if (!tv) return;
+    if (!tv.hijack && VHS.tape) VHS.finish(); else { this.tv = null; Dialogue.clear(); }
+    if (this.tv === tv && !tv.hijack) this.tv = null;
   },
 
   updateAim() {
@@ -7757,7 +8062,7 @@ const Game = {
     Monster.pos[0] = Player.eyePos[0] + fx * (dist + 0.8);
     Monster.pos[2] = Player.eyePos[2] + fz * (dist + 0.8);
     Monster.pos[1] = Math.max(0, Player.eyePos[1] - (Monster.kill.on ? 2.6 : 2.35));
-    Monster.bodyPoint(Monster.head, 0, 3.18, -0.8);
+    Monster.bodyPoint(Monster.head, 0, 3.18 + Monster.rise(), -0.8);
   },
   updateJumpscare(dt) {
     this.jumpTimer += dt;
@@ -7930,17 +8235,18 @@ const Game = {
           if (ct && r.powered) { ct.emis[0] = 0.4; ct.emis[1] = 1.2; ct.emis[2] = 1.6; }
         }
       } else {
-        // hand scanner: a glowing palm print, fingers and all
-        const g = r.powered ? 0.25 : 1, pul = 0.6 + 0.4 * Math.sin(t * 6), rr = frame(n);
-        const glow = it => { if (it) { it.emis[0] = 0.05 * g; it.emis[1] = 0.6 * g * pul + 0.15; it.emis[2] = 0.8 * g * pul + 0.2; } };
-        V3.set(_g.p1, p[0] + n[0] * 0.03, p[1] - 0.06, p[2] + n[2] * 0.03);
-        let it = R.push('box', MAT.rubber, false); if (it) basisMatrix(it.model, _g.p1, rr, _g.u, n, 0.2, 0.22, 0.02); glow(it);
-        for (let f = 0; f < 4; f++) {
-          V3.set(_g.p1, p[0] + rr[0] * (f - 1.5) * 0.05 + n[0] * 0.03, p[1] + 0.13 + (f === 1 || f === 2 ? 0.02 : 0), p[2] + rr[2] * (f - 1.5) * 0.05 + n[2] * 0.03);
-          it = R.push('box', MAT.rubber, false); if (it) basisMatrix(it.model, _g.p1, rr, _g.u, n, 0.035, 0.12, 0.02); glow(it);
+        // hand scanner: a dark housing with a glowing hand print and an LED bar on top, red or blue
+        const rr = frame(n), col = (Level.receptacles.indexOf(r) % 2) ? 'red' : 'blue';
+        const A = Gear.scanAssets && Gear.scanAssets[col][r.powered ? 1 : 0];
+        V3.set(_g.p1, p[0] + n[0] * 0.03, p[1] + 0.02, p[2] + n[2] * 0.03);
+        const box = R.push('box', MAT.steel); if (box) basisMatrix(box.model, _g.p1, rr, _g.u, n, 0.56, 0.68, 0.06);
+        if (A) {
+          V3.set(_g.p1, p[0] + n[0] * 0.064, p[1] + 0.02, p[2] + n[2] * 0.064);
+          V3.scale(_g.d, rr, -1); V3.scale(_g.e, n, -1);
+          basisMatrix(_g.m, _g.p1, _g.d, _g.u, _g.e, 0.5, 0.625, 1);
+          const q = AssetQueue.push(A, _g.m, false);
+          if (q) { const k = r.powered ? 1 : 0.75 + 0.25 * Math.sin(t * 4); q.tint[0] = q.tint[1] = q.tint[2] = k; q.tint[3] = 0.05; }
         }
-        V3.set(_g.p1, p[0] + rr[0] * 0.12 + n[0] * 0.03, p[1] - 0.04, p[2] + rr[2] * 0.12 + n[2] * 0.03);
-        it = R.push('box', MAT.rubber, false); if (it) basisMatrix(it.model, _g.p1, rr, _g.u, n, 0.035, 0.1, 0.02); glow(it);
       }
       const lp = r.light.pos;
       const it2 = R.trs('sphereLow', MAT.rubber, lp[0], lp[1], lp[2], 0, 0, 0, 0.07, 0.07, 0.07, false);
@@ -7975,33 +8281,73 @@ const Game = {
       if (lamp) { if (l.pulled) { lamp.emis[1] = 2.5; } else { lamp.emis[0] = 2.5; lamp.emis[1] = 0.6 + Math.sin(t * 6) * 0.5; } }
     }
     const customTape = Assets.slot('tape');
-    // every tape sits next to a little CRT set (Harlan Smithers is wired into all of them)
+    // every tape sits on a VCR next to a big wood-cased CRT (Harlan Smithers is wired into all of them).
+    // A tape you play runs on that set's screen; the others hiss with static.
+    if (!this.tvAsset && VHS.canvas && Gear.canvasQuad) { this.tvAsset = Gear.canvasQuad(VHS.canvas, 'tv-screen', 1.5, false); this.tvAsset.materials[0].rough = 0.2; }
     for (const tp of Level.tapes) {
       if (!vis[tp.sector]) continue;
-      const x = tp.pos[0] + 0.5, y = tp.pos[1] - 0.05, z = tp.pos[2];
-      const tv = R.trs('box', MAT.paint, x, y + 0.2, z, 0, 0, 0, 0.46, 0.38, 0.4); if (tv) { tv.tint[0] = 0.62; tv.tint[1] = 0.6; tv.tint[2] = 0.8; }
-      const bk = R.trs('box', MAT.paint, x, y + 0.2, z + 0.26, 0, 0, 0, 0.32, 0.26, 0.16); if (bk) { bk.tint[0] = 0.5; bk.tint[1] = 0.48; bk.tint[2] = 0.66; }
-      const sc = R.trs('box', MAT.screen, x - 0.02, y + 0.22, z - 0.205, 0, 0, 0, 0.34, 0.27, 0.01, false);
-      if (sc) { const n = 0.12 + 0.08 * noise1(t * 40 + x); sc.emis[0] = n * 0.8; sc.emis[1] = n; sc.emis[2] = n * 1.3; }
-      R.trs('cylLow', MAT.steel, x + 0.12, y + 0.39, z, 0, 0, 0.5, 0.006, 0.2, 0.006, false);
+      // the set stands on its own wheeled cart beside the desk, turned (to the nearest quarter) toward the
+      // side you first come at it from
+      if (tp.tvYaw === undefined) {
+        const dx = Player.body.pos[0] - tp.pos[0], dz = Player.body.pos[2] - tp.pos[2];
+        if (Math.hypot(dx, dz) < 14) {
+          tp.tvYaw = Math.round(Math.atan2(-dx, -dz) / (Math.PI / 2)) * (Math.PI / 2);
+          // put the cart on whichever side of the desk has clear floor
+          const c = Math.cos(tp.tvYaw), sn = Math.sin(tp.tvYaw);
+          V3.set(_g.p0, tp.pos[0], tp.pos[1] - 0.4, tp.pos[2]);
+          tp.tvSide = 1.35;
+          for (const side of [1.35, -1.35]) {
+            V3.set(_g.p1, tp.pos[0] + (side + Math.sign(side) * 0.55) * c, tp.pos[1] - 0.4, tp.pos[2] - (side + Math.sign(side) * 0.55) * sn);
+            if (Physics.lineOfSight(_g.p0, _g.p1, LAYER.SIGHT)) { tp.tvSide = side; break; }
+          }
+        }
+      }
+      const ty = tp.tvYaw === undefined ? Math.PI : tp.tvYaw, cy = Math.cos(ty), syaw = Math.sin(ty);
+      // local (lx, lz) -> world, local -z is the screen side
+      const lw = (lx, lz, o) => { o[0] = tp.pos[0] + lx * cy + lz * syaw; o[2] = tp.pos[2] - lx * syaw + lz * cy; return o; };
+      const floor = tp.pos[1] - 1.0, sy = floor + 0.72;
+      const sd = tp.tvSide || 1.35;
+      lw(sd, 0.05, _g.p1); const x = _g.p1[0], z = _g.p1[2];
+      R.trs('box', MAT.steel, x, floor + 0.36, z, ty, 0, 0, 0.9, 0.04, 0.66);
+      R.trs('box', MAT.steel, x, floor + 0.7, z, ty, 0, 0, 0.9, 0.04, 0.66);
+      for (const [a, b] of [[-0.42, -0.3], [0.42, -0.3], [-0.42, 0.3], [0.42, 0.3]]) { lw(sd + a, 0.05 + b, _g.p2); R.trs('box', MAT.steel, _g.p2[0], floor + 0.38, _g.p2[2], ty, 0, 0, 0.035, 0.7, 0.035); R.trs('sphereLow', MAT.rubber, _g.p2[0], floor + 0.04, _g.p2[2], 0, 0, 0, 0.045, 0.045, 0.045); }
+      if (Sculpt.ready('crt_tv')) { const tv = R.trs('crt_tv', MAT.wood, x, sy, z, ty, 0, 0, 1, 1, 1); if (tv) { tv.tint[0] = 0.8; tv.tint[1] = 0.68; tv.tint[2] = 0.55; } }
+      else R.trs('box', MAT.wood, x, sy + 0.4, z, ty, 0, 0, 0.84, 0.68, 0.6);
+      const playing = this.tv && this.tv.tp === tp;
+      lw(sd - 0.07, 0.05 - 0.3, _g.p2);
+      if (playing && this.tvAsset) {
+        M4.compose(_g.m, _g.p2[0], sy + 0.41, _g.p2[2], ty, 0, 0, 0.5, 0.44, 1);
+        const q = AssetQueue.push(this.tvAsset, _g.m, false); if (q) q.tint[3] = 0.15;
+      } else {
+        const sc = R.trs('box', MAT.screen, _g.p2[0], sy + 0.41, _g.p2[2], ty, 0, 0, 0.5, 0.44, 0.01, false);
+        if (sc) { const n = 0.12 + 0.08 * noise1(t * 40 + x); sc.emis[0] = n * 0.8; sc.emis[1] = n; sc.emis[2] = n * 1.3; }
+      }
+      const tsy = tp.pos[1] + 0.305;
+      const vx = tp.pos[0], vz = tp.pos[2] + 0.2;
+      if (Sculpt.ready('vcr')) { const v = R.trs('vcr', MAT.rubber, vx, tsy, vz, 0.3, 0, 0, 1, 1, 1); if (v) { v.tint[0] = v.tint[1] = v.tint[2] = 1.6; } }
+      // the VCR's clock blinks 12:00 (green while a tape plays)
+      const lx = vx + Math.cos(0.3) * 0.14 + Math.sin(0.3) * -0.17, lz = vz - Math.sin(0.3) * 0.14 + Math.cos(0.3) * -0.17;
+      const led = R.trs('box', MAT.screen, lx, tsy + 0.064, lz, 0.3, 0, 0, 0.1, 0.026, 0.004, false);
+      if (led) { const on = playing ? 1 : (Math.sin(t * 4) > 0 ? 1 : 0.1); if (playing) { led.emis[1] = 1.8 * on; led.emis[0] = 0.2; } else { led.emis[0] = 1.8 * on; led.emis[1] = 0.25 * on; } }
     }
     for (const tp of Level.tapes) {
       if (!vis[tp.sector] || tp.collected) continue;
+      const ty = tp.pos[1] + 0.305 + 0.095;
       if (customTape) {
-        M4.compose(_g.m, tp.pos[0], tp.pos[1] + 0.36, tp.pos[2] + 0.2, 0.3 + Math.sin(t) * 0.05, 0, 0, 1, 1, 1);
+        M4.compose(_g.m, tp.pos[0], ty + 0.03, tp.pos[2] + 0.2, 0.3 + Math.sin(t) * 0.05, 0, 0, 1, 1, 1);
         const ci = AssetQueue.push(customTape, _g.m, true);
         if (ci) { const g = 0.15 + 0.15 * Math.sin(t * 3); ci.emis[0] = g; ci.emis[1] = g * 0.7; ci.emis[2] = g * 0.2; }
         continue;
       }
-      const it = R.trs('box', MAT.rubber, tp.pos[0], tp.pos[1] + 0.33, tp.pos[2] + 0.2, 0.3, 0, 0, 0.19, 0.025, 0.105);
-      R.trs('box', MAT.paint, tp.pos[0], tp.pos[1] + 0.346, tp.pos[2] + 0.2, 0.3, 0, 0, 0.12, 0.004, 0.06, false);
-      if (it) { const g = 0.15 + 0.15 * Math.sin(t * 3); it.emis[0] = g; it.emis[1] = g * 0.7; it.emis[2] = g * 0.2; }
+      const g = 0.12 + 0.12 * Math.sin(t * 3);
+      const it = Sculpt.ready('vhs_tape') ? R.trs('vhs_tape', MAT.rubber, tp.pos[0], ty, tp.pos[2] + 0.2, 0.3, 0, 0, 1, 1, 1) : R.trs('box', MAT.rubber, tp.pos[0], ty + 0.0125, tp.pos[2] + 0.2, 0.3, 0, 0, 0.19, 0.025, 0.105);
+      if (it) { it.emis[0] = g; it.emis[1] = g * 0.7; it.emis[2] = g * 0.2; }
     }
   },
 
   // LIFELINE hands: docked in view at the muzzles, or out in the world
   submitHands() {
-    const cam = Player.cam, right = Renderer.camRight, up = Renderer.camUp, fwd = Renderer.camFwd;
+    const R = RenderQueue, cam = Player.cam, right = Renderer.camRight, up = Renderer.camUp, fwd = Renderer.camFwd;
     for (let s = 0; s < 2; s++) {
       if (Gear.handsLost) continue;   // no hands on the pack yet (the opening)
       const h = GrabPack.hands[s];
@@ -8017,11 +8363,20 @@ const Game = {
         V3.copy(_g.hp, m);
         V3.addScaled(_g.hp, _g.hp, right, Player.swayX * 0.5);
         V3.addScaled(_g.hp, _g.hp, up, -Player.swayY * 0.5 - h.recoil * 0.03);
-        V3.addScaled(_g.hp, _g.hp, fwd, h.recoil * 0.05);
+        V3.addScaled(_g.hp, _g.hp, fwd, h.recoil * 0.05 + 0.07);
+        // the launcher pipes push the hands out a little from the pack so the hoses show
+        V3.addScaled(_g.hp, _g.hp, right, side * 0.04); V3.addScaled(_g.hp, _g.hp, up, 0.05);
         V3.scale(_g.hf, fwd, 0.3); V3.addScaled(_g.hf, _g.hf, up, 0.95); V3.addScaled(_g.hf, _g.hf, right, -side * 0.12); V3.normalize(_g.hf, _g.hf);
         // hose runs from the pack into the bottom of the cuff
-        V3.addScaled(_g.b, _g.hp, _g.hf, -0.13);
+        V3.addScaled(_g.b, _g.hp, _g.hf, -0.26);
         this.drawHose(_g.a, _g.b, up, h);
+        // a steel extension pipe from the hose clamp up into the cuff
+        V3.addScaled(_g.p1, _g.hp, _g.hf, -0.11);
+        const ext = R.seg('cyl', MAT.steel, _g.b, _g.p1, 0.017, false);
+        if (ext) ext.tint[3] = 0.08;
+        V3.lerp(_g.p2, _g.b, _g.p1, 0.5);
+        const er = R.push('torus', MAT.copper, false);
+        if (er) { ringMatrix(er.model, _g.p2, _g.hf, 0.021); er.tint[3] = 0.08; }
         V3.scale(_g.hu, fwd, -1);
         // swapping the right hand: it drops out of view and comes back as the new one
         if (s === 1 && Gear.swapT > 0) {
@@ -8032,12 +8387,14 @@ const Game = {
           V3.cross(_g.e, fwd, _g.hf);
           V3.scale(_g.hf, _g.hf, Math.cos(spin)); V3.addScaled(_g.hf, _g.hf, _g.e, Math.sin(spin)); V3.normalize(_g.hf, _g.hf);
         }
-        this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 0.86, false, h, true);
+        this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 1.0, false, h, true);
         if (s === 0) {
           // PIP strapped to the wrist, facing you
-          V3.addScaled(_g.p2, _g.hp, _g.hf, 0.075); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.06); V3.addScaled(_g.p2, _g.p2, right, 0.015);
+          // Starby sits down on the wrist cuff (not on the back of the hand), facing you
+          // bigger and lower on the wrist, pushed out toward you so the whole face is readable
+          V3.addScaled(_g.p2, _g.hp, _g.hf, -0.045); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.065); V3.addScaled(_g.p2, _g.p2, right, -0.03);
           V3.cross(_g.d, _g.hf, _g.hu); V3.normalize(_g.d, _g.d);
-          Gear.submitPip(_g.p2, _g.hf, _g.hu, _g.d);
+          Gear.submitPip(_g.p2, _g.hf, _g.hu, _g.d, 1.2);
         }
       } else {
         V3.copy(_g.b, m);
@@ -8106,7 +8463,7 @@ const Game = {
   drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
     const R = RenderQueue, HT = HAND_TYPES[Gear.cur], mat = side === 0 ? MAT.handTeal : HT.mat;
     // withered, grimy gloves: darker than new
-    const tr = side === 0 ? 0.62 : HT.tint[0], tg = side === 0 ? 0.66 : HT.tint[1], tb = side === 0 ? 0.62 : HT.tint[2];
+    const tr = side === 0 ? 0.4 : HT.tint[0], tg = side === 0 ? 0.48 : HT.tint[1], tb = side === 0 ? 0.44 : HT.tint[2];
     // right-handed basis (r = up x f) so back-face culling keeps the outside of the glove
     V3.cross(_g.r, upRef, f); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, f, _g.r); V3.normalize(_g.u, _g.u);
@@ -8128,6 +8485,8 @@ const Game = {
       const it = R.push(gm, mat, shadow);
       if (it) {
         basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[0] = tr; it.tint[1] = tg; it.tint[2] = tb; it.tint[3] = lift;
+        // the steel knuckle linkage and rubber fingertip caps, drawn untinted so the steel stays steel
+        if (Sculpt.ready(gm + '_st')) { const st = R.push(gm + '_st', MAT.steel, shadow); if (st) { st.model.set(it.model); st.tint[0] = st.tint[1] = st.tint[2] = 1.3; st.tint[3] = lift * 0.6; } }
         it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow;
         if (side === 1 && HT.glow) { const p = 0.7 + 0.3 * Math.sin(Game.time * 3); it.emis[0] += HT.glow[0] * p; it.emis[1] += HT.glow[1] * p; it.emis[2] += HT.glow[2] * p; }
         // a charged CONDUIT glows cyan, flickering as the charge runs down
@@ -8550,6 +8909,28 @@ async function runAll() {
     Settings.set('fov', 95);
     for (const q of QUALITY_ORDER) { Settings.set('quality', q); T.step(DT, 1); check('settings: quality ' + q + ' renders without error', T.getLastError() === null && Renderer.qualityName === q, Renderer.rw + 'x' + Renderer.rh); }
     Settings.set('quality', savedSettings.quality);
+    // the full settings spec: tabs, display/graphics/audio/controls options and key rebinding
+    const wantKeys = ['windowMode', 'resolution', 'fpsLimit', 'vsync', 'fov', 'motionBlur', 'filmGrain', 'brightness', 'resScale', 'textureQuality', 'shadowQuality', 'vfxQuality', 'postProcessing', 'antiAliasing', 'master', 'music', 'sfx', 'dialogue', 'subtitles', 'sensX', 'invertY', 'crouchToggle'];
+    check('settings: every option from the spec has a control', wantKeys.every(k => document.getElementById('set_' + k)), wantKeys.filter(k => !document.getElementById('set_' + k)).join(','));
+    check('settings: four tabs (display, graphics, audio, controls)', document.querySelectorAll('#settingsTabs .stab').length === 4, '');
+    check('settings: default FOV is 90', SETTINGS_DEFAULT.fov === 90, SETTINGS_DEFAULT.fov);
+    Settings.set('resScale', 50); T.step(DT, 1);
+    const halfW = Renderer.rw; Settings.set('resScale', 100); T.step(DT, 1);
+    check('settings: resolution scale shrinks the internal render', halfW < Renderer.rw * 0.6, halfW + ' vs ' + Renderer.rw);
+    Settings.set('resolution', '960x540'); T.step(DT, 1);
+    check('settings: a chosen resolution caps the render size', Renderer.rh <= 541, Renderer.rw + 'x' + Renderer.rh);
+    Settings.set('resolution', 'NATIVE');
+    Settings.set('textureQuality', 'LOW'); check('settings: texture quality applies', Renderer.textureLevel === 'LOW', Renderer.textureLevel);
+    Settings.set('textureQuality', 'HIGH');
+    for (const k of ['motionBlur', 'filmGrain', 'brightness', 'antiAliasing']) Settings.set(k, k === 'antiAliasing' ? 'OFF' : k === 'brightness' ? 1.3 : 0.8);
+    T.step(DT, 2);
+    check('settings: motion blur, grain, gamma and AA render without error', T.getLastError() === null, '');
+    for (const k of ['motionBlur', 'filmGrain', 'brightness', 'antiAliasing']) Settings.set(k, SETTINGS_DEFAULT[k]);
+    Settings.set('fpsLimit', '30'); check('settings: frame-rate limit sets a frame budget', Math.abs(Settings.frameBudget() - 33.3) < 0.5, Settings.frameBudget());
+    Settings.set('fpsLimit', 'UNLIMITED');
+    Settings.binds.jump = 'KeyJ'; Settings.rebuildKeyMap();
+    check('settings: a rebound key drives its action', Settings.translate('KeyJ') === 'Space' && Settings.translate('Space') === '', Settings.translate('KeyJ'));
+    Settings.binds = {}; Settings.rebuildKeyMap();
     T.setStepRender(false);
     tap('Escape');
     check('settings: Escape returns to menu', T.getState() === 'MAIN_MENU', T.getState());
@@ -8578,7 +8959,15 @@ async function runAll() {
     check('opening: Harlan Smithers\'s broadcast locks you in place', DWo.broadcastLocked() && Cast.monitor.said, '');
     const lockZ = Player.body.pos[2]; T.simulateKey('KeyW', true); T.step(DT, 30); T.simulateKey('KeyW', false);
     check('opening: you cannot walk away while he speaks', Math.abs(Player.body.pos[2] - lockZ) < 0.01, (Player.body.pos[2] - lockZ).toFixed(3));
-    Dialogue.clear(); T.step(DT, 2);
+    check('cutscene: the skip prompt shows during the broadcast', Game.cutsceneActive() && document.getElementById('skipHint').style.display === 'block', '');
+    tap('Enter'); T.step(DT, 2);
+    check('cutscene: Enter skips the broadcast', !DWo.broadcastLocked(), '');
+    Dialogue.clear(); Dialogue.say('THIMBLE', 'First line of a long chat between friends.'); Dialogue.say('PIP', 'Second line.'); Dialogue.say('MARIGOLD', 'Third line.'); T.step(DT, 3);
+    check('dialogue: the skip prompt shows while characters talk', document.getElementById('skipHint').style.display === 'block', '');
+    tap('Enter'); T.step(DT, 1);
+    check('dialogue: Enter skips to the next line', Dialogue.current && Dialogue.current.speaker === 'PIP', Dialogue.current ? Dialogue.current.speaker : 'none');
+    tap('Enter'); tap('Enter'); T.step(DT, 2);
+    check('dialogue: a double press skips the whole conversation', !Dialogue.busy(), Dialogue.queue.length);
     check('opening: when he finishes you are free to move', !DWo.broadcastLocked(), '');
     click(0); T.step(DT, 10);
     check('opening: firing does nothing until you have your hands', GrabPack.hands[0].state === HAND.DOCKED && /crate/.test(GrabPack.hint), GrabPack.hint);
@@ -8599,7 +8988,7 @@ async function runAll() {
     tap('KeyE'); T.step(DT, 200);
     check('explore: the key unlocks the records office', off.target === 1 && off.open > 0.9, off.open.toFixed(2));
     T.setPlayerPose(11.2, 0, -145.0, -Math.PI / 2, 0); T.step(DT, 3); T.aimAt(12.1, 1.0, -145.6); T.step(DT, 2); tap('KeyE'); T.step(DT, 2);
-    check('explore: a tape by a CRT set in the office', T.getState() === 'CINEMATIC_VHS' && VHS.tapeId === 4, T.getState());
+    check('explore: the office tape plays on the CRT beside it (you stay in the room)', T.getState() === 'GAMEPLAY_ACTIVE' && Game.tv && Game.tv.tp.tapeId === 4 && VHS.tapeId === 4, T.getState());
     VHS.finish(); T.step(DT, 2);
     check('explore: Harlan Smithers hijacks the tape as it ends', Dialogue.busy() && (Dialogue.current.speaker === 'USHER' || Dialogue.queue.some(q => q.speaker === 'USHER')), '');
     Dialogue.clear();
@@ -8725,9 +9114,11 @@ async function runAll() {
     T.setPlayerPose(9.2, 0, -1.6, 0, 0); T.aimAt(9.2, 1.3, -2.9); T.step(DT, 2);
     check('tape: interact prompt appears', Player.interactTarget === Level.tapes[0], '');
     tap('KeyE');
-    check('tape: E plays the found tape', T.getState() === 'CINEMATIC_VHS' && VHS.tapeId === 1, T.getState());
-    tap('Escape');
-    check('tape: returns to gameplay', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+    check('tape: E plays the found tape on the TV beside it', T.getState() === 'GAMEPLAY_ACTIVE' && Game.tv && VHS.tapeId === 1, T.getState());
+    T.step(DT, 30);
+    check('tape: the tape keeps playing while you move about', !!VHS.tape && VHS.chars > 0, VHS.chars);
+    tap('Enter');
+    check('tape: Enter stops the tape', !VHS.tape && T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
 
     await breathe();
     // ---------------- pause ----------------
@@ -8899,6 +9290,21 @@ async function runAll() {
     T.step(DT, 2);
     check('act2: the Loom is not the end - the freight lift drops into the fabrication line', arrived && Streaming.current === 7, 'stage ' + Game.stage + ' sector ' + Streaming.current);
     check('act2: checkpoint saved at the fabrication line', Game.checkpoint.stage === 6, Game.checkpoint.stage);
+    check('lovey: the rose plush ally meets you in the Deep Works (silent - the others speak for her)', Lovey.active && Lovey.met && !Dialogue.queue.some(q => q.speaker === 'LOVEY'), '');
+    T.step(DT, 4);
+    check('lovey: Posie rides on her shoulders', V3.dist(Cast.doll.pos, Lovey.seat(V3.create())) < 0.05, V3.dist(Cast.doll.pos, Lovey.seat(V3.create())).toFixed(2));
+    {
+      const c0 = Enemies.cherubs[0];
+      if (c0) {
+        const was = { sector: c0.sector, dead: c0.dead, state: c0.state }, pv = Streaming.visible[c0.sector];
+        V3.set(c0.pos, Lovey.pos[0] + 2, 0, Lovey.pos[2]); c0.dead = false; c0.state = 'SIT'; c0.sector = Lovey.sector; Lovey.cool = 0; Lovey.mode = 'FOLLOW';
+        // drive her on her own (the Act I cherub logic would otherwise pack this one away)
+        Streaming.visible[c0.sector] = 1;
+        for (let i = 0; i < 90 && !c0.dead; i++) Lovey.update(DT);
+        check('lovey: she charges and swats a cherub to pieces', c0.dead, Lovey.mode);
+        c0.sector = was.sector; c0.dead = was.dead; c0.state = was.state;
+      }
+    }
     Game.invulnerable = true; T.step(DT, 60);
 
     // fabrication line: belts carry you, the cable crosses them
@@ -9254,8 +9660,10 @@ async function runAll() {
       check('gear: prompt to take the gas mask', document.getElementById('hudPrompt').textContent === '[E] TAKE GAS MASK', document.getElementById('hudPrompt').textContent);
       tap('KeyE');
       check('gear: gas mask taken', Gear.hasMask && mk.taken);
-      tap('KeyG'); T.step(DT, 30);
-      check('gear: [G] puts the mask on (lens overlay)', Gear.maskOn && Gear.maskT > 0.8 && document.getElementById('maskOverlay').style.display === 'block', Gear.maskT.toFixed(2));
+      tap('KeyG'); T.step(DT, 10);
+      check('gear: while the mask comes down only its 3D inside shows (no lens overlay yet)', Gear.maskOn && Gear.maskT < 0.93 && document.getElementById('maskOverlay').style.display === 'none', Gear.maskT.toFixed(2));
+      T.step(DT, 50);
+      check('gear: [G] puts the mask on (lens overlay)', Gear.maskOn && Gear.maskT > 0.93 && document.getElementById('maskOverlay').style.display === 'block', Gear.maskT.toFixed(2));
       tap('KeyG'); T.step(DT, 30);
       check('gear: [G] takes it off', !Gear.maskOn && document.getElementById('maskOverlay').style.display === 'none');
       // a new hand: pick up the THUMPER and swap to it
@@ -9923,8 +10331,18 @@ function render() {
   Game.render();
 }
 
+// VSync on: frames follow the display (requestAnimationFrame). Off: frames are scheduled as soon as the
+// browser allows, up to the frame-rate limit.
+let lastFrameAt = 0;
+function scheduleFrame() {
+  if (Settings.values.vsync || document.hidden) requestAnimationFrame(frame);
+  else setTimeout(() => frame(performance.now()), 0);
+}
 function frame(now) {
-  requestAnimationFrame(frame);
+  scheduleFrame();
+  const budget = Settings.frameBudget();
+  if (budget > 0 && now - lastFrameAt < budget - 1) return;
+  lastFrameAt = now;
   let dt = (now - lastT) / 1000;
   lastT = now;
   if (dt > 0.1) dt = 0.1;
@@ -10110,6 +10528,7 @@ const Cast = {
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
     this.resetPlush();
+    Lovey.reset();
     if (Enemies.cherubs.length) Enemies.reset();
     Dialogue.clear();
     Pip.reset();
@@ -10121,6 +10540,7 @@ const Cast = {
 
   update(dt) {
     this.updateUsher(dt);
+    Lovey.update(dt);
     this.updateDoll(dt);
     this.updatePlush(dt);
     Companion.update(dt);
@@ -10183,6 +10603,14 @@ const Cast = {
 
   updateDoll(dt) {
     const D = this.doll;
+    // in the Deep Works Posie rides on Lovey's shoulders
+    if (Lovey.carrying()) {
+      Lovey.seat(D.pos); D.yaw = Lovey.yaw; D.sector = Lovey.sector;
+      D.headYaw = damp(D.headYaw, clamp(wrapAngle(Math.atan2(-(Player.eyePos[0] - D.pos[0]), -(Player.eyePos[2] - D.pos[2])) - D.yaw), -1.2, 1.2), 3, dt);
+      D.headPitch = damp(D.headPitch, -0.2, 3, dt);
+      D.blink = Math.max(0, D.blink - dt * 5); if (gameRng() < dt * 0.12) D.blink = 1;
+      return;
+    }
     // relocate to the seat for the current stage while nobody can see her
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     const sector = Level.sectorAt(seat[0], seat[2]);
@@ -10451,6 +10879,7 @@ const Cast = {
   submit(vis) {
     if (this.usher.state !== 'HIDDEN' && vis[Level.sectorAt(this.usher.pos[0], this.usher.pos[2])]) this.submitUsher();
     if (vis[this.doll.sector]) this.submitDoll();
+    Lovey.submit(vis);
     if (this.monitor.active && vis[this.monitor.sector] && this.screen) this.submitMonitor();
     if (vis[3]) this.submitSocket();
     if (!this.plush.hidden && vis[this.plush.sector]) this.submitPlush();
@@ -10539,21 +10968,21 @@ const Cast = {
     M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1.24, 1.24, 1.24);
     it = R.push('mg_head', MAT.porcelain);
     if (it) it.model.set(this.m);
-    // her LEFT eye: a realistic glass doll eye - white, a teal iris that glows faintly, a dark pupil and a
+    // her LEFT eye: a realistic glass doll eye - white, a painted teal iris (no glow), a dark pupil and a
     // hard glint; the lid closes on blinks. The RIGHT socket stays an empty black void.
     const bl = 1 - D.blink * 0.9;
     const EL = (x, y, z) => { V3.set(this.local, x, y, z); return M4.transformPoint(b, this.m, this.local); };
     EL(-0.05, 0.013, -0.108);
     R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, hp, 0.08, 0.034, 0.034 * bl, 0.026, false);
     EL(-0.05, 0.013, -0.132);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.02, 0.02 * bl, 0.006, false);
-    if (it) { it.tint[0] = 0.15; it.tint[1] = 0.75; it.tint[2] = 0.7; it.emis[0] = 0.03; it.emis[1] = 0.45; it.emis[2] = 0.42; }
+    it = R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, hp, 0.08, 0.02, 0.02 * bl, 0.006, false);
+    if (it) { it.tint[0] = 0.22; it.tint[1] = 0.7; it.tint[2] = 0.68; }   // painted teal iris, no glow
     V3.copy(D.eyePos, b);
     EL(-0.05, 0.013, -0.137);
     R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008 * bl, 0.003, false);
     EL(-0.058, 0.022, -0.14);
-    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], 0, 0, 0, 0.004 * bl, 0.004 * bl, 0.004, false);
-    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.8; it.emis[2] = 1.8; }
+    it = R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], 0, 0, 0, 0.004 * bl, 0.004 * bl, 0.004, false);
+    if (it) { it.tint[0] = it.tint[1] = it.tint[2] = 1.6; }
   },
 
   // where the needle staff is this frame (also used by the socket check)
@@ -10635,19 +11064,18 @@ const Cast = {
     M4.compose(this.m, a[0], a[1], a[2], hy, 0.06, -0.14 + Math.sin(Game.time * 1.1) * 0.03, S * 1.08, S, S);
     it = Sculpt.ready(mesh) ? R.push(mesh, MAT.burnt) : null;
     if (it) it.model.set(this.m);
-    // a realistic glass eye: white ball, a violet iris (it glows a little in the dark and pulses while the
-    // staff feeds power into the socket), a dark pupil and a hard glint
+    // a realistic glass eye: white ball, a violet iris (no glow), a dark pupil and a glint
     const TL = (x, y, z) => { V3.set(this.local, x, y, z); return M4.transformPoint(b, this.m, this.local); };
     TL(0.12, 0.06, -0.255);
     R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.055, 0.055, 0.04, false);
     TL(0.12, 0.06, -0.29);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.032, 0.032, 0.01, false);
-    if (it) { const g = P.eyeGlow; it.tint[0] = 0.55; it.tint[1] = 0.2; it.tint[2] = 0.85; it.emis[0] = 0.3 * g; it.emis[1] = 0.05 * g; it.emis[2] = 0.6 * g; }
+    it = R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.032, 0.032, 0.01, false);
+    if (it) { it.tint[0] = 0.62; it.tint[1] = 0.32; it.tint[2] = 1.05; }   // violet iris, no glow
     TL(0.12, 0.06, -0.297);
     R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, 0, 0, 0.013, 0.013, 0.004, false);
     TL(0.108, 0.075, -0.3);
-    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], 0, 0, 0, 0.006, 0.006, 0.006, false);
-    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.8; it.emis[2] = 1.8; }
+    it = R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], 0, 0, 0, 0.006, 0.006, 0.006, false);
+    if (it) { it.tint[0] = it.tint[1] = it.tint[2] = 1.6; }
   }
 };
 const _cast = {
@@ -10671,40 +11099,91 @@ const SPEAKERS = {
 // Spoken voices (the browser's speech synthesis), shaped per character. Stage directions in brackets are
 // not read out; a "(whispering)" line is spoken softer and slower.
 const VOICE_PROFILES = {
-  THIMBLE: { pitch: 1.35, rate: 0.98, volume: 0.9, pick: 1 },
-  MARIGOLD: { pitch: 1.85, rate: 0.86, volume: 0.85, pick: 2 },
-  USHER: { pitch: 0.45, rate: 0.84, volume: 0.85, pick: 0 },
-  PIP: { pitch: 2.0, rate: 1.25, volume: 0.8, pick: 3 },
-  SPOOLWRIGHT: { pitch: 0.15, rate: 0.8, volume: 1.0, pick: 0 },
-  CHERUB: { pitch: 2.0, rate: 0.7, volume: 0.5, pick: 2 },
-  SERAPH: { pitch: 0.05, rate: 0.85, volume: 1.0, pick: 0 }
+  // gentle pitch/rate shaping on the most natural voice of the right kind: extreme settings sound robotic
+  THIMBLE: { pitch: 1.12, rate: 0.98, volume: 0.9, want: 'm', age: 'young' },
+  MARIGOLD: { pitch: 1.3, rate: 0.9, volume: 0.85, want: 'f', age: 'young' },
+  USHER: { pitch: 0.82, rate: 0.9, volume: 0.85, want: 'm', age: 'old' },
+  PIP: { pitch: 1.5, rate: 1.12, volume: 0.8, want: 'f', age: 'young' },
+  SPOOLWRIGHT: { pitch: 0.55, rate: 0.84, volume: 1.0, want: 'm', age: 'old' },
+  CHERUB: { pitch: 1.6, rate: 0.82, volume: 0.5, want: 'f', age: 'young' },
+  SERAPH: { pitch: 0.5, rate: 0.86, volume: 1.0, want: 'm', age: 'old' }
 };
+// the Epxirtype speaks in stolen voices, hopping between them mid-sentence
+const MIMIC_CAST = ['MARIGOLD', 'THIMBLE', 'USHER', 'PIP', 'SPOOLWRIGHT', 'CHERUB'];
+const VOICE_MALE = /david|mark|guy|ryan|christopher|eric|daniel|george|brian|andrew|davis|tony|fred|alex|tom|james|william|liam|oliver|thomas|arthur|male|man\b/i;
+const VOICE_FEMALE = /zira|aria|jenny|sonia|libby|michelle|samantha|karen|moira|tessa|victoria|emma|ava|ana\b|susan|hazel|serena|kate|fiona|joanna|salli|kimberly|ivy|female|woman/i;
 const Voices = {
   ok: typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined',
-  list: [], startedAt: -1,
+  list: [], startedAt: -1, picked: {},
   init() {
     if (!this.ok) return;
-    const load = () => { this.list = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)); };
+    const load = () => { this.list = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)); this.picked = {}; };
     load();
     speechSynthesis.onvoiceschanged = load;
   },
+  // rank the installed voices: neural / "natural" / online voices first, then the well-known quality ones
+  quality(v) {
+    let q = 0;
+    if (/natural|neural|online|premium|enhanced/i.test(v.name)) q += 10;
+    if (/google|microsoft|siri|apple/i.test(v.name)) q += 4;
+    if (/en[-_](us|gb)/i.test(v.lang)) q += 1;
+    if (/espeak|robot|whisper|novelty|zarvox|bad news|bells|cellos|trinoids|bubbles/i.test(v.name)) q -= 30;
+    return q;
+  },
+  voiceFor(speaker) {
+    if (!this.list.length) return null;
+    if (this.picked[speaker] !== undefined) return this.picked[speaker];
+    const P = VOICE_PROFILES[speaker] || VOICE_PROFILES.THIMBLE;
+    const used = new Set(Object.values(this.picked));
+    let best = null, bestQ = -1e9;
+    for (const v of this.list) {
+      let q = this.quality(v);
+      const m = VOICE_MALE.test(v.name), f = VOICE_FEMALE.test(v.name);
+      if (P.want === 'm' && m) q += 6; if (P.want === 'f' && f) q += 6;
+      if (P.want === 'm' && f) q -= 8; if (P.want === 'f' && m) q -= 8;
+      if (P.age === 'old' && /en[-_]gb/i.test(v.lang)) q += 2;   // a clipped, older-sounding accent for the staff
+      if (used.has(v)) q -= 3;   // give different characters different voices where possible
+      if (q > bestQ) { bestQ = q; best = v; }
+    }
+    this.picked[speaker] = best;
+    return best;
+  },
   enabled() { return this.ok && Settings.values.voices && !Game.muted && Settings.values.master > 0.01; },
+  utter(text, speaker, whisper, jitter) {
+    const P = VOICE_PROFILES[speaker] || VOICE_PROFILES.THIMBLE;
+    const u = new SpeechSynthesisUtterance(text);
+    // a little natural variation from phrase to phrase instead of one flat contour
+    u.pitch = clamp(P.pitch + jitter * 0.06, 0.1, 2); u.rate = clamp(P.rate * (whisper ? 0.85 : 1) * (1 + jitter * 0.03), 0.5, 1.6);
+    u.volume = clamp(P.volume * Settings.values.master * Settings.values.dialogue * (whisper ? 0.5 : 1), 0, 1);
+    const v = this.voiceFor(speaker); if (v) u.voice = v;
+    return u;
+  },
   speak(speaker, text) {
     if (!this.enabled()) return;
-    const P = VOICE_PROFILES[speaker] || VOICE_PROFILES.THIMBLE;
     const whisper = /^\(whisper/i.test(text);
-    const clean = text.replace(/\([^)]*\)/g, '').replace(/-/g, ', ').trim();
+    // stage directions in brackets are not read; dashes become pauses; ellipses stay as hesitations
+    const clean = text.replace(/\([^)]*\)/g, '').replace(/\s-\s|--/g, ', ').replace(/\s+/g, ' ').trim();
     if (!clean) return;
     try {
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(clean);
-      u.pitch = P.pitch; u.rate = P.rate * (whisper ? 0.85 : 1); u.volume = P.volume * Settings.values.master * (whisper ? 0.5 : 1);
-      if (this.list.length) u.voice = this.list[P.pick % this.list.length];
-      speechSynthesis.speak(u);
+      // speak phrase by phrase so each sentence gets its own contour (and the Epxirtype can change voice)
+      const parts = clean.match(/[^.,!?;]+[.,!?;]*/g) || [clean];
+      let who = speaker, k = Math.floor(Math.random() * MIMIC_CAST.length);
+      for (let i = 0; i < parts.length; i++) {
+        const t = parts[i].trim(); if (!t) continue;
+        if (speaker === 'SPOOLWRIGHT') {
+          // stolen voices: a different victim every phrase or two, always ending in his own
+          if (i === parts.length - 1) who = 'SPOOLWRIGHT';
+          else if (i === 0 || Math.random() < 0.7) { k = (k + 1 + Math.floor(Math.random() * 2)) % MIMIC_CAST.length; who = MIMIC_CAST[k]; }
+          const u = this.utter(t, who, whisper, Math.sin(i * 2.7) * 1.5);
+          u.onstart = () => { if (typeof sfx === 'function') sfx('usherGlitch'); };
+          speechSynthesis.speak(u);
+        } else speechSynthesis.speak(this.utter(t, speaker, whisper, Math.sin(i * 1.9 + text.length)));
+      }
       this.startedAt = performance.now();
     } catch (e) { /* speech unavailable */ }
   },
-  active() { return this.ok && this.startedAt > 0 && speechSynthesis.speaking && performance.now() - this.startedAt < 15000; },
+  active() { return this.ok && this.startedAt > 0 && speechSynthesis.speaking && performance.now() - this.startedAt < 20000; },
   stop() { if (this.ok) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } } this.startedAt = -1; }
 };
 Voices.init();
@@ -10714,6 +11193,13 @@ const Dialogue = {
   init() { this.el = document.getElementById('hudDialog'); this.nameEl = document.getElementById('hudDialogName'); this.textEl = document.getElementById('hudDialogText'); },
   say(speaker, text) { if (this.queue.length < 12) this.queue.push({ speaker, text }); },
   clear() { this.queue.length = 0; this.current = null; Voices.stop(); this.render(); },
+  // skip the line being spoken; a second press soon after skips the rest of the conversation
+  skip() {
+    const now = performance.now();
+    if (now - (this.lastSkip || -1e9) < 700) this.queue.length = 0;
+    this.lastSkip = now;
+    this.current = null; Voices.stop(); this.render();
+  },
   busy() { return !!this.current || this.queue.length > 0; },
   update(dt) {
     if (!this.current && this.queue.length) { this.current = this.queue.shift(); this.chars = 0; this.acc = 0; this.hold = 0; Voices.speak(this.current.speaker, this.current.text); }
@@ -10729,9 +11215,9 @@ const Dialogue = {
         }
       } else {
         this.hold += dt;
-        // a spoken line may run a little longer than the text; never more than a few extra seconds
+        // the next line never starts over a voice that is still speaking (capped, in case speech stalls)
         const base = 1.6 + c.text.length * 0.035;
-        if (this.hold > base && !(Voices.active() && this.hold < base + 4)) this.current = null;
+        if (this.hold > base && !(Voices.active() && this.hold < base + 14)) this.current = null;
       }
     }
     this.render();
@@ -11071,41 +11557,64 @@ const SN_EDGES = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 1, 3, 4, 6, 5, 7,
 
 // LIFELINE glove (right hand; thumb on -x, fingers along +z, back of the hand +y). Surface material -1
 // means "use the per-draw material", so one mesh serves the teal and rose hands. grip 0 = open, 1 = fist.
-function sculptGlove(mirror, grip) {
-  const G = -1, n = [
-    { t: 'box', c: [0, 0, 0], h: [0.05, 0.021, 0.055], rr: 0.02, m: G },
-    { t: 'ell', c: [0, 0.012, -0.01], r: [0.048, 0.016, 0.045], m: G, k: 0.02 },
-    { t: 'cap', a: [-0.04, 0.008, 0.052], b: [0.042, 0.008, 0.05], r: 0.019, m: G, k: 0.015 },
-    { t: 'cap', a: [0, 0.02, -0.07], b: [0, 0.02, 0.0], r: 0.004, op: 's', sm: MAT.rubber },
-    { t: 'cyl', c: [0, 0, -0.085], r: 0.044, h: 0.035, rr: 0.012, rot: [0, Math.PI / 2, 0], m: G, k: 0.02 },
-    { t: 'tor', c: [0, 0, -0.1], R: 0.044, r: 0.009, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.004 },
-    { t: 'tor', c: [0, 0, -0.065], R: 0.045, r: 0.007, rot: [0, Math.PI / 2, 0], m: MAT.copper, k: 0.004 }
+function sculptGlove(mirror, grip, steel) {
+  // chunky, padded work-glove proportions: a broad palm, thick segmented fingers with black rubber joints
+  // showing in the grooves between segments, and dark rubber fingertip caps (no brass anywhere)
+  const G = -1, B = MAT.rubber, st = [], n = [
+    { t: 'box', c: [0, 0, 0], h: [0.062, 0.027, 0.06], rr: 0.024, m: G, n: [0.0012, 110] },
+    { t: 'ell', c: [0, 0.016, -0.01], r: [0.058, 0.02, 0.05], m: G, k: 0.022 },
+    { t: 'cap', a: [-0.05, 0.01, 0.058], b: [0.052, 0.01, 0.056], r: 0.023, m: G, k: 0.016 },
+    { t: 'cap', a: [0, 0.027, -0.07], b: [0, 0.027, 0.0], r: 0.004, op: 's', sm: B },
+    { t: 'cyl', c: [0, 0, -0.09], r: 0.052, h: 0.04, rr: 0.014, rot: [0, Math.PI / 2, 0], m: G, k: 0.022 },
+    { t: 'tor', c: [0, 0, -0.112], R: 0.052, r: 0.01, rot: [0, Math.PI / 2, 0], m: B, k: 0.004 },
+    { t: 'tor', c: [0, 0, -0.068], R: 0.053, r: 0.008, rot: [0, Math.PI / 2, 0], m: B, k: 0.004 }
   ];
   for (let i = 0; i < 4; i++) {
     const L = HAND_FINGERS[i];
-    let x = (-0.035 + i * 0.024) * mirror, y = 0.004, z = 0.06, ang = 0;
-    const splay = (i - 1.5) * 0.08 * (1 - grip) * mirror;
+    let x = (-0.046 + i * 0.0305) * mirror, y = 0.006, z = 0.066, ang = 0;
+    const splay = (i - 1.5) * 0.09 * (1 - grip) * mirror;
     for (let j = 0; j < 3; j++) {
       ang += grip * (j === 0 ? 1.1 : 1.25);
-      const len = L[j] * 1.05, r = 0.0158 - j * 0.0014;
-      const nx = x + Math.sin(splay) * len * Math.cos(ang), ny = y - Math.sin(ang) * len, nz = z + Math.cos(splay) * Math.cos(ang) * len;
-      n.push({ t: 'cap', a: [x, y, z], b: [nx, ny, nz], r: r + 0.0008, r2: r, m: G, k: 0.006 });
+      const len = L[j] * 1.12, r = 0.0198 - j * 0.0012;
+      const dx = Math.sin(splay) * Math.cos(ang), dy = -Math.sin(ang), dz = Math.cos(splay) * Math.cos(ang);
+      const nx = x + dx * len, ny = y + dy * len, nz = z + dz * len, g = 0.0045;
+      // the black rubber joint fills the knuckle; the padded segment stops short of it so a dark groove rings
+      // each knuckle (one signed-distance field, so nothing can flicker through)
+      n.push({ t: 'sph', c: [x, y, z], r: r - 0.0015, m: B });
+      n.push({ t: 'cap', a: [x + dx * g, y + dy * g, z + dz * g], b: [nx - dx * g, ny - dy * g, nz - dz * g], r: r, m: G });
+      // a dark steel tendon rod standing clear of the back of the segment (separate mesh)
+      const uy = Math.cos(ang), uz = Math.sin(ang), o = r + 0.0065;
+      st.push({ t: 'cap', a: [x, y + uy * o, z + uz * o], b: [nx, ny + uy * o, nz + uz * o], r: 0.0042, m: MAT.steel, k: 0.002 });
+      st.push({ t: 'sph', c: [x, y + uy * o, z + uz * o], r: 0.0065, m: B, k: 0.002 });
+      st.push({ t: 'cap', a: [x, y + uy * (r - 0.002), z + uz * (r - 0.002)], b: [x, y + uy * o, z + uz * o], r: 0.003, m: B, k: 0.002 });
       x = nx; y = ny; z = nz;
     }
-    n.push({ t: 'sph', c: [x, y - 0.004, z], r: 0.0125, m: G, k: 0.006 });
+    // dark rubber fingertip cap
+    n.push({ t: 'sph', c: [x, y, z], r: 0.0172, m: B, k: 0.004 });
   }
-  // thumb: swings from the side toward the palm as the grip closes
-  const tx0 = -0.05 * mirror, tdx = (-0.72 + grip * 0.55) * mirror, tdz = 0.62 + grip * 0.1, tdy = -0.1 - grip * 0.45;
+  // thick thumb: swings from the side toward the palm as the grip closes, with its own black joint and tip
+  const tx0 = -0.06 * mirror, tdx = (-0.72 + grip * 0.55) * mirror, tdz = 0.62 + grip * 0.1, tdy = -0.1 - grip * 0.45;
   const tl = Math.hypot(tdx, tdy, tdz);
   let ax = tx0, ay = -0.004, az = 0.0;
   for (let j = 0; j < 2; j++) {
-    const len = j === 0 ? 0.04 : 0.034;
+    const len = j === 0 ? 0.046 : 0.038, r = 0.022 - j * 0.0015;
     const bx = ax + tdx / tl * len + (j ? grip * 0.02 * mirror : 0), by = ay + tdy / tl * len, bz = az + tdz / tl * len;
-    n.push({ t: 'cap', a: [ax, ay, az], b: [bx, by, bz], r: 0.018 - j * 0.002, m: G, k: 0.012 });
+    const ux = (bx - ax) / len, uy = (by - ay) / len, uz = (bz - az) / len, g = 0.005;
+    if (j) n.push({ t: 'sph', c: [ax, ay, az], r: r - 0.0015, m: B });
+    n.push({ t: 'cap', a: [ax + ux * g * j, ay + uy * g * j, az + uz * g * j], b: [bx - ux * g, by - uy * g, bz - uz * g], r: r, m: G, k: j ? 0 : 0.014 });
     ax = bx; ay = by; az = bz;
   }
-  n.push({ t: 'sph', c: [ax, ay, az], r: 0.0145, m: G, k: 0.006 });
-  return SDF.mesh(n, [-0.15, -0.12, -0.13], [0.15, 0.06, 0.2], 72);
+  n.push({ t: 'sph', c: [ax, ay, az], r: 0.0185, m: B, k: 0.004 });
+  // a dark back plate with black bolts, and twin black wrist pistons
+  n.push({ t: 'box', c: [0, 0.037, 0.0], h: [0.04, 0.006, 0.04], rr: 0.006, m: G, k: 0.008 });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) n.push({ t: 'sph', c: [sx * 0.031, 0.043, sz * 0.031], r: 0.006, m: MAT.steel, k: 0.002 });
+  for (const sx of [-1, 1]) {
+    n.push({ t: 'cap', a: [sx * 0.05, 0.036, -0.12], b: [sx * 0.044, 0.036, -0.04], r: 0.009, m: MAT.steel, k: 0.006 });
+    n.push({ t: 'cap', a: [sx * 0.05, 0.036, -0.12], b: [sx * 0.05, 0.036, -0.08], r: 0.013, m: B, k: 0.006 });
+  }
+  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; n.push({ t: 'sph', c: [Math.cos(a) * 0.055, Math.sin(a) * 0.055, -0.09], r: 0.0075, m: B, k: 0.003 }); }
+  if (steel) return SDF.mesh(st, [-0.18, -0.15, -0.14], [0.18, 0.09, 0.25], 84);
+  return SDF.mesh(n, [-0.18, -0.15, -0.14], [0.18, 0.09, 0.25], 88);
 }
 
 // Mister Thimble's head. open=false: a gentle closed, stitched smile; open=true: the same smile parted
@@ -11186,7 +11695,7 @@ function sculptThimbleHead(open) {
 // Battered harlequin top hat nodes (base at y 0); sewn onto the crown of the Spoolwright's hood (sp_hood)
 function hatNodes() {
     // battered harlequin top hat: crown pieced from rose, teal and gold panels with diamond patches, a gold
-    // brim, a teal band, bells hanging on frayed ribbons, a crushed dent, a torn hole and stuck pins
+    // brim, a teal band, frayed ribbon tails, a crushed dent, a torn hole and stuck pins
     const RO = MAT.clothWine, TE = MAT.handTeal, GO = MAT.paint, n = [
       { t: 'cyl', c: [0, 0.21, 0], r: 0.17, h: 0.19, rr: 0.025, m: RO, n: [0.008, 22] },
       { t: 'cyl', c: [0, 0.39, 0], r: 0.185, h: 0.02, rr: 0.015, m: RO, k: 0.05 },
@@ -11207,7 +11716,7 @@ function hatNodes() {
       const ang = k / 6 * Math.PI * 2 + 0.5;
       n.push({ t: 'box', c: [Math.sin(ang) * 0.181, 0.27, Math.cos(ang) * 0.181], h: [0.03, 0.03, 0.006], rot: [ang, 0, Math.PI / 4], m: k % 2 ? GO : TE, k: 0.004 });
     }
-    // two long, drooping cloth tails flopping off the crown, each ending in a bell
+    // two long, drooping cloth tails flopping off the crown, each ending in a brass jingle bell
     for (const [sx, m] of [[-1, TE], [1, GO]]) {
       // they flop out past the sides of the hood and hang beside the head, clear of the mask
       const pts = [[sx * 0.08, 0.38, 0.0], [sx * 0.28, 0.44, 0.05], [sx * 0.48, 0.32, 0.08], [sx * 0.6, 0.08, 0.08], [sx * 0.63, -0.2, 0.06]];
@@ -11215,9 +11724,9 @@ function hatNodes() {
         const r0 = 0.055 - i * 0.011, r1 = 0.055 - (i + 1) * 0.011;
         n.push({ t: 'cap', a: pts[i], b: pts[i + 1], r: r0, r2: Math.max(0.012, r1), m, k: 0.03, n: [0.008, 30] });
       }
+      // the tail narrows to a frayed tip; its brass jingle bell is a separate fine model (sp_bell) hung here
       const e = pts[pts.length - 1];
-      n.push({ t: 'sph', c: [e[0], e[1] - 0.05, e[2]], r: 0.048, m: GO, k: 0.006 });
-      n.push({ t: 'box', c: [e[0], e[1] - 0.075, e[2]], h: [0.034, 0.005, 0.005], op: 's', sm: MAT.rubber });
+      n.push({ t: 'cap', a: e, b: [e[0], e[1] - 0.04, e[2]], r: 0.012, r2: 0.006, m, k: 0.01 });
     }
     for (const [x, z, h] of [[-0.08, -0.15, 0.3], [0.12, 0.1, 0.25]]) {
       n.push({ t: 'cap', a: [x * 0.6, h - 0.05, z * 0.6], b: [x * 1.6, h + 0.08, z * 1.6], r: 0.006, m: MAT.steel, k: 0.002 });
@@ -11234,6 +11743,10 @@ const SCULPTS = {
   glove_R_grip: () => sculptGlove(1, 0.95),
   glove_L_open: () => sculptGlove(-1, 0.04),
   glove_L_grip: () => sculptGlove(-1, 0.95),
+  glove_R_open_st: () => sculptGlove(1, 0.04, true),
+  glove_R_grip_st: () => sculptGlove(1, 0.95, true),
+  glove_L_open_st: () => sculptGlove(-1, 0.04, true),
+  glove_L_grip_st: () => sculptGlove(-1, 0.95, true),
   // Spoolwright porcelain mask: heavy brow, gaunt cheeks, deep sockets, ear-to-ear grin of needle teeth,
   // a smashed skull plate and a web of carved cracks.
   sp_mask: () => {
@@ -11249,31 +11762,39 @@ const SCULPTS = {
       // sunken, withered hollows
       { t: 'sph', c: [0.25, -0.05, -0.22], r: 0.07, op: 's', k: 0.06, sm: P },
       { t: 'sph', c: [-0.25, -0.05, -0.22], r: 0.07, op: 's', k: 0.06, sm: P },
-      { t: 'sph', c: [0.125, 0.06, -0.3], r: 0.085, op: 's', k: 0.03, sm: D },
-      { t: 'sph', c: [-0.125, 0.06, -0.3], r: 0.08, op: 's', k: 0.03, sm: D },
+      // big, round, staring eye sockets
+      { t: 'sph', c: [0.135, 0.085, -0.3], r: 0.108, op: 's', k: 0.02, sm: D },
+      { t: 'sph', c: [-0.135, 0.085, -0.3], r: 0.108, op: 's', k: 0.02, sm: D },
       { t: 'box', c: [0.17, 0.33, -0.1], h: [0.09, 0.07, 0.1], rot: [0.5, 0.4, 0.8], op: 's', k: 0.003, sm: D, n: [0.02, 40] },
       { t: 'box', c: [-0.24, 0.24, -0.12], h: [0.05, 0.04, 0.08], rot: [0.2, -0.6, 0.3], op: 's', k: 0.002, sm: D, n: [0.015, 50] }
     ];   // no nose: just the eyes and the grin
     // the grin: a wide crescent carved across the face, corners curling up into the cheeks
-    const arc = a => [Math.sin(a) * 0.34, -0.12 + a * a * 0.1, -Math.cos(a) * 0.3 + 0.005];
-    for (let i = 0; i <= 18; i++) {
-      const a = -1.22 + i * 0.1356, [x, y, z] = arc(a), edge = Math.abs(a) > 1.05;
-      n.push({ t: 'ell', c: [x, y, z], r: [0.06, edge ? 0.045 : 0.095, 0.1], rot: [a, 0, 0], op: 's', k: 0.012, sm: D });
+    // a huge ear-to-ear grin: a wide crescent whose corners curl right up into the cheeks
+    const arc = a => [Math.sin(a) * 0.35, -0.15 + a * a * 0.14, -Math.cos(a) * 0.3 + 0.005];
+    for (let i = 0; i <= 20; i++) {
+      const a = -1.26 + i * 0.126, [x, y, z] = arc(a), edge = Math.abs(a) > 1.1;
+      n.push({ t: 'ell', c: [x, y, z], r: [0.058, edge ? 0.05 : 0.115, 0.1], rot: [a, 0, 0], op: 's', k: 0.01, sm: D });
     }
-    // a full grin: two complete rows of big, even, blocky teeth filling the whole mouth
-    for (let i = 0; i < 19; i++) {
-      const a = -1.14 + i * 0.1267;
+    // two full rows of tall, square, slightly uneven teeth, with dark gaps between them
+    for (let i = 0; i < 17; i++) {
+      const a = -1.14 + i * 0.1425;
       const [x, y, z] = arc(a);
-      const hu = 0.05 - Math.abs(a) * 0.016, hl = 0.045 - Math.abs(a) * 0.016;
-      n.push({ t: 'box', c: [x * 0.995, y + 0.003 + hu, z + 0.012], h: [0.0185, hu, 0.016], rr: 0.005, rot: [a, 0, 0], m: P, k: 0.002 });
-      if (i >= 12 && i <= 15) continue;   // a block of lower teeth knocked out on his right side
-      n.push({ t: 'box', c: [x * 0.995, y - 0.003 - hl, z + 0.014], h: [0.0175, hl, 0.015], rr: 0.005, rot: [a, 0, 0], m: P, k: 0.002 });
+      const jag = ((i * 5) % 3) * 0.004;
+      const hu = 0.068 - Math.abs(a) * 0.02 - jag, hl = 0.06 - Math.abs(a) * 0.02 - jag * 0.5;
+      n.push({ t: 'box', c: [x * 0.995, y + 0.004 + hu, z + 0.012], h: [0.0175, hu, 0.016], rr: 0.004, rot: [a, 0, 0.03 * ((i % 3) - 1)], m: P, k: 0.001 });
+      n.push({ t: 'box', c: [x * 0.995, y - 0.004 - hl, z + 0.014], h: [0.0165, hl, 0.015], rr: 0.004, rot: [a, 0, -0.03 * ((i % 3) - 1)], m: P, k: 0.001 });
     }
     // crazing cracks across the whole face
-    const cracks = [[0.05, 0.3, -0.25, 0.12, 0.13, -0.29], [0.12, 0.13, -0.29, 0.07, 0.02, -0.31], [-0.2, 0.22, -0.22, -0.28, 0.0, -0.18],
-      [0.24, -0.02, -0.2, 0.3, -0.18, -0.12], [-0.05, 0.38, -0.12, -0.12, 0.2, -0.27], [-0.12, 0.2, -0.27, -0.2, 0.15, -0.24],
-      [0.0, -0.26, -0.27, 0.06, -0.38, -0.18], [-0.3, -0.1, -0.15, -0.22, -0.28, -0.17], [0.2, 0.25, -0.2, 0.28, 0.1, -0.18], [-0.08, 0.1, -0.3, -0.02, 0.2, -0.29]];
+    // (cracks stay on the brow, cheeks and chin edge - none run through the teeth)
+    const cracks = [[0.05, 0.38, -0.2, 0.09, 0.25, -0.27], [-0.2, 0.3, -0.2, -0.28, 0.12, -0.18],
+      [-0.05, 0.4, -0.12, -0.1, 0.27, -0.25], [0.24, 0.3, -0.18, 0.3, 0.16, -0.17], [0.08, -0.36, -0.2, 0.14, -0.4, -0.14]];
     for (const c of cracks) n.push({ t: 'cap', a: [c[0], c[1], c[2]], b: [c[3], c[4], c[5]], r: 0.011, op: 's', sm: D, n: [0.005, 60] });
+    // soot and scorch smeared over the porcelain: blotches of burnt grime fused onto the surface
+    for (const [x, y, sx, sy] of [[0.22, 0.3, 0.09, 0.05], [-0.31, -0.02, 0.05, 0.07], [0.02, 0.3, 0.14, 0.06], [0.25, -0.31, 0.06, 0.05],
+      [-0.1, -0.37, 0.08, 0.035], [-0.3, 0.27, 0.05, 0.06], [0.0, 0.27, 0.05, 0.04]]) {
+      const z = -0.33 * Math.sqrt(Math.max(0.02, 1 - (x / 0.37) ** 2 - (y / 0.41) ** 2)) + 0.01;
+      n.push({ t: 'ell', c: [x, y, z], r: [sx, sy, 0.018], m: MAT.burnt, k: 0.03, n: [0.006, 45] });
+    }
     // chunks broken out of the rim
     for (const c of [[0.33, 0.2, -0.08], [-0.3, -0.28, -0.1], [0.08, 0.4, -0.12]]) n.push({ t: 'box', c, h: [0.05, 0.04, 0.06], rot: [c[0] * 3, 0.4, 0.7], op: 's', k: 0.002, sm: D, n: [0.012, 50] });
     return SDF.mesh(n, [-0.42, -0.48, -0.4], [0.42, 0.48, 0.36], 84);
@@ -11335,7 +11856,8 @@ const SCULPTS = {
     n.push({ t: 'tor', c: [0, -0.05, -0.27], R: 0.37, r: 0.026, rot: [0, Math.PI / 2, 0], m: GO, k: 0.02, n: [0.006, 40] });
     // stitched seam down the back, grime and soot
     for (let k = 0; k < 6; k++) { const y = 0.36 - k * 0.07; n.push({ t: 'cap', a: [-0.015, y, 0.49 - k * 0.01], b: [0.015, y - 0.03, 0.49 - k * 0.01], r: 0.005, m: GO, k: 0.002 }); }
-    for (let k = 0; k < 8; k++) { const ang = k * 2.4; n.push({ t: 'sph', c: [Math.sin(ang) * 0.41, 0.2 - (k * 0.09) % 0.6, 0.07 + Math.cos(ang) * 0.4], r: 0.045, m: MAT.burnt, k: 0.015, n: [0.012, 40] }); }
+    // soot pressed into the upper hood only (lower blotches floated free of the cloth)
+    for (let k = 0; k < 8; k++) { const ang = k * 2.4, y = 0.2 - (k * 0.09) % 0.6; if (y < 0.05) continue; n.push({ t: 'sph', c: [Math.sin(ang) * 0.4, y, 0.07 + Math.cos(ang) * 0.39], r: 0.04, m: MAT.burnt, k: 0.02, n: [0.01, 40] }); }
     // the battered harlequin top hat, sewn onto the crown of the hood as one piece
     const off = [0.03, 0.47, 0.06];
     for (const h of hatNodes()) {
@@ -11349,56 +11871,70 @@ const SCULPTS = {
   // Filthy, ragged jester's motley on a skeletal upper torso (origin at the chest, facing -z): ruby cloth with
   // teal and orange harlequin diamonds, a pleated teal/ruby ruff, a dagged hem of pointed tatters, pom-pom
   // buttons, holes, grime, and ribs showing through a rip in the front
+  // his jacket: a long, threadbare wine tailcoat cut for a far too skinny frame - padded shoulders with
+  // frayed gold epaulettes, teal-lined lapels with tarnished gold piping, a stand-up collar and red bow, a front
+  // torn open over the ribcage, long ragged tails, burn holes, soot and grime everywhere
   sp_coat: () => {
-    const RU = MAT.clothWine, TE = MAT.handTeal, OR = MAT.copper, P = MAT.porcelain, G = MAT.burnt, n = [
-      { t: 'ell', c: [0, 0, 0], r: [0.22, 0.28, 0.15], m: RU, n: [0.014, 18] },
-      { t: 'cap', a: [-0.25, 0.15, 0.01], b: [0.25, 0.15, 0.01], r: 0.085, m: RU, k: 0.08, n: [0.01, 20] },
-      { t: 'box', c: [0, -0.32, 0.03], h: [0.22, 0.13, 0.15], rr: 0.04, m: RU, k: 0.08, n: [0.03, 9] },
-      { t: 'box', c: [0, -0.06, -0.15], h: [0.05, 0.16, 0.06], op: 's', k: 0.02, sm: MAT.rubber, n: [0.02, 30] },
-      { t: 'sph', c: [0.16, -0.15, -0.1], r: 0.05, op: 's', k: 0.01, sm: MAT.rubber, n: [0.015, 50] },
-      { t: 'sph', c: [-0.19, -0.3, -0.05], r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.015, 50] }
+    const RU = MAT.clothWine, TE = MAT.handTeal, GO = MAT.paint, OR = MAT.copper, P = MAT.porcelain, G = MAT.burnt, n = [
+      { t: 'ell', c: [0, -0.04, 0], r: [0.27, 0.3, 0.16], m: RU, n: [0.012, 16] },
+      { t: 'cap', a: [-0.33, 0.13, 0.01], b: [0.33, 0.13, 0.01], r: 0.085, m: RU, k: 0.07, n: [0.01, 20] },
+      { t: 'cap', a: [0, -0.25, 0.01], b: [0, -0.72, 0.03], r: 0.17, r2: 0.13, m: RU, k: 0.08, n: [0.014, 14] },
+      { t: 'box', c: [0, -0.4, -0.15], h: [0.045, 0.3, 0.06], op: 's', k: 0.03, sm: MAT.rubber, n: [0.02, 30] }
     ];
-    // harlequin diamonds
-    const D = [[-0.12, 0.08, TE], [0.12, 0.08, OR], [-0.15, -0.14, OR], [0.15, -0.12, TE], [-0.1, -0.3, TE], [0.1, -0.3, OR], [0, -0.36, TE]];
-    for (const [x, y, m] of D) {
-      const z = -Math.sqrt(Math.max(0.0001, 1 - (x / 0.23) ** 2 - (y / 0.32) ** 2)) * 0.15 - 0.005;
-      n.push({ t: 'box', c: [x, y, Math.min(z, -0.1)], h: [0.05, 0.05, 0.012], rot: [Math.atan2(x, 0.3), 0, Math.PI / 4], m, k: 0.01, n: [0.006, 40] });
-    }
-    // a tall stand-up collar flaring round the neck: blue outside, yellow inside, open at the front
-    n.push({ t: 'cap', a: [0, 0.18, -0.01], b: [0, 0.52, -0.05], r: 0.17, r2: 0.36, m: MAT.furBlue, k: 0.02, n: [0.006, 30] });
-    n.push({ t: 'cap', a: [0, 0.16, -0.01], b: [0, 0.56, -0.05], r: 0.14, r2: 0.33, op: 's', k: 0.01, sm: MAT.paint });
-    n.push({ t: 'box', c: [0, 0.4, -0.27], h: [0.08, 0.16, 0.12], rot: [0, 0, 0], op: 's', k: 0.02, sm: MAT.paint });
-    n.push({ t: 'ell', c: [0, 0.3, 0], r: [0.1, 0.1, 0.08], op: 's', k: 0.02, sm: RU });
-    // a red bow at the throat
+    // frayed gold epaulettes with hanging fringe
     for (const sx of [-1, 1]) {
-      n.push({ t: 'ell', c: [sx * 0.065, 0.215, -0.165], r: [0.06, 0.04, 0.022], rot: [0, 0, sx * 0.35], m: MAT.lining, k: 0.012, n: [0.004, 50] });
-      n.push({ t: 'cap', a: [sx * 0.02, 0.2, -0.17], b: [sx * 0.05, 0.1, -0.175], r: 0.022, r2: 0.012, m: MAT.lining, k: 0.01 });
+      n.push({ t: 'ell', c: [sx * 0.34, 0.19, 0.0], r: [0.1, 0.035, 0.09], m: GO, k: 0.015, n: [0.006, 50] });
+      for (let k = 0; k < 6; k++) n.push({ t: 'cap', a: [sx * (0.27 + k * 0.024), 0.17, -0.06 + (k % 2) * 0.12], b: [sx * (0.29 + k * 0.026), 0.07 - (k % 3) * 0.025, -0.06 + (k % 2) * 0.12], r: 0.008, r2: 0.004, m: GO, k: 0.004 });
     }
-    n.push({ t: 'sph', c: [0, 0.215, -0.175], r: 0.026, m: MAT.lining, k: 0.01 });
-    // dagged hem: pointed tatters of every colour hanging round the skirt
+    // lapels: teal lining folded back from the collar to the waist, edged in tarnished gold piping
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'box', c: [sx * 0.1, 0.02, -0.158], h: [0.055, 0.2, 0.012], rot: [0, 0, sx * 0.22], m: MAT.furBlue, k: 0.01, n: [0.004, 40] });
+      n.push({ t: 'cap', a: [sx * 0.05, 0.22, -0.17], b: [sx * 0.15, -0.18, -0.168], r: 0.009, m: GO, k: 0.004 });
+      n.push({ t: 'cap', a: [sx * 0.15, -0.18, -0.168], b: [sx * 0.06, -0.3, -0.16], r: 0.008, m: GO, k: 0.004 });
+    }
+    // gold piping down the front edges and round the cuffs of the shoulders
+    for (const sx of [-1, 1]) n.push({ t: 'tor', c: [sx * 0.39, 0.13, 0.01], R: 0.085, r: 0.008, rot: [0, 0, Math.PI / 2], m: GO, k: 0.004 });
+    // long ragged coat tails behind, torn to different lengths
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cap', a: [sx * 0.07, -0.5, 0.13], b: [sx * 0.15, -1.05 + (sx > 0 ? 0.12 : 0), 0.2], r: 0.085, r2: 0.025, m: RU, k: 0.05, n: [0.016, 18] });
+      n.push({ t: 'sph', c: [sx * 0.13, -0.8, 0.22], r: 0.035, op: 's', k: 0.01, sm: MAT.rubber, n: [0.015, 40] });
+    }
+    // a tall stand-up collar flaring round the neck: wine outside, teal inside, open at the front
+    n.push({ t: 'cap', a: [0, 0.18, -0.01], b: [0, 0.5, -0.05], r: 0.16, r2: 0.3, m: RU, k: 0.02, n: [0.008, 30] });
+    n.push({ t: 'cap', a: [0, 0.16, -0.01], b: [0, 0.54, -0.05], r: 0.13, r2: 0.27, op: 's', k: 0.01, sm: TE });
+    n.push({ t: 'box', c: [0, 0.38, -0.24], h: [0.08, 0.16, 0.12], op: 's', k: 0.02, sm: TE });
+    n.push({ t: 'ell', c: [0, 0.3, 0], r: [0.1, 0.1, 0.08], op: 's', k: 0.02, sm: RU });
+    // a big, crumpled red bow at the throat with long tails hanging down the shirt front
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'ell', c: [sx * 0.085, 0.22, -0.18], r: [0.085, 0.055, 0.03], rot: [0, 0, sx * 0.3], m: MAT.lining, k: 0.012, n: [0.006, 40] });
+      n.push({ t: 'cap', a: [sx * 0.02, 0.19, -0.185], b: [sx * 0.06, -0.02, -0.19], r: 0.035, r2: 0.018, m: MAT.lining, k: 0.012, n: [0.005, 40] });
+      n.push({ t: 'cap', a: [sx * 0.06, -0.02, -0.19], b: [sx * 0.05, -0.1, -0.185], r: 0.018, r2: 0.006, m: MAT.lining, k: 0.008 });
+    }
+    n.push({ t: 'ell', c: [0, 0.215, -0.192], r: [0.032, 0.036, 0.024], m: MAT.lining, k: 0.01 });
+    // dagged hem round the waist
     for (let k = 0; k < 11; k++) {
-      const ang = (k / 11) * Math.PI * 2, x = Math.sin(ang) * 0.21, z = Math.cos(ang) * 0.14 + 0.03;
-      const len = 0.14 + ((k * 7) % 4) * 0.035;
-      n.push({ t: 'cap', a: [x, -0.42, z], b: [x * 1.15, -0.42 - len, z * 1.15], r: 0.045, r2: 0.006, m: [RU, TE, OR][k % 3], k: 0.02, n: [0.012, 30] });
+      const ang = (k / 11) * Math.PI * 2, x = Math.sin(ang) * 0.15, z = Math.cos(ang) * 0.12 + 0.03;
+      const len = 0.1 + ((k * 7) % 4) * 0.03;
+      n.push({ t: 'cap', a: [x, -0.7, z], b: [x * 1.15, -0.7 - len, z * 1.15], r: 0.04, r2: 0.006, m: RU, k: 0.02, n: [0.012, 30] });
     }
-    // ribs and breastbone in the rip
-    n.push({ t: 'cap', a: [0, 0.06, -0.11], b: [0, -0.2, -0.11], r: 0.014, m: P, k: 0.01 });
-    for (let i = 0; i < 4; i++) { const y = 0.03 - i * 0.065; n.push({ t: 'cap', a: [-0.06, y - 0.02, -0.1], b: [0.06, y - 0.02, -0.1], r: 0.011, m: P, k: 0.006 }); }
-    // pom-pom buttons down one side
-    for (let i = 0; i < 3; i++) n.push({ t: 'sph', c: [0.075, 0.12 - i * 0.12, -0.16], r: 0.024, m: [OR, TE, OR][i], k: 0.006, n: [0.006, 80] });
-    // grime, soot and stains
-    for (let k = 0; k < 10; k++) { const ang = k * 2.2; n.push({ t: 'sph', c: [Math.sin(ang) * 0.2, 0.2 - (k * 0.071) % 0.62, Math.cos(ang) * 0.13], r: 0.035, m: G, k: 0.012, n: [0.01, 50] }); }
-    // crude stitched repair
+    // ribs and breastbone where the front is torn open
+    n.push({ t: 'cap', a: [0, -0.12, -0.1], b: [0, -0.5, -0.1], r: 0.014, m: P, k: 0.01 });
+    for (let i = 0; i < 5; i++) { const y = -0.16 - i * 0.07; n.push({ t: 'cap', a: [-0.07, y - 0.02, -0.09], b: [0.07, y - 0.02, -0.09], r: 0.011, m: P, k: 0.006 }); }
+    // tarnished buttons (one torn off, leaving a thread)
+    for (let i = 0; i < 3; i++) if (i !== 1) n.push({ t: 'cyl', c: [0.16, -0.22 - i * 0.12, -0.15], r: 0.022, h: 0.006, rot: [0, Math.PI / 2, 0], m: OR, k: 0.004 });
+    n.push({ t: 'cap', a: [0.16, -0.34, -0.155], b: [0.17, -0.39, -0.16], r: 0.003, m: GO });
+    // burn holes, scorched edges, soot and grime all over
+    for (const c of [[0.15, 0.02, -0.13], [-0.16, -0.5, -0.12], [0.2, -0.3, 0.1], [-0.2, 0.0, 0.12], [0.08, -0.62, 0.12], [-0.3, 0.12, -0.04]]) n.push({ t: 'sph', c, r: 0.04, op: 's', k: 0.01, sm: MAT.rubber, n: [0.02, 45] });
+    for (let k = 0; k < 16; k++) { const a = k * 2.3; n.push({ t: 'sph', c: [Math.sin(a) * 0.22, 0.15 - (k * 0.11) % 0.95, Math.cos(a) * 0.15], r: 0.05, m: k % 3 ? G : MAT.rustIron, k: 0.015, n: [0.014, 40] }); }
+    // a crude stitched repair up one side
     for (let i = 0; i < 4; i++) {
-      const y = 0.12 - i * 0.06, x = -0.2, z = -0.05;
-      n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
-      n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: MAT.paint, k: 0.002 });
+      const y = 0.0 - i * 0.07, x = -0.24, z = -0.04;
+      n.push({ t: 'cap', a: [x, y - 0.015, z - 0.015], b: [x, y + 0.015, z + 0.015], r: 0.004, m: GO, k: 0.002 });
+      n.push({ t: 'cap', a: [x, y + 0.015, z - 0.015], b: [x, y - 0.015, z + 0.015], r: 0.004, m: GO, k: 0.002 });
     }
-    // heavy damage: scorched holes burned through the motley, soot and peeled patches
-    for (const c of [[0.15, 0.1, -0.13], [-0.12, -0.42, -0.14], [0.2, -0.3, 0.1], [-0.18, 0.05, 0.12], [0.05, -0.55, -0.1]]) n.push({ t: 'sph', c, r: 0.045, op: 's', k: 0.01, sm: MAT.rubber, n: [0.02, 45] });
-    for (let k = 0; k < 10; k++) { const a = k * 2.3; n.push({ t: 'sph', c: [Math.sin(a) * 0.21, -0.6 + (k * 0.13) % 0.8, Math.cos(a) * 0.15], r: 0.05, m: MAT.burnt, k: 0.015, n: [0.014, 40] }); }
-    return SDF.mesh(n, [-0.46, -0.78, -0.44], [0.46, 0.56, 0.4], 78);
+    return SDF.mesh(n, [-0.52, -1.12, -0.42], [0.52, 0.58, 0.4], 84);
   },
+
   // Stolen plush arm (shoulder at y 0, fingertips at y 1), coloured per draw: shaggy fur sleeve, a frayed
   // torn shoulder, and a soft four-fingered hand
   sp_trophyArm: () => {
@@ -11423,7 +11959,7 @@ const SCULPTS = {
     ];
     return SDF.mesh(n, [-0.1, -0.06, -0.1], [0.1, 0.8, 0.1], 44);
   },
-  // a plush mitten-like hand (wrist at y 0.76, fingertips at y 1)
+  // a furry plush hand (wrist at y 0.76, fingertips at y 1)
   sp_trophyHand: () => {
     const M = -1, n = [
       { t: 'cap', a: [0, 0.75, 0], b: [0, 0.8, -0.005], r: 0.05, m: M },
@@ -11435,7 +11971,12 @@ const SCULPTS = {
       n.push({ t: 'cap', a: [x, 0.9, -0.012], b: [x * 1.15, 0.9 + len * 0.6, -0.022], r: 0.018, m: M, k: 0.014 });
       n.push({ t: 'cap', a: [x * 1.15, 0.9 + len * 0.6, -0.022], b: [x * 1.2, 0.9 + len, -0.05], r: 0.016, m: M, k: 0.012 });
     }
-    return SDF.mesh(n, [-0.13, 0.7, -0.11], [0.13, 1.06, 0.07], 48);
+    // covered in shaggy fur like the arm: matted clumps over the back of the hand and the fingers
+    for (let i = 0; i < 22; i++) {
+      const a = i * 2.4, y = 0.78 + (i * 0.023) % 0.22, rr = y > 0.9 ? 0.04 : 0.055;
+      n.push({ t: 'sph', c: [Math.cos(a) * rr, y, -0.012 + Math.sin(a) * 0.028], r: 0.014 + (i % 3) * 0.004, m: M, k: 0.02, n: [0.006, 70] });
+    }
+    return SDF.mesh(n, [-0.13, 0.7, -0.11], [0.13, 1.06, 0.07], 56);
   },
   // Spoolwright torso (pivot at y 1.35): lumpy fur sac, spool drum with flanges, ribcage, spine
   sp_body: () => {
@@ -11957,6 +12498,158 @@ const SCULPTS = {
     // scuffs: darker grime in the rubber
     for (const c of [[0.07, 0.1, -0.05], [-0.08, -0.03, -0.07], [0.02, 0.12, -0.06]]) n.push({ t: 'sph', c, r: 0.018, m: MAT.burnt, k: 0.01, n: [0.006, 80] });
     return SDF.mesh(n, [-0.17, -0.2, -0.18], [0.17, 0.17, 0.17], 72);
+  },
+  // LOVEY (our own rose-pink plush ally, drawn in rose-tinted shaggy fur): very tall (about 3.4 m to the top of
+  // her head), skinny and long-limbed, badly hurt - her left arm torn clean off at the shoulder (a ragged
+  // stump spilling stuffing, bound in bandages), a sewn heart patch on her chest, a split seam on her side,
+  // bandages round her middle and her left leg, patched knees. Origin at her feet; shoulders at y 2.75.
+  lv_body: () => {
+    const F = -1, W = MAT.porcelain, K = MAT.rubber, L = MAT.lining, C = MAT.canvas, fur = [0.014, 22], n = [
+      { t: 'ell', c: [0, 2.38, 0], r: [0.3, 0.48, 0.22], m: F, n: fur },
+      { t: 'ell', c: [0, 1.86, 0.02], r: [0.24, 0.34, 0.2], m: F, k: 0.14, n: fur },
+      { t: 'cap', a: [-0.34, 2.75, 0], b: [0.34, 2.75, 0], r: 0.1, m: F, k: 0.1, n: fur },
+      { t: 'cap', a: [0, 2.75, 0], b: [0, 2.94, 0], r: 0.075, m: F, k: 0.05, n: fur },
+      // sewn heart patch on her chest
+      { t: 'sph', c: [-0.055, 2.5, -0.2], r: 0.07, m: L, k: 0.01, n: [0.003, 60] },
+      { t: 'sph', c: [0.055, 2.5, -0.2], r: 0.07, m: L, k: 0.01, n: [0.003, 60] },
+      { t: 'cap', a: [-0.085, 2.46, -0.195], b: [0, 2.35, -0.205], r: 0.045, r2: 0.012, m: L, k: 0.02 },
+      { t: 'cap', a: [0.085, 2.46, -0.195], b: [0, 2.35, -0.205], r: 0.045, r2: 0.012, m: L, k: 0.02 },
+      // the split seam on her right side, stuffing bulging out
+      { t: 'ell', c: [0.27, 2.15, -0.04], r: [0.07, 0.15, 0.07], op: 's', k: 0.02, sm: W }
+    ];
+    for (let i = 0; i < 9; i++) n.push({ t: 'sph', c: [0.27 + (i % 3) * 0.022, 2.04 + i * 0.024, -0.06 + ((i * 5) % 3) * 0.025], r: 0.035 + (i % 2) * 0.01, m: W, k: 0.02, n: [0.012, 50] });
+    // the left arm is gone: a ragged stump at the shoulder, white stuffing spilling out, bound in bandages
+    n.push({ t: 'cap', a: [-0.36, 2.74, 0], b: [-0.47, 2.62, 0.01], r: 0.1, r2: 0.09, m: F, k: 0.05, n: [0.02, 30] });
+    for (let i = 0; i < 8; i++) n.push({ t: 'sph', c: [-0.5 - (i % 3) * 0.018, 2.58 - (i * 0.023) % 0.1, -0.04 + (i % 4) * 0.025], r: 0.028 + (i % 2) * 0.01, m: W, k: 0.015, n: [0.012, 50] });
+    for (let i = 0; i < 4; i++) n.push({ t: 'tor', c: [-0.4 - i * 0.022, 2.7 - i * 0.025, 0], R: 0.1, r: 0.016, rot: [0, 0, 0.9 + i * 0.12], m: W, k: 0.006, n: [0.004, 50] });
+    n.push({ t: 'cap', a: [-0.47, 2.6, -0.06], b: [-0.5, 2.25, -0.08], r: 0.02, r2: 0.012, m: W, k: 0.004, n: [0.004, 40] });   // a loose bandage end
+    // a bandage wrapped round her middle
+    for (let i = 0; i < 4; i++) n.push({ t: 'tor', c: [0, 1.78 + i * 0.07, 0.02], R: 0.235 - Math.abs(i - 1.5) * 0.01, r: 0.018, rot: [0.08 * (i % 2 ? 1 : -1), 0, 0.06 * (i - 1.5)], m: W, k: 0.006, n: [0.004, 50] });
+    // stitches round the heart and down the front seam
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; n.push({ t: 'cap', a: [Math.cos(a) * 0.14, 2.46 + Math.sin(a) * 0.11, -0.2], b: [Math.cos(a) * 0.17, 2.46 + Math.sin(a) * 0.135, -0.19], r: 0.005, m: K }); }
+    // long, skinny legs with big soft feet; the left leg is bandaged and the knees are patched
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cap', a: [sx * 0.13, 1.62, 0], b: [sx * 0.15, 0.12, 0.02], r: 0.1, r2: 0.082, m: F, k: 0.08, n: fur });
+      n.push({ t: 'ell', c: [sx * 0.15, 0.07, -0.08], r: [0.12, 0.075, 0.2], m: F, k: 0.04, n: fur });
+      n.push({ t: 'ell', c: [sx * 0.145, 0.86, -0.08], r: [0.075, 0.07, 0.025], m: sx < 0 ? C : L, k: 0.01, n: [0.004, 60] });
+    }
+    for (let i = 0; i < 8; i++) n.push({ t: 'tor', c: [-0.145, 0.3 + i * 0.075, 0.01], R: 0.095, r: 0.016, rot: [i * 0.3, 0.12 * (i % 2 ? 1 : -1), 0], m: W, k: 0.006, n: [0.004, 50] });
+    // grime and old stains
+    for (let k = 0; k < 10; k++) { const a = k * 2.4; n.push({ t: 'sph', c: [Math.sin(a) * 0.27, 1.5 + (k * 0.17) % 1.3, Math.cos(a) * 0.19], r: 0.055, m: MAT.burnt, k: 0.03, n: [0.012, 40] }); }
+    return SDF.mesh(n, [-0.62, -0.02, -0.42], [0.5, 3.0, 0.42], 100);
+  },
+  // her heart-shaped head (origin at the neck): two rounded lobes over a soft point, long floppy ears, one
+  // black button eye, a stitched-shut X for the other, rosy cheeks and a stitched smile
+  lv_head: () => {
+    const F = -1, K = MAT.rubber, L = MAT.lining, W = MAT.porcelain, n = [
+      { t: 'sph', c: [-0.15, 0.36, 0], r: 0.22, m: F, n: [0.008, 18] },
+      { t: 'sph', c: [0.15, 0.36, 0], r: 0.22, m: F, k: 0.1, n: [0.008, 18] },
+      { t: 'ell', c: [0, 0.2, 0], r: [0.28, 0.24, 0.2], m: F, k: 0.12 },
+      { t: 'cap', a: [0, 0.2, -0.02], b: [0, 0.02, -0.02], r: 0.17, r2: 0.07, m: F, k: 0.1 },
+      // button eye with four thread holes
+      { t: 'cyl', c: [-0.12, 0.33, -0.2], r: 0.055, h: 0.012, rot: [0, Math.PI / 2, 0], m: K, k: 0.004 },
+      { t: 'tor', c: [-0.12, 0.33, -0.212], R: 0.05, r: 0.006, rot: [0, Math.PI / 2, 0], m: K, k: 0.002 },
+      // rosy cheeks
+      { t: 'ell', c: [-0.17, 0.2, -0.17], r: [0.05, 0.03, 0.02], m: L, k: 0.012 },
+      { t: 'ell', c: [0.17, 0.2, -0.17], r: [0.05, 0.03, 0.02], m: L, k: 0.012 }
+    ];
+    for (const [dx, dy] of [[-0.012, 0.012], [0.012, 0.012], [-0.012, -0.012], [0.012, -0.012]]) n.push({ t: 'sph', c: [-0.12 + dx, 0.33 + dy, -0.215], r: 0.006, m: W });
+    // the X stitched over the missing eye
+    n.push({ t: 'cap', a: [0.07, 0.38, -0.2], b: [0.17, 0.28, -0.2], r: 0.011, m: K });
+    n.push({ t: 'cap', a: [0.07, 0.28, -0.2], b: [0.17, 0.38, -0.2], r: 0.011, m: K });
+    // a gentle stitched smile
+    let px = -0.12, py = 0.16;
+    for (let i = 1; i <= 8; i++) {
+      const a = -0.12 + i * 0.03, b = 0.13 - Math.sin(i / 8 * Math.PI) * 0.035;
+      n.push({ t: 'cap', a: [px, py, -0.192], b: [a, b, -0.192], r: 0.007, m: K });
+      n.push({ t: 'cap', a: [a, b + 0.015, -0.19], b: [a, b - 0.015, -0.19], r: 0.0045, m: K });
+      px = a; py = b;
+    }
+    // long floppy ears hanging down past her shoulders, one torn and pinned
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cap', a: [sx * 0.27, 0.42, 0.02], b: [sx * 0.42, 0.1, 0.06], r: 0.08, r2: 0.09, m: F, k: 0.05, n: [0.008, 20] });
+      n.push({ t: 'cap', a: [sx * 0.42, 0.1, 0.06], b: [sx * 0.44, -0.35 + (sx > 0 ? 0.12 : 0), 0.04], r: 0.09, r2: 0.06, m: F, k: 0.05, n: [0.008, 20] });
+      n.push({ t: 'ell', c: [sx * 0.43, -0.05, -0.03], r: [0.05, 0.16, 0.012], m: L, k: 0.02 });
+    }
+    n.push({ t: 'sph', c: [0.45, -0.22, -0.02], r: 0.05, op: 's', k: 0.01, sm: W, n: [0.015, 40] });
+    n.push({ t: 'cap', a: [0.38, -0.12, -0.08], b: [0.5, -0.12, -0.06], r: 0.006, m: MAT.steel });
+    return SDF.mesh(n, [-0.56, -0.45, -0.3], [0.56, 0.62, 0.3], 80);
+  },
+  // her one remaining arm: very long and thin, hanging from the shoulder (y 0) down past her knee to a big soft
+  // mitten (y -2.0), shaggy rose fur, a bandaged forearm
+  lv_arm: () => {
+    const F = -1, W = MAT.porcelain, fur = [0.012, 22], n = [
+      { t: 'cap', a: [0, 0, 0], b: [0, -1.65, -0.03], r: 0.082, r2: 0.066, m: F, n: fur },
+      { t: 'ell', c: [0, -1.82, -0.04], r: [0.1, 0.18, 0.075], m: F, k: 0.05, n: fur },
+      { t: 'cap', a: [-0.07, -1.74, -0.07], b: [-0.12, -1.88, -0.09], r: 0.04, m: F, k: 0.03, n: fur }
+    ];
+    for (let i = 0; i < 5; i++) n.push({ t: 'tor', c: [0, -1.05 - i * 0.07, -0.02], R: 0.075, r: 0.015, rot: [0.15 * (i % 2 ? 1 : -1), 0, 0], m: W, k: 0.006, n: [0.004, 50] });
+    return SDF.mesh(n, [-0.2, -2.05, -0.18], [0.2, 0.12, 0.16], 84);
+  },
+  // a brass jingle bell (origin at its centre): a ball with a hanging ring on top, a band round its middle,
+  // a slot cut round the lower half ending in two round sound holes, and the dark clapper ball inside
+  sp_bell: () => {
+    const B = -1, K = MAT.rubber, n = [
+      { t: 'sph', c: [0, 0, 0], r: 0.05, m: B, n: [0.0008, 120] },
+      { t: 'tor', c: [0, 0.062, 0], R: 0.014, r: 0.0045, rot: [Math.PI / 2, 0, 0], m: B },
+      { t: 'cyl', c: [0, 0.048, 0], r: 0.012, h: 0.006, m: B, k: 0.004 },
+      { t: 'tor', c: [0, 0.004, 0], R: 0.05, r: 0.003, m: B, k: 0.002 },
+      { t: 'box', c: [0, -0.02, 0], h: [0.042, 0.0045, 0.06], op: 's', k: 0.001, sm: K },
+      { t: 'sph', c: [0.038, -0.02, 0], r: 0.0095, op: 's', sm: K },
+      { t: 'sph', c: [-0.038, -0.02, 0], r: 0.0095, op: 's', sm: K },
+      { t: 'box', c: [0, -0.04, 0], h: [0.0045, 0.02, 0.06], op: 's', k: 0.001, sm: K },
+      { t: 'sph', c: [0, -0.012, 0], r: 0.02, m: K },
+      // tarnish and soot
+      { t: 'sph', c: [0.03, 0.025, -0.03], r: 0.02, m: MAT.burnt, k: 0.01, n: [0.003, 80] },
+      { t: 'sph', c: [-0.035, -0.005, 0.025], r: 0.016, m: MAT.burnt, k: 0.01, n: [0.003, 80] }
+    ];
+    return SDF.mesh(n, [-0.065, -0.065, -0.065], [0.065, 0.085, 0.065], 56);
+  },
+  // a big old wood-cased CRT television (draw material = the casing), screen facing -z, origin at its feet
+  crt_tv: () => {
+    const G = -1, K = MAT.rubber, S = MAT.steel, n = [
+      { t: 'box', c: [0, 0.4, 0.02], h: [0.42, 0.34, 0.3], rr: 0.05, m: G, n: [0.0015, 30] },
+      { t: 'cap', a: [0, 0.4, 0.2], b: [0, 0.4, 0.56], r: 0.27, r2: 0.13, m: K, k: 0.05 },
+      { t: 'box', c: [-0.07, 0.41, -0.285], h: [0.3, 0.28, 0.02], rr: 0.035, m: K, k: 0.012 },
+      { t: 'box', c: [-0.07, 0.41, -0.32], h: [0.255, 0.225, 0.035], rr: 0.06, op: 's', k: 0.01, sm: K },
+      { t: 'box', c: [0.32, 0.4, -0.285], h: [0.075, 0.3, 0.012], rr: 0.01, m: S, k: 0.006 }
+    ];
+    for (const y of [0.58, 0.47]) { n.push({ t: 'cyl', c: [0.32, y, -0.305], r: 0.032, h: 0.018, rot: [0, Math.PI / 2, 0], m: K, k: 0.004 }); n.push({ t: 'box', c: [0.32, y + 0.018, -0.322], h: [0.004, 0.012, 0.004], m: S }); }
+    for (let i = 0; i < 6; i++) n.push({ t: 'box', c: [0.32, 0.17 + i * 0.03, -0.3], h: [0.05, 0.005, 0.02], op: 's', k: 0.002, sm: K });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) n.push({ t: 'box', c: [sx * 0.34, 0.03, sz * 0.22], h: [0.035, 0.03, 0.035], rr: 0.01, m: K, k: 0.01 });
+    // rabbit-ear antenna
+    n.push({ t: 'sph', c: [0, 0.74, 0.12], r: 0.05, m: K, k: 0.02 });
+    for (const sx of [-1, 1]) n.push({ t: 'cap', a: [0, 0.76, 0.12], b: [sx * 0.24, 1.12, 0.16], r: 0.007, m: S });
+    return SDF.mesh(n, [-0.5, 0, -0.38], [0.5, 1.16, 0.62], 84);
+  },
+  // a top-loading VCR: dark casing, tape slot with a flap, display window, row of buttons
+  vcr: () => {
+    const G = -1, S = MAT.steel, n = [
+      { t: 'box', c: [0, 0.05, 0], h: [0.23, 0.045, 0.17], rr: 0.008, m: G, n: [0.0006, 60] },
+      { t: 'box', c: [-0.05, 0.062, -0.17], h: [0.11, 0.012, 0.02], op: 's', k: 0.002, sm: MAT.rubber },
+      { t: 'box', c: [-0.05, 0.062, -0.158], h: [0.105, 0.01, 0.004], m: S },
+      { t: 'box', c: [0.14, 0.064, -0.168], h: [0.055, 0.016, 0.006], m: MAT.rubber, k: 0.002 },
+      { t: 'box', c: [0, 0.092, 0.0], h: [0.21, 0.002, 0.15], m: S, k: 0.002 }
+    ];
+    for (let i = 0; i < 6; i++) n.push({ t: 'box', c: [-0.17 + i * 0.04, 0.025, -0.171], h: [0.014, 0.008, 0.006], rr: 0.002, m: S });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) n.push({ t: 'cyl', c: [sx * 0.2, 0.003, sz * 0.14], r: 0.015, h: 0.004, m: MAT.rubber });
+    return SDF.mesh(n, [-0.25, -0.005, -0.2], [0.25, 0.11, 0.19], 72);
+  },
+  // a VHS cassette: black shell, two reel windows with white hubs and wound tape, a paper label
+  vhs_tape: () => {
+    const G = -1, n = [
+      { t: 'box', c: [0, 0.0125, 0], h: [0.095, 0.0125, 0.052], rr: 0.002, m: G, n: [0.0003, 90] },
+      { t: 'box', c: [0, 0.026, 0.008], h: [0.07, 0.003, 0.022], rr: 0.004, op: 's', k: 0.001, sm: MAT.rubber },
+      { t: 'box', c: [0, 0.0255, -0.033], h: [0.07, 0.0008, 0.014], m: MAT.porcelain },
+      { t: 'box', c: [0, 0.0125, -0.0525], h: [0.08, 0.009, 0.0008], m: MAT.porcelain },
+      { t: 'box', c: [0, 0.0125, 0.054], h: [0.06, 0.006, 0.003], op: 's', k: 0.001, sm: MAT.rubber }
+    ];
+    for (const sx of [-1, 1]) {
+      n.push({ t: 'cyl', c: [sx * 0.04, 0.019, 0.008], r: sx < 0 ? 0.021 : 0.014, h: 0.004, m: MAT.rubber });
+      n.push({ t: 'cyl', c: [sx * 0.04, 0.021, 0.008], r: 0.008, h: 0.004, m: MAT.porcelain });
+      for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; n.push({ t: 'box', c: [sx * 0.04 + Math.cos(a) * 0.006, 0.0235, 0.008 + Math.sin(a) * 0.006], h: [0.0015, 0.001, 0.0015], m: MAT.rubber }); }
+    }
+    return SDF.mesh(n, [-0.1, -0.002, -0.058], [0.1, 0.03, 0.058], 80);
   }
 };
 const SCULPT_ORDER = Object.keys(SCULPTS);
@@ -12958,7 +13651,7 @@ const _en = { l: V3.create(), o: V3.create(), a: V3.create(), b: V3.create(), c:
 // =====================================================================================
 const SWAP_TIME = 0.6;
 const HAND_TYPES = [
-  { id: 'ROSE', mat: MAT.handRose, tint: [0.7, 0.6, 0.6], glow: null, stun: 1.3, cool: 0.18, desc: 'your old hand - a solid slap that staggers' },
+  { id: 'ROSE', mat: MAT.handRose, tint: [0.6, 0.44, 0.44], glow: null, stun: 1.3, cool: 0.18, desc: 'your old hand - a solid slap that staggers' },
   { id: 'THUMPER', mat: MAT.copper, tint: [0.95, 0.8, 0.6], glow: null, stun: 3.2, cool: 0.9, desc: 'heavy brass punch - long stun, knock-back, smashes cherubs' },
   { id: 'STITCHER', mat: MAT.steel, tint: [1.15, 1.15, 1.2], glow: null, stun: 4.5, cool: 1.0, desc: 'needle fingers that pin whatever they hit' },
   { id: 'LANTERN', mat: MAT.handRose, tint: [0.62, 0.48, 1.35], glow: [0.3, 0.1, 0.8], stun: 2.6, cool: 1.4, desc: 'bursts with blinding light where it lands' },
@@ -12974,7 +13667,7 @@ const HAND_TYPES = [
 ];
 const HAND_COUNT = HAND_TYPES.length;
 const PICKUP_SPOTS = [
-  { kind: 'mask', sector: 0, pos: [-2.6, 0.86, 2.2] },
+  { kind: 'mask', sector: 0, pos: [-2.6, 0.97, 2.2] },
   // THUMPER sits in a locked cage until the hall door circuit is restored; LANTERN is deep in the toxic smog
   { kind: 'hand', type: 1, sector: 1, pos: [-3.5, 1.08, -14.5], lock: 'R1' },
   { kind: 'hand', type: 3, sector: 2, pos: [-8.6, 1.08, -46.6] },
@@ -13006,6 +13699,10 @@ const Gear = {
     this.secrets = UV_SECRETS.map(s => ({ s, asset: this.textQuad(s.lines), reveal: 0 }));
     // PIP's face on the teal glove uses the HUD companion canvas as a live texture
     if (Pip.faceCanvas) this.pipAsset = this.canvasQuad(Pip.faceCanvas, 'pip-face', 2.4, false);
+    // hand scanner faces: a dark glass panel with a glowing hand print and a segmented LED bar on top,
+    // in red and in blue, each idle (bar part lit) and accepted (bar full)
+    this.scanAssets = {};
+    for (const col of ['red', 'blue']) this.scanAssets[col] = [0, 1].map(done => { const a = this.canvasQuad(this.scannerCanvas(col, done), 'scan-' + col + done, 1.6, false); a.materials[0].rough = 0.95; return a; });
     this.overlay = document.getElementById('maskOverlay');
     this.gasOverlay = document.getElementById('gasOverlay');
     this.reset();
@@ -13042,6 +13739,53 @@ const Gear = {
     Assets.upload(asset);
     mat.tex = tex;
     return asset;
+  },
+  scannerCanvas(col, done) {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 320;
+    const c = cv.getContext('2d');
+    const rgb = col === 'red' ? [255, 52, 40] : [40, 150, 255];
+    const C = a => 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + a + ')';
+    // scuffed dark housing with a bevelled bezel and corner screws
+    c.fillStyle = 'rgb(26,27,30)'; c.fillRect(0, 0, 256, 320);
+    c.strokeStyle = 'rgb(70,72,78)'; c.lineWidth = 10; c.strokeRect(5, 5, 246, 310);
+    c.strokeStyle = 'rgb(12,12,14)'; c.lineWidth = 4; c.strokeRect(14, 14, 228, 292);
+    for (let i = 0; i < 260; i++) { c.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.05) + ')'; c.fillRect(Math.random() * 256, Math.random() * 320, 1 + Math.random() * 6, 1); }
+    c.fillStyle = 'rgb(90,92,96)';
+    for (const [x, y] of [[20, 20], [236, 20], [20, 300], [236, 300]]) { c.beginPath(); c.arc(x, y, 5, 0, Math.PI * 2); c.fill(); }
+    // segmented LED bar across the top
+    const segs = 8, lit = done ? segs : 3;
+    for (let i = 0; i < segs; i++) {
+      const x = 34 + i * 24;
+      c.fillStyle = 'rgb(18,18,20)'; c.fillRect(x - 2, 30, 22, 22);
+      c.shadowColor = C(1); c.shadowBlur = i < lit ? 12 : 0;
+      c.fillStyle = i < lit ? C(1) : C(0.14); c.fillRect(x, 32, 18, 18);
+    }
+    c.shadowBlur = 0;
+    // the glass well, faintly lit from inside
+    const g = c.createRadialGradient(128, 190, 10, 128, 190, 120);
+    g.addColorStop(0, C(done ? 0.35 : 0.22)); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = 'rgb(10,11,13)'; c.fillRect(34, 66, 188, 232);
+    c.fillStyle = g; c.fillRect(34, 66, 188, 232);
+    // the glowing hand print: palm, four fingers and a thumb, outlined with scan lines through it
+    const hand = () => {
+      c.beginPath();
+      const rr = (x, y, w, h, r) => { c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+      rr(84, 178, 92, 96, 26);
+      const fx = [86, 108, 130, 152], fh = [62, 74, 70, 54];
+      for (let i = 0; i < 4; i++) rr(fx[i], 178 - fh[i] + 8, 20, fh[i] + 10, 10);
+      c.save(); c.translate(176, 222); c.rotate(0.6); rr(-6, -30, 20, 58, 10); c.restore();
+    };
+    c.shadowColor = C(1); c.shadowBlur = 18; c.lineWidth = 4; c.strokeStyle = C(0.95);
+    hand(); c.stroke();
+    c.save(); hand(); c.clip();
+    c.fillStyle = C(done ? 0.5 : 0.28); c.fillRect(0, 0, 256, 320);
+    c.shadowBlur = 0; c.fillStyle = C(0.55);
+    for (let y = 100; y < 290; y += 7) c.fillRect(0, y, 256, 2);
+    c.restore();
+    c.shadowBlur = 0;
+    c.font = 'bold 16px monospace'; c.fillStyle = C(0.8); c.textAlign = 'center';
+    c.fillText(done ? 'ACCEPTED' : 'PLACE HAND', 128, 293);
+    return cv;
   },
   textQuad(lines) {
     const cv = document.createElement('canvas'); cv.width = 512; cv.height = 192;
@@ -13257,12 +14001,14 @@ const Gear = {
   updateOverlays() {
     if (this.overlay) {
       const v = this.maskT;
-      const show = v > 0.04 && (Game.isGameplay() || state === STATE.PAUSED);
+      // putting it on, you watch the 3D inside of the mask come down; the lens view only appears once it is
+      // fully on your face. Taking it off, the lens view lifts away.
+      const on = this.maskOn, show = (on ? v >= 0.93 : v > 0.04) && (Game.isGameplay() || state === STATE.PAUSED);
       this.overlay.style.display = show ? 'block' : 'none';
       if (show) {
-        // it drops down over your face: slides from above, settles with a slight tilt and a squash as the seal meets skin
-        const e = 1 - v, settle = Math.sin(Math.min(1, v * 1.15) * Math.PI) * 0.03;
-        this.overlay.style.transform = 'translateY(' + (e * -105).toFixed(1) + '%) rotate(' + (e * 3).toFixed(2) + 'deg) scale(' + (1 + e * 0.08 + settle).toFixed(3) + ')';
+        const e = on ? 0 : 1 - v;
+        this.overlay.style.opacity = on ? clamp((v - 0.93) / 0.05, 0, 1).toFixed(2) : '1';
+        this.overlay.style.transform = 'translateY(' + (e * -105).toFixed(1) + '%) rotate(' + (e * 3).toFixed(2) + 'deg) scale(' + (1 + e * 0.08).toFixed(3) + ')';
         const fog = this.overlay.querySelector('.fog');
         if (fog) fog.style.opacity = (Math.max(0, Math.sin(Game.time * (Player.sprinting ? 3.4 : 1.85))) * 0.35).toFixed(2);
       }
@@ -13351,24 +14097,56 @@ const Gear = {
   },
   // your GrabPack in the crate at the start: the pack with its cable drum, both hoses and both hands
   drawPackPickup(x, y, z, bob) {
-    const R = RenderQueue, yb = y + 0.1 + bob;
-    R.trs('box', MAT.rustIron, x, yb + 0.12, z, 0.3, 0, 0, 0.42, 0.28, 0.24);
-    R.trs('box', MAT.steel, x, yb + 0.31, z, 0.3, 0, 0, 0.44, 0.1, 0.26);
-    let it = R.push('cyl', MAT.rubber); if (it) M4.compose(it.model, x - 0.2 * Math.cos(0.3), yb + 0.42, z + 0.2 * Math.sin(0.3), 0.3, 0, -Math.PI / 2, 0.11, 0.4, 0.11);
-    for (const k of [0, 1]) { const r = R.push('torus', MAT.copper); if (r) M4.compose(r.model, x + (k ? 0.17 : -0.17) * Math.cos(0.3), yb + 0.42, z - (k ? 0.17 : -0.17) * Math.sin(0.3), 0.3, 0, Math.PI / 2, 0.12, 0.3, 0.12); }
+    const R = RenderQueue, yb = y + 0.1 + bob, A = 0.3, ca = Math.cos(A), sa = Math.sin(A);
+    // local pack frame (x right, z toward the hands' side = -z world), turned by A
+    const P = (lx, ly, lz) => V3.create(x + lx * ca + lz * sa, yb + ly, z - lx * sa + lz * ca);
+    const box = (mat, lx, ly, lz, sx, sy, sz, tint) => { const c = P(lx, ly, lz); const it = R.trs('box', mat, c[0], c[1], c[2], A, 0, 0, sx, sy, sz); if (it && tint) { it.tint[0] = tint[0]; it.tint[1] = tint[1]; it.tint[2] = tint[2]; } return it; };
+    // the main housing: a dented rust-iron body under a steel lid, with rivets and a back plate
+    box(MAT.rustIron, 0, 0.14, 0, 0.44, 0.3, 0.26);
+    box(MAT.steel, 0, 0.33, 0, 0.46, 0.08, 0.28);
+    box(MAT.steel, 0, 0.16, 0.14, 0.4, 0.26, 0.02);
+    for (const lx of [-0.19, 0.19]) for (const ly of [0.04, 0.26]) { const c = P(lx, ly, -0.135); R.trs('sphereLow', MAT.copper, c[0], c[1], c[2], 0, 0, 0, 0.012, 0.012, 0.012, false); }
+    // the battery box strapped to the side: dark casing, hazard stripe, red and black terminals
+    box(MAT.rubber, 0.31, 0.12, 0.02, 0.16, 0.22, 0.2);
+    box(MAT.hazard, 0.31, 0.2, -0.081, 0.162, 0.04, 0.005);
+    for (const [lx, col] of [[0.27, [2.2, 0.2, 0.15]], [0.35, [0.15, 0.15, 0.15]]]) { const c = P(lx, 0.25, 0.02); const t = R.trs('cyl', MAT.copper, c[0], c[1], c[2], 0, 0, 0, 0.018, 0.03, 0.018, false); if (t) { t.tint[0] = col[0]; t.tint[1] = col[1]; t.tint[2] = col[2]; } }
+    { const c = P(0.31, 0.21, -0.105); const led = R.trs('sphereLow', MAT.screen, c[0], c[1], c[2], 0, 0, 0, 0.012, 0.012, 0.012, false); if (led) { led.emis[0] = 0.2; led.emis[1] = 1.6; led.emis[2] = 0.3; } }
+    // the cable drum across the top: a spool with wound cable and copper flanges
+    { const c = P(0, 0.45, 0.02); const it = R.push('cyl', MAT.cable); if (it) M4.compose(it.model, c[0], c[1], c[2], A, 0, -Math.PI / 2, 0.1, 0.34, 0.1); }
+    for (const lx of [-0.17, 0.17]) { const c = P(lx, 0.45, 0.02); const r = R.push('torus', MAT.copper); if (r) M4.compose(r.model, c[0], c[1], c[2], A, 0, Math.PI / 2, 0.13, 0.3, 0.13); }
+    for (let k = -3; k <= 3; k++) { const c = P(k * 0.042, 0.45, 0.02); const r = R.push('torus', MAT.cable, false); if (r) M4.compose(r.model, c[0], c[1], c[2], A, 0, Math.PI / 2, 0.105, 0.35, 0.105); }
+    // a pressure gauge on the lid
+    { const c = P(-0.12, 0.38, -0.08); R.trs('cyl', MAT.steel, c[0], c[1], c[2], 0, 0, 0, 0.045, 0.02, 0.045, false); const f = R.trs('cyl', MAT.porcelain, c[0], c[1] + 0.012, c[2], 0, 0, 0, 0.036, 0.006, 0.036, false); if (f) { f.tint[0] = 1.2; f.tint[1] = 1.15; f.tint[2] = 1.0; } }
+    // two hoses out of the front, each into a gauntlet lying with its fingers pointing away from the pack
     for (const sx of [-1, 1]) {
-      const sxp = V3.create(x + sx * 0.22, yb + 0.2, z - 0.05), hand = V3.create(x + sx * 0.5, yb + 0.06, z - 0.25);
+      const sxp = P(sx * 0.18, 0.12, -0.13), hand = P(sx * 0.42, -0.04, -0.62);
       R.seg('cyl', MAT.rubber, sxp, hand, 0.035);
-      for (let k = 1; k < 4; k++) { V3.lerp(this.tmp, sxp, hand, k / 4); const r = R.trs('torus', MAT.steel, this.tmp[0], this.tmp[1], this.tmp[2], 0, 0, Math.PI / 2, 0.04, 0.3, 0.04, false); }
-      const gm = 'glove_L_open';
-      if (Sculpt.ready(gm)) { const h = R.push(gm, sx < 0 ? MAT.handTeal : MAT.handRose); if (h) { M4.compose(h.model, hand[0], hand[1] + 0.05, hand[2], sx * 0.6, -1.3, 0, 1.1, 1.1, 1.1); h.tint[0] = 0.7; h.tint[1] = 0.7; h.tint[2] = 0.7; } }
+      for (let k = 1; k < 5; k++) { V3.lerp(this.tmp, sxp, hand, k / 5); const d = V3.sub(V3.create(), hand, sxp); V3.normalize(d, d); const r = R.push('torus', MAT.steel, false); if (r) ringMatrix(r.model, this.tmp, d, 0.042); }
+      // the left (teal) gauntlet uses the R sculpt and the right (rose) the L sculpt, the same pairing as in
+      // first person, so each lies as the correct hand
+      const gm = sx < 0 ? 'glove_R_open' : 'glove_L_open';
+      if (Sculpt.ready(gm)) {
+        const h = R.push(gm, sx < 0 ? MAT.handTeal : MAT.handRose);
+        if (h) {
+          const hp = P(sx * 0.45, 0.0, -0.74);
+          M4.compose(h.model, hp[0], hp[1], hp[2], A + Math.PI - sx * 0.35, 0.15, 0, 1.0, 1.0, 1.0);
+          if (sx < 0) { h.tint[0] = 0.4; h.tint[1] = 0.48; h.tint[2] = 0.44; } else { h.tint[0] = 0.6; h.tint[1] = 0.44; h.tint[2] = 0.44; }
+          const st = Sculpt.ready(gm + '_st') ? R.push(gm + '_st', MAT.steel) : null; if (st) { st.model.set(h.model); st.tint[0] = st.tint[1] = st.tint[2] = 1.3; }
+        }
+      }
     }
-    for (const sx of [-1, 1]) R.trs('box', MAT.canvas, x + sx * 0.12, yb + 0.15, z + 0.13, 0.3, 0, 0, 0.06, 0.32, 0.02, false);   // straps
+    // padded shoulder straps looping over the top with buckles
+    for (const sx of [-1, 1]) {
+      box(MAT.canvas, sx * 0.12, 0.2, 0.17, 0.06, 0.4, 0.02, [0.7, 0.6, 0.5]);
+      box(MAT.canvas, sx * 0.12, 0.42, 0.11, 0.06, 0.02, 0.12, [0.7, 0.6, 0.5]);
+      box(MAT.steel, sx * 0.12, 0.08, 0.185, 0.07, 0.05, 0.012);
+    }
   },
+
   // the mask in your view: held up to look at when you first find it, then lowered onto your face
   submitMaskView() {
     const show = this.maskShowT > 0 ? Math.min(1, this.maskShowT) : 0;
-    const putOn = this.maskOn && this.maskT < 0.95 ? 1 - this.maskT : 0;
+    const putOn = this.maskOn && this.maskT < 0.93 ? 1 - this.maskT : 0;
     if (!show && !putOn) return;
     const eye = Player.cam.eye, f = Renderer.camFwd, u = Renderer.camUp;
     const r = V3.cross(this.tmp2 || (this.tmp2 = V3.create()), u, f);
@@ -13389,7 +14167,8 @@ const Gear = {
     }
   },
   // PIP strapped to the back of the teal glove's wrist, facing you (called from Game.submitHands)
-  submitPip(pos, up0, toCam0, right0) {
+  submitPip(pos, up0, toCam0, right0, sc) {
+    const S = sc || 1;
     const R = RenderQueue, O = [1.35, 0.78, 0.32];
     // the hand's axes are not exactly perpendicular; build a clean orthonormal frame so the screen sits flat
     // against the casing instead of slicing through it
@@ -13397,35 +14176,35 @@ const Gear = {
     V3.addScaled(right, right0, toCam, -V3.dot(right0, toCam)); V3.normalize(right, right);
     const up = V3.cross(_gear.u, toCam, right);
     // the round orange casing: a thick disc with eight soft rounded lobes
-    V3.addScaled(_gear.a, pos, toCam, -0.014); V3.addScaled(_gear.b, pos, toCam, 0.006);
-    let it = R.seg('cyl', MAT.paint, _gear.a, _gear.b, 0.05, false);
+    V3.addScaled(_gear.a, pos, toCam, -0.014 * S); V3.addScaled(_gear.b, pos, toCam, 0.006 * S);
+    let it = R.seg('cyl', MAT.paint, _gear.a, _gear.b, 0.05 * S, false);
     if (it) { it.tint[0] = O[0]; it.tint[1] = O[1]; it.tint[2] = O[2]; it.tint[3] = 0.08; }
     for (let k = 0; k < 8; k++) {
       const a = k / 8 * Math.PI * 2 + Math.PI / 8;
-      V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, right, Math.cos(a) * 0.05); V3.addScaled(_gear.c, _gear.c, up, Math.sin(a) * 0.05); V3.addScaled(_gear.c, _gear.c, toCam, -0.003);
-      it = R.trs('sphereLow', MAT.paint, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.014, 0.014, 0.014, false);
+      V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, right, Math.cos(a) * 0.05 * S); V3.addScaled(_gear.c, _gear.c, up, Math.sin(a) * 0.05 * S); V3.addScaled(_gear.c, _gear.c, toCam, -0.003 * S);
+      it = R.trs('sphereLow', MAT.paint, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.014 * S, 0.014 * S, 0.014 * S, false);
       if (it) { it.tint[0] = O[0]; it.tint[1] = O[1]; it.tint[2] = O[2]; it.tint[3] = 0.08; }
     }
     // the screen: an opaque glass panel just in front of the casing, its corners hidden behind a thick dark
     // bezel ring, so it always reads as a clean round screen
     if (this.pipAsset) {
-      V3.addScaled(_gear.c, pos, toCam, 0.0095);
+      V3.addScaled(_gear.c, pos, toCam, 0.0095 * S);
       V3.scale(_gear.d, right, -1); V3.scale(this.tmp, toCam, -1);   // right-handed basis, quad (-z) facing you
-      basisMatrix(this.m, _gear.c, _gear.d, up, this.tmp, 0.066, 0.066, 1);
+      basisMatrix(this.m, _gear.c, _gear.d, up, this.tmp, 0.066 * S, 0.066 * S, 1);
       const q = AssetQueue.push(this.pipAsset, this.m, false);
       if (q) q.tint[3] = 0.1;
     }
-    V3.addScaled(_gear.c, pos, toCam, 0.0115);
+    V3.addScaled(_gear.c, pos, toCam, 0.0115 * S);
     it = R.push('torus', MAT.rubber, false);
-    if (it) { ringMatrix(it.model, _gear.c, toCam, 0.04); it.model[4] *= 0.5; it.model[5] *= 0.5; it.model[6] *= 0.5; }
+    if (it) { ringMatrix(it.model, _gear.c, toCam, 0.04 * S); it.model[4] *= 0.5; it.model[5] *= 0.5; it.model[6] *= 0.5; }
     // antenna, and the front lamp that is your flashlight
-    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, 0.05); V3.addScaled(_gear.c, _gear.c, right, 0.025);
-    V3.copy(_gear.d, _gear.c); V3.addScaled(_gear.d, _gear.d, up, 0.04);
-    R.seg('cylLow', MAT.rubber, _gear.c, _gear.d, 0.004, false);
-    it = R.trs('sphereLow', MAT.screen, _gear.d[0], _gear.d[1], _gear.d[2], 0, 0, 0, 0.008, 0.008, 0.008, false);
+    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, 0.05 * S); V3.addScaled(_gear.c, _gear.c, right, 0.025 * S);
+    V3.copy(_gear.d, _gear.c); V3.addScaled(_gear.d, _gear.d, up, 0.04 * S);
+    R.seg('cylLow', MAT.rubber, _gear.c, _gear.d, 0.004 * S, false);
+    it = R.trs('sphereLow', MAT.screen, _gear.d[0], _gear.d[1], _gear.d[2], 0, 0, 0, 0.008 * S, 0.008 * S, 0.008 * S, false);
     if (it) { it.emis[0] = 2.5; it.emis[1] = 0.3; it.emis[2] = 0.2; }
-    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, -0.046); V3.addScaled(_gear.c, _gear.c, toCam, 0.008);
-    it = R.trs('sphereLow', MAT.screen, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.007, 0.007, 0.005, false);
+    V3.copy(_gear.c, pos); V3.addScaled(_gear.c, _gear.c, up, -0.046 * S); V3.addScaled(_gear.c, _gear.c, toCam, 0.008 * S);
+    it = R.trs('sphereLow', MAT.screen, _gear.c[0], _gear.c[1], _gear.c[2], 0, 0, 0, 0.007 * S, 0.007 * S, 0.005 * S, false);
     if (it) { const on = (Player.flashOn ? 1 : 0.05) * 0.6; if (this.blacklight) { it.emis[0] = 1.2 * on; it.emis[1] = 0.3 * on; it.emis[2] = 2.6 * on; } else { it.emis[0] = 2.6 * on; it.emis[1] = 2.4 * on; it.emis[2] = 2.0 * on; } }
   }
 };
@@ -13922,6 +14701,7 @@ const DeepWorks = {
     GrabPack.reset();
     Cast.reset();
     this.placeThimble();
+    Lovey.meet();
     Game.saveCheckpoint(6);
     Player.addTrauma(0.9);
     sfx('doorSlam', Player.body.pos);
@@ -14538,16 +15318,19 @@ const DeepWorks = {
 //   Long warehouse blocks with sawtooth roofs, striped chimneys, a domed entrance hall with a round
 //   window and arched doors, rows of porthole windows, a cracked road with a dashed line, and a glowing
 //   amber-to-rose sky with drifting chimney smoke.
-//   Sky colours (emissive bands): amber #e2a03e, orange #d6784a, rose #962e46, dusk #2a0e16
+//   Sky colours (emissive bands): a golden sunset, gold #f2b84a fading up to amber #e2a03e, orange #d6784a and rose #962e46
+//   Card stage lights: blue #2a5fd0, pink #d04aa8, violet #8a3ad0, gold #c8a050, red #c0242a
+//   Emblem: a giant red M (#c8242c) on a cream (#efe3c4) badge with a gold rim, lit from below
 // =====================================================================================
 const TITLE_SECTOR = 11;
 const TITLE_CAM = { pos: V3.create(0, 1.7, 118), yaw: 0, pitch: 0.16 };
 const CARD_ACTOR_X = [-12, -6, 0, 6, 12];
 const CARD_LEAN = 0.25;   // + tilts a model forward toward the camera (-z)
-const TITLE_SKY = [[2.4, 1.45, 0.45], [2.1, 1.0, 0.5], [1.5, 0.55, 0.5], [0.8, 0.22, 0.3], [0.25, 0.07, 0.1]];
+// golden sunset, top of the sky to the horizon
+const TITLE_SKY = [[1.1, 0.5, 0.22], [1.6, 0.8, 0.3], [2.2, 1.2, 0.38], [2.8, 1.65, 0.48], [3.3, 2.1, 0.6], [3.7, 2.55, 0.8], [4.0, 2.9, 1.0], [3.4, 2.2, 0.75]];
 
 const TitleScene = {
-  chimneys: [], smokeAcc: 0, tmp: V3.create(),
+  chimneys: [], smokeAcc: 0, tmp: V3.create(), tmp2: V3.create(),
 
   build(L) {
     const S = TITLE_SECTOR;
@@ -14605,8 +15388,34 @@ const TitleScene = {
     // the chapter-card gallery: five small stages behind the title camera, one per chapter
     g(-16, 0, 141, 16, 9, 141.5, MAT.rubber);
     for (const x of CARD_ACTOR_X) { g(x - 0.9, 0, 134.8, x + 0.9, 0.35, 136.4, MAT.steel); g(x - 1.6, 0.35, 140.6, x + 1.6, 6, 141, MAT.canvas); }
+    // each stage gets its own dim, dusty backdrop behind the toy
+    CARD_ACTOR_X.forEach((x, i) => {
+      // pipes up both sides and a run across the top on every stage
+      for (const sx of [-1.35, 1.35]) B.cylinder(x + sx, 139.8, 0.35, 6, 0.1, 10, MAT.rustIron);
+      g(x - 1.6, 4.3, 139.6, x + 1.6, 4.5, 139.9, MAT.steel);
+      if (i === 0) {   // a toy-shop shelf of building blocks
+        for (const y of [1.2, 2.2, 3.2]) { g(x - 1.2, y, 139.6, x + 1.2, y + 0.06, 140.6, MAT.wood); for (let k = 0; k < 5; k++) g(x - 1.05 + k * 0.48, y + 0.06, 140.0, x - 0.8 + k * 0.48, y + 0.31, 140.3, k % 2 ? MAT.paint : MAT.handTeal); }
+      } else if (i === 1) {   // heavy stage curtains in folds
+        for (let k = 0; k < 6; k++) { const cx = k < 3 ? x - 1.25 + k * 0.17 : x + 0.9 + (k - 3) * 0.17; g(cx, 0.35, 139.9 - (k % 2) * 0.08, cx + 0.16, 5.8, 140.3, MAT.clothWine); }
+        g(x - 1.6, 5.3, 139.5, x + 1.6, 5.8, 140.3, MAT.clothWine);
+      } else if (i === 2) {   // a big wall vent with slats and a grille
+        g(x - 0.9, 1.4, 140.4, x + 0.9, 3.6, 140.6, MAT.rubber);
+        for (let k = 0; k < 9; k++) g(x - 0.9, 1.45 + k * 0.24, 140.25, x + 0.9, 1.52 + k * 0.24, 140.45, MAT.grating);
+      } else if (i === 3) {   // a bakery wall: ovens and a rack of loaves
+        for (const ox of [-0.75, 0.75]) { g(x + ox - 0.55, 0.35, 139.7, x + ox + 0.55, 1.8, 140.6, MAT.steel); g(x + ox - 0.4, 0.6, 139.65, x + ox + 0.4, 1.4, 139.72, MAT.rubber); }
+        g(x - 1.2, 2.6, 139.8, x + 1.2, 2.66, 140.6, MAT.wood);
+        for (let k = 0; k < 6; k++) g(x - 1.05 + k * 0.38, 2.66, 140.0, x - 0.8 + k * 0.38, 2.84, 140.4, MAT.porcelain);
+      } else {   // a workshop: a girder and hanging chains
+        g(x - 1.6, 3.6, 139.7, x + 1.6, 3.9, 140.1, MAT.rustIron);
+        for (const cx of [-0.9, -0.3, 0.5, 1.0]) g(x + cx - 0.02, 1.6 + Math.abs(cx), 139.85, x + cx + 0.02, 3.6, 139.9, MAT.steel);
+      }
+      // a dim coloured work light over each backdrop, matching the card's mood
+      const hues = ['#2a5fd0', '#d04aa8', '#8a3ad0', '#c8a050', '#c0242a'];
+      L.light(S, x, 4.0, 139.0, hues[i], 4, 6, 0.15, 'bulb', 0.4);
+    });
     // the dusk light on the facade
-    L.light(S, 0, 16, 74, '#e2a03e', 26, 48, 0, 'none', 0);
+    L.light(S, 0, 16, 74, '#f2b84a', 28, 48, 0, 'none', 0);
+    L.light(S, 0, 8, 66, '#f2b84a', 10, 14, 0, 'none', 0);   // floodlight up onto the M emblem
     L.light(S, -26, 10, 66, '#e2a03e', 14, 34, 0, 'none', 0); L.light(S, 26, 10, 66, '#e2a03e', 14, 34, 0, 'none', 0);
     L.light(S, -46, 10, 64, '#d6784a', 12, 30, 0, 'none', 0);
     L.light(S, 46, 10, 64, '#962e46', 12, 30, 0, 'none', 0);
@@ -14633,13 +15442,28 @@ const TitleScene = {
   submit() {
     const R = RenderQueue;
     for (let i = 0; i < TITLE_SKY.length; i++) {
-      const c = TITLE_SKY[i], y = 70 - i * 15;
-      const it = R.trs('box', MAT.screen, 0, y, 6, 0, 0, 0, 400, 15.5, 1, false);
+      const c = TITLE_SKY[i], y = 76 - i * 10;
+      const it = R.trs('box', MAT.screen, 0, y, 6, 0, 0, 0, 400, 10.5, 1, false);
       if (it) { it.emis[0] = c[0]; it.emis[1] = c[1]; it.emis[2] = c[2]; }
     }
-    // a low sun glow behind the big stack
-    const s = R.trs('sphereLow', MAT.screen, 6, 22, 8, 0, 0, 0, 7, 7, 1, false);
-    if (s) { s.emis[0] = 4; s.emis[1] = 2.6; s.emis[2] = 1.1; }
+    // a big low golden sun sinking behind the stacks, with a soft halo
+    const halo = R.trs('sphereLow', MAT.screen, 10, 16, 7, 0, 0, 0, 16, 16, 1, false);
+    if (halo) { halo.emis[0] = 4.4; halo.emis[1] = 3.1; halo.emis[2] = 1.2; }
+    const s = R.trs('sphereLow', MAT.screen, 10, 16, 7.6, 0, 0, 0, 8, 8, 1, false);
+    if (s) { s.emis[0] = 7; s.emis[1] = 5.4; s.emis[2] = 2.4; }
+    // the giant M emblem on the dome: cream badge, gold rim, a bold red M
+    const ex = 0, ey = 13.6, ez = 61.9;
+    let b = R.trs('cyl', MAT.porcelain, ex, ey, ez, 0, Math.PI / 2, 0, 3.7, 0.25, 3.7);
+    if (b) { b.tint[0] = 1.25; b.tint[1] = 1.18; b.tint[2] = 1.0; b.tint[3] = 0.12; }
+    b = R.trs('torus', MAT.copper, ex, ey, ez + 0.1, 0, Math.PI / 2, 0, 3.75, 1.2, 3.75);
+    if (b) { b.tint[0] = 1.6; b.tint[1] = 1.3; b.tint[2] = 0.5; b.tint[3] = 0.15; }
+    const M = [[-2.05, -2.0, -2.05, 2.1], [2.05, -2.0, 2.05, 2.1], [-2.05, 2.1, 0, -0.6], [2.05, 2.1, 0, -0.6]];
+    for (const [x0, y0, x1, y1] of M) {
+      V3.set(this.tmp, ex + x0, ey + y0, ez + 0.35); V3.set(this.tmp2, ex + x1, ey + y1, ez + 0.35);
+      const it = R.seg('cyl', MAT.paint, this.tmp, this.tmp2, 0.5);
+      if (it) { it.tint[0] = 1.1; it.tint[1] = 0.12; it.tint[2] = 0.12; it.emis[0] = 0.55; it.emis[1] = 0.03; it.emis[2] = 0.02; }
+      for (const e of [this.tmp, this.tmp2]) { const j = R.trs('sphereLow', MAT.paint, e[0], e[1], e[2], 0, 0, 0, 0.5, 0.5, 0.5); if (j) { j.tint[0] = 1.1; j.tint[1] = 0.12; j.tint[2] = 0.12; j.emis[0] = 0.55; j.emis[1] = 0.03; j.emis[2] = 0.02; } }
+    }
   }
 };
 
@@ -14738,7 +15562,174 @@ const ChapterCards = {
     const cv = this.canvases[this.active], src = Renderer.gl.canvas;
     if (cv) {
       const h = src.height, w = Math.min(src.width, Math.round(h * cv.width / cv.height));
-      cv.getContext('2d').drawImage(src, (src.width - w) / 2, 0, w, h, 0, 0, cv.width, cv.height);
+      const c = cv.getContext('2d'), W = cv.width, H = cv.height;
+      c.drawImage(src, (src.width - w) / 2, 0, w, h, 0, 0, W, H);
+      // old-photo atmosphere: low haze, dust motes, scratches, grain and a heavy vignette
+      let gr = c.createLinearGradient(0, H * 0.55, 0, H);
+      gr.addColorStop(0, 'rgba(120,110,100,0)'); gr.addColorStop(1, 'rgba(120,110,100,0.32)');
+      c.fillStyle = gr; c.fillRect(0, 0, W, H);
+      let rnd = 1 + this.active * 7919;
+      const rand = () => { rnd = (rnd * 16807) % 2147483647; return rnd / 2147483647; };
+      for (let i = 0; i < 40; i++) { c.fillStyle = 'rgba(235,225,205,' + (0.08 + rand() * 0.25) + ')'; const r = 0.4 + rand() * 1.4; c.beginPath(); c.arc(rand() * W, rand() * H, r, 0, Math.PI * 2); c.fill(); }
+      c.strokeStyle = 'rgba(230,220,200,0.16)'; c.lineWidth = 1;
+      for (let i = 0; i < 4; i++) { const x = rand() * W; c.beginPath(); c.moveTo(x, rand() * H * 0.3); c.lineTo(x + (rand() - 0.5) * 8, H * (0.6 + rand() * 0.4)); c.stroke(); }
+      const img = c.getImageData(0, 0, W, H), d = img.data;
+      for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 22; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+      c.putImageData(img, 0, 0);
+      gr = c.createRadialGradient(W / 2, H * 0.42, H * 0.12, W / 2, H * 0.5, H * 0.7);
+      gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.75)');
+      c.fillStyle = gr; c.fillRect(0, 0, W, H);
+    }
+  }
+};
+
+// ===== module: 26_lovey.js =====
+// =====================================================================================
+// LOVEY: an original rose-pink plush ally met in the Deep Works (Act II, stages 6-9).
+//   Very tall (about 3.4 m), skinny and long-limbed, in shaggy rose fur, badly hurt - heart-shaped head, one
+//   button eye, one stitched X, floppy ears, a sewn heart patch, a split seam spilling stuffing, bandages, and
+//   her left arm torn off at the shoulder. She never speaks (her voice box is gone); she nods, pats and points.
+//   Gentle with friends: Posie rides on her shoulder, she pats you when you stand by her, and she follows a
+//   few steps behind. Fierce with anything that comes for you: she charges and swats cherubs to pieces,
+//   knocks the seraph out of the air and slams the Epxirtype back (a long stun, then a cooldown).
+//   Colour: rose #d77a90 - the rose felt material, dulled with grime.
+// =====================================================================================
+const LOVEY_TINT = [2.5, 0.85, 2.1];   // rose, on the shaggy light-fur material
+// Lovey is silent; the others speak for her
+const LOVEY_MEET = [
+  ['MARIGOLD', 'Lovey! You are still standing. Oh, your arm...'],
+  ['THIMBLE', 'She can\'t talk anymore, friend. They pulled out her voice box when she wouldn\'t sing for them.'],
+  ['MARIGOLD', 'She wants me up on her shoulder. She says - well, she nods - that nothing gets past her.']
+];
+
+const Lovey = {
+  active: false, pos: V3.create(), yaw: 0, walk: 0, phase: 0, sector: 6,
+  mode: 'FOLLOW', target: null, cool: 0, swingT: 0, patT: 0, stillT: 0, lineCool: 0, met: false,
+  head: V3.create(), shoulder: V3.create(), tmp: V3.create(), tmp2: V3.create(), m: M4.create(),
+
+  // she is with you from the fabrication line to the vault
+  reset() {
+    this.active = Game.stage >= 6 && Game.stage <= 9;
+    this.mode = 'FOLLOW'; this.target = null; this.cool = 4; this.swingT = 0; this.patT = 0; this.stillT = 0; this.lineCool = 0;
+    if (!this.active) return;
+    const b = Player.body.pos;
+    V3.set(this.pos, b[0] + 1.4, 0, b[2] + 2.6); this.yaw = Player.yaw;
+    this.sector = Level.sectorAt(this.pos[0], this.pos[2]);
+  },
+  // first meeting on arrival in the Deep Works
+  meet() {
+    this.reset();
+    if (!this.active || this.met) return;
+    this.met = true;
+    for (const [who, line] of LOVEY_MEET) Dialogue.say(who, line);
+  },
+  carrying() { return this.active; },
+  // where Posie sits: on her shoulder
+  seat(out) {
+    const c = Math.cos(this.yaw), s = Math.sin(this.yaw), bob = Math.abs(Math.sin(this.phase)) * 0.04 * this.walk;
+    // perched on her left shoulder (where the arm was torn off), beside the head
+    const x = -0.34, z = 0.06;
+    out[0] = this.pos[0] + x * c + z * s; out[1] = this.pos[1] + 2.83 + bob; out[2] = this.pos[2] - x * s + z * c;
+    return out;
+  },
+
+  update(dt) {
+    if (!this.active) return;
+    this.cool = Math.max(0, this.cool - dt); this.lineCool = Math.max(0, this.lineCool - dt); this.swingT = Math.max(0, this.swingT - dt);
+    const b = Player.body.pos, P = this.pos;
+    const dp = Math.hypot(b[0] - P[0], b[2] - P[2]);
+    // look for something to fight: the Epxirtype near you first, then cherubs and the seraph
+    if (this.mode === 'FOLLOW' && this.cool <= 0) {
+      const M = Monster;
+      if (M.active && M.visible && !M.inVent && Math.hypot(M.pos[0] - b[0], M.pos[2] - b[2]) < 8) { this.mode = 'CHARGE'; this.target = { kind: 'monster', pos: M.pos }; }
+      else {
+        for (const c of Enemies.cherubs) {
+          if (c.dead || c.state === 'GONE' || !Streaming.visible[c.sector]) continue;
+          if (Math.hypot(c.pos[0] - P[0], c.pos[2] - P[2]) < 7) { this.mode = 'CHARGE'; this.target = { kind: 'cherub', c, pos: c.pos }; break; }
+        }
+        const S = Enemies.seraph;
+        if (this.mode === 'FOLLOW' && S.active && (S.state === 'CHASE' || S.state === 'DROP') && Math.hypot(S.pos[0] - P[0], S.pos[2] - P[2]) < 8) { this.mode = 'CHARGE'; this.target = { kind: 'seraph', pos: S.pos }; }
+      }
+      if (this.mode === 'CHARGE') { sfx('cherubFlee', P); }
+    }
+    let goal = null, speed = 0;
+    if (this.mode === 'CHARGE') {
+      const T = this.target;
+      goal = T.pos;
+      const d = Math.hypot(goal[0] - P[0], goal[2] - P[2]);
+      if (d < (T.kind === 'monster' ? 2.2 : 1.3)) this.strike(T);
+      else if (d > 20 || (T.kind === 'cherub' && (T.c.dead || T.c.state === 'GONE'))) { this.mode = 'FOLLOW'; this.target = null; }
+      speed = 6.5;
+    } else {
+      // follow a few steps behind you (Morsel walks closer)
+      const tp = Companion.trailPoint(4.6, this.tmp);
+      if ((dp > 14 && !this.seen()) || dp > 26) { const back = Companion.trailPoint(5, this.tmp2); V3.set(P, back[0], 0, back[2]); return; }
+      if (Math.hypot(tp[0] - P[0], tp[2] - P[2]) > 0.4 && dp > 2.6) { goal = tp; speed = dp > 8 ? 5.5 : 3.2; }
+    }
+    if (goal) {
+      const dx = goal[0] - P[0], dz = goal[2] - P[2], d = Math.hypot(dx, dz) || 1;
+      const v = Math.min(speed, d * 2.4);
+      P[0] += dx / d * v * dt; P[2] += dz / d * v * dt;
+      this.yaw = this.yaw + wrapAngle(Math.atan2(-dx, -dz) - this.yaw) * Math.min(1, dt * 6);
+      this.walk = damp(this.walk, clamp(v / 4, 0, 1), 6, dt);
+    } else {
+      this.yaw = this.yaw + wrapAngle(Math.atan2(-(b[0] - P[0]), -(b[2] - P[2])) - this.yaw) * Math.min(1, dt * 2);
+      this.walk = damp(this.walk, 0, 6, dt);
+    }
+    // personal space
+    if (dp < 1.3 && dp > 1e-3) { const k = (1.3 - dp) / dp; P[0] -= (b[0] - P[0]) * k; P[2] -= (b[2] - P[2]) * k; }
+    this.phase += dt * (2 + this.walk * 5);
+    this.sector = Level.sectorAt(P[0], P[2]);
+    // gentle: stand still beside her for a few seconds and she gives you a soft pat
+    const still = Math.hypot(Player.body.vel[0], Player.body.vel[2]) < 0.2 && dp < 2.8 && this.mode === 'FOLLOW';
+    this.stillT = still ? this.stillT + dt : 0;
+    this.patT = Math.max(0, this.patT - dt);
+    if (this.stillT > 5 && this.patT <= 0 && Game.threat < 0.3) {
+      this.patT = 30; this.stillT = 0;
+      Player.addTrauma(0.05); sfx('footstep', P);
+    }
+  },
+  seen() {
+    V3.set(this.tmp2, this.pos[0] - Player.eyePos[0], 1.5, this.pos[2] - Player.eyePos[2]);
+    return V3.dot(this.tmp2, Renderer.camFwd) / (Math.hypot(this.tmp2[0], this.tmp2[2]) || 1) > 0.35;
+  },
+  // a big two-armed swat
+  strike(T) {
+    const P = this.pos;
+    this.swingT = 0.6; this.mode = 'FOLLOW'; this.target = null;
+    V3.set(this.tmp, T.pos[0], 1.0, T.pos[2]);
+    if (T.kind === 'monster') {
+      Monster.stunTimer = Math.max(Monster.stunTimer, 3.5); Monster.flinchAmt = 1;
+      Particles.burst(this.tmp, 20, 'spark'); sfx('boom'); Audio.boom();
+      Player.addTrauma(0.35); this.cool = 16;
+    } else if (T.kind === 'cherub') {
+      T.c.dead = true; Particles.burst(this.tmp, 24, 'debris'); sfx('shatter', this.tmp);
+      this.cool = 2;
+    } else {
+      Enemies.stunSeraph(3.5); sfx('handHit', this.tmp, SURFACE.METAL);
+      this.cool = 8;
+    }
+  },
+
+  submit(vis) {
+    if (!this.active || !vis[this.sector] || !Sculpt.ready('lv_body')) return;
+    const R = RenderQueue, P = this.pos, yaw = this.yaw, sw = Math.sin(this.phase), walk = this.walk;
+    const tint = it => { if (it) { it.tint[0] = LOVEY_TINT[0]; it.tint[1] = LOVEY_TINT[1]; it.tint[2] = LOVEY_TINT[2]; } return it; };
+    const lean = walk * 0.06 + (this.swingT > 0 ? 0.2 : 0);
+    const bob = Math.abs(sw) * 0.06 * walk;
+    tint(R.trs('lv_body', MAT.furLight, P[0], P[1] + bob, P[2], yaw, lean, sw * 0.035 * walk, 1, 1, 1));
+    // local point helper: (x right, y up, z back) -> world
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    const pt = (o, x, y, z) => { o[0] = P[0] + x * c + z * s; o[1] = P[1] + y + bob; o[2] = P[2] - x * s + z * c; return o; };
+    // head with a sad little tilt, turned toward you when you are near; it stoops a little to see you
+    pt(this.head, 0, 2.94 - lean * 0.25, -lean * 0.7);
+    const hy = yaw + clamp(wrapAngle(Math.atan2(-(Player.eyePos[0] - P[0]), -(Player.eyePos[2] - P[2])) - yaw), -0.8, 0.8) * 0.6;
+    tint(R.trs('lv_head', MAT.furLight, this.head[0], this.head[1], this.head[2], hy, 0.18 + lean * 0.4, 0.16, 1.15, 1.15, 1.15));
+    // her one long arm swings as she walks and comes up high for a swat
+    if (Sculpt.ready('lv_arm')) {
+      pt(this.shoulder, 0.38, 2.74, 0);
+      const swing = this.swingT > 0 ? -2.5 * Math.sin(this.swingT / 0.6 * Math.PI) : sw * 0.3 * walk;
+      tint(R.trs('lv_arm', MAT.furLight, this.shoulder[0], this.shoulder[1], this.shoulder[2], yaw, swing, -0.08, 1, 1, 1));
     }
   }
 };

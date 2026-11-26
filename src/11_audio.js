@@ -62,7 +62,7 @@ const Audio = {
     this.buses.sfx.gain.setTargetAtTime(S.sfx, t, 0.05);
     this.buses.ambience.gain.setTargetAtTime(S.sfx * 0.9, t, 0.05);
     this.buses.ui.gain.setTargetAtTime(S.sfx * 0.7, t, 0.05);
-    this.buses.voice.gain.setTargetAtTime(Math.max(S.sfx, 0.5), t, 0.05);
+    this.buses.voice.gain.setTargetAtTime(S.dialogue, t, 0.05);
     this.buses.scare.gain.setTargetAtTime(1.0, t, 0.05);
   },
 

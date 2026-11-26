@@ -485,7 +485,7 @@ const Monster = {
   },
   updateCreep(dt) {
     const eye = Player.cam.eye;
-    this.bodyPoint(this.head, 0, 3.33, -0.74);
+    this.bodyPoint(this.head, 0, 3.33 + this.rise(), -0.74);
     V3.sub(this.tmp, this.head, eye);
     const l = V3.len(this.tmp) || 1;
     const seen = V3.dot(this.tmp, Renderer.camFwd) / l > 0.6 && Enemies.clearLine(eye, this.head);
@@ -585,6 +585,15 @@ const Monster = {
     return out;
   },
 
+  // how far the long spine lifts the torso, arms and head above the base: he towers when he stands,
+  // and hunches down to your level for the kill
+  rise() {
+    if (this.kill.on) return 0.1;
+    // he ducks under low ceilings instead of putting his hood through them
+    const room = Level.ceilingAt(this.pos[0], this.pos[2]);
+    this.riseNow = damp(this.riseNow === undefined ? 0.5 : this.riseNow, clamp(room - 4.35, -0.3, 0.5), 3, 1 / 60);
+    return this.riseNow;
+  },
   submit(jumpscare) {
     if (!this.visible) return;
     const yaw = this.yaw, lean = this.lean, R = RenderQueue;
@@ -602,7 +611,7 @@ const Monster = {
     let it;
     if (Sculpt.ready('sp_body')) {
       it = R.push('sp_body', MAT.furViolet);
-      if (it) M4.compose(it.model, this.pos[0], this.pos[1] + 1.35 + this.bodyBob, this.pos[2], yaw, lean, 0, 1, 1, 1);
+      if (it) { M4.compose(it.model, this.pos[0], this.pos[1] + 1.35 + this.bodyBob, this.pos[2], yaw, lean, 0, 1, 1, 1); it.tint[0] = 0.72; it.tint[1] = 0.66; it.tint[2] = 0.62; }
     }
     // yellow measuring tape trailing from the rear like a shredded tail
     this.bodyPoint(B, 0, 1.3, 1.85);
@@ -661,7 +670,7 @@ const Monster = {
     }
     // ---- upper torso: a tattered tailor's coat over a skeletal frame ----
     this.bodyPoint(B, 0, 1.75, -0.38);
-    this.bodyPoint(this.chest, 0, 2.25, -0.48);
+    this.bodyPoint(this.chest, 0, 2.25 + this.rise(), -0.48);
     R.seg('cyl', MAT.steel, B, this.chest, 0.045);
     // a thin segmented spine of vertebrae and gold brackets holding the torso up high over the base
     for (let k = 1; k < 6; k++) {
@@ -671,7 +680,7 @@ const Monster = {
     if (Sculpt.ready('sp_coat')) {
       it = R.push('sp_coat', MAT.clothWine);
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
-      if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.8; }
+      if (it) { it.tint[0] = 0.9; it.tint[1] = 0.74; it.tint[2] = 0.64; }
     }
     this.trophyFrom = RenderQueue.count;
     // three stolen plush arms hang DEAD from under the chest: teal, rose (wearing a teal ring) and pink.
@@ -689,10 +698,11 @@ const Monster = {
       if (it) {
         M4.segment(it.model, B, H, 1);
         if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2]; }
-        const hd = Sculpt.ready('sp_trophyHand') ? R.push('sp_trophyHand', smooth ? MAT.handRose : MAT.furLight) : null;
+        // furry hands in the same shaggy fur as their arm (the smooth pink arm ends in a pink fur hand)
+        const hd = Sculpt.ready('sp_trophyHand') ? R.push('sp_trophyHand', MAT.furLight) : null;
         if (hd) {
           hd.model.set(it.model);
-          if (smooth) { hd.tint[0] = 0.62; hd.tint[1] = 0.36; hd.tint[2] = 0.42; } else { hd.tint[0] = 1.75; hd.tint[1] = 1.5; hd.tint[2] = 0.55; }
+          if (smooth) { hd.tint[0] = 2.1; hd.tint[1] = 0.75; hd.tint[2] = 1.7; } else { const c = TROPHY_TINT[k]; hd.tint[0] = c[0] * 0.85; hd.tint[1] = c[1] * 0.85; hd.tint[2] = c[2] * 0.85; }
         }
         if (smooth) {
           V3.set(_mh.local, 0, 0.76, 0); M4.transformPoint(X, it.model, _mh.local);
@@ -704,13 +714,13 @@ const Monster = {
     }
     this.trophyTo = RenderQueue.count;
     // ---- neck: segmented cable bundle up to the mask ----
-    this.bodyPoint(B, 0, 2.49, -0.5);
+    this.bodyPoint(B, 0, 2.49 + this.rise(), -0.5);
     const hx = 0;   // the neck holds still; only the mask moves
-    this.bodyPoint(this.head, hx, 3.33 + this.flinchAmt * 0.2, -0.74);
-    for (let k = 1; k < 4; k++) { V3.lerp(X, B, this.head, k / 4); R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.065, 0.065, 0.065); }
+    this.bodyPoint(this.head, hx, 3.33 + this.rise() + this.flinchAmt * 0.2, -0.74);
+    // (no beads on the neck: just a scorched rubber cable bundle)
     R.seg('cyl', MAT.rubber, B, this.head, 0.05);
     for (const off of [-0.05, 0.05]) {
-      this.bodyPoint(X, off, 2.45, -0.45);
+      this.bodyPoint(X, off, 2.45 + this.rise(), -0.45);
       it = R.seg('cylLow', MAT.rubber, X, this.head, 0.014);
       if (it) { it.tint[0] = 3.5; it.tint[1] = 0.5; it.tint[2] = 0.5; }
     }
@@ -723,9 +733,9 @@ const Monster = {
     // ---- arms: long thin machine arms ending in needle fingers ----
     if (this.kill.on) { this.submitKillArms(); return this.submitLegs(); }
     for (const side of [-1, 1]) {
-      this.bodyPoint(B, side * 0.3, 2.39, -0.47);
+      this.bodyPoint(B, side * 0.3, 2.39 + this.rise(), -0.47);
       const reach = this.armReach;
-      this.bodyPoint(H, side * (0.95 - reach * 0.35), 2.0 + reach * 0.5 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
+      this.bodyPoint(H, side * (1.05 - reach * 0.4), 1.85 + this.rise() * 0.5 + reach * 0.6 + Math.sin(this.breathe * 3 + side) * 0.08, -0.9 - reach * 0.7);
       R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
       R.seg('cyl', MAT.steel, B, H, 0.045);
       this.puffSleeve(B, H, side);
@@ -804,9 +814,9 @@ const Monster = {
   },
   drawKillArm(side, hx, hy, hz, cx, cy, cz, join, bony, grab) {
     const R = RenderQueue, B = this.tmp, H = this.tmp2, X = this.tmp3, L = _mh.kl;
-    this.bodyPoint(B, side * 0.3, 2.39, -0.47);
+    this.bodyPoint(B, side * 0.3, 2.39 + this.rise(), -0.47);
     this.bodyPoint(X, hx, hy, hz);
-    this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.3, (2.39 + hy) * 0.5 - 0.12, (-0.47 + hz) * 0.5 + 0.08);
+    this.bodyPoint(H, (side * 0.3 + hx) * 0.5 + side * 0.3, (2.39 + this.rise() + hy) * 0.5 - 0.12, (-0.47 + hz) * 0.5 + 0.08);
     R.trs('sphere', MAT.clothWine, B[0], B[1], B[2], 0, 0, 0, 0.1, 0.1, 0.1);
     R.seg('cyl', MAT.steel, B, H, 0.045);
     this.puffSleeve(B, H, side);
@@ -921,20 +931,30 @@ const Monster = {
     if (Sculpt.ready('sp_mask')) {
       // sculpted porcelain mask (carved sockets, grin, teeth, cracks) inside a torn canvas hood
       // the grin never moves: it is carved into the porcelain. Grimy, yellowed and stained.
-      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.72; it.tint[1] = 0.64; it.tint[2] = 0.5; }
+      it = R.push('sp_mask', MAT.porcelain); if (it) { it.model.set(m); it.tint[0] = 0.68; it.tint[1] = 0.6; it.tint[2] = 0.47; }
     } else {
       R.trs('sphere', MAT.porcelain, p[0], p[1], p[2], yaw, pitch, roll, 0.34 * s, 0.42 * s, 0.31 * s);
     }
     // both sockets are pitch black; the left one holds a single small yellow point of light
-    this.headLocal(m, -0.125, 0.06, -0.25, this.eye);
-    R.trs('sphere', MAT.rubber, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.062 * s, 0.062 * s, 0.035 * s, false);
-    this.headLocal(m, -0.125, 0.058, -0.29, this.eye);
-    it = R.trs('sphereLow', MAT.screen, this.eye[0], this.eye[1], this.eye[2], 0, 0, 0, 0.014 * s, 0.014 * s, 0.014 * s, false);
-    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.2; it.emis[0] = 3.2; it.emis[1] = 2.7; it.emis[2] = 0.25; }
-    this.headLocal(m, 0.125, 0.055, -0.25, this.tmp3);
-    R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.07 * s, 0.07 * s, 0.035 * s, false);
+    // big round black eye sockets; the one on the viewer's left holds a small burning yellow pupil
+    this.headLocal(m, 0.135, 0.085, -0.25, this.eye);
+    R.trs('sphere', MAT.rubber, this.eye[0], this.eye[1], this.eye[2], yaw, pitch, roll, 0.088 * s, 0.088 * s, 0.035 * s, false);
+    this.headLocal(m, 0.13, 0.08, -0.292, this.eye);
+    it = R.trs('sphereLow', MAT.screen, this.eye[0], this.eye[1], this.eye[2], 0, 0, 0, 0.016 * s, 0.016 * s, 0.016 * s, false);
+    if (it) { it.tint[0] = 1.0; it.tint[1] = 0.9; it.tint[2] = 0.2; it.emis[0] = 3.6; it.emis[1] = 2.9; it.emis[2] = 0.25; }
+    this.headLocal(m, -0.135, 0.085, -0.25, this.tmp3);
+    R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, pitch, roll, 0.088 * s, 0.088 * s, 0.035 * s, false);
     // the hood and its hat as one piece: rose / teal / gold patchwork with the battered harlequin top hat sewn on
-    if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(mh); it.tint[0] = 0.95; it.tint[1] = 0.88; it.tint[2] = 0.82; } }
+    if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(mh); it.tint[0] = 0.74; it.tint[1] = 0.66; it.tint[2] = 0.6; } }
+    // brass jingle bells hanging from the hat tails, swaying as he moves
+    if (Sculpt.ready('sp_bell')) {
+      const sway = Math.sin(Game.time * 3.1) * 0.25 * Math.min(1, 0.25 + this.speed * 0.3);
+      for (const sx of [-1, 1]) {
+        this.headLocal(mh, sx * 0.63 + 0.03, 0.175, 0.12, this.tmp3);
+        it = R.trs('sp_bell', MAT.copper, this.tmp3[0], this.tmp3[1] - 0.03 * s, this.tmp3[2], yaw, sway * sx, sway * 0.6, s * 1.45, s * 1.45, s * 1.45);
+        if (it) { it.tint[0] = 1.7; it.tint[1] = 1.35; it.tint[2] = 0.6; }
+      }
+    }
   },
   headLocal(m, x, y, z, out) { V3.set(_mh.local, x, y, z); return M4.transformPoint(out, m, _mh.local); },
 

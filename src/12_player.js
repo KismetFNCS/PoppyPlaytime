@@ -12,16 +12,23 @@ const Input = {
   onKeyDown(e) {
     if (Input.PREVENT.has(e.code) && e.preventDefault) e.preventDefault();
     if (e.repeat) return;
+    // the settings panel is waiting for a key to bind
+    if (Settings.capturing) { if (e.preventDefault) e.preventDefault(); Settings.captureKey(e.code); return; }
     if (e.code === 'F9') { runAll(); return; }
     if (e.code === 'F1') { DebugOverlay.toggle(); return; }
     if (e.code === 'F2') { FidelityOverlay.toggle(); return; }
     const panel = document.getElementById('report');
     if (e.code === 'Escape' && panel.style.display === 'block') { panel.style.display = 'none'; return; }
-    if (!Input.keys[e.code]) Input.justPressed.add(e.code);
-    Input.keys[e.code] = true;
+    // rebound keys arrive as the default key the game listens for; the skip key is also kept raw
+    const code = Settings.translate(e.code);
+    if (e.code !== code && e.code === Settings.bindOf('skip')) Input.justPressed.add(e.code);
+    if (code) {
+      if (!Input.keys[code]) Input.justPressed.add(code);
+      Input.keys[code] = true;
+    }
     Audio.init();
   },
-  onKeyUp(e) { Input.keys[e.code] = false; },
+  onKeyUp(e) { const code = Settings.translate(e.code); if (code) Input.keys[code] = false; },
   releaseAll() {
     for (const k in this.keys) this.keys[k] = false;
     this.mouse[0] = this.mouse[1] = this.mouse[2] = false;
@@ -125,7 +132,7 @@ const Player = {
 
   reset(pos, yaw) {
     V3.copy(this.body.pos, pos); V3.set(this.body.vel, 0, 0, 0);
-    this.yaw = yaw; this.pitch = 0; this.roll = 0; this.crouch = 0; this.crouching = false; this.sprinting = false;
+    this.yaw = yaw; this.pitch = 0; this.roll = 0; this.crouch = 0; this.crouching = false; this.crouchLatched = false; this.sprinting = false;
     this.bobPhase = 0; this.bobAmp = 0; this.landDip = 0; this.landVel = 0; this.trauma = 0; this.chaseShake = 0;
     this.recoilPitch = 0; this.recoilRoll = 0; this.coyote = 0; this.jumpBuffer = 0; this.wasGrounded = true; this.airTime = 0;
     this.health = 100; this.hurtTimer = 0; this.scaldCool = 0; this.traction = 1; this.speedMul = 1; this.climb = 0; this.lockAmt = 0; this.lockTarget = null; this.acc = 0;
@@ -178,7 +185,11 @@ const Player = {
     fx += P.lx + Input.stick.x; fz += P.ly + Input.stick.y;
     const il = Math.hypot(fx, fz);
     if (il > 1) { fx /= il; fz /= il; }
-    this.crouching = !!(K.KeyC || K.ControlLeft || P.buttons[1]);
+    // crouch: hold, or tap to toggle when CROUCH TOGGLE is on
+    if (Settings.values.crouchToggle) {
+      if (Input.justPressed.has('KeyC') || Input.justPressed.has('ControlLeft') || Input.padJust(1)) this.crouchLatched = !this.crouchLatched;
+      this.crouching = !!this.crouchLatched;
+    } else { this.crouchLatched = false; this.crouching = !!(K.KeyC || K.ControlLeft || P.buttons[1]); }
     const wantSprint = !this.crouching && (K.ShiftLeft || K.ShiftRight || P.buttons[10] || Input.touchRun) && fz < -0.3;
     this.sprinting = wantSprint && il > 0.1;
     const speed = (this.crouching ? FEEL.crouchSpeed : this.sprinting ? FEEL.sprintSpeed : FEEL.walkSpeed) * this.speedMul;

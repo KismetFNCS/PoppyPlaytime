@@ -488,6 +488,7 @@ const DeepWorks = {
     GrabPack.reset();
     Cast.reset();
     this.placeThimble();
+    Lovey.meet();
     Game.saveCheckpoint(6);
     Player.addTrauma(0.9);
     sfx('doorSlam', Player.body.pos);

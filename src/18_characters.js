@@ -109,6 +109,7 @@ const Cast = {
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     V3.set(D.pos, seat[0], seat[1], seat[2]); D.yaw = seat[3]; D.sector = Level.sectorAt(seat[0], seat[2]);
     this.resetPlush();
+    Lovey.reset();
     if (Enemies.cherubs.length) Enemies.reset();
     Dialogue.clear();
     Pip.reset();
@@ -120,6 +121,7 @@ const Cast = {
 
   update(dt) {
     this.updateUsher(dt);
+    Lovey.update(dt);
     this.updateDoll(dt);
     this.updatePlush(dt);
     Companion.update(dt);
@@ -182,6 +184,14 @@ const Cast = {
 
   updateDoll(dt) {
     const D = this.doll;
+    // in the Deep Works Posie rides on Lovey's shoulders
+    if (Lovey.carrying()) {
+      Lovey.seat(D.pos); D.yaw = Lovey.yaw; D.sector = Lovey.sector;
+      D.headYaw = damp(D.headYaw, clamp(wrapAngle(Math.atan2(-(Player.eyePos[0] - D.pos[0]), -(Player.eyePos[2] - D.pos[2])) - D.yaw), -1.2, 1.2), 3, dt);
+      D.headPitch = damp(D.headPitch, -0.2, 3, dt);
+      D.blink = Math.max(0, D.blink - dt * 5); if (gameRng() < dt * 0.12) D.blink = 1;
+      return;
+    }
     // relocate to the seat for the current stage while nobody can see her
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     const sector = Level.sectorAt(seat[0], seat[2]);
@@ -450,6 +460,7 @@ const Cast = {
   submit(vis) {
     if (this.usher.state !== 'HIDDEN' && vis[Level.sectorAt(this.usher.pos[0], this.usher.pos[2])]) this.submitUsher();
     if (vis[this.doll.sector]) this.submitDoll();
+    Lovey.submit(vis);
     if (this.monitor.active && vis[this.monitor.sector] && this.screen) this.submitMonitor();
     if (vis[3]) this.submitSocket();
     if (!this.plush.hidden && vis[this.plush.sector]) this.submitPlush();
@@ -538,21 +549,21 @@ const Cast = {
     M4.compose(this.m, a[0], a[1], a[2], hy, hp, 0.08, 1.24, 1.24, 1.24);
     it = R.push('mg_head', MAT.porcelain);
     if (it) it.model.set(this.m);
-    // her LEFT eye: a realistic glass doll eye - white, a teal iris that glows faintly, a dark pupil and a
+    // her LEFT eye: a realistic glass doll eye - white, a painted teal iris (no glow), a dark pupil and a
     // hard glint; the lid closes on blinks. The RIGHT socket stays an empty black void.
     const bl = 1 - D.blink * 0.9;
     const EL = (x, y, z) => { V3.set(this.local, x, y, z); return M4.transformPoint(b, this.m, this.local); };
     EL(-0.05, 0.013, -0.108);
     R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, hp, 0.08, 0.034, 0.034 * bl, 0.026, false);
     EL(-0.05, 0.013, -0.132);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, hp, 0.08, 0.02, 0.02 * bl, 0.006, false);
-    if (it) { it.tint[0] = 0.15; it.tint[1] = 0.75; it.tint[2] = 0.7; it.emis[0] = 0.03; it.emis[1] = 0.45; it.emis[2] = 0.42; }
+    it = R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, hp, 0.08, 0.02, 0.02 * bl, 0.006, false);
+    if (it) { it.tint[0] = 0.22; it.tint[1] = 0.7; it.tint[2] = 0.68; }   // painted teal iris, no glow
     V3.copy(D.eyePos, b);
     EL(-0.05, 0.013, -0.137);
     R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, hp, 0.08, 0.008, 0.008 * bl, 0.003, false);
     EL(-0.058, 0.022, -0.14);
-    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], 0, 0, 0, 0.004 * bl, 0.004 * bl, 0.004, false);
-    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.8; it.emis[2] = 1.8; }
+    it = R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], 0, 0, 0, 0.004 * bl, 0.004 * bl, 0.004, false);
+    if (it) { it.tint[0] = it.tint[1] = it.tint[2] = 1.6; }
   },
 
   // where the needle staff is this frame (also used by the socket check)
@@ -634,19 +645,18 @@ const Cast = {
     M4.compose(this.m, a[0], a[1], a[2], hy, 0.06, -0.14 + Math.sin(Game.time * 1.1) * 0.03, S * 1.08, S, S);
     it = Sculpt.ready(mesh) ? R.push(mesh, MAT.burnt) : null;
     if (it) it.model.set(this.m);
-    // a realistic glass eye: white ball, a violet iris (it glows a little in the dark and pulses while the
-    // staff feeds power into the socket), a dark pupil and a hard glint
+    // a realistic glass eye: white ball, a violet iris (no glow), a dark pupil and a glint
     const TL = (x, y, z) => { V3.set(this.local, x, y, z); return M4.transformPoint(b, this.m, this.local); };
     TL(0.12, 0.06, -0.255);
     R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.055, 0.055, 0.04, false);
     TL(0.12, 0.06, -0.29);
-    it = R.trs('sphere', MAT.screen, b[0], b[1], b[2], hy, 0, 0, 0.032, 0.032, 0.01, false);
-    if (it) { const g = P.eyeGlow; it.tint[0] = 0.55; it.tint[1] = 0.2; it.tint[2] = 0.85; it.emis[0] = 0.3 * g; it.emis[1] = 0.05 * g; it.emis[2] = 0.6 * g; }
+    it = R.trs('sphere', MAT.porcelain, b[0], b[1], b[2], hy, 0, 0, 0.032, 0.032, 0.01, false);
+    if (it) { it.tint[0] = 0.62; it.tint[1] = 0.32; it.tint[2] = 1.05; }   // violet iris, no glow
     TL(0.12, 0.06, -0.297);
     R.trs('sphereLow', MAT.rubber, b[0], b[1], b[2], hy, 0, 0, 0.013, 0.013, 0.004, false);
     TL(0.108, 0.075, -0.3);
-    it = R.trs('sphereLow', MAT.screen, b[0], b[1], b[2], 0, 0, 0, 0.006, 0.006, 0.006, false);
-    if (it) { it.emis[0] = 1.8; it.emis[1] = 1.8; it.emis[2] = 1.8; }
+    it = R.trs('sphereLow', MAT.porcelain, b[0], b[1], b[2], 0, 0, 0, 0.006, 0.006, 0.006, false);
+    if (it) { it.tint[0] = it.tint[1] = it.tint[2] = 1.6; }
   }
 };
 const _cast = {
@@ -670,40 +680,91 @@ const SPEAKERS = {
 // Spoken voices (the browser's speech synthesis), shaped per character. Stage directions in brackets are
 // not read out; a "(whispering)" line is spoken softer and slower.
 const VOICE_PROFILES = {
-  THIMBLE: { pitch: 1.35, rate: 0.98, volume: 0.9, pick: 1 },
-  MARIGOLD: { pitch: 1.85, rate: 0.86, volume: 0.85, pick: 2 },
-  USHER: { pitch: 0.45, rate: 0.84, volume: 0.85, pick: 0 },
-  PIP: { pitch: 2.0, rate: 1.25, volume: 0.8, pick: 3 },
-  SPOOLWRIGHT: { pitch: 0.15, rate: 0.8, volume: 1.0, pick: 0 },
-  CHERUB: { pitch: 2.0, rate: 0.7, volume: 0.5, pick: 2 },
-  SERAPH: { pitch: 0.05, rate: 0.85, volume: 1.0, pick: 0 }
+  // gentle pitch/rate shaping on the most natural voice of the right kind: extreme settings sound robotic
+  THIMBLE: { pitch: 1.12, rate: 0.98, volume: 0.9, want: 'm', age: 'young' },
+  MARIGOLD: { pitch: 1.3, rate: 0.9, volume: 0.85, want: 'f', age: 'young' },
+  USHER: { pitch: 0.82, rate: 0.9, volume: 0.85, want: 'm', age: 'old' },
+  PIP: { pitch: 1.5, rate: 1.12, volume: 0.8, want: 'f', age: 'young' },
+  SPOOLWRIGHT: { pitch: 0.55, rate: 0.84, volume: 1.0, want: 'm', age: 'old' },
+  CHERUB: { pitch: 1.6, rate: 0.82, volume: 0.5, want: 'f', age: 'young' },
+  SERAPH: { pitch: 0.5, rate: 0.86, volume: 1.0, want: 'm', age: 'old' }
 };
+// the Epxirtype speaks in stolen voices, hopping between them mid-sentence
+const MIMIC_CAST = ['MARIGOLD', 'THIMBLE', 'USHER', 'PIP', 'SPOOLWRIGHT', 'CHERUB'];
+const VOICE_MALE = /david|mark|guy|ryan|christopher|eric|daniel|george|brian|andrew|davis|tony|fred|alex|tom|james|william|liam|oliver|thomas|arthur|male|man\b/i;
+const VOICE_FEMALE = /zira|aria|jenny|sonia|libby|michelle|samantha|karen|moira|tessa|victoria|emma|ava|ana\b|susan|hazel|serena|kate|fiona|joanna|salli|kimberly|ivy|female|woman/i;
 const Voices = {
   ok: typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined',
-  list: [], startedAt: -1,
+  list: [], startedAt: -1, picked: {},
   init() {
     if (!this.ok) return;
-    const load = () => { this.list = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)); };
+    const load = () => { this.list = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)); this.picked = {}; };
     load();
     speechSynthesis.onvoiceschanged = load;
   },
+  // rank the installed voices: neural / "natural" / online voices first, then the well-known quality ones
+  quality(v) {
+    let q = 0;
+    if (/natural|neural|online|premium|enhanced/i.test(v.name)) q += 10;
+    if (/google|microsoft|siri|apple/i.test(v.name)) q += 4;
+    if (/en[-_](us|gb)/i.test(v.lang)) q += 1;
+    if (/espeak|robot|whisper|novelty|zarvox|bad news|bells|cellos|trinoids|bubbles/i.test(v.name)) q -= 30;
+    return q;
+  },
+  voiceFor(speaker) {
+    if (!this.list.length) return null;
+    if (this.picked[speaker] !== undefined) return this.picked[speaker];
+    const P = VOICE_PROFILES[speaker] || VOICE_PROFILES.THIMBLE;
+    const used = new Set(Object.values(this.picked));
+    let best = null, bestQ = -1e9;
+    for (const v of this.list) {
+      let q = this.quality(v);
+      const m = VOICE_MALE.test(v.name), f = VOICE_FEMALE.test(v.name);
+      if (P.want === 'm' && m) q += 6; if (P.want === 'f' && f) q += 6;
+      if (P.want === 'm' && f) q -= 8; if (P.want === 'f' && m) q -= 8;
+      if (P.age === 'old' && /en[-_]gb/i.test(v.lang)) q += 2;   // a clipped, older-sounding accent for the staff
+      if (used.has(v)) q -= 3;   // give different characters different voices where possible
+      if (q > bestQ) { bestQ = q; best = v; }
+    }
+    this.picked[speaker] = best;
+    return best;
+  },
   enabled() { return this.ok && Settings.values.voices && !Game.muted && Settings.values.master > 0.01; },
+  utter(text, speaker, whisper, jitter) {
+    const P = VOICE_PROFILES[speaker] || VOICE_PROFILES.THIMBLE;
+    const u = new SpeechSynthesisUtterance(text);
+    // a little natural variation from phrase to phrase instead of one flat contour
+    u.pitch = clamp(P.pitch + jitter * 0.06, 0.1, 2); u.rate = clamp(P.rate * (whisper ? 0.85 : 1) * (1 + jitter * 0.03), 0.5, 1.6);
+    u.volume = clamp(P.volume * Settings.values.master * Settings.values.dialogue * (whisper ? 0.5 : 1), 0, 1);
+    const v = this.voiceFor(speaker); if (v) u.voice = v;
+    return u;
+  },
   speak(speaker, text) {
     if (!this.enabled()) return;
-    const P = VOICE_PROFILES[speaker] || VOICE_PROFILES.THIMBLE;
     const whisper = /^\(whisper/i.test(text);
-    const clean = text.replace(/\([^)]*\)/g, '').replace(/-/g, ', ').trim();
+    // stage directions in brackets are not read; dashes become pauses; ellipses stay as hesitations
+    const clean = text.replace(/\([^)]*\)/g, '').replace(/\s-\s|--/g, ', ').replace(/\s+/g, ' ').trim();
     if (!clean) return;
     try {
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(clean);
-      u.pitch = P.pitch; u.rate = P.rate * (whisper ? 0.85 : 1); u.volume = P.volume * Settings.values.master * (whisper ? 0.5 : 1);
-      if (this.list.length) u.voice = this.list[P.pick % this.list.length];
-      speechSynthesis.speak(u);
+      // speak phrase by phrase so each sentence gets its own contour (and the Epxirtype can change voice)
+      const parts = clean.match(/[^.,!?;]+[.,!?;]*/g) || [clean];
+      let who = speaker, k = Math.floor(Math.random() * MIMIC_CAST.length);
+      for (let i = 0; i < parts.length; i++) {
+        const t = parts[i].trim(); if (!t) continue;
+        if (speaker === 'SPOOLWRIGHT') {
+          // stolen voices: a different victim every phrase or two, always ending in his own
+          if (i === parts.length - 1) who = 'SPOOLWRIGHT';
+          else if (i === 0 || Math.random() < 0.7) { k = (k + 1 + Math.floor(Math.random() * 2)) % MIMIC_CAST.length; who = MIMIC_CAST[k]; }
+          const u = this.utter(t, who, whisper, Math.sin(i * 2.7) * 1.5);
+          u.onstart = () => { if (typeof sfx === 'function') sfx('usherGlitch'); };
+          speechSynthesis.speak(u);
+        } else speechSynthesis.speak(this.utter(t, speaker, whisper, Math.sin(i * 1.9 + text.length)));
+      }
       this.startedAt = performance.now();
     } catch (e) { /* speech unavailable */ }
   },
-  active() { return this.ok && this.startedAt > 0 && speechSynthesis.speaking && performance.now() - this.startedAt < 15000; },
+  active() { return this.ok && this.startedAt > 0 && speechSynthesis.speaking && performance.now() - this.startedAt < 20000; },
   stop() { if (this.ok) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } } this.startedAt = -1; }
 };
 Voices.init();
@@ -713,6 +774,13 @@ const Dialogue = {
   init() { this.el = document.getElementById('hudDialog'); this.nameEl = document.getElementById('hudDialogName'); this.textEl = document.getElementById('hudDialogText'); },
   say(speaker, text) { if (this.queue.length < 12) this.queue.push({ speaker, text }); },
   clear() { this.queue.length = 0; this.current = null; Voices.stop(); this.render(); },
+  // skip the line being spoken; a second press soon after skips the rest of the conversation
+  skip() {
+    const now = performance.now();
+    if (now - (this.lastSkip || -1e9) < 700) this.queue.length = 0;
+    this.lastSkip = now;
+    this.current = null; Voices.stop(); this.render();
+  },
   busy() { return !!this.current || this.queue.length > 0; },
   update(dt) {
     if (!this.current && this.queue.length) { this.current = this.queue.shift(); this.chars = 0; this.acc = 0; this.hold = 0; Voices.speak(this.current.speaker, this.current.text); }
@@ -728,9 +796,9 @@ const Dialogue = {
         }
       } else {
         this.hold += dt;
-        // a spoken line may run a little longer than the text; never more than a few extra seconds
+        // the next line never starts over a voice that is still speaking (capped, in case speech stalls)
         const base = 1.6 + c.text.length * 0.035;
-        if (this.hold > base && !(Voices.active() && this.hold < base + 4)) this.current = null;
+        if (this.hold > base && !(Voices.active() && this.hold < base + 14)) this.current = null;
       }
     }
     this.render();

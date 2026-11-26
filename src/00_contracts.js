@@ -217,8 +217,8 @@ const MATERIALS = [
   { name: 'furViolet', base: '#3a2150', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'furBlue', base: '#1d3a6b', rough: 0.95, metal: 0.0, tile: 3.0, emis: '#000000', emisStr: 0 },
   { name: 'steel', base: '#2b2729', rough: 0.45, metal: 0.8, tile: 1.0, emis: '#000000', emisStr: 0 },
-  { name: 'handTeal', base: '#2fb8b0', rough: 0.4, metal: 0.3, tile: 2.0, emis: '#000000', emisStr: 0 },
-  { name: 'handRose', base: '#f4a3a8', rough: 0.42, metal: 0.2, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'handTeal', base: '#2fb8b0', rough: 0.78, metal: 0.12, tile: 2.0, emis: '#000000', emisStr: 0 },
+  { name: 'handRose', base: '#f4a3a8', rough: 0.8, metal: 0.1, tile: 2.0, emis: '#000000', emisStr: 0 },
   { name: 'cable', base: '#1a1a1c', rough: 0.7, metal: 0.0, tile: 4.0, emis: '#4fe3ff', emisStr: 0 },
   { name: 'wood', base: '#6e5238', rough: 0.85, metal: 0.0, tile: 0.6, emis: '#000000', emisStr: 0 },
   { name: 'paint', base: '#b39a4a', rough: 0.8, metal: 0.0, tile: 0.25, emis: '#000000', emisStr: 0 },
@@ -239,7 +239,7 @@ for (let i = 0; i < MATERIALS.length; i++) MAT[MATERIALS[i].name] = i;
 
 const SCALE = {
   unit: 1, playerHeight: 1.75, playerRadius: 0.32, eyeHeight: 1.62, crouchEye: 1.05, crouchHeight: 1.15,
-  near: 0.05, far: 120, fovDefault: 95, fovMin: 90, fovMax: 100,
+  near: 0.05, far: 120, fovDefault: 90, fovMin: 60, fovMax: 120,
   doorWidth: 2.6, doorHeight: 3.2,
   monsterHeight: 2.6, monsterLegSpan: 4.2,
   levelMin: [-14, -1, -98], levelMax: [14, 9, 10],
@@ -291,9 +291,25 @@ const QUALITY = {
 const QUALITY_ORDER = ['LOW', 'MEDIUM', 'HIGH', 'CINEMATIC AAA'];
 
 const SETTINGS_DEFAULT = {
-  fov: 95, sensX: 1.0, sensY: 1.0, invertY: false, master: 0.8, music: 0.7, sfx: 0.9,
-  quality: 'HIGH', vhs: 1.0, reduceMotion: false, subtitles: true, flashlightShadows: true, voices: true
+  // DISPLAY
+  windowMode: 'WINDOWED', resolution: 'NATIVE', fpsLimit: 'UNLIMITED', vsync: true, fov: 90, motionBlur: 0.0,
+  filmGrain: 0.5, brightness: 1.0, reduceMotion: false,
+  // GRAPHICS
+  quality: 'HIGH', resScale: 100, textureQuality: 'HIGH', shadowQuality: 'HIGH', vfxQuality: 'HIGH',
+  postProcessing: 'HIGH', antiAliasing: 'FXAA', vhs: 1.0, flashlightShadows: true,
+  // AUDIO
+  master: 0.8, music: 0.7, sfx: 0.9, dialogue: 0.9, subtitles: true, voices: true,
+  // CONTROLS
+  sensX: 1.0, sensY: 1.0, invertY: false, crouchToggle: false
 };
+// Rebindable actions: id, label, default key code. Bindings remap a pressed key onto the default code the
+// game logic listens for.
+const KEY_ACTIONS = [
+  ['forward', 'MOVE FORWARD', 'KeyW'], ['back', 'MOVE BACK', 'KeyS'], ['left', 'STRAFE LEFT', 'KeyA'], ['right', 'STRAFE RIGHT', 'KeyD'],
+  ['jump', 'JUMP', 'Space'], ['sprint', 'SPRINT', 'ShiftLeft'], ['crouch', 'CROUCH', 'KeyC'], ['use', 'INTERACT', 'KeyE'],
+  ['fireL', 'FIRE LEFT HAND', 'KeyQ'], ['fireR', 'FIRE RIGHT HAND', 'KeyR'], ['flash', 'FLASHLIGHT', 'KeyF'],
+  ['wheel', 'HAND WHEEL', 'Tab'], ['mask', 'GAS MASK', 'KeyG'], ['skip', 'SKIP CUTSCENE', 'Enter', true]
+];
 
 // ANCHORS: measure functions resolve lazily against engine objects defined later in the file.
 const ANCHORS = [

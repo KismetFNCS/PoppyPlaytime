@@ -28,8 +28,18 @@ function render() {
   Game.render();
 }
 
+// VSync on: frames follow the display (requestAnimationFrame). Off: frames are scheduled as soon as the
+// browser allows, up to the frame-rate limit.
+let lastFrameAt = 0;
+function scheduleFrame() {
+  if (Settings.values.vsync || document.hidden) requestAnimationFrame(frame);
+  else setTimeout(() => frame(performance.now()), 0);
+}
 function frame(now) {
-  requestAnimationFrame(frame);
+  scheduleFrame();
+  const budget = Settings.frameBudget();
+  if (budget > 0 && now - lastFrameAt < budget - 1) return;
+  lastFrameAt = now;
   let dt = (now - lastT) / 1000;
   lastT = now;
   if (dt > 0.1) dt = 0.1;

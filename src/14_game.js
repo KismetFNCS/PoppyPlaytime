@@ -59,7 +59,7 @@ const HANDLERS = {
   SETTINGS_PANEL: {
     enter() { UI.show('settings'); Input.exitLock(); Settings.buildUI(); },
     exit() { UI.hide('settings'); },
-    update(dt) { if (Input.justPressed.has('Escape') || Input.padJust(1)) Game.uiAction('settingsBack'); if (Game.settingsReturn === STATE.MAIN_MENU) Game.menuUpdate(dt); }
+    update(dt) { if (!Settings.capturing && (Input.justPressed.has('Escape') || Input.padJust(1))) Game.uiAction('settingsBack'); if (Game.settingsReturn === STATE.MAIN_MENU) Game.menuUpdate(dt); }
   },
   CREDITS: {
     enter() { UI.show('credits'); },
@@ -70,8 +70,8 @@ const HANDLERS = {
     enter() { UI.show('vhs'); Input.exitLock(); Renderer.post.vhsBoost = 0.6; },
     exit() { UI.hide('vhs'); Renderer.post.vhsBoost = 0; },
     update(dt) {
-      if (Input.justPressed.has('Escape') || Input.padJust(1)) { VHS.finish(); return; }
-      if (Input.justPressed.has('Space') || Input.justPressed.has('Enter') || Input.mouseJust[0] || Input.padJust(0)) VHS.advance();
+      if (Input.justPressed.has('Escape') || Input.justPressed.has(Settings.bindOf('skip')) || Input.padJust(1) || Input.padJust(8)) { VHS.finish(); return; }
+      if (Input.justPressed.has('Space') || Input.mouseJust[0] || Input.padJust(0)) VHS.advance();
       VHS.update(dt);
       Audio.updateDrone(0.1, true);
     }
@@ -215,6 +215,8 @@ const Game = {
 
   // Resets every mutable gameplay field (the list is cross-checked against the declarations above)
   resetGame() {
+    if (typeof Lovey !== 'undefined') Lovey.met = false;
+    if (this.tv) { this.tv = null; if (VHS.tape) { VHS.tape = null; VHS.done = null; } }
     this.stage = 0; this.time = 0; this.threat = 0; this.chaseActive = false; this.victoryTimer = -1; this.invulnerable = false; this.liftTimer = 0;
     Boss.reset();
     this.fracture[0] = 0; this.fracture[1] = -100; this.fracture[2] = 0; this.fracture[3] = 0; this.fractureAmt = 0;
@@ -292,6 +294,7 @@ const Game = {
     cp.valid = true;
   },
   restoreCheckpoint() {
+    if (this.tv) { this.tv = null; if (VHS.tape) { VHS.tape = null; VHS.done = null; } }
     const cp = this.checkpoint;
     if (!cp.valid) { this.resetGame(); return; }
     // physics loops, hands, particles, AI and events are cleaned before state is re-applied
@@ -439,6 +442,16 @@ const Game = {
     if (Input.justPressed.has('KeyF') || Input.padJust(3)) { Player.flashOn = !Player.flashOn; sfx('flashlight'); }
     const usePressed = Input.justPressed.has('KeyE') || Input.padJust(2);
     const wasHidden = !!Player.hidden;
+    // cutscenes: the skip key (Enter by default) or the pad's Back button cuts any of them short
+    // and any dialogue line (characters talking to you or to each other) can be skipped the same way
+    const skipKey = Input.justPressed.has(Settings.bindOf('skip')) || Input.justPressed.has('Backspace') || Input.padJust(8);
+    // in a locked scene (you can't move anyway) Space, E or a click skip too
+    const lockedSkip = this.cutsceneActive() && (Input.justPressed.has('Space') || Input.justPressed.has('KeyE') || Input.mouseJust[0] || Input.padJust(0));
+    if (skipKey || lockedSkip) {
+      if (this.cutsceneActive()) this.skipCutscene();
+      else if (this.tv && !this.tv.hijack) { VHS.finish(); sfx('uiClick'); }
+      else if (Dialogue.busy()) { Dialogue.skip(); sfx('uiClick'); }
+    }
     const broadcast = DeepWorks.broadcastLocked();
     if (broadcast) {
       // the Usher's broadcast: you can't move, look away or skip it; the view settles on his screen
@@ -524,6 +537,7 @@ const Game = {
     if (next !== state && this.isGameplay()) setState(next);
     Pip.update(dt);
     Dialogue.update(dt);
+    this.updateTv(dt);
     UI.updateHud(dt);
   },
 
@@ -604,13 +618,53 @@ const Game = {
     DeepWorks.beginDescent();
   },
 
+  // scripted scenes that hold the player: the opening broadcast, the ambush, the drop into the Deep Works
+  // and the ride down the freight lift
+  cutsceneActive() {
+    return DeepWorks.broadcastLocked() || Ambush.active || DeepWorks.descent > 1.7 || DeepWorks.toIntake > 1.7;
+  },
+  skipCutscene() {
+    sfx('uiClick');
+    if (DeepWorks.broadcastLocked()) { Cast.monitor.said = true; Dialogue.clear(); }
+    if (Ambush.active) Ambush.skip();
+    if (DeepWorks.descent > 1.7) { DeepWorks.descent = 1.6; Dialogue.clear(); }
+    if (DeepWorks.toIntake > 1.7) { DeepWorks.toIntake = 1.6; Dialogue.clear(); }
+  },
+  // a found tape plays on the TV beside it while you stay in control; Harlan Smithers can then break into
+  // that same screen. Enter (the skip key) stops it; walking away stops it too.
   playTape(tape) {
     tape.collected = true;
     sfx('pickup');
-    this.resumeState = state;
     const T = TAPES[tape.tapeId];
-    VHS.play(tape.tapeId, () => { setState(STATE.GAMEPLAY_ACTIVE); if (T && T.hijack) for (const l of T.hijack) Dialogue.say('USHER', l); });
-    setState(STATE.CINEMATIC_VHS);
+    const tv = this.tv = { tp: tape, hijack: false, t: 0 };
+    VHS.play(tape.tapeId, () => {
+      if (this.tv !== tv) return;
+      if (T && T.hijack) { tv.hijack = true; tv.t = 0; for (const l of T.hijack) Dialogue.say('USHER', l); sfx('usherGlitch'); }
+      else this.tv = null;
+    });
+  },
+  updateTv(dt) {
+    const tv = this.tv;
+    if (!tv) return;
+    tv.t += dt;
+    const p = tv.tp.pos, b = Player.body.pos;
+    if (Math.hypot(b[0] - p[0], b[2] - p[2]) > 16) { this.stopTv(); return; }
+    if (!tv.hijack) VHS.update(dt);
+    else { VHS.drawHijack(Game.time); if ((!Dialogue.busy() && tv.t > 1.5) || tv.t > 30) { this.tv = null; return; } }
+    // stream the tape canvas onto the TV screen at ~15 fps
+    tv.frame = (tv.frame || 0) - dt;
+    if (this.tvAsset && tv.frame <= 0) {
+      tv.frame = 1 / 15;
+      const gl = Renderer.gl;
+      gl.bindTexture(gl.TEXTURE_2D, this.tvAsset.materials[0].tex);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, VHS.canvas);
+    }
+  },
+  stopTv() {
+    const tv = this.tv;
+    if (!tv) return;
+    if (!tv.hijack && VHS.tape) VHS.finish(); else { this.tv = null; Dialogue.clear(); }
+    if (this.tv === tv && !tv.hijack) this.tv = null;
   },
 
   updateAim() {
@@ -709,7 +763,7 @@ const Game = {
     Monster.pos[0] = Player.eyePos[0] + fx * (dist + 0.8);
     Monster.pos[2] = Player.eyePos[2] + fz * (dist + 0.8);
     Monster.pos[1] = Math.max(0, Player.eyePos[1] - (Monster.kill.on ? 2.6 : 2.35));
-    Monster.bodyPoint(Monster.head, 0, 3.18, -0.8);
+    Monster.bodyPoint(Monster.head, 0, 3.18 + Monster.rise(), -0.8);
   },
   updateJumpscare(dt) {
     this.jumpTimer += dt;
@@ -882,17 +936,18 @@ const Game = {
           if (ct && r.powered) { ct.emis[0] = 0.4; ct.emis[1] = 1.2; ct.emis[2] = 1.6; }
         }
       } else {
-        // hand scanner: a glowing palm print, fingers and all
-        const g = r.powered ? 0.25 : 1, pul = 0.6 + 0.4 * Math.sin(t * 6), rr = frame(n);
-        const glow = it => { if (it) { it.emis[0] = 0.05 * g; it.emis[1] = 0.6 * g * pul + 0.15; it.emis[2] = 0.8 * g * pul + 0.2; } };
-        V3.set(_g.p1, p[0] + n[0] * 0.03, p[1] - 0.06, p[2] + n[2] * 0.03);
-        let it = R.push('box', MAT.rubber, false); if (it) basisMatrix(it.model, _g.p1, rr, _g.u, n, 0.2, 0.22, 0.02); glow(it);
-        for (let f = 0; f < 4; f++) {
-          V3.set(_g.p1, p[0] + rr[0] * (f - 1.5) * 0.05 + n[0] * 0.03, p[1] + 0.13 + (f === 1 || f === 2 ? 0.02 : 0), p[2] + rr[2] * (f - 1.5) * 0.05 + n[2] * 0.03);
-          it = R.push('box', MAT.rubber, false); if (it) basisMatrix(it.model, _g.p1, rr, _g.u, n, 0.035, 0.12, 0.02); glow(it);
+        // hand scanner: a dark housing with a glowing hand print and an LED bar on top, red or blue
+        const rr = frame(n), col = (Level.receptacles.indexOf(r) % 2) ? 'red' : 'blue';
+        const A = Gear.scanAssets && Gear.scanAssets[col][r.powered ? 1 : 0];
+        V3.set(_g.p1, p[0] + n[0] * 0.03, p[1] + 0.02, p[2] + n[2] * 0.03);
+        const box = R.push('box', MAT.steel); if (box) basisMatrix(box.model, _g.p1, rr, _g.u, n, 0.56, 0.68, 0.06);
+        if (A) {
+          V3.set(_g.p1, p[0] + n[0] * 0.064, p[1] + 0.02, p[2] + n[2] * 0.064);
+          V3.scale(_g.d, rr, -1); V3.scale(_g.e, n, -1);
+          basisMatrix(_g.m, _g.p1, _g.d, _g.u, _g.e, 0.5, 0.625, 1);
+          const q = AssetQueue.push(A, _g.m, false);
+          if (q) { const k = r.powered ? 1 : 0.75 + 0.25 * Math.sin(t * 4); q.tint[0] = q.tint[1] = q.tint[2] = k; q.tint[3] = 0.05; }
         }
-        V3.set(_g.p1, p[0] + rr[0] * 0.12 + n[0] * 0.03, p[1] - 0.04, p[2] + rr[2] * 0.12 + n[2] * 0.03);
-        it = R.push('box', MAT.rubber, false); if (it) basisMatrix(it.model, _g.p1, rr, _g.u, n, 0.035, 0.1, 0.02); glow(it);
       }
       const lp = r.light.pos;
       const it2 = R.trs('sphereLow', MAT.rubber, lp[0], lp[1], lp[2], 0, 0, 0, 0.07, 0.07, 0.07, false);
@@ -927,33 +982,73 @@ const Game = {
       if (lamp) { if (l.pulled) { lamp.emis[1] = 2.5; } else { lamp.emis[0] = 2.5; lamp.emis[1] = 0.6 + Math.sin(t * 6) * 0.5; } }
     }
     const customTape = Assets.slot('tape');
-    // every tape sits next to a little CRT set (Harlan Smithers is wired into all of them)
+    // every tape sits on a VCR next to a big wood-cased CRT (Harlan Smithers is wired into all of them).
+    // A tape you play runs on that set's screen; the others hiss with static.
+    if (!this.tvAsset && VHS.canvas && Gear.canvasQuad) { this.tvAsset = Gear.canvasQuad(VHS.canvas, 'tv-screen', 1.5, false); this.tvAsset.materials[0].rough = 0.2; }
     for (const tp of Level.tapes) {
       if (!vis[tp.sector]) continue;
-      const x = tp.pos[0] + 0.5, y = tp.pos[1] - 0.05, z = tp.pos[2];
-      const tv = R.trs('box', MAT.paint, x, y + 0.2, z, 0, 0, 0, 0.46, 0.38, 0.4); if (tv) { tv.tint[0] = 0.62; tv.tint[1] = 0.6; tv.tint[2] = 0.8; }
-      const bk = R.trs('box', MAT.paint, x, y + 0.2, z + 0.26, 0, 0, 0, 0.32, 0.26, 0.16); if (bk) { bk.tint[0] = 0.5; bk.tint[1] = 0.48; bk.tint[2] = 0.66; }
-      const sc = R.trs('box', MAT.screen, x - 0.02, y + 0.22, z - 0.205, 0, 0, 0, 0.34, 0.27, 0.01, false);
-      if (sc) { const n = 0.12 + 0.08 * noise1(t * 40 + x); sc.emis[0] = n * 0.8; sc.emis[1] = n; sc.emis[2] = n * 1.3; }
-      R.trs('cylLow', MAT.steel, x + 0.12, y + 0.39, z, 0, 0, 0.5, 0.006, 0.2, 0.006, false);
+      // the set stands on its own wheeled cart beside the desk, turned (to the nearest quarter) toward the
+      // side you first come at it from
+      if (tp.tvYaw === undefined) {
+        const dx = Player.body.pos[0] - tp.pos[0], dz = Player.body.pos[2] - tp.pos[2];
+        if (Math.hypot(dx, dz) < 14) {
+          tp.tvYaw = Math.round(Math.atan2(-dx, -dz) / (Math.PI / 2)) * (Math.PI / 2);
+          // put the cart on whichever side of the desk has clear floor
+          const c = Math.cos(tp.tvYaw), sn = Math.sin(tp.tvYaw);
+          V3.set(_g.p0, tp.pos[0], tp.pos[1] - 0.4, tp.pos[2]);
+          tp.tvSide = 1.35;
+          for (const side of [1.35, -1.35]) {
+            V3.set(_g.p1, tp.pos[0] + (side + Math.sign(side) * 0.55) * c, tp.pos[1] - 0.4, tp.pos[2] - (side + Math.sign(side) * 0.55) * sn);
+            if (Physics.lineOfSight(_g.p0, _g.p1, LAYER.SIGHT)) { tp.tvSide = side; break; }
+          }
+        }
+      }
+      const ty = tp.tvYaw === undefined ? Math.PI : tp.tvYaw, cy = Math.cos(ty), syaw = Math.sin(ty);
+      // local (lx, lz) -> world, local -z is the screen side
+      const lw = (lx, lz, o) => { o[0] = tp.pos[0] + lx * cy + lz * syaw; o[2] = tp.pos[2] - lx * syaw + lz * cy; return o; };
+      const floor = tp.pos[1] - 1.0, sy = floor + 0.72;
+      const sd = tp.tvSide || 1.35;
+      lw(sd, 0.05, _g.p1); const x = _g.p1[0], z = _g.p1[2];
+      R.trs('box', MAT.steel, x, floor + 0.36, z, ty, 0, 0, 0.9, 0.04, 0.66);
+      R.trs('box', MAT.steel, x, floor + 0.7, z, ty, 0, 0, 0.9, 0.04, 0.66);
+      for (const [a, b] of [[-0.42, -0.3], [0.42, -0.3], [-0.42, 0.3], [0.42, 0.3]]) { lw(sd + a, 0.05 + b, _g.p2); R.trs('box', MAT.steel, _g.p2[0], floor + 0.38, _g.p2[2], ty, 0, 0, 0.035, 0.7, 0.035); R.trs('sphereLow', MAT.rubber, _g.p2[0], floor + 0.04, _g.p2[2], 0, 0, 0, 0.045, 0.045, 0.045); }
+      if (Sculpt.ready('crt_tv')) { const tv = R.trs('crt_tv', MAT.wood, x, sy, z, ty, 0, 0, 1, 1, 1); if (tv) { tv.tint[0] = 0.8; tv.tint[1] = 0.68; tv.tint[2] = 0.55; } }
+      else R.trs('box', MAT.wood, x, sy + 0.4, z, ty, 0, 0, 0.84, 0.68, 0.6);
+      const playing = this.tv && this.tv.tp === tp;
+      lw(sd - 0.07, 0.05 - 0.3, _g.p2);
+      if (playing && this.tvAsset) {
+        M4.compose(_g.m, _g.p2[0], sy + 0.41, _g.p2[2], ty, 0, 0, 0.5, 0.44, 1);
+        const q = AssetQueue.push(this.tvAsset, _g.m, false); if (q) q.tint[3] = 0.15;
+      } else {
+        const sc = R.trs('box', MAT.screen, _g.p2[0], sy + 0.41, _g.p2[2], ty, 0, 0, 0.5, 0.44, 0.01, false);
+        if (sc) { const n = 0.12 + 0.08 * noise1(t * 40 + x); sc.emis[0] = n * 0.8; sc.emis[1] = n; sc.emis[2] = n * 1.3; }
+      }
+      const tsy = tp.pos[1] + 0.305;
+      const vx = tp.pos[0], vz = tp.pos[2] + 0.2;
+      if (Sculpt.ready('vcr')) { const v = R.trs('vcr', MAT.rubber, vx, tsy, vz, 0.3, 0, 0, 1, 1, 1); if (v) { v.tint[0] = v.tint[1] = v.tint[2] = 1.6; } }
+      // the VCR's clock blinks 12:00 (green while a tape plays)
+      const lx = vx + Math.cos(0.3) * 0.14 + Math.sin(0.3) * -0.17, lz = vz - Math.sin(0.3) * 0.14 + Math.cos(0.3) * -0.17;
+      const led = R.trs('box', MAT.screen, lx, tsy + 0.064, lz, 0.3, 0, 0, 0.1, 0.026, 0.004, false);
+      if (led) { const on = playing ? 1 : (Math.sin(t * 4) > 0 ? 1 : 0.1); if (playing) { led.emis[1] = 1.8 * on; led.emis[0] = 0.2; } else { led.emis[0] = 1.8 * on; led.emis[1] = 0.25 * on; } }
     }
     for (const tp of Level.tapes) {
       if (!vis[tp.sector] || tp.collected) continue;
+      const ty = tp.pos[1] + 0.305 + 0.095;
       if (customTape) {
-        M4.compose(_g.m, tp.pos[0], tp.pos[1] + 0.36, tp.pos[2] + 0.2, 0.3 + Math.sin(t) * 0.05, 0, 0, 1, 1, 1);
+        M4.compose(_g.m, tp.pos[0], ty + 0.03, tp.pos[2] + 0.2, 0.3 + Math.sin(t) * 0.05, 0, 0, 1, 1, 1);
         const ci = AssetQueue.push(customTape, _g.m, true);
         if (ci) { const g = 0.15 + 0.15 * Math.sin(t * 3); ci.emis[0] = g; ci.emis[1] = g * 0.7; ci.emis[2] = g * 0.2; }
         continue;
       }
-      const it = R.trs('box', MAT.rubber, tp.pos[0], tp.pos[1] + 0.33, tp.pos[2] + 0.2, 0.3, 0, 0, 0.19, 0.025, 0.105);
-      R.trs('box', MAT.paint, tp.pos[0], tp.pos[1] + 0.346, tp.pos[2] + 0.2, 0.3, 0, 0, 0.12, 0.004, 0.06, false);
-      if (it) { const g = 0.15 + 0.15 * Math.sin(t * 3); it.emis[0] = g; it.emis[1] = g * 0.7; it.emis[2] = g * 0.2; }
+      const g = 0.12 + 0.12 * Math.sin(t * 3);
+      const it = Sculpt.ready('vhs_tape') ? R.trs('vhs_tape', MAT.rubber, tp.pos[0], ty, tp.pos[2] + 0.2, 0.3, 0, 0, 1, 1, 1) : R.trs('box', MAT.rubber, tp.pos[0], ty + 0.0125, tp.pos[2] + 0.2, 0.3, 0, 0, 0.19, 0.025, 0.105);
+      if (it) { it.emis[0] = g; it.emis[1] = g * 0.7; it.emis[2] = g * 0.2; }
     }
   },
 
   // LIFELINE hands: docked in view at the muzzles, or out in the world
   submitHands() {
-    const cam = Player.cam, right = Renderer.camRight, up = Renderer.camUp, fwd = Renderer.camFwd;
+    const R = RenderQueue, cam = Player.cam, right = Renderer.camRight, up = Renderer.camUp, fwd = Renderer.camFwd;
     for (let s = 0; s < 2; s++) {
       if (Gear.handsLost) continue;   // no hands on the pack yet (the opening)
       const h = GrabPack.hands[s];
@@ -969,11 +1064,20 @@ const Game = {
         V3.copy(_g.hp, m);
         V3.addScaled(_g.hp, _g.hp, right, Player.swayX * 0.5);
         V3.addScaled(_g.hp, _g.hp, up, -Player.swayY * 0.5 - h.recoil * 0.03);
-        V3.addScaled(_g.hp, _g.hp, fwd, h.recoil * 0.05);
+        V3.addScaled(_g.hp, _g.hp, fwd, h.recoil * 0.05 + 0.07);
+        // the launcher pipes push the hands out a little from the pack so the hoses show
+        V3.addScaled(_g.hp, _g.hp, right, side * 0.04); V3.addScaled(_g.hp, _g.hp, up, 0.05);
         V3.scale(_g.hf, fwd, 0.3); V3.addScaled(_g.hf, _g.hf, up, 0.95); V3.addScaled(_g.hf, _g.hf, right, -side * 0.12); V3.normalize(_g.hf, _g.hf);
         // hose runs from the pack into the bottom of the cuff
-        V3.addScaled(_g.b, _g.hp, _g.hf, -0.13);
+        V3.addScaled(_g.b, _g.hp, _g.hf, -0.26);
         this.drawHose(_g.a, _g.b, up, h);
+        // a steel extension pipe from the hose clamp up into the cuff
+        V3.addScaled(_g.p1, _g.hp, _g.hf, -0.11);
+        const ext = R.seg('cyl', MAT.steel, _g.b, _g.p1, 0.017, false);
+        if (ext) ext.tint[3] = 0.08;
+        V3.lerp(_g.p2, _g.b, _g.p1, 0.5);
+        const er = R.push('torus', MAT.copper, false);
+        if (er) { ringMatrix(er.model, _g.p2, _g.hf, 0.021); er.tint[3] = 0.08; }
         V3.scale(_g.hu, fwd, -1);
         // swapping the right hand: it drops out of view and comes back as the new one
         if (s === 1 && Gear.swapT > 0) {
@@ -984,12 +1088,14 @@ const Game = {
           V3.cross(_g.e, fwd, _g.hf);
           V3.scale(_g.hf, _g.hf, Math.cos(spin)); V3.addScaled(_g.hf, _g.hf, _g.e, Math.sin(spin)); V3.normalize(_g.hf, _g.hf);
         }
-        this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 0.86, false, h, true);
+        this.drawHand(_g.hp, _g.hf, _g.hu, s, 0.06 + h.grip * 0.85, 1.0, false, h, true);
         if (s === 0) {
           // PIP strapped to the wrist, facing you
-          V3.addScaled(_g.p2, _g.hp, _g.hf, 0.075); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.06); V3.addScaled(_g.p2, _g.p2, right, 0.015);
+          // Starby sits down on the wrist cuff (not on the back of the hand), facing you
+          // bigger and lower on the wrist, pushed out toward you so the whole face is readable
+          V3.addScaled(_g.p2, _g.hp, _g.hf, -0.045); V3.addScaled(_g.p2, _g.p2, _g.hu, 0.065); V3.addScaled(_g.p2, _g.p2, right, -0.03);
           V3.cross(_g.d, _g.hf, _g.hu); V3.normalize(_g.d, _g.d);
-          Gear.submitPip(_g.p2, _g.hf, _g.hu, _g.d);
+          Gear.submitPip(_g.p2, _g.hf, _g.hu, _g.d, 1.2);
         }
       } else {
         V3.copy(_g.b, m);
@@ -1058,7 +1164,7 @@ const Game = {
   drawHand(pos, f, upRef, side, curl, scale, shadow, h, viewModel) {
     const R = RenderQueue, HT = HAND_TYPES[Gear.cur], mat = side === 0 ? MAT.handTeal : HT.mat;
     // withered, grimy gloves: darker than new
-    const tr = side === 0 ? 0.62 : HT.tint[0], tg = side === 0 ? 0.66 : HT.tint[1], tb = side === 0 ? 0.62 : HT.tint[2];
+    const tr = side === 0 ? 0.4 : HT.tint[0], tg = side === 0 ? 0.48 : HT.tint[1], tb = side === 0 ? 0.44 : HT.tint[2];
     // right-handed basis (r = up x f) so back-face culling keeps the outside of the glove
     V3.cross(_g.r, upRef, f); V3.normalize(_g.r, _g.r);
     V3.cross(_g.u, f, _g.r); V3.normalize(_g.u, _g.u);
@@ -1080,6 +1186,8 @@ const Game = {
       const it = R.push(gm, mat, shadow);
       if (it) {
         basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[0] = tr; it.tint[1] = tg; it.tint[2] = tb; it.tint[3] = lift;
+        // the steel knuckle linkage and rubber fingertip caps, drawn untinted so the steel stays steel
+        if (Sculpt.ready(gm + '_st')) { const st = R.push(gm + '_st', MAT.steel, shadow); if (st) { st.model.set(it.model); st.tint[0] = st.tint[1] = st.tint[2] = 1.3; st.tint[3] = lift * 0.6; } }
         it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow;
         if (side === 1 && HT.glow) { const p = 0.7 + 0.3 * Math.sin(Game.time * 3); it.emis[0] += HT.glow[0] * p; it.emis[1] += HT.glow[1] * p; it.emis[2] += HT.glow[2] * p; }
         // a charged CONDUIT glows cyan, flickering as the charge runs down

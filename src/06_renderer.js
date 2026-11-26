@@ -488,6 +488,10 @@ uniform float uFlash;
 uniform float uSlats;
 uniform vec3 uFlashTint;
 uniform vec2 uRes;
+uniform vec2 uSrcRes;
+uniform vec2 uBlur;
+uniform float uAA;
+uniform float uGamma;
 in vec2 vUv;
 out vec4 oColor;
 float hash(float n) { return fract(sin(n) * 43758.5453); }
@@ -514,6 +518,26 @@ void main() {
   col.r = sampleHdr(uv + dc * ca).r;
   col.g = sampleHdr(uv).g;
   col.b = sampleHdr(uv - dc * ca).b;
+  // anti-aliasing: blend across high-contrast edges toward the neighbourhood average (FXAA-style)
+  if (uAA > 0.5) {
+    vec2 px = 1.0 / uSrcRes;
+    vec3 nN = sampleHdr(uv + vec2(0.0, px.y)), nS = sampleHdr(uv - vec2(0.0, px.y));
+    vec3 nE = sampleHdr(uv + vec2(px.x, 0.0)), nW = sampleHdr(uv - vec2(px.x, 0.0));
+    vec3 lw = vec3(0.299, 0.587, 0.114);
+    float lC = dot(col, lw), lN = dot(nN, lw), lS = dot(nS, lw), lE = dot(nE, lw), lW = dot(nW, lw);
+    float lo = min(lC, min(min(lN, lS), min(lE, lW))), hi = max(lC, max(max(lN, lS), max(lE, lW)));
+    float contrast = (hi - lo) / (hi + 0.25);
+    float edge = smoothstep(0.08, 0.3, contrast);
+    vec2 dir = normalize(vec2(-(lN - lS), lE - lW) + 1e-5) * px;
+    vec3 along = 0.5 * (sampleHdr(uv + dir * 0.75) + sampleHdr(uv - dir * 0.75));
+    col = mix(col, mix(along, (nN + nS + nE + nW) * 0.25, 0.3), edge * 0.7);
+  }
+  // camera motion blur: smear along the screen-space direction the view is turning
+  if (dot(uBlur, uBlur) > 1e-7) {
+    vec3 acc = col;
+    for (int k = 1; k <= 6; k++) acc += sampleHdr(uv - uBlur * (float(k) / 6.0 - 0.5));
+    col = acc / 7.0;
+  }
   // VHS chroma bleed: horizontally smeared color difference
   vec3 smear = (sampleHdr(uv + vec2(0.004, 0.0)) + sampleHdr(uv + vec2(0.008, 0.0))) * 0.5;
   float luma = dot(col, vec3(0.299, 0.587, 0.114));
@@ -541,7 +565,7 @@ void main() {
   }
   col = mix(col, uFlashTint, uFlash);
   col *= 1.0 - uFade;
-  oColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / 2.2)), 1.0);
+  oColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / (2.2 * uGamma))), 1.0);
 }`;
 
 // ------------------------------------------------------------------------------------
@@ -701,7 +725,7 @@ const Renderer = {
 
   setQuality(name) {
     if (!QUALITY[name]) return;
-    this.quality = QUALITY[name];
+    this.quality = typeof Settings !== 'undefined' ? Settings.effectiveQuality(name) : QUALITY[name];
     this.qualityName = name;
     if (this.gl) this.allocTargets();
   },
@@ -717,7 +741,9 @@ const Renderer = {
     const gl = this.gl;
     if (!gl || !this.width) return;
     const q = this.quality;
-    const rw = Math.max(16, Math.floor(this.width * q.scale)), rh = Math.max(16, Math.floor(this.height * q.scale));
+    // a chosen output resolution caps the internal render size (the image is scaled up to the window)
+    const cap = q.targetH ? Math.min(1, q.targetH / this.height) : 1;
+    const rw = Math.max(16, Math.floor(this.width * q.scale * cap)), rh = Math.max(16, Math.floor(this.height * q.scale * cap));
     if (this.targets && this.rw === rw && this.rh === rh && this.shadowSize === q.shadow) return;
     if (this.targets) for (const k in this.targets.tex) gl.deleteTexture(this.targets.tex[k]);
     if (this.targets) for (const k in this.targets.fbo) gl.deleteFramebuffer(this.targets.fbo[k]);
@@ -791,6 +817,20 @@ const Renderer = {
     };
     this.albedoArray = mk(this.albedoData);
     this.normalArray = mk(this.normalData);
+    if (typeof Settings !== 'undefined') this.applyTextureQuality(Settings.values.textureQuality);
+  },
+  // texture quality: skip the sharpest mip levels and lower anisotropic filtering on LOW / MEDIUM
+  applyTextureQuality(level) {
+    const gl = this.gl;
+    if (!gl || !this.albedoArray) return;
+    const base = level === 'LOW' ? 2 : level === 'MEDIUM' ? 1 : 0, an = level === 'LOW' ? 1 : level === 'MEDIUM' ? 4 : 8;
+    const aniso = gl.getExtension('EXT_texture_filter_anisotropic');
+    for (const t of [this.albedoArray, this.normalArray]) {
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, t);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_BASE_LEVEL, base);
+      if (aniso) gl.texParameterf(gl.TEXTURE_2D_ARRAY, aniso.TEXTURE_MAX_ANISOTROPY_EXT, an);
+    }
+    this.textureLevel = level;
   },
   uploadMaterialUniforms() {
     const gl = this.gl, p = this.progs.gbuf;
@@ -1201,7 +1241,20 @@ const Renderer = {
     gl.uniform1f(this.u('composite', 'uRedWave'), cal ? 0 : P.redWave);
     gl.uniform1f(this.u('composite', 'uVignette'), cal ? 0 : LIGHTING.vignette);
     gl.uniform1f(this.u('composite', 'uFade'), cal ? 0 : P.fade);
-    gl.uniform1f(this.u('composite', 'uGrain'), cal ? 0 : 0.018);
+    const SV = Settings.values;
+    gl.uniform1f(this.u('composite', 'uGrain'), cal ? 0 : 0.036 * SV.filmGrain);
+    gl.uniform1f(this.u('composite', 'uAA'), SV.antiAliasing === 'FXAA' ? 1 : 0);
+    gl.uniform1f(this.u('composite', 'uGamma'), cal ? 1 : SV.brightness);
+    gl.uniform2f(this.u('composite', 'uSrcRes'), this.rw, this.rh);
+    // motion blur from how far the view turned since the last frame
+    const pf = this.prevFwd || (this.prevFwd = V3.create(0, 0, -1)), CF = this.camFwd;
+    const tf = 0.5 / Math.tan(this.fovDeg * Math.PI / 360);
+    let bx = (CF[0] - pf[0]) * this.camRight[0] + (CF[1] - pf[1]) * this.camRight[1] + (CF[2] - pf[2]) * this.camRight[2];
+    let by = (CF[0] - pf[0]) * this.camUp[0] + (CF[1] - pf[1]) * this.camUp[1] + (CF[2] - pf[2]) * this.camUp[2];
+    V3.copy(pf, CF);
+    const mb = cal ? 0 : SV.motionBlur * tf * 1.6;
+    bx = clamp(bx * mb, -0.04, 0.04); by = clamp(by * mb, -0.04, 0.04);
+    gl.uniform2f(this.u('composite', 'uBlur'), bx, by);
     gl.uniform1f(this.u('composite', 'uFlash'), cal ? 0 : P.flash);
     gl.uniform1f(this.u('composite', 'uSlats'), cal ? 0 : P.slats);
     gl.uniform3fv(this.u('composite', 'uFlashTint'), P.flashTint);

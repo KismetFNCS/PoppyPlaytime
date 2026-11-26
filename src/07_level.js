@@ -87,8 +87,15 @@ const Level = {
 
   // Room shell with 0.25 m half-walls per room (shared walls are two halves, no z-fighting).
   // openings: { n|s|e|w: [ [a, b, height], ... ] }  (n = min z side, s = max z side)
+  // ceiling height over a point (rooms built with room(); open areas count as tall)
+  ceilingAt(x, z) {
+    let h = 99;
+    if (this.roomBoxes) for (const b of this.roomBoxes) if (x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3]) h = Math.min(h, b[4]);
+    return h;
+  },
   room(id, x0, z0, x1, z1, h, floorMat, wallMat, ceilMat, openings, floorSurface) {
     const T = 0.25, s = this.sectors[id];
+    (this.roomBoxes || (this.roomBoxes = [])).push([x0, z0, x1, z1, h]);
     this.solid(id, x0 - T, -0.5, z0 - T, x1 + T, 0, z1 + T, floorMat, floorSurface);
     this.solid(id, x0 - T, h, z0 - T, x1 + T, h + 0.4, z1 + T, ceilMat);
     const wall = (side, a0, a1) => {
@@ -321,9 +328,9 @@ const Level = {
       }
     }
   },
-  desk(sector, x, z) {
+  desk(sector, x, z, bare) {
     this.solid(sector, x - 0.8, 0, z - 0.45, x + 0.8, 0.95, z + 0.45, MAT.wood, SURFACE.WOOD);
-    this.geom(sector, x - 0.25, 0.95, z - 0.3, x + 0.25, 1.3, z + 0.1, MAT.steel); // tape deck / monitor
+    if (!bare) this.geom(sector, x - 0.25, 0.95, z - 0.3, x + 0.25, 1.3, z + 0.1, MAT.steel); // tape deck / monitor
   },
 
   // ---------- build the whole level ----------
@@ -355,7 +362,7 @@ const Level = {
     this.geom(0, -3.9, 0, 7.6, 3.9, 0.12, 7.9, MAT.grating);            // lift floor plate
     for (let x = -3.6; x <= 3.6; x += 1.2) this.geom(0, x - 0.04, 0, 7.75, x + 0.04, 4.2, 7.85, MAT.steel); // cage bars
     this.geom(0, -3.95, 0.1, 0.4, -3.85, 4.1, 7.6, MAT.grating);
-    this.desk(0, -2.6, 2.2);
+    this.desk(0, -2.6, 2.2, true);   // bare: the gas mask lies on top
     this.crate(0, 2.8, 6.4, 0.9, 2);
     this.receptacle(0, 2.6, 1.45, 0.02, 0, 1, false, [], 'D0', 'HAND SCANNER');
     this.tube(0, 0, 4.15, 3.5, true, 1);

@@ -4,16 +4,19 @@
 //   Long warehouse blocks with sawtooth roofs, striped chimneys, a domed entrance hall with a round
 //   window and arched doors, rows of porthole windows, a cracked road with a dashed line, and a glowing
 //   amber-to-rose sky with drifting chimney smoke.
-//   Sky colours (emissive bands): amber #e2a03e, orange #d6784a, rose #962e46, dusk #2a0e16
+//   Sky colours (emissive bands): a golden sunset, gold #f2b84a fading up to amber #e2a03e, orange #d6784a and rose #962e46
+//   Card stage lights: blue #2a5fd0, pink #d04aa8, violet #8a3ad0, gold #c8a050, red #c0242a
+//   Emblem: a giant red M (#c8242c) on a cream (#efe3c4) badge with a gold rim, lit from below
 // =====================================================================================
 const TITLE_SECTOR = 11;
 const TITLE_CAM = { pos: V3.create(0, 1.7, 118), yaw: 0, pitch: 0.16 };
 const CARD_ACTOR_X = [-12, -6, 0, 6, 12];
 const CARD_LEAN = 0.25;   // + tilts a model forward toward the camera (-z)
-const TITLE_SKY = [[2.4, 1.45, 0.45], [2.1, 1.0, 0.5], [1.5, 0.55, 0.5], [0.8, 0.22, 0.3], [0.25, 0.07, 0.1]];
+// golden sunset, top of the sky to the horizon
+const TITLE_SKY = [[1.1, 0.5, 0.22], [1.6, 0.8, 0.3], [2.2, 1.2, 0.38], [2.8, 1.65, 0.48], [3.3, 2.1, 0.6], [3.7, 2.55, 0.8], [4.0, 2.9, 1.0], [3.4, 2.2, 0.75]];
 
 const TitleScene = {
-  chimneys: [], smokeAcc: 0, tmp: V3.create(),
+  chimneys: [], smokeAcc: 0, tmp: V3.create(), tmp2: V3.create(),
 
   build(L) {
     const S = TITLE_SECTOR;
@@ -71,8 +74,34 @@ const TitleScene = {
     // the chapter-card gallery: five small stages behind the title camera, one per chapter
     g(-16, 0, 141, 16, 9, 141.5, MAT.rubber);
     for (const x of CARD_ACTOR_X) { g(x - 0.9, 0, 134.8, x + 0.9, 0.35, 136.4, MAT.steel); g(x - 1.6, 0.35, 140.6, x + 1.6, 6, 141, MAT.canvas); }
+    // each stage gets its own dim, dusty backdrop behind the toy
+    CARD_ACTOR_X.forEach((x, i) => {
+      // pipes up both sides and a run across the top on every stage
+      for (const sx of [-1.35, 1.35]) B.cylinder(x + sx, 139.8, 0.35, 6, 0.1, 10, MAT.rustIron);
+      g(x - 1.6, 4.3, 139.6, x + 1.6, 4.5, 139.9, MAT.steel);
+      if (i === 0) {   // a toy-shop shelf of building blocks
+        for (const y of [1.2, 2.2, 3.2]) { g(x - 1.2, y, 139.6, x + 1.2, y + 0.06, 140.6, MAT.wood); for (let k = 0; k < 5; k++) g(x - 1.05 + k * 0.48, y + 0.06, 140.0, x - 0.8 + k * 0.48, y + 0.31, 140.3, k % 2 ? MAT.paint : MAT.handTeal); }
+      } else if (i === 1) {   // heavy stage curtains in folds
+        for (let k = 0; k < 6; k++) { const cx = k < 3 ? x - 1.25 + k * 0.17 : x + 0.9 + (k - 3) * 0.17; g(cx, 0.35, 139.9 - (k % 2) * 0.08, cx + 0.16, 5.8, 140.3, MAT.clothWine); }
+        g(x - 1.6, 5.3, 139.5, x + 1.6, 5.8, 140.3, MAT.clothWine);
+      } else if (i === 2) {   // a big wall vent with slats and a grille
+        g(x - 0.9, 1.4, 140.4, x + 0.9, 3.6, 140.6, MAT.rubber);
+        for (let k = 0; k < 9; k++) g(x - 0.9, 1.45 + k * 0.24, 140.25, x + 0.9, 1.52 + k * 0.24, 140.45, MAT.grating);
+      } else if (i === 3) {   // a bakery wall: ovens and a rack of loaves
+        for (const ox of [-0.75, 0.75]) { g(x + ox - 0.55, 0.35, 139.7, x + ox + 0.55, 1.8, 140.6, MAT.steel); g(x + ox - 0.4, 0.6, 139.65, x + ox + 0.4, 1.4, 139.72, MAT.rubber); }
+        g(x - 1.2, 2.6, 139.8, x + 1.2, 2.66, 140.6, MAT.wood);
+        for (let k = 0; k < 6; k++) g(x - 1.05 + k * 0.38, 2.66, 140.0, x - 0.8 + k * 0.38, 2.84, 140.4, MAT.porcelain);
+      } else {   // a workshop: a girder and hanging chains
+        g(x - 1.6, 3.6, 139.7, x + 1.6, 3.9, 140.1, MAT.rustIron);
+        for (const cx of [-0.9, -0.3, 0.5, 1.0]) g(x + cx - 0.02, 1.6 + Math.abs(cx), 139.85, x + cx + 0.02, 3.6, 139.9, MAT.steel);
+      }
+      // a dim coloured work light over each backdrop, matching the card's mood
+      const hues = ['#2a5fd0', '#d04aa8', '#8a3ad0', '#c8a050', '#c0242a'];
+      L.light(S, x, 4.0, 139.0, hues[i], 4, 6, 0.15, 'bulb', 0.4);
+    });
     // the dusk light on the facade
-    L.light(S, 0, 16, 74, '#e2a03e', 26, 48, 0, 'none', 0);
+    L.light(S, 0, 16, 74, '#f2b84a', 28, 48, 0, 'none', 0);
+    L.light(S, 0, 8, 66, '#f2b84a', 10, 14, 0, 'none', 0);   // floodlight up onto the M emblem
     L.light(S, -26, 10, 66, '#e2a03e', 14, 34, 0, 'none', 0); L.light(S, 26, 10, 66, '#e2a03e', 14, 34, 0, 'none', 0);
     L.light(S, -46, 10, 64, '#d6784a', 12, 30, 0, 'none', 0);
     L.light(S, 46, 10, 64, '#962e46', 12, 30, 0, 'none', 0);
@@ -99,13 +128,28 @@ const TitleScene = {
   submit() {
     const R = RenderQueue;
     for (let i = 0; i < TITLE_SKY.length; i++) {
-      const c = TITLE_SKY[i], y = 70 - i * 15;
-      const it = R.trs('box', MAT.screen, 0, y, 6, 0, 0, 0, 400, 15.5, 1, false);
+      const c = TITLE_SKY[i], y = 76 - i * 10;
+      const it = R.trs('box', MAT.screen, 0, y, 6, 0, 0, 0, 400, 10.5, 1, false);
       if (it) { it.emis[0] = c[0]; it.emis[1] = c[1]; it.emis[2] = c[2]; }
     }
-    // a low sun glow behind the big stack
-    const s = R.trs('sphereLow', MAT.screen, 6, 22, 8, 0, 0, 0, 7, 7, 1, false);
-    if (s) { s.emis[0] = 4; s.emis[1] = 2.6; s.emis[2] = 1.1; }
+    // a big low golden sun sinking behind the stacks, with a soft halo
+    const halo = R.trs('sphereLow', MAT.screen, 10, 16, 7, 0, 0, 0, 16, 16, 1, false);
+    if (halo) { halo.emis[0] = 4.4; halo.emis[1] = 3.1; halo.emis[2] = 1.2; }
+    const s = R.trs('sphereLow', MAT.screen, 10, 16, 7.6, 0, 0, 0, 8, 8, 1, false);
+    if (s) { s.emis[0] = 7; s.emis[1] = 5.4; s.emis[2] = 2.4; }
+    // the giant M emblem on the dome: cream badge, gold rim, a bold red M
+    const ex = 0, ey = 13.6, ez = 61.9;
+    let b = R.trs('cyl', MAT.porcelain, ex, ey, ez, 0, Math.PI / 2, 0, 3.7, 0.25, 3.7);
+    if (b) { b.tint[0] = 1.25; b.tint[1] = 1.18; b.tint[2] = 1.0; b.tint[3] = 0.12; }
+    b = R.trs('torus', MAT.copper, ex, ey, ez + 0.1, 0, Math.PI / 2, 0, 3.75, 1.2, 3.75);
+    if (b) { b.tint[0] = 1.6; b.tint[1] = 1.3; b.tint[2] = 0.5; b.tint[3] = 0.15; }
+    const M = [[-2.05, -2.0, -2.05, 2.1], [2.05, -2.0, 2.05, 2.1], [-2.05, 2.1, 0, -0.6], [2.05, 2.1, 0, -0.6]];
+    for (const [x0, y0, x1, y1] of M) {
+      V3.set(this.tmp, ex + x0, ey + y0, ez + 0.35); V3.set(this.tmp2, ex + x1, ey + y1, ez + 0.35);
+      const it = R.seg('cyl', MAT.paint, this.tmp, this.tmp2, 0.5);
+      if (it) { it.tint[0] = 1.1; it.tint[1] = 0.12; it.tint[2] = 0.12; it.emis[0] = 0.55; it.emis[1] = 0.03; it.emis[2] = 0.02; }
+      for (const e of [this.tmp, this.tmp2]) { const j = R.trs('sphereLow', MAT.paint, e[0], e[1], e[2], 0, 0, 0, 0.5, 0.5, 0.5); if (j) { j.tint[0] = 1.1; j.tint[1] = 0.12; j.tint[2] = 0.12; j.emis[0] = 0.55; j.emis[1] = 0.03; j.emis[2] = 0.02; } }
+    }
   }
 };
 
@@ -204,7 +248,23 @@ const ChapterCards = {
     const cv = this.canvases[this.active], src = Renderer.gl.canvas;
     if (cv) {
       const h = src.height, w = Math.min(src.width, Math.round(h * cv.width / cv.height));
-      cv.getContext('2d').drawImage(src, (src.width - w) / 2, 0, w, h, 0, 0, cv.width, cv.height);
+      const c = cv.getContext('2d'), W = cv.width, H = cv.height;
+      c.drawImage(src, (src.width - w) / 2, 0, w, h, 0, 0, W, H);
+      // old-photo atmosphere: low haze, dust motes, scratches, grain and a heavy vignette
+      let gr = c.createLinearGradient(0, H * 0.55, 0, H);
+      gr.addColorStop(0, 'rgba(120,110,100,0)'); gr.addColorStop(1, 'rgba(120,110,100,0.32)');
+      c.fillStyle = gr; c.fillRect(0, 0, W, H);
+      let rnd = 1 + this.active * 7919;
+      const rand = () => { rnd = (rnd * 16807) % 2147483647; return rnd / 2147483647; };
+      for (let i = 0; i < 40; i++) { c.fillStyle = 'rgba(235,225,205,' + (0.08 + rand() * 0.25) + ')'; const r = 0.4 + rand() * 1.4; c.beginPath(); c.arc(rand() * W, rand() * H, r, 0, Math.PI * 2); c.fill(); }
+      c.strokeStyle = 'rgba(230,220,200,0.16)'; c.lineWidth = 1;
+      for (let i = 0; i < 4; i++) { const x = rand() * W; c.beginPath(); c.moveTo(x, rand() * H * 0.3); c.lineTo(x + (rand() - 0.5) * 8, H * (0.6 + rand() * 0.4)); c.stroke(); }
+      const img = c.getImageData(0, 0, W, H), d = img.data;
+      for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 22; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+      c.putImageData(img, 0, 0);
+      gr = c.createRadialGradient(W / 2, H * 0.42, H * 0.12, W / 2, H * 0.5, H * 0.7);
+      gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.75)');
+      c.fillStyle = gr; c.fillRect(0, 0, W, H);
     }
   }
 };

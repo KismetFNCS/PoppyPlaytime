@@ -120,7 +120,7 @@ const Lights = {
   viewFill: { pos: V3.create(), color: hexToLinear(LIGHTING.flashColor), current: 0, base: 0.55, radius: 1.3, scatter: 0, fixture: 'none', sector: 0 },
   // red glow from the gas inside the Spoolwright's ribcage (linear RGB, deep red)
   // violet glow from Mister Thimble's eye while your flashlight is off (linear RGB)
-  thimbleGlow: { pos: V3.create(), color: new Float32Array([0.5, 0.1, 1.0]), current: 0, base: 1.4, radius: 4.5, scatter: 0.15, fixture: 'none', sector: 0 },
+  thimbleGlow: { pos: V3.create(), color: new Float32Array([1.0, 0.78, 0.5]), current: 0, base: 1.0, radius: 4.5, scatter: 0.15, fixture: 'none', sector: 0 },
   // short-lived light flashes (clamp sparks, shocks, Thimble's grounding burst)
   pulses: Array.from({ length: 8 }, () => ({ pos: V3.create(), color: new Float32Array(3), current: 0, base: 0, radius: 3, scatter: 0.2, fixture: 'none', sector: 0, t: 0, dur: 0, flicker: 0, alive: false })),
   pulse(pos, r, g, b, radius, intensity, dur, flicker) {
@@ -187,7 +187,7 @@ const Lights = {
     }
     if (sectorVisible[2]) { const GG = this.gasGlow; GG.current = GG.base * (0.85 + 0.15 * Math.sin(time * 0.9)); if (list.count >= list.items.length) list.items.push(null); list.items[list.count++] = GG; }
     const DG = this.dollGlow, DD = Cast.doll;
-    if (DD.eyePos && sectorVisible[DD.sector] && (Game.isGameplay() || state === STATE.PAUSED)) {
+    if (false && DD.eyePos && sectorVisible[DD.sector] && (Game.isGameplay() || state === STATE.PAUSED)) {   // Posie's eye no longer glows
       V3.copy(DG.pos, DD.eyePos); DG.pos[2] += 0; DG.sector = DD.sector;
       DG.current = DG.base * (0.85 + 0.15 * Math.sin(time * 1.3)) * (1 - DD.blink * 0.8);
       if (list.count >= list.items.length) list.items.push(null);
