@@ -720,13 +720,13 @@ const Game = {
     const C = Level.menuCam, t = this.menuTime;
     // the factory title page shows the 3D factory exterior; the chapter screens show the Spoolwright
     if (UI.menuPage === 'title') {
-      this.scene.fogDensity = 0.0035;
+      this.scene.fogDensity = TITLE_ATMOS.fogDensity; this.scene.atmos = TITLE_ATMOS;
       TitleScene.update(dt, t);
       Audio.updateDrone(0.15, true); Audio.updateChase(false); Audio.updateEmitters(false, false);
       Audio.updateListener(TitleScene.tmp, Renderer.camFwd, Renderer.camUp);
       return;
     }
-    this.scene.fogDensity = LIGHTING.fogDensity;
+    this.scene.fogDensity = LIGHTING.fogDensity; this.scene.atmos = null;
     V3.set(this.menuEye, C.pos[0] + Math.sin(t * 0.21) * 0.08, C.pos[1] + Math.sin(t * 0.33) * 0.04, C.pos[2]);
     this.applyCamera(this.menuEye, C.yaw + Math.sin(t * 0.17) * 0.02, C.pitch + Math.sin(t * 0.23) * 0.01, 0);
     Monster.update(dt);

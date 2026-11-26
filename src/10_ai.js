@@ -683,33 +683,34 @@ const Monster = {
       if (it) { it.tint[0] = 0.9; it.tint[1] = 0.74; it.tint[2] = 0.64; }
     }
     this.trophyFrom = RenderQueue.count;
-    // three stolen plush arms hang DEAD from under the chest: teal, rose (wearing a teal ring) and pink.
-    // No life in them - straight down under their own weight, only swinging with the body's motion.
+    // three stolen toy arms, long and limp and DEAD, dragging from under his chest along the floor in front of
+    // him: a teal fur arm and a rose fur arm with yellow fur hands (a black patch on each palm), and a long
+    // smooth pink arm with thin fingers and a blue ring at the wrist. No life in them - they only drag.
+    const AL = 1.9, AW = 1.35;
     for (let k = 0; k < 3; k++) {
       const ax = TROPHY_ARMS[k * 3], ay = TROPHY_ARMS[k * 3 + 1], az = TROPHY_ARMS[k * 3 + 2];
-      // dead weight: no sway of their own; they only trail back a little when he runs
       const drag = Math.min(1, this.speed / 5) * 0.4;
+      const smooth = k === 2, len = smooth ? AL * 1.1 : AL;
       this.bodyPoint(B, ax, ay, az);
-      this.bodyPoint(H, ax * 1.2, ay - 1.0 + drag * 0.15, az - 0.06 + drag * 0.6);
-      // the middle arm is smooth, solid pink with a darker pink hand and a blue glove-ring at the wrist;
-      // the teal and rose arms are shaggy fur with yellowish plush hands
-      const smooth = k === 2;
+      this.bodyPoint(H, ax * 1.5 + (k - 1) * 0.12, 0.07, az - len * 0.82 + drag * 0.5);
+      V3.sub(_mh.dir, H, B); const L = V3.len(_mh.dir); V3.scale(_mh.dir, _mh.dir, 1 / L);
       it = Sculpt.ready(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm') ? R.push(smooth ? 'sp_trophyArmSmooth' : 'sp_trophyArm', smooth ? MAT.handRose : MAT.furLight) : null;
-      if (it) {
-        M4.segment(it.model, B, H, 1);
-        if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2]; }
-        // furry hands in the same shaggy fur as their arm (the smooth pink arm ends in a pink fur hand)
-        const hd = Sculpt.ready('sp_trophyHand') ? R.push('sp_trophyHand', MAT.furLight) : null;
-        if (hd) {
-          hd.model.set(it.model);
-          if (smooth) { hd.tint[0] = 2.1; hd.tint[1] = 0.75; hd.tint[2] = 1.7; } else { const c = TROPHY_TINT[k]; hd.tint[0] = c[0] * 0.85; hd.tint[1] = c[1] * 0.85; hd.tint[2] = c[2] * 0.85; }
-        }
-        if (smooth) {
-          V3.set(_mh.local, 0, 0.76, 0); M4.transformPoint(X, it.model, _mh.local);
-          V3.sub(_mh.dir, H, B); V3.normalize(_mh.dir, _mh.dir);
-          const rg = R.push('torus', MAT.handTeal);
-          if (rg) { ringMatrix(rg.model, X, _mh.dir, 0.06); rg.tint[0] = 0.45; rg.tint[1] = 0.75; rg.tint[2] = 1.8; }
-        }
+      if (!it) continue;
+      M4.segment(it.model, B, H, AW);
+      if (!smooth) { const c = TROPHY_TINT[k]; it.tint[0] = c[0]; it.tint[1] = c[1]; it.tint[2] = c[2]; }
+      // the hand, at full size (not stretched with the arm), its wrist meeting the end of the sleeve
+      const hs = 1.55, wristAt = (smooth ? 0.76 : 0.78) * L, hm = smooth ? 'sp_trophyHandSmooth' : 'sp_trophyHand';
+      V3.addScaled(X, B, _mh.dir, wristAt - 0.76 * hs);
+      V3.addScaled(this.tmp4 || (this.tmp4 = V3.create()), X, _mh.dir, hs);
+      const hd = Sculpt.ready(hm) ? R.push(hm, smooth ? MAT.handRose : MAT.furLight) : null;
+      if (hd) {
+        M4.segment(hd.model, X, this.tmp4, hs);
+        if (smooth) { hd.tint[0] = 0.95; hd.tint[1] = 0.8; hd.tint[2] = 0.85; } else { hd.tint[0] = 2.3; hd.tint[1] = 1.95; hd.tint[2] = 0.45; }   // yellow fur
+      }
+      if (smooth) {
+        V3.addScaled(X, B, _mh.dir, wristAt - 0.02);
+        const rg = R.push('torus', MAT.handTeal);
+        if (rg) { ringMatrix(rg.model, X, _mh.dir, 0.075); rg.tint[0] = 0.45; rg.tint[1] = 0.75; rg.tint[2] = 1.8; }
       }
     }
     this.trophyTo = RenderQueue.count;
@@ -744,14 +745,7 @@ const Monster = {
       R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.075, 0.075, 0.075);
       R.trs('sphereLow', MAT.copper, X[0], X[1], X[2], 0, 0, 0, 0.055, 0.055, 0.055);
       const hlx = side * (0.75 - reach * 0.4), hly = 1.45 + reach * 0.9, hlz = -1.55 - reach * 0.9;
-      for (let f = -2; f <= 2; f++) {
-        // two-joint needle fingers, longest in the middle
-        this.bodyPoint(B, hlx + f * 0.09, hly - 0.22 + Math.abs(f) * 0.04, hlz - 0.18 - reach * 0.1);
-        R.seg('cylLow', MAT.steel, X, B, 0.012);
-        R.trs('sphereLow', MAT.steel, B[0], B[1], B[2], 0, 0, 0, 0.02, 0.02, 0.02);
-        this.bodyPoint(H, hlx + f * 0.13, hly - 0.6 + Math.abs(f) * 0.12, hlz - 0.3 - reach * 0.3);
-        R.seg('cone', MAT.steel, B, H, 0.011);
-      }
+      this.needleHand(side, hlx, hly, hlz, side * (1.05 - reach * 0.4), 1.85 + this.rise() * 0.5 + reach * 0.6, -0.9 - reach * 0.7, reach);
     }
     this.submitLegs();
   },
@@ -772,12 +766,47 @@ const Monster = {
       t[2] = (t[2] + (lum * 0.58 - t[2]) * mix) * dark;
     }
   },
+  // a long mechanical needle hand: a steel wrist hub, then four long chrome finger rods, each in three
+  // segments linked by polished ball joints and ending in a fine needle, plus one longer thumb needle.
+  // (hand and elbow given in body-local coordinates)
+  needleHand(side, hx, hy, hz, ex, ey, ez, reach) {
+    const R = RenderQueue, L = _mh.kl;
+    let dx = hx - ex, dy = hy - ey, dz = hz - ez;
+    const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+    // the fingers droop toward the floor unless it is reaching for you
+    const droop = 0.75 * (1 - reach);
+    let fx = dx, fy = dy - droop, fz = dz; const fl = Math.hypot(fx, fy, fz) || 1; fx /= fl; fy /= fl; fz /= fl;
+    let lx = -fz, lz = fx; const ll = Math.hypot(lx, lz) || 1; lx /= ll; lz /= ll;
+    this.bodyPoint(L.a, hx, hy, hz);
+    let it = R.trs('box', MAT.steel, L.a[0], L.a[1], L.a[2], this.yaw + Math.atan2(-fx, -fz), Math.asin(clamp(fy, -1, 1)), 0, 0.075, 0.035, 0.07);
+    if (it) { it.tint[0] = it.tint[1] = it.tint[2] = 1.6; }
+    const chrome = q => { if (q) { q.tint[0] = 2.2; q.tint[1] = 2.2; q.tint[2] = 2.3; } return q; };
+    const SEG = [0.3, 0.34, 0.4];
+    for (let f = 0; f < 5; f++) {
+      const thumb = f === 4, off = thumb ? -1.9 * side : (f - 1.5);
+      let px = hx + lx * off * 0.045 + fx * 0.05, py = hy + fy * 0.05 + (thumb ? 0.03 : 0), pz = hz + lz * off * 0.045 + fz * 0.05;
+      this.bodyPoint(L.b, px, py, pz);
+      chrome(R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.026, 0.026, 0.026));
+      for (let j = 0; j < 3; j++) {
+        // each joint fans a touch wider and bends a little further down
+        const fan = off * (0.05 + j * 0.03) * (1 - reach * 0.6), bend = j * 0.1 * (1 - reach * 0.7);
+        let sx = fx + lx * fan, sy = fy - bend, sz = fz + lz * fan; const sl = Math.hypot(sx, sy, sz) || 1;
+        const len = SEG[j] * (thumb ? 1.25 : 1);
+        const nx = px + sx / sl * len, ny = py + sy / sl * len, nz = pz + sz / sl * len;
+        this.bodyPoint(L.b, px, py, pz); this.bodyPoint(L.c, nx, ny, nz);
+        chrome(R.seg(j === 2 ? 'cone' : 'cylLow', MAT.steel, L.b, L.c, j === 2 ? 0.011 : 0.012));
+        if (j < 2) chrome(R.trs('sphereLow', MAT.steel, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.024, 0.024, 0.024));
+        px = nx; py = ny; pz = nz;
+      }
+    }
+  },
   submitKillArms() {
     const K = this.kill, L = _mh.kl;
     // where your eyes are in its local space
     const ce = Player.cam.eye, cy = ce[1] - this.pos[1] - this.bodyBob, cz = -Math.hypot(ce[0] - this.pos[0], ce[2] - this.pos[2]);
     // right: the claw hand (raised out to the side -> wound back -> thrust into the camera)
-    let hx = 0.95 + (0.58 - 0.95) * K.wind, hy = cy + 0.3 + 0.32 * K.wind, hz = cz + 1.3 - 0.05 * K.wind;
+    // a short draw-back (no big wind-up), then the flat-fingered stab
+    let hx = 0.95 + (0.7 - 0.95) * K.wind, hy = cy + 0.2 + 0.12 * K.wind, hz = cz + 1.3 + 0.15 * K.wind;
     if (K.stab > 0) { hx += (0.03 - hx) * K.stab; hy += (cy + 0.12 - hy) * K.stab; hz += (cz + 0.32 - hz) * K.stab; }
     this.drawKillArm(1, hx, hy, hz, 0, cy, cz, K.join, false);
     // left: the bony grabbing hand that clamps beside your head
@@ -857,21 +886,20 @@ const Monster = {
         mx += (kx + (wx - kx) * 0.45 - mx) * g; my += (ky + (wy - ky) * 0.45 + 0.04 - my) * g; mz += (kz + (wz - kz) * 0.45 - mz) * g;
       }
       if (join > 0) {
-        const sx = hx + dx * 0.62, sy = hy + dy * 0.62, sz = hz + dz * 0.62;
+        // the stab: the fingers press together side by side into a flat blade of parallel needles (they don't
+        // wind into one spike) and drive straight in
+        const tight = f * 0.022;
+        const sx = hx + dx * 0.62 + lx * tight, sy = hy + dy * 0.62, sz = hz + dz * 0.62 + lz * tight;
         tx += (sx - tx) * join; ty += (sy - ty) * join; tz += (sz - tz) * join;
-        mx += (hx + dx * 0.3 - mx) * join * 0.7; my += (hy + dy * 0.3 - my) * join * 0.7; mz += (hz + dz * 0.3 - mz) * join * 0.7;
+        const qx = hx + dx * 0.3 + lx * tight, qy = hy + dy * 0.3 + 0.01, qz = hz + dz * 0.3 + lz * tight;
+        mx += (qx - mx) * join; my += (qy - my) * join; mz += (qz - mz) * join;
       }
       this.bodyPoint(L.b, mx, my, mz);
       this.bodyPoint(L.c, tx, ty, tz);
       R.seg('cylLow', bony ? MAT.porcelain : MAT.steel, L.a, L.b, bony ? 0.016 : 0.013);
       R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.018, 0.018, 0.018);
-      const nd = R.seg('cone', MAT.steel, L.b, L.c, bony ? 0.014 : 0.012 + join * 0.004);
-      if (nd && !bony) { const g = 0.25 + join * 0.5; nd.emis[0] = 0.3 * g; nd.emis[1] = 0.27 * g; nd.emis[2] = 0.25 * g; }
-    }
-    if (!bony && join > 0.9) {
-      this.bodyPoint(L.c, hx + dx * 0.62, hy + dy * 0.62, hz + dz * 0.62);
-      it = R.trs('sphereLow', MAT.screen, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.009, 0.009, 0.009, false);
-      if (it) { it.emis[0] = 1.6; it.emis[1] = 1.4; it.emis[2] = 1.2; }
+      const nd = R.seg('cone', MAT.steel, L.b, L.c, bony ? 0.014 : 0.012);
+      if (nd && !bony) { nd.tint[0] = 2.2; nd.tint[1] = 2.2; nd.tint[2] = 2.3; }
     }
   },
 

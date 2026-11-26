@@ -605,12 +605,28 @@ const SCULPTS = {
       n.push({ t: 'cap', a: [x, 0.9, -0.012], b: [x * 1.15, 0.9 + len * 0.6, -0.022], r: 0.018, m: M, k: 0.014 });
       n.push({ t: 'cap', a: [x * 1.15, 0.9 + len * 0.6, -0.022], b: [x * 1.2, 0.9 + len, -0.05], r: 0.016, m: M, k: 0.012 });
     }
+    // a worn black patch on the palm
+    n.push({ t: 'ell', c: [0, 0.865, -0.04], r: [0.05, 0.056, 0.014], m: MAT.rubber, k: 0.006, n: [0.003, 60] });
     // covered in shaggy fur like the arm: matted clumps over the back of the hand and the fingers
     for (let i = 0; i < 22; i++) {
       const a = i * 2.4, y = 0.78 + (i * 0.023) % 0.22, rr = y > 0.9 ? 0.04 : 0.055;
       n.push({ t: 'sph', c: [Math.cos(a) * rr, y, -0.012 + Math.sin(a) * 0.028], r: 0.014 + (i % 3) * 0.004, m: M, k: 0.02, n: [0.006, 70] });
     }
     return SDF.mesh(n, [-0.13, 0.7, -0.11], [0.13, 1.06, 0.07], 56);
+  },
+  // the smooth pink arm's hand: a slim palm and long, thin, jointed fingers (wrist at y 0.76, tips at y 1.1)
+  sp_trophyHandSmooth: () => {
+    const M = -1, n = [
+      { t: 'cap', a: [0, 0.74, 0], b: [0, 0.8, -0.004], r: 0.04, m: M },
+      { t: 'ell', c: [0, 0.85, -0.01], r: [0.058, 0.06, 0.022], m: M, k: 0.025 },
+      { t: 'cap', a: [0.045, 0.81, -0.015], b: [0.1, 0.9, -0.04], r: 0.014, r2: 0.011, m: M, k: 0.015 }
+    ];
+    for (let f = 0; f < 4; f++) {
+      const x = -0.042 + f * 0.028, len = f === 1 || f === 2 ? 0.2 : 0.16;
+      n.push({ t: 'cap', a: [x, 0.89, -0.01], b: [x * 1.25, 0.89 + len * 0.55, -0.018], r: 0.011, m: M, k: 0.01 });
+      n.push({ t: 'cap', a: [x * 1.25, 0.89 + len * 0.55, -0.018], b: [x * 1.35, 0.89 + len, -0.045], r: 0.0095, r2: 0.006, m: M, k: 0.008 });
+    }
+    return SDF.mesh(n, [-0.13, 0.7, -0.09], [0.15, 1.12, 0.05], 56);
   },
   // Spoolwright torso (pivot at y 1.35): lumpy fur sac, spool drum with flanges, ribcage, spine
   sp_body: () => {

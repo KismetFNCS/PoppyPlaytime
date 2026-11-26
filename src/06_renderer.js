@@ -945,8 +945,10 @@ const Renderer = {
     const hdrEncode = this.hdrFloat ? 1 : 0.125;
 
     // fog / ambient uploads (fog is inverse-tonemapped so the void renders exactly the contract hex)
-    inverseToneMapHex(LIGHTING.fogColor, LIGHTING.exposure, this.fogUpload);
-    const sky = hexToLinear(LIGHTING.ambientSky, LIGHTING.ambientIntensity), gr = hexToLinear(LIGHTING.ambientGround, LIGHTING.ambientIntensity);
+    // a scene may bring its own atmosphere (the golden-hour title exterior); otherwise the factory's dark haze
+    const AT = scene.atmos || LIGHTING;
+    inverseToneMapHex(AT.fogColor, LIGHTING.exposure, this.fogUpload);
+    const sky = hexToLinear(AT.ambientSky, AT.ambientIntensity), gr = hexToLinear(AT.ambientGround, AT.ambientIntensity);
     V3.copy(this.ambSkyUpload, sky); V3.copy(this.ambGroundUpload, gr);
 
     // 1. shadow map from the flashlight

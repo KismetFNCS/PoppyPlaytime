@@ -6,14 +6,14 @@
 //   amber-to-rose sky with drifting chimney smoke.
 //   Sky colours (emissive bands): a golden sunset, gold #f2b84a fading up to amber #e2a03e, orange #d6784a and rose #962e46
 //   Card stage lights: blue #2a5fd0, pink #d04aa8, violet #8a3ad0, gold #c8a050, red #c0242a
-//   Emblem: a giant red M (#c8242c) on a cream (#efe3c4) badge with a gold rim, lit from below
+//   Floodlights #ffd27a. Emblem: a red M (#c8242c) on a cream (#efe3c4) badge with a gold rim, lit from below
 // =====================================================================================
 const TITLE_SECTOR = 11;
+// golden hour: warm haze #e0a84a, a bright honey sky light #c79a52 and a warm ground bounce #6a4a28
+const TITLE_ATMOS = { fogColor: '#e0a84a', fogDensity: 0.0012, ambientSky: '#c79a52', ambientGround: '#6a4a28', ambientIntensity: 1.7 };
 const TITLE_CAM = { pos: V3.create(0, 1.7, 118), yaw: 0, pitch: 0.16 };
 const CARD_ACTOR_X = [-12, -6, 0, 6, 12];
 const CARD_LEAN = 0.25;   // + tilts a model forward toward the camera (-z)
-// golden sunset, top of the sky to the horizon
-const TITLE_SKY = [[1.1, 0.5, 0.22], [1.6, 0.8, 0.3], [2.2, 1.2, 0.38], [2.8, 1.65, 0.48], [3.3, 2.1, 0.6], [3.7, 2.55, 0.8], [4.0, 2.9, 1.0], [3.4, 2.2, 0.75]];
 
 const TitleScene = {
   chimneys: [], smokeAcc: 0, tmp: V3.create(), tmp2: V3.create(),
@@ -99,6 +99,10 @@ const TitleScene = {
       const hues = ['#2a5fd0', '#d04aa8', '#8a3ad0', '#c8a050', '#c0242a'];
       L.light(S, x, 4.0, 139.0, hues[i], 4, 6, 0.15, 'bulb', 0.4);
     });
+    // low golden sun from behind the camera, washing the whole facade so every detail reads
+    L.light(S, -34, 24, 92, '#ffd27a', 34, 48, 0, 'none', 0);
+    L.light(S, 0, 26, 96, '#ffd27a', 40, 48, 0, 'none', 0);
+    L.light(S, 34, 24, 92, '#ffd27a', 34, 48, 0, 'none', 0);
     // the dusk light on the facade
     L.light(S, 0, 16, 74, '#f2b84a', 28, 48, 0, 'none', 0);
     L.light(S, 0, 8, 66, '#f2b84a', 10, 14, 0, 'none', 0);   // floodlight up onto the M emblem
@@ -124,31 +128,87 @@ const TitleScene = {
     }
     Particles.update(dt, this.tmp);
   },
-  // the sky: stacked glowing bands far behind the factory
+  // one painted golden-hour sky (a smooth gradient with soft clouds and the sun's glow), drawn as a single
+  // glowing backdrop far behind the factory
+  skyCanvas() {
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
+    const c = cv.getContext('2d');
+    const g = c.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, 'rgb(214,128,40)'); g.addColorStop(0.35, 'rgb(240,176,52)'); g.addColorStop(0.7, 'rgb(255,214,90)'); g.addColorStop(1, 'rgb(255,236,150)');
+    c.fillStyle = g; c.fillRect(0, 0, 512, 256);
+    // the sun's glow low behind the stacks
+    const sg = c.createRadialGradient(290, 205, 4, 290, 205, 170);
+    sg.addColorStop(0, 'rgba(255,250,215,0.95)'); sg.addColorStop(0.25, 'rgba(255,236,160,0.5)'); sg.addColorStop(1, 'rgba(255,220,120,0)');
+    c.fillStyle = sg; c.fillRect(0, 0, 512, 256);
+    // soft, smoky clouds drifting across the upper sky
+    let r = 7;
+    const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+    for (let i = 0; i < 70; i++) {
+      const x = rnd() * 560 - 24, y = rnd() * 120 + 6, rad = 18 + rnd() * 46;
+      const cg = c.createRadialGradient(x, y, 2, x, y, rad);
+      const a = 0.12 + rnd() * 0.12;
+      cg.addColorStop(0, 'rgba(190,104,40,' + a + ')'); cg.addColorStop(1, 'rgba(190,104,40,0)');
+      c.fillStyle = cg; c.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    }
+    for (let i = 0; i < 1600; i++) { c.fillStyle = 'rgba(120,70,20,' + (rnd() * 0.05) + ')'; c.fillRect(rnd() * 512, rnd() * 256, 2, 1); }
+    return cv;
+  },
   submit() {
     const R = RenderQueue;
-    for (let i = 0; i < TITLE_SKY.length; i++) {
-      const c = TITLE_SKY[i], y = 76 - i * 10;
-      const it = R.trs('box', MAT.screen, 0, y, 6, 0, 0, 0, 400, 10.5, 1, false);
-      if (it) { it.emis[0] = c[0]; it.emis[1] = c[1]; it.emis[2] = c[2]; }
+    if (!this.skyAsset && Gear.canvasQuad) this.skyAsset = Gear.canvasQuad(this.skyCanvas(), 'title-sky', 2.6, false);
+    if (this.skyAsset) { M4.compose(this.m || (this.m = M4.create()), 0, 70, 8, 0, 0, 0, 460, 190, 1); AssetQueue.push(this.skyAsset, this.m, false); }
+    // colourful smokestacks along the skyline (striped, mint, salmon, cream, slate blue), a little sooty
+    const STK = [[-58, 24, 1.7, 20, [0.55, 1.3, 1.0]], [-42, 20, 1.3, 18, [1.6, 0.75, 0.62]], [-24, 22, 1.5, 24, [1.25, 1.18, 0.9]], [-14, 26, 1.2, 17, [0.55, 0.85, 1.3]],
+      [18, 22, 1.8, 26, [0.55, 0.85, 1.35]], [32, 24, 1.4, 20, [1.6, 0.7, 0.6]], [46, 22, 1.5, 21, [0.6, 1.3, 1.0]], [60, 26, 1.6, 23, [1.3, 1.2, 0.75]]];
+    for (const [x, z, r, h, col] of STK) {
+      const it = R.trs('cyl', MAT.porcelain, x, 0, z, 0, 0, 0, r, h, r); if (it) { it.tint[0] = col[0] * 0.75; it.tint[1] = col[1] * 0.75; it.tint[2] = col[2] * 0.75; }
+      const cap = R.trs('cyl', MAT.steel, x, h, z, 0, 0, 0, r + 0.25, 0.6, r + 0.25); if (cap) cap.tint[0] = cap.tint[1] = cap.tint[2] = 0.6;
+      const soot = R.trs('cyl', MAT.burnt, x, h - 3, z, 0, 0, 0, r + 0.03, 3, r + 0.03); if (soot) { soot.tint[0] = 0.7; soot.tint[1] = 0.6; soot.tint[2] = 0.55; }
     }
-    // a big low golden sun sinking behind the stacks, with a soft halo
-    const halo = R.trs('sphereLow', MAT.screen, 10, 16, 7, 0, 0, 0, 16, 16, 1, false);
-    if (halo) { halo.emis[0] = 4.4; halo.emis[1] = 3.1; halo.emis[2] = 1.2; }
-    const s = R.trs('sphereLow', MAT.screen, 10, 16, 7.6, 0, 0, 0, 8, 8, 1, false);
-    if (s) { s.emis[0] = 7; s.emis[1] = 5.4; s.emis[2] = 2.4; }
-    // the giant M emblem on the dome: cream badge, gold rim, a bold red M
-    const ex = 0, ey = 13.6, ez = 61.9;
-    let b = R.trs('cyl', MAT.porcelain, ex, ey, ez, 0, Math.PI / 2, 0, 3.7, 0.25, 3.7);
-    if (b) { b.tint[0] = 1.25; b.tint[1] = 1.18; b.tint[2] = 1.0; b.tint[3] = 0.12; }
-    b = R.trs('torus', MAT.copper, ex, ey, ez + 0.1, 0, Math.PI / 2, 0, 3.75, 1.2, 3.75);
-    if (b) { b.tint[0] = 1.6; b.tint[1] = 1.3; b.tint[2] = 0.5; b.tint[3] = 0.15; }
+    // the big stack behind the dome gets bold red-and-yellow candy stripes
+    for (let y = 0; y < 38; y += 4) {
+      const band = R.trs('cyl', MAT.porcelain, 0, y, 34, 0, 0, 0, 3.26, 2, 3.26);
+      if (band) { band.tint[0] = 1.4; band.tint[1] = 0.32; band.tint[2] = 0.25; }
+      const bandY = R.trs('cyl', MAT.porcelain, 0, y + 2, 34, 0, 0, 0, 3.24, 2, 3.24);
+      if (bandY) { bandY.tint[0] = 1.45; bandY.tint[1] = 1.2; bandY.tint[2] = 0.35; }
+    }
+    // brick towers on the left wing capped with verdigris domes, and arched gable fronts on the right wing
+    for (const x of [-56, -40, -26]) {
+      const tw = R.trs('box', MAT.rustIron, x, 6.5, 50, 0, 0, 0, 4.2, 13, 4.2); if (tw) { tw.tint[0] = 1.25; tw.tint[1] = 0.75; tw.tint[2] = 0.6; }
+      const dm = R.trs('sphere', MAT.handTeal, x, 13.2, 50, 0, 0, 0, 2.3, 1.7, 2.3); if (dm) { dm.tint[0] = 0.65; dm.tint[1] = 1.0; dm.tint[2] = 0.8; }
+    }
+    for (const x of [22, 36, 50]) {
+      const gf = R.trs('box', MAT.paint, x, 12.5, 56.3, 0, 0, 0, 12, 7, 0.4); if (gf) { gf.tint[0] = 1.15; gf.tint[1] = 1.0; gf.tint[2] = 0.6; }
+      // a stepped gable top and one round window with a brick-red frame
+      const gt = R.trs('box', MAT.paint, x, 16.6, 56.3, 0, 0, 0, 7, 1.2, 0.4); if (gt) { gt.tint[0] = 1.15; gt.tint[1] = 1.0; gt.tint[2] = 0.6; }
+      const cr = R.trs('box', MAT.rustIron, x, 17.3, 56.35, 0, 0, 0, 7.4, 0.25, 0.5); if (cr) { cr.tint[0] = 1.3; cr.tint[1] = 0.6; cr.tint[2] = 0.5; }
+      R.trs('cyl', MAT.rubber, x, 13.0, 56.55, 0, Math.PI / 2, 0, 1.3, 0.05, 1.3);
+      const wr = R.trs('torus', MAT.rustIron, x, 13.0, 56.6, 0, Math.PI / 2, 0, 1.35, 0.35, 1.35); if (wr) { wr.tint[0] = 1.3; wr.tint[1] = 0.6; wr.tint[2] = 0.5; }
+    }
+    // scalloped trim along both wings: alternating red, mint and cream waves over the portholes
+    for (let x = -60; x <= 60; x += 2.4) {
+      if (Math.abs(x) < 12.5) continue;
+      const k = Math.round(x / 2.4) % 3, col = k === 0 ? [1.4, 0.4, 0.32] : k === 1 || k === -1 ? [0.6, 1.25, 1.0] : [1.35, 1.25, 1.0];
+      const w = R.trs('sphere', MAT.porcelain, x, 5.6, 56.25, 0, 0, 0, 1.2, 0.75, 0.25); if (w) { w.tint[0] = col[0]; w.tint[1] = col[1]; w.tint[2] = col[2]; }
+    }
+    // soot streaks running down the walls and grime along the plinths
+    for (let i = 0; i < 26; i++) {
+      const x = -60 + i * 4.8 + Math.sin(i * 7.1) * 1.2;
+      if (Math.abs(x) < 12.5) continue;
+      const st = R.trs('box', MAT.burnt, x, 7.0 - (i % 3), 56.18, 0, 0, 0, 0.5 + (i % 2) * 0.4, 2.4 + (i % 4), 0.02, false); if (st) { st.tint[0] = 0.55; st.tint[1] = 0.48; st.tint[2] = 0.42; }
+    }
+    // the M emblem on the dome: a smaller cream badge with a gold rim and a bold red M
+    const ex = 0, ey = 13.4, ez = 61.9, sc = 0.58;
+    let b = R.trs('cyl', MAT.porcelain, ex, ey, ez, 0, Math.PI / 2, 0, 3.7 * sc, 0.25, 3.7 * sc);
+    if (b) { b.tint[0] = 1.25; b.tint[1] = 1.18; b.tint[2] = 1.0; }
+    b = R.trs('torus', MAT.copper, ex, ey, ez + 0.1, 0, Math.PI / 2, 0, 3.75 * sc, 1.2 * sc, 3.75 * sc);
+    if (b) { b.tint[0] = 1.6; b.tint[1] = 1.3; b.tint[2] = 0.5; }
     const M = [[-2.05, -2.0, -2.05, 2.1], [2.05, -2.0, 2.05, 2.1], [-2.05, 2.1, 0, -0.6], [2.05, 2.1, 0, -0.6]];
     for (const [x0, y0, x1, y1] of M) {
-      V3.set(this.tmp, ex + x0, ey + y0, ez + 0.35); V3.set(this.tmp2, ex + x1, ey + y1, ez + 0.35);
-      const it = R.seg('cyl', MAT.paint, this.tmp, this.tmp2, 0.5);
-      if (it) { it.tint[0] = 1.1; it.tint[1] = 0.12; it.tint[2] = 0.12; it.emis[0] = 0.55; it.emis[1] = 0.03; it.emis[2] = 0.02; }
-      for (const e of [this.tmp, this.tmp2]) { const j = R.trs('sphereLow', MAT.paint, e[0], e[1], e[2], 0, 0, 0, 0.5, 0.5, 0.5); if (j) { j.tint[0] = 1.1; j.tint[1] = 0.12; j.tint[2] = 0.12; j.emis[0] = 0.55; j.emis[1] = 0.03; j.emis[2] = 0.02; } }
+      V3.set(this.tmp, ex + x0 * sc, ey + y0 * sc, ez + 0.35); V3.set(this.tmp2, ex + x1 * sc, ey + y1 * sc, ez + 0.35);
+      const it = R.seg('cyl', MAT.paint, this.tmp, this.tmp2, 0.5 * sc);
+      if (it) { it.tint[0] = 1.1; it.tint[1] = 0.12; it.tint[2] = 0.12; }
+      for (const e of [this.tmp, this.tmp2]) { const j = R.trs('sphereLow', MAT.paint, e[0], e[1], e[2], 0, 0, 0, 0.5 * sc, 0.5 * sc, 0.5 * sc); if (j) { j.tint[0] = 1.1; j.tint[1] = 0.12; j.tint[2] = 0.12; } }
     }
   }
 };
@@ -218,12 +278,13 @@ const ChapterCards = {
     for (const p of [[-0.6 * 0.78, 1.5 * 0.78], [0.6 * 0.78, 1.5 * 0.78], [0, 3.1 * 0.78], [-0.08, 1.2 * 0.78], [0.08, 1.2 * 0.78]]) {
       R.seg('cylLow', MAT.cable, V3.set(this.tmp, x + p[0], base + p[1], z), V3.create(x + p[0] * 0.9, base + 3.4 * 0.78, z), 0.003, false);
     }
-    // 3: Hootsworth's lantern eyes glow and his head tilts
+    // 3: Hootsworth's glassy amber eyes and a hard head tilt
     x = CARD_ACTOR_X[2]; const tilt = Math.sin(t * 0.7) * 0.12;
     put('card_owl', x, base, tilt * 0.5, 0.85, 0, 0, 0, 0, 0.3 + tilt);   // head cocked hard to one side
     for (const s of [-1, 1]) {
-      const e = R.trs('sphere', MAT.screen, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.39 * 0.85, 0, 0, 0, 0.08, 0.08, 0.04, false);
-      if (e) { e.emis[0] = 2.6; e.emis[1] = 1.5; e.emis[2] = 0.3; }
+      // dull amber glass eyes (no glow)
+      const e = R.trs('sphere', MAT.porcelain, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.39 * 0.85, 0, 0, 0, 0.08, 0.08, 0.04, false);
+      if (e) { e.tint[0] = 1.1; e.tint[1] = 0.7; e.tint[2] = 0.25; }
       const pu = R.trs('sphere', MAT.rubber, x + s * 0.15 * 0.85, base + 1.26 * 0.85, z - 0.42 * 0.85, 0, 0, 0, 0.03, 0.055 * (0.6 + 0.4 * Math.abs(Math.sin(t * 0.5))), 0.015, false);
     }
     // 4: Doughbert squishes as he breathes

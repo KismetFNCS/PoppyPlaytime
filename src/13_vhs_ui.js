@@ -451,7 +451,7 @@ const UI = {
     document.getElementById('menu').classList.toggle('titleMode', p !== 'ch6');
     this.selectMenu(p === 'chapters' ? 5 : p === 'ch6' ? (Game.hasSave ? 0 : 1) : 0);
   },
-  hideMenuPages() { document.getElementById('titlePage').classList.remove('on'); document.getElementById('chapterPage').classList.remove('on'); document.getElementById('menu').classList.remove('titleMode'); Game.scene.fogDensity = LIGHTING.fogDensity; },
+  hideMenuPages() { document.getElementById('titlePage').classList.remove('on'); document.getElementById('chapterPage').classList.remove('on'); document.getElementById('menu').classList.remove('titleMode'); Game.scene.fogDensity = LIGHTING.fogDensity; Game.scene.atmos = null; },
   selectMenu(i) {
     const btns = this.menuButtons();
     this.menuIndex = clamp(i, 0, btns.length - 1);
