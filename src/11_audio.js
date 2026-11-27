@@ -45,7 +45,7 @@ const Audio = {
     dl.delayTime.value = 0.31; fb.gain.value = 0.42; dlp.type = 'lowpass'; dlp.frequency.value = 2400;
     this.verbIn.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(this.buses.music);
     // a long, dark concrete-hall reverb (a generated impulse) under the whole score and the effects
-    const len = Math.floor(ctx.sampleRate * 3.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    const len = Math.floor(ctx.sampleRate * 2.2), ir = ctx.createBuffer(2, len, ctx.sampleRate);   // (kept short: a long impulse is heavy on low-power laptops and makes the audio stutter)
     for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) { const k = i / len; d[i] = (Math.random() * 2 - 1) * Math.pow(1 - k, 2.6) * (i < 400 ? i / 400 : 1); } }
     this.hall = ctx.createConvolver(); this.hall.buffer = ir;
     const hallOut = ctx.createGain(); hallOut.gain.value = 0.32;

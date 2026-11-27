@@ -764,7 +764,7 @@ const UI = {
     clearTimeout(this.vhsTimer);
     this.vhsTimer = setTimeout(() => el.classList.remove('on'), 2400);
   },
-  setMuteLabel() { this.el.btnMute.textContent = Game.muted ? 'MUTE' : 'SND'; }
+  setMuteLabel() { const b = this.el.btnMute; b.textContent = Game.muted ? 'SOUND OFF' : 'SOUND ON'; b.classList.toggle('off', Game.muted); b.setAttribute('aria-label', Game.muted ? 'Turn sound on' : 'Turn sound off'); }
 };
 function hexA(hex, a) { const c = hexToRgb(hex); return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
 

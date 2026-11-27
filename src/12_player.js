@@ -186,6 +186,7 @@ const Player = {
       this.updateBob(dt);
       return;
     }
+    if (Admin.noclip) { Admin.fly(this, dt); this.updateBob(dt); return; }   // admin noclip flying
     if (this.launchT > 0) this.launchT -= dt;
     const K = Input.keys, P = Input.pad;
     let fx = 0, fz = 0;

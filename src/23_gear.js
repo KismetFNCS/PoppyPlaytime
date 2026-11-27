@@ -34,7 +34,7 @@ const HAND_TYPES = [
   //           and stuns lurkers (Sunken Toybox)
   { id: 'SPRING', mat: MAT.handRose, tint: [0.62, 0.32, 1.25], glow: null, stun: 1.2, cool: 0.6, desc: 'fire it at a spring pad to launch yourself up and across' },
   { id: 'MAGNET', mat: MAT.steel, tint: [1.3, 0.6, 0.55], glow: null, stun: 1.2, cool: 0.6, desc: 'locks onto magnet plates and zips you across gaps' },
-  { id: 'FLARE', mat: MAT.copper, tint: [1.4, 0.7, 0.35], glow: [0.5, 0.18, 0.04], stun: 2.0, cool: 1.2, desc: 'bursts into a burning flare - scatters small creatures, stuns lurkers' }
+  { id: 'FLARE', mat: MAT.handRose, tint: [1.5, 0.6, 0.42], glow: null, stun: 2.0, cool: 0.9, desc: 'a flare gun: fires burning pellets that set what they hit on fire - scatters creatures, stuns lurkers' }
 ];
 const HAND_COUNT = HAND_TYPES.length;
 // you start with every hand except the three you are here to find (THUMPER, STITCHER, LANTERN)
@@ -51,13 +51,27 @@ const PICKUP_SPOTS = [
   // Act II: your GrabPack, torn off in the drop to the station yard
   { kind: 'hand', type: 0, restore: true, sector: 6, pos: [-4.2, 0.98, -146.5] },
   { kind: 'key', key: 'OFFICE', label: 'OFFICE KEY', sector: 6, pos: [-13.3, 0.25, -158.2] },
-  { kind: 'key', key: 'EXEC', label: 'EXECUTIVE KEY', sector: 15, pos: [0, 1.0, -512.6], lock: 'E_DESK' }
+  { kind: 'key', key: 'EXEC', label: 'EXECUTIVE KEY', sector: 15, pos: [0, 1.0, -512.6], lock: 'E_DESK' },
+  // fuses: three gate fuse boxes stand empty until you find a fuse somewhere on that floor
+  { kind: 'key', key: 'FUSE_G', label: 'FUSE', sector: 2, pos: [-6.5, 1.08, -33] },
+  { kind: 'key', key: 'FUSE_Y', label: 'FUSE', sector: 6, pos: [13.4, 1.0, -141.6] },
+  { kind: 'key', key: 'FUSE_F', label: 'FUSE', sector: 7, pos: [12.5, 1.08, -179.5] }
 ];
 const GAS_ZONES = [{ sector: 2, x0: -10, z0: -48, x1: -4.6, z1: -39.2 }];
 const UV_SECRETS = [
   { sector: 1, pos: [-11.82, 2.0, -4.2], yaw: -Math.PI / 2, lines: ['THEY HATE THE LIGHT.', 'KEEP IT ON THE CHERUBS.'] },
   { sector: 2, pos: [9.82, 2.1, -28.4], yaw: Math.PI / 2, lines: ['IT IS BLIND WHILE IT', 'HIDES ITS FACE. MOVE THEN.'] },
-  { sector: 3, pos: [5.82, 2.2, -60.5], yaw: Math.PI / 2, lines: ['6-06 KEEPS EVERYTHING', 'IT TAKES. EVEN ARMS.'] }
+  { sector: 3, pos: [5.82, 2.2, -60.5], yaw: Math.PI / 2, lines: ['6-06 KEEPS EVERYTHING', 'IT TAKES. EVEN ARMS.'] },
+  // further down: one hidden message on every floor for the people who keep their blacklight on
+  { sector: 6, pos: [13.82, 2.0, -160], yaw: Math.PI / 2, lines: ['THE OFFICE KEY IS', 'WHERE NOBODY CRAWLS.'] },
+  { sector: 7, pos: [-13.82, 2.2, -186], yaw: -Math.PI / 2, lines: ['LOVEY HID HERE.', 'SHE NEVER LEFT.'] },
+  { sector: 8, pos: [13.82, 2.0, -232], yaw: Math.PI / 2, lines: ['THE GEL REMEMBERS', 'EVERY TOY IT ATE.'] },
+  { sector: 9, pos: [-13.82, 2.4, -270], yaw: -Math.PI / 2, lines: ['LISTEN TO THE INTERCOM.', 'NEVER STAND IN A GAP.'] },
+  { sector: 10, pos: [15.82, 2.4, -300], yaw: Math.PI / 2, lines: ['HARLAN LIES.', 'THE CRADLE IS A DOOR.'] },
+  { sector: 12, pos: [-15.82, 2.0, -340], yaw: -Math.PI / 2, lines: ['THE ANGEL IS BLIND.', 'THE CHILDREN ARE NOT.'] },
+  { sector: 13, pos: [15.82, 2.4, -390], yaw: Math.PI / 2, lines: ['DO NOT WAKE', 'THE PUFFERS.'] },
+  { sector: 15, pos: [-15.82, 2.0, -480], yaw: -Math.PI / 2, lines: ['AUGUSTUS DID NOT', 'RETIRE.'] },
+  { sector: 16, pos: [15.82, 2.4, -522], yaw: Math.PI / 2, lines: ['WHAT YOU THROW AWAY', 'LEARNS TO WALK.'] }
 ];
 
 const Gear = {
@@ -65,7 +79,7 @@ const Gear = {
   wheelOpen: false, wheelSel: 0, wheelV: new Float32Array(2), holdT: 0, wheelDom: -2,
   hasMask: false, maskOn: false, maskT: 0, maskShowT: 0, packShowT: 0, breathT: 0, gasT: 0, coughT: 0, gasHinted: false, gasDisabled: false,
   blacklight: false, secretsFound: new Uint8Array(UV_SECRETS.length),
-  pickups: [], secrets: [], pipAsset: null, pipTimer: 0, overlay: null, gasOverlay: null,
+  pickups: [], secrets: [], pellets: [], pipAsset: null, pipTimer: 0, overlay: null, gasOverlay: null,
   tmp: V3.create(), m: M4.create(),
 
   init() {
@@ -87,6 +101,7 @@ const Gear = {
     this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
     this.blacklight = false; this.secretsFound.fill(0); this.handsLost = false;
     for (const p of this.pickups) p.taken = false;
+    this.pellets.length = 0;
   },
   starters() { this.owned.fill(0); for (let i = 0; i < HAND_COUNT; i++) if (STARTER_HANDS.includes(HAND_TYPES[i].id)) this.owned[i] = 1; },
   // after a checkpoint restore: what you own follows from which pickups are gone
@@ -178,6 +193,7 @@ const Gear = {
 
   // ---------- per-frame ----------
   update(dt) {
+    this.updatePellets(dt);
     const J = Input.justPressed;
     // swap the right hand (the teal hand never swaps)
     let dir = 0;
@@ -307,7 +323,7 @@ const Gear = {
     p.taken = true;
     sfx('pickup');
     if (p.kind === 'key') {
-      GrabPack.showHint('FOUND: ' + p.label + ' - it opens a locked door somewhere');
+      GrabPack.showHint(p.key.indexOf('FUSE') === 0 ? 'FOUND: A FUSE - it fits the empty fuse box by this floor\'s gate' : 'FOUND: ' + p.label + ' - it opens a locked door somewhere');
       Pip.react('stars', 2.5);
       return;
     }
@@ -325,6 +341,42 @@ const Gear = {
       GrabPack.showHint('NEW HAND: ' + HAND_TYPES[p.type].id + ' - ' + HAND_TYPES[p.type].desc + '  (tap [X] to swap, hold for the hand wheel)');
     }
     Pip.react('stars', 2.5);
+  },
+
+  // ---------- FLARE: burning pellets ----------
+  fireFlare(from, to) {
+    const d = V3.sub(V3.create(), to, from); V3.normalize(d, d);
+    this.pellets.push({ pos: V3.create(from[0], from[1], from[2]), vel: V3.create(d[0] * 32, d[1] * 32 + 1.2, d[2] * 32), t: 0 });
+    sfx('blast', from); sfx('lanternBurst', from); Player.addTrauma(0.12);
+    Particles.burst(from, 10, 'ember'); Lights.pulse(from, 1.0, 0.5, 0.15, 4, 3, 0.15, 0);
+  },
+  updatePellets(dt) {
+    const o = this.tmp, d = this.tmp3 || (this.tmp3 = V3.create());
+    for (let i = this.pellets.length - 1; i >= 0; i--) {
+      const P = this.pellets[i]; P.t += dt;
+      P.vel[1] -= 4.5 * dt;
+      const step = V3.len(P.vel) * dt; V3.copy(o, P.pos); V3.scale(d, P.vel, 1 / (V3.len(P.vel) || 1));
+      if (gameRng() < dt * 40) Particles.burst(P.pos, 1, 'ember');
+      let hit = false;
+      const fake = { pos: V3.create(), side: 1, state: HAND.FLYING, prev: o };
+      // creatures first (the Epxirtype, the early cherubs and seraph, every Act III creature), then the world
+      const M = Monster;
+      if (M.active && M.visible && !M.inVent) {
+        const px = M.hitPoint[0] - o[0], py = M.hitPoint[1] - o[1], pz = M.hitPoint[2] - o[2], t = clamp(px * d[0] + py * d[1] + pz * d[2], 0, step);
+        if (Math.hypot(px - d[0] * t, py - d[1] * t, pz - d[2] * t) < 0.9) { V3.addScaled(fake.pos, o, d, t); M.stunTimer = Math.max(M.stunTimer, 2.4); M.flinchAmt = 1; sfx('monsterHurt', M.pos); hit = true; }
+      }
+      if (!hit && Enemies.handHit(fake, o, d, step + 0.05)) hit = true;
+      if (!hit && Act3.handHit(fake, o, d, step + 0.05)) hit = true;
+      if (!hit && Physics.raycast(o, d, step + 0.05, LAYER.HAND, GrabPack.hit)) { V3.copy(fake.pos, GrabPack.hit.point); hit = true; }
+      if (hit || P.t > 3) {
+        const at = hit ? fake.pos : P.pos;
+        Act3.flareAt(at);
+        Particles.burst(at, 30, 'ember'); Particles.burst(at, 10, 'spark');
+        this.pellets.splice(i, 1);
+        continue;
+      }
+      V3.addScaled(P.pos, P.pos, P.vel, dt);
+    }
   },
 
   // ---------- gas ----------
@@ -424,10 +476,22 @@ const Gear = {
   // ---------- rendering ----------
   submit(vis) {
     const R = RenderQueue, t = Game.time;
+    // flare pellets: a white-hot core in an orange glow
+    for (const P of this.pellets) {
+      const c = R.trs('sphereLow', MAT.screen, P.pos[0], P.pos[1], P.pos[2], 0, 0, 0, 0.05, 0.05, 0.05, false); if (c) { c.emis[0] = 6; c.emis[1] = 4; c.emis[2] = 1.5; }
+      const g = R.trs('sphereLow', MAT.screen, P.pos[0], P.pos[1], P.pos[2], 0, 0, 0, 0.12, 0.12, 0.12, false); if (g) { g.emis[0] = 2.5; g.emis[1] = 0.8; g.emis[2] = 0.1; }
+    }
     for (const p of this.pickups) {
       if (p.taken || !vis[p.sector]) continue;
       const bob = Math.sin(t * 2 + p.pos[0]) * 0.03;
-      if (p.kind === 'key') {
+      if (p.kind === 'key' && p.key.indexOf('FUSE') === 0) {
+        // a big ceramic cartridge fuse with copper end caps, turning slowly
+        const ky = t * 1.2, y = p.pos[1] + 0.1 + bob, cx = Math.cos(ky) * 0.09, cz = -Math.sin(ky) * 0.09;
+        V3.set(this.tmp, p.pos[0] - cx, y, p.pos[2] - cz); V3.set(this.tmp2 || (this.tmp2 = V3.create()), p.pos[0] + cx, y, p.pos[2] + cz);
+        R.seg('cyl', MAT.porcelain, this.tmp, this.tmp2, 0.035);
+        for (const k of [-1, 1]) { const c = R.trs('cyl', MAT.copper, p.pos[0] + k * cx * 1.15, y, p.pos[2] + k * cz * 1.15, ky, 0, Math.PI / 2, 0.042, 0.03, 0.042); if (c) { c.tint[0] = 1.5; c.tint[1] = 1.1; c.tint[2] = 0.5; } }
+        const g = R.trs('sphereLow', MAT.screen, p.pos[0], y, p.pos[2], 0, 0, 0, 0.02, 0.02, 0.02, false); if (g) { g.emis[0] = 1.2; g.emis[1] = 0.7; g.emis[2] = 0.15; }
+      } else if (p.kind === 'key') {
         // an old brass key on a loop of string with a paper tag, turning slowly
         const ky = t * 1.2;
         const it = Sculpt.ready('key_brass') ? R.trs('key_brass', MAT.copper, p.pos[0], p.pos[1] + 0.1 + bob, p.pos[2], ky, 0, 0.25, 1.6, 1.6, 1.6) : null;

@@ -67,6 +67,14 @@ const GrabPack = {
     if (h.state === HAND.LATCHED && h.tethered) { this.release(h, true); return true; }
     if (h.state !== HAND.DOCKED) return false;
     this.updateMuzzles(cam);
+    // the FLARE hand never leaves your wrist: it fires a burning pellet down the barrel instead
+    if (side === 1 && HAND_TYPES[Gear.cur].id === 'FLARE') {
+      const fwd0 = Renderer.camFwd;
+      if (Physics.raycast(cam.eye, fwd0, 60, LAYER.HAND, this.hit)) V3.copy(this.aimPoint, this.hit.point); else V3.addScaled(this.aimPoint, cam.eye, fwd0, 60);
+      Gear.fireFlare(this.muzzle[1], this.aimPoint);
+      h.cooldown = Math.max(FEEL.handCooldown, HAND_TYPES[Gear.cur].cool); h.recoil = 1;
+      return true;
+    }
     // aim: ray from the eye through the crosshair, then fly from the muzzle toward the hit point
     const fwd = Renderer.camFwd;
     if (Physics.raycast(cam.eye, fwd, FEEL.handReach, LAYER.HAND, this.hit)) V3.copy(this.aimPoint, this.hit.point);
@@ -224,6 +232,13 @@ const GrabPack = {
 
   tryReceptacle(h, r) {
     if (r.powered) { sfx('handHit', h.pos, SURFACE.METAL); return; }
+    // an empty fuse box: nothing works until you have found the fuse
+    if (r.needKey && !Gear.hasKey(r.needKey)) {
+      r.denyFlash = 1; sfx('deny', r.pos);
+      this.showHint('FUSE BOX EMPTY - find a fuse somewhere on this floor');
+      EventBus.emit(EV.DENY, r.pos[0], r.pos[1], r.pos[2], 0, 0);
+      return;
+    }
     // charge sockets take only a charged CONDUIT hand
     if (r.charge) {
       // a charged CONDUIT hand powers it on its own; so does running a live cable to it (latch a node with one

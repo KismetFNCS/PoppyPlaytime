@@ -32,7 +32,7 @@ const A3_OBJECTIVES = [
   'It is over.'
 ];
 const A3_POSES = [
-  { pos: [13, 0, -332.4], yaw: 0 }, { pos: [0, 0.8, -381.8], yaw: 0 }, { pos: [0, 0, -429.8], yaw: 0 },
+  { pos: [13, 0, -332.4], yaw: 0 }, { pos: [0, 0.8, -381.8], yaw: 0 }, { pos: [3, 0.95, -429.6], yaw: 0 },
   { pos: [0, 0, -475.8], yaw: 0 }, { pos: [0, 0, -517.8], yaw: 0 }, { pos: [0, 0, -567.8], yaw: 0 }, { pos: [0, 0, -567.8], yaw: 0 }
 ];
 const A3_COL = { gold: '#f0a030', rose: '#c8285a', teal: '#1aa59a', beam: '#ffb347', gas: '#d0406e', arc: '#5ad0ff', laser: '#18d6c0', core: '#ff3c6e', fire: '#ff7a28' };
@@ -173,6 +173,8 @@ const Act3 = {
     this.puffers = [[-8, -390], [7, -402], [-3, -414], [9, -415], [-11, -421], [3, -386], [-9, -408], [5, -422]].map(([x, z], i) => ({ pos: V3.create(x, 0.9, z), home: V3.create(x, 0.9, z), ph: i * 1.7, burst: 0 }));
     this.anglers = [[9, -394], [-9, -404], [8, -424]].map(([x, z]) => ({ pos: V3.create(x, 0, z), rise: 0, snap: 0, stun: 0, light: L.light(S, x, 1.4, z, A3_COL.beam, 2.4, 4, 0, 'none', 0.6) }));
     this.outimals = [[-12, -400], [12, -412], [-12, -422]].map(([x, z]) => ({ pos: V3.create(x, 0, z), home: V3.create(x, 0, z), yaw: 0, held: 0 }));
+    // two big leech swarms wallowing through the flood (the little leeches that latch on come from them)
+    this.swarms = [[8, -398], [-6, -418]].map(([x, z], i) => ({ pos: V3.create(x, 0, z), home: V3.create(x, 0, z), ph: i * 2.3, yaw: 0 }));
   },
 
   // ---------- 12 GHOST LINE ----------
@@ -510,6 +512,8 @@ const Act3 = {
     for (const o of this.outimals) if (V3.dist(o.pos, pos) < 8) o.held = 6;
     for (const a of this.anglers) if (V3.dist(a.pos, pos) < 8) a.stun = 6;
     for (const c of this.choirs) if (V3.dist(c.pos, pos) < 6) c.stun = 6;
+    // the Epxirtype hates fire too: caught near the flames it recoils
+    if (Monster.active && Monster.visible && V3.dist(Monster.pos, pos) < 3) { Monster.stunTimer = Math.max(Monster.stunTimer, 1.5); Monster.flinchAmt = 1; }
   },
   // creature hits along a flying hand's path
   handHit(h, o, d, len) {
@@ -658,7 +662,15 @@ const Act3 = {
     const wet = this.water > 0.05 && b[1] < this.water - 0.1;
     if (wet) Player.speedMul = Math.min(Player.speedMul, 0.6 * (1 - this.leeches * 0.15));
     // leeches latch on while you wade; four of them drag you under
-    if (wet) { this.leechT += dt; if (this.leechT > 1.4) { this.leechT = 0; this.leeches++; sfx('cherubBite', b); Player.addTrauma(0.2); if (this.leeches === 1) GrabPack.showHint('LEECHES! Fire a hand to knock them off - get out of the water'); } }
+    // the leech swarms wander the water; wading near one, the leeches come much faster
+    let nearSwarm = false;
+    for (const w of this.swarms || []) {
+      w.ph += dt * 0.25;
+      const tx = w.home[0] + Math.sin(w.ph) * 4, tz = w.home[2] + Math.cos(w.ph * 0.7) * 3, dx = tx - w.pos[0], dz = tz - w.pos[2];
+      w.pos[0] += dx * Math.min(1, dt * 0.6); w.pos[2] += dz * Math.min(1, dt * 0.6); if (Math.hypot(dx, dz) > 0.05) w.yaw = Math.atan2(-dx, -dz);
+      if (Math.hypot(b[0] - w.pos[0], b[2] - w.pos[2]) < 3.5) nearSwarm = true;
+    }
+    if (wet) { this.leechT += dt * (nearSwarm ? 2.2 : 1); if (this.leechT > 1.4) { this.leechT = 0; this.leeches++; sfx('cherubBite', b); Player.addTrauma(0.2); if (this.leeches === 1) GrabPack.showHint('LEECHES! Fire a hand to knock them off - get out of the water'); } }
     else { this.leechT = 0; if (this.leeches > 0 && gameRng() < dt * 0.6) this.leeches--; }
     if (this.leeches >= 3) { this.leeches = 0; this.kill('DRAGGED UNDER BY LEECHES'); return; }
     // puffers drift; rush at one and it ruptures into rose gas
@@ -967,7 +979,15 @@ const Act3 = {
     // spring pads and magnet plates
     for (const p of this.springs) if (vis[p.sector]) { const it = R.trs('cyl', MAT.copper, p.pos[0], p.pos[1], p.pos[2], 0, 0, 0, 0.6, 0.08, 0.6); for (let k = 0; k < 3; k++) R.trs('torus', MAT.steel, p.pos[0], p.pos[1] - 0.05 - k * 0.05, p.pos[2], 0, 0, 0, 0.55 - k * 0.05, 0.4, 0.55 - k * 0.05); }
     for (const p of this.magnets) if (vis[p.sector]) { R.trs('box', MAT.steel, p.pos[0], p.pos[1], p.pos[2], 0, 0, 0, 1.0, 1.0, 0.2); const r = R.trs('box', MAT.hazard, p.pos[0], p.pos[1], p.pos[2] - 0.11, 0, 0, 0, 0.7, 0.7, 0.02, false); }
-    for (const f of this.flares) { const it = R.trs('sphereLow', MAT.screen, f.pos[0], f.pos[1], f.pos[2], 0, 0, 0, 0.09, 0.09, 0.09, false); if (it) { const g = 3 * Math.min(1, f.t); it.emis[0] = g; it.emis[1] = g * 0.45; it.emis[2] = g * 0.12; } }
+    // fires: a cluster of flickering flame tongues that grow, burn and die down
+    for (const f of this.flares) {
+      const life = Math.min(1, f.t / 2) * Math.min(1, (7 - f.t) * 3 + 0.3);
+      for (let k = 0; k < 5; k++) {
+        const a = k * 1.256 + f.pos[0], fl = 0.7 + 0.3 * Math.sin(t * (13 + k * 3) + k), h = (0.35 + (k === 0 ? 0.25 : 0)) * fl * life;
+        const it = R.trs('sphereLow', MAT.screen, f.pos[0] + Math.cos(a) * 0.12 * (k ? 1 : 0), f.pos[1] + h * 0.5, f.pos[2] + Math.sin(a) * 0.12 * (k ? 1 : 0), 0, 0, 0, 0.09 * life + 0.02, h * 0.6 + 0.02, 0.09 * life + 0.02, false);
+        if (it) { const g = 3.2 * fl; it.emis[0] = g; it.emis[1] = g * (k ? 0.38 : 0.6); it.emis[2] = g * 0.08; }
+      }
+    }
     if (vis[12]) this.submitCelestial(R, t);
     if (vis[13]) this.submitToybox(R, t);
     if (vis[14]) this.submitGhost(R, t);
@@ -1022,30 +1042,45 @@ const Act3 = {
       if (a.rise < 0.05 || !Sculpt.ready('a3_angler')) continue;
       const top = 0.3 + a.rise * 1.9;
       V3.set(this.tmp, a.pos[0], this.water - 0.3, a.pos[2]); V3.set(this.tmp2, a.pos[0], top, a.pos[2] + 0.2);
-      for (let k = 0; k < 4; k++) { V3.lerp(this.tmp3, this.tmp, this.tmp2, k / 4); R.trs('cyl', MAT.steel, this.tmp3[0], this.tmp3[1], this.tmp3[2], 0, 0, 0, 0.14 - k * 0.015, 0.22, 0.14 - k * 0.015); }
+      // the stitched canvas neck, swaying a little as it rises
+      for (let k = 0; k < 5; k++) {
+        V3.lerp(this.tmp3, this.tmp, this.tmp2, k / 5); V3.lerp(_a3.n1, this.tmp, this.tmp2, (k + 1) / 5);
+        this.tmp3[0] += Math.sin(t * 2 + k) * 0.04 * k; _a3.n1[0] += Math.sin(t * 2 + k + 1) * 0.04 * (k + 1);
+        const nk = Sculpt.ready('a3_angler_neck') ? R.push('a3_angler_neck', MAT.canvas) : null;
+        if (nk) { M4.segment(nk.model, this.tmp3, _a3.n1, 0.17 - k * 0.012); nk.tint[0] = 0.7; nk.tint[1] = 0.62; nk.tint[2] = 0.48; }
+      }
       const yaw = Math.atan2(-(Player.body.pos[0] - a.pos[0]), -(Player.body.pos[2] - a.pos[2]));
-      R.trs('a3_angler', MAT.burnt, a.pos[0], top + 0.15, a.pos[2] + 0.2, yaw, 0.2, 0, 1.3, 1.3, 1.3);
+      const hd = R.trs('a3_angler', MAT.canvas, a.pos[0], top + 0.15, a.pos[2] + 0.2, yaw, 0.2, 0, 1.3, 1.3, 1.3);
+      if (hd) {
+        hd.tint[0] = 0.7; hd.tint[1] = 0.62; hd.tint[2] = 0.48;
+        // the lure bulb glows warm gold and flickers
+        V3.set(_a3.n1, 0, 0.4, -0.8); M4.transformPoint(_a3.n2, hd.model, _a3.n1);
+        const g = 2.5 + Math.sin(t * 9 + a.pos[0]) * 0.6, bl = R.trs('sphere', MAT.screen, _a3.n2[0], _a3.n2[1], _a3.n2[2], 0, 0, 0, 0.07, 0.07, 0.07, false);
+        if (bl) { bl.emis[0] = g * 1.6; bl.emis[1] = g * 1.1; bl.emis[2] = g * 0.3; }
+        if (a.light) { a.light.pos[0] = _a3.n2[0]; a.light.pos[1] = _a3.n2[1]; a.light.pos[2] = _a3.n2[2]; }
+      }
     }
     if (Sculpt.ready('a3_outimal')) for (const o of this.outimals) { const it = R.trs('a3_outimal', MAT.furLight, o.pos[0], Math.min(0, this.water - 0.25), o.pos[2], o.yaw, 0, Math.sin(t * 3) * 0.05, 1.3, 1.3, 1.3); if (it) { it.tint[0] = 0.75; it.tint[1] = 0.72; it.tint[2] = 0.6; } }
     // leeches clinging to you show at the bottom of the view
-    if (this.leeches > 0 && Sculpt.ready('a3_leech')) for (let k = 0; k < this.leeches; k++) {
+    if (Sculpt.ready('a3_leech')) for (const w of this.swarms || []) { const it = R.trs('a3_leech', MAT.gel, w.pos[0], this.water - 0.55 + Math.sin(t * 1.5 + w.ph) * 0.05, w.pos[2], w.yaw, 0, Math.sin(t + w.ph) * 0.05, 1.1, 1.1, 1.1); if (it) { const g = 0.25 + 0.15 * Math.sin(t * 3 + w.ph); it.emis[0] = g; it.emis[1] = g * 0.1; it.emis[2] = g * 0.5; } }
+    if (this.leeches > 0 && Sculpt.ready('a3_leechling')) for (let k = 0; k < this.leeches; k++) {
       const e = Player.cam.eye, f = Renderer.camFwd, rt = Renderer.camRight, up = Renderer.camUp;
       V3.copy(this.tmp, e); V3.addScaled(this.tmp, this.tmp, f, 0.5); V3.addScaled(this.tmp, this.tmp, up, -0.42); V3.addScaled(this.tmp, this.tmp, rt, -0.3 + k * 0.2);
-      R.trs('a3_leech', MAT.lining, this.tmp[0], this.tmp[1], this.tmp[2], Player.yaw + k, 0.6, Math.sin(t * 9 + k) * 0.3, 0.6, 0.6, 0.6, false);
+      R.trs('a3_leechling', MAT.gel, this.tmp[0], this.tmp[1], this.tmp[2], Player.yaw + k, 0.6, Math.sin(t * 9 + k) * 0.3, 0.6, 0.6, 0.6, false);
     }
   },
   submitGhost(R, t) {
     for (const T of this.trains) {
       if (T.speed === 0 && Math.abs(T.x) > 25) continue;
       const yaw = T.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-      if (Sculpt.ready('a3_conductor')) { const it = R.trs('a3_conductor', MAT.steel, T.x, 0.1, T.z, yaw, 0, 0, 1, 1, 1); if (it) { it.tint[0] = 0.6; it.tint[1] = 0.75; it.tint[2] = 0.8; } }
+      if (Sculpt.ready('a3_conductor')) { const it = R.trs('a3_conductor', MAT.rustIron, T.x, 0.1, T.z, yaw, 0, 0, 1, 1, 1); if (it) { it.tint[0] = 0.55; it.tint[1] = 0.78; it.tint[2] = 0.62; } }
       for (let c = 1; c <= 2; c++) { const cx = T.x - T.dir * (2.4 + c * 5.2); R.trs('box', MAT.steel, cx, 1.6, T.z, 0, 0, 0, 4.9, 2.8, 2.5); for (let w = -1; w <= 1; w++) { const it = R.trs('box', MAT.screen, cx + w * 1.4, 2.2, T.z - 1.27, 0, 0, 0, 0.9, 0.7, 0.02, false); if (it) { it.emis[0] = 0.15; it.emis[1] = 0.3; it.emis[2] = 0.4; } } }
       if (gameRng() < 0.3) { V3.set(this.tmp, T.x + T.dir * 0.5, 2.6, T.z - 1.2); V3.set(this.tmp2, this.tmp[0] + (gameRng() - 0.5) * 2, this.tmp[1] + gameRng(), this.tmp[2] - gameRng()); const a = R.seg('cylLow', MAT.screen, this.tmp, this.tmp2, 0.012, false); if (a) { a.emis[0] = 0.8; a.emis[1] = 2.2; a.emis[2] = 3; } }
     }
   },
   submitSuite(R, t) {
     for (const s of this.suits) {
-      if (Sculpt.ready('a3_suit')) { R.trs('a3_suit', MAT.vest, s.pos[0], 0, s.pos[2], s.yaw, 0, Math.sin(t * 2 + s.ph) * 0.02, 1, 1, 1);
+      if (Sculpt.ready('a3_suit')) { const su = R.trs('a3_suit', MAT.vest, s.pos[0], 0, s.pos[2], s.yaw, 0, Math.sin(t * 2 + s.ph) * 0.02, 1, 1, 1); if (su) { su.tint[0] = 0.42; su.tint[1] = 0.42; su.tint[2] = 0.46; }
       // blue electric arcs crawling over the suit
       if (gameRng() < 0.35) { V3.set(this.tmp, s.pos[0] + (gameRng() - 0.5) * 0.8, 0.3 + gameRng() * 1.4, s.pos[2] + (gameRng() - 0.5) * 0.4); V3.set(this.tmp2, this.tmp[0] + (gameRng() - 0.5) * 0.3, this.tmp[1] + (gameRng() - 0.5) * 0.3, this.tmp[2]); const a = R.seg('cylLow', MAT.screen, this.tmp, this.tmp2, 0.006, false); if (a) { a.emis[0] = 0.8; a.emis[1] = 2.2; a.emis[2] = 3; } } }
       // the sweeping teal laser grid: three beams in a fan at chest and head height
@@ -1089,3 +1124,4 @@ const Act3 = {
 // the upper wings extend the story's objectives and checkpoint spots (stages 10-16)
 OBJECTIVES.splice(10, OBJECTIVES.length - 10, ...A3_OBJECTIVES);
 for (let i = 0; i < A3_POSES.length; i++) CHECKPOINT_POSES[10 + i] = A3_POSES[i];
+const _a3 = { n1: V3.create(), n2: V3.create() };

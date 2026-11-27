@@ -32,7 +32,10 @@ const Lovey = {
     this.mode = 'FOLLOW'; this.target = null; this.cool = 4; this.hurtT = 0; this.stabCool = 0; this.swingT = 0; this.patT = 0; this.stillT = 0; this.lineCool = 0;
     if (!this.active) return;
     const b = Player.body.pos;
-    V3.set(this.pos, b[0] + 1.4, b[1], b[2] + 2.6); this.yaw = Player.yaw; this.vy = 0;
+    // a few steps behind you and off to one side (never right on top of the camera), and never inside a wall
+    const fx = -Math.sin(Player.yaw), fz = -Math.cos(Player.yaw);
+    V3.set(this.pos, b[0] - fx * 3.6 - fz * 1.3, b[1], b[2] - fz * 3.6 + fx * 1.3); this.yaw = Player.yaw; this.vy = 0;
+    if (Physics.pointInSolid(this.pos[0], this.pos[1] + 1, this.pos[2], LAYER.SOLID)) V3.set(this.pos, b[0] - fx * 2, b[1], b[2] - fz * 2);
     this.sector = Level.sectorAt(this.pos[0], this.pos[2]);
   },
   // arriving on the fabrication line: she is missing, somewhere on this floor
@@ -113,7 +116,7 @@ const Lovey = {
       // follow a few steps behind you (Morsel walks closer)
       const tp = Companion.trailPoint(4.6, this.tmp);
       if ((dp > 14 && !this.seen()) || dp > 26 || this.fell) { const back = Companion.trailPoint(5, this.tmp2); V3.copy(P, back); this.vy = 0; this.fell = false; return; }
-      if (Math.hypot(tp[0] - P[0], tp[2] - P[2]) > 0.4 && dp > 2.6) { goal = tp; speed = dp > 8 ? 5.5 : 3.2; }
+      if (Math.hypot(tp[0] - P[0], tp[2] - P[2]) > 0.4 && dp > 3.4) { goal = tp; speed = dp > 8 ? 5.0 : 2.6; }
     }
     if (goal) {
       const dx = goal[0] - P[0], dz = goal[2] - P[2], d = Math.hypot(dx, dz) || 1;
@@ -191,15 +194,22 @@ const Lovey = {
     const R = RenderQueue, P = this.pos, yaw = this.yaw, sw = Math.sin(this.phase), walk = this.walk;
     const tint = it => { if (it) { it.tint[0] = LOVEY_TINT[0]; it.tint[1] = LOVEY_TINT[1]; it.tint[2] = LOVEY_TINT[2]; } return it; };
     const lean = walk * 0.06 + (this.swingT > 0 ? 0.2 : 0) - (this.hurtT > 0 ? Math.sin(Math.min(1, this.hurtT / 1.6) * Math.PI) * 0.45 : 0);
-    const bob = Math.abs(sw) * 0.06 * walk;
-    tint(R.trs('lv_body', MAT.furLight, P[0], P[1] + bob, P[2], yaw, lean, sw * 0.035 * walk, 1, 1, 1));
+    // she limps: every other step dips lower and the hurt leg drags
+    const bob = (Math.abs(sw) * 0.06 - (sw < 0 ? Math.abs(sw) * 0.07 : 0)) * walk;
+    tint(R.trs('lv_body', MAT.furLight, P[0], P[1] + bob, P[2], yaw, lean, (sw * 0.035 + (sw < 0 ? 0.04 : 0)) * walk, 1, 1, 1));
     // local point helper: (x right, y up, z back) -> world
     const c = Math.cos(yaw), s = Math.sin(yaw);
     const pt = (o, x, y, z) => { o[0] = P[0] + x * c + z * s; o[1] = P[1] + y + bob; o[2] = P[2] - x * s + z * c; return o; };
     // head with a sad little tilt, turned toward you when you are near; it stoops a little to see you
     pt(this.head, 0, 2.94 - lean * 0.25, -lean * 0.7);
-    const hy = yaw + clamp(wrapAngle(Math.atan2(-(Player.eyePos[0] - P[0]), -(Player.eyePos[2] - P[2])) - yaw), -0.8, 0.8) * 0.6;
-    tint(R.trs('lv_head', MAT.furLight, this.head[0], this.head[1], this.head[2], hy, 0.18 + lean * 0.4, 0.16, 1.15, 1.15, 1.15));
+    // shy: she glances at you, but when you stare straight at her she ducks her head and looks away, then
+    // peeks back a moment later
+    const toYou = clamp(wrapAngle(Math.atan2(-(Player.eyePos[0] - P[0]), -(Player.eyePos[2] - P[2])) - yaw), -0.8, 0.8) * 0.6;
+    V3.set(this.tmp2, this.head[0] - Player.eyePos[0], this.head[1] - Player.eyePos[1], this.head[2] - Player.eyePos[2]);
+    const stared = V3.dot(this.tmp2, Renderer.camFwd) / (V3.len(this.tmp2) || 1) > 0.93 && V3.len(this.tmp2) < 7;
+    this.shy = damp(this.shy || 0, stared ? 1 : 0, stared ? 3 : 0.8, 1 / 60);
+    const hy = yaw + toYou * (1 - this.shy) - this.shy * 0.75;
+    tint(R.trs('lv_head', MAT.furLight, this.head[0], this.head[1], this.head[2], hy, 0.18 + lean * 0.4 + this.shy * 0.35, 0.16 + this.shy * 0.12, 1.15, 1.15, 1.15));
     // her one long arm swings as she walks and comes up high for a swat
     if (Sculpt.ready('lv_arm')) {
       pt(this.shoulder, 0.38, 2.74, 0);

@@ -365,6 +365,8 @@ const Level = {
     this.desk(0, -2.6, 2.2, true);   // bare: the gas mask lies on top
     this.crate(0, 2.8, 6.4, 0.9, 2);
     this.receptacle(0, 2.6, 1.45, 0.02, 0, 1, false, [], 'D0', 'HAND SCANNER');
+    // a second, red scanner on the other side of the gate: the intake gate wants both hands
+    this.receptacle(0, -2.6, 1.45, 0.02, 0, 1, false, [], 'D0B', 'HAND SCANNER');
     this.tube(0, 0, 4.15, 3.5, true, 1);
     this.emergency(0, -3.7, 3.4, 6.5);
     this.hazardLamp(0, 2.6, 2.3, 0.3);
@@ -409,7 +411,7 @@ const Level = {
     this.powerSource(2, 9.85, 1.5, -29, -1, 0);
     const P3 = this.peg(2, 3.0, -33.5, true, 'RELAY C');
     const P4 = this.peg(2, -4.0, -41.0, true, 'RELAY D');
-    this.receptacle(2, -9.85, 1.6, -44.5, 1, 0, true, [P3.id, P4.id], 'R2', 'GALLERY GATE');
+    this.receptacle(2, -9.85, 1.6, -44.5, 1, 0, true, [P3.id, P4.id], 'R2', 'GALLERY GATE').needKey = 'FUSE_G';
     this.lever(2, 9.85, 3.0, -44.0, -1, 0, 'L1');
     for (let x = -9.2; x <= -2.0; x += 1.2) this.steamVent(2, x, -38.5, 2.6, 0.5, (x + 10) * 0.21);
     this.pipeX(2, -10, -1.5, 0.35, -38.0, 0.22);

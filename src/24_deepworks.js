@@ -168,7 +168,7 @@ const DeepWorks = {
     L.powerSource(S, -12.45, 1.5, -165, 1, 0);
     const Pe = L.peg(S, -5, -166.5, true, 'RELAY E');
     const Pf = L.peg(S, 5.5, -170, true, 'RELAY F');
-    L.receptacle(S, 6.5, 1.6, -175.85, 0, 1, true, [Pe.id, Pf.id], 'Y_GATE', 'YARD GATE');
+    L.receptacle(S, 6.5, 1.6, -175.85, 0, 1, true, [Pe.id, Pf.id], 'Y_GATE', 'YARD GATE').needKey = 'FUSE_Y';
     // raised platform with a bench (the rendezvous)
     L.solid(S, 8, 0, -176, 14, 0.35, -168, MAT.concrete, SURFACE.CONCRETE);
     L.geom(S, 8, 0.35, -168.3, 14, 0.38, -168, MAT.hazard);
@@ -232,7 +232,7 @@ const DeepWorks = {
     const Pa = L.peg(S, -4, -185, true, 'RELAY G');
     const Pb = L.peg(S, 4, -190, true, 'RELAY H');
     L.solid(S, 9.4, 0, -197.2, 10.6, 2.4, -196.2, MAT.steel, SURFACE.METAL);
-    L.receptacle(S, 10, 1.6, -196.05, 0, 1, true, [Pa.id, Pb.id], 'F_CIRCUIT', 'LINE POWER');
+    L.receptacle(S, 10, 1.6, -196.05, 0, 1, true, [Pa.id, Pb.id], 'F_CIRCUIT', 'LINE POWER').needKey = 'FUSE_F';
     // inner wall with the piston-hall gate
     L.solid(S, -14, 0, -198.2, -1.3, 11, -197.8, MAT.concrete); L.solid(S, 1.3, 0, -198.2, 14, 11, -197.8, MAT.concrete);
     L.solid(S, -1.3, DH, -198.2, 1.3, 11, -197.8, MAT.concrete);

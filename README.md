@@ -51,7 +51,7 @@ drag your view **down** (or back away) to wrench the handle over; let go too ear
 **Gear:**
 - **Hands.** Your left hand is blue and never changes. You start with your old hands on the wheel: **ROSE**
   (your red right hand), **CONDUIT**, **BELLOWS**, **ANCHOR**, **SPRING** (violet jump hand), **MAGNET** and
-  **FLARE** (a flare gun built into the glove: a fat barrel over the knuckles, two fingers curled on the trigger).
+  **FLARE** (a finger-gun flare launcher with a double barrel, the thumb up and a little ammo display: it fires burning pellets instead of grabbing).
   Three new hands have to be found: **THUMPER** (brass knuckle-buster, caged in the Reclamation Hall on its own
   circuit round RELAY A), **LANTERN** (violet lamp-hand, deep in the Pressure Gallery's toxic smog - wear the
   mask) and **STITCHER** (needle fingers, sealed in a foundry alcove behind a cracked panel - blast it with
@@ -117,6 +117,29 @@ shaft and the freight lift follows it into five more levels (sectors 6-10, each 
    and sink. Lure it onto a line and fire a hand at the track switch on the west wall: Morsel throws it and
    the next train runs down that line. Three hits, then phase 2: Posie overloads the generators, and you
    latch each exposed core and drag it out. Three cores start the containment cinematic and the ending.
+
+## Admin panel
+
+An **ADMIN** button sits under the sound button. Click it and the game pauses while the panel is open.
+**F9** (or Ctrl+Shift+A) hides the button or brings it back; it remembers your choice in this browser.
+
+- **Cheats:** god mode, noclip flying (Space up, C down, Shift fast), super speed, slow motion, infinite
+  cable, no hand cooldown, freeze every monster, hide the HUD.
+- **Give:** unlock every hand, key, fuse and the gas mask; full health; reveal every hidden message.
+- **World:** open every door in the area, solve the puzzles in the area, stun the Epxirtype for 30 s, beat
+  the current boss.
+- **Jump to:** any level or boss fight.
+
+## Puzzles added across the levels
+
+- **Intake gate:** two scanners, blue and red. Each takes only its own hand.
+- **Fuses:** the gallery gate, the yard gate and the fabrication line's LINE POWER have empty fuse boxes.
+  - The gallery fuse is on a crate.
+  - The yard fuse is in the locked records office (the key is at the end of the crawl duct).
+  - The line fuse is on a crate by the east wall.
+- **Hidden messages:** there are twelve blacklight messages, one on almost every floor.
+- **FLARE:** the flare gun fires burning pellets instead of launching the hand. Wherever one lands it starts
+  a fire that burns for a few seconds, scatters small creatures, stuns lurkers and makes the Epxirtype recoil.
 
 ## The Loom (first boss)
 

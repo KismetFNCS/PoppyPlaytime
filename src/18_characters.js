@@ -801,8 +801,6 @@ const Voices = {
   stop() { if (this.ok) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } } this.startedAt = -1; }
 };
 Voices.init();
-// Chrome stops long speech queues dead after ~15 s; a pause/resume every few seconds keeps it talking
-if (Voices.ok) setInterval(() => { try { if (speechSynthesis.speaking && !speechSynthesis.paused) { speechSynthesis.pause(); speechSynthesis.resume(); } } catch (e) { /* ignore */ } }, 9000);
 
 const Dialogue = {
   queue: [], current: null, chars: 0, acc: 0, hold: 0, el: null, nameEl: null, textEl: null, shown: '',

@@ -18,7 +18,7 @@ function resetGame() { Game.resetGame(); }
 
 function update(dt) {
   if (Input.justPressed.has('KeyM') && !Game.isGameplay()) Game.toggleMute();
-  HANDLERS[state].update(dt);
+  HANDLERS[state].update(dt * (typeof Admin !== 'undefined' ? Admin.timeScale : 1));
   DebugOverlay.update(dt);
   FidelityOverlay.update(dt);
   Input.endFrame();

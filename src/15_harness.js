@@ -371,6 +371,7 @@ async function runAll() {
     T.aimAt(-12.45, 1.5, -165); click(0); T.step(DT, 20);
     check('yard: hand latches the signal-box node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
     for (const wp of [[-5, -164.5], [-3, -168.5], [5.5, -168], [7.5, -172.5], [6.5, -173.6]]) T.walkTo(wp[0], wp[1]);
+    Gear.pickups.find(p => p.key === 'FUSE_Y').taken = true;
     T.aimAt(6.5, 1.6, -175.85); click(1); T.step(DT, 25);
     check('yard: looped circuit powers the gate to the freight lift', DWo.receptacleBy('Y_GATE').powered && DWo.toIntake > 0, GrabPack.hint + ' ' + JSON.stringify(T.hands()[0].wraps));
     for (let i = 0; i < 400 && Game.stage !== 0; i++) T.step(DT, 1);
@@ -443,6 +444,8 @@ async function runAll() {
     check('scanner: the blue scanner refuses your red hand', Level.doorById('D0').target !== 1 && /BLUE SCANNER/.test(GrabPack.hint), GrabPack.hint);
     GrabPack.reset(); T.step(DT, 10); T.aimAt(2.6, 1.45, 0.05); T.step(DT, 1);
     click(0); T.step(DT, 30);
+    check('scanner: one scanner is not enough - the gate wants both', Level.doorById('D0').target !== 1 && /ONE SCANNER/.test(GrabPack.hint), GrabPack.hint);
+    GrabPack.reset(); T.step(DT, 10); T.aimAt(-2.6, 1.45, 0.05); T.step(DT, 1); click(1); T.step(DT, 30);
     check('scanner: hand opens the intake gate', Level.doorById('D0').target === 1 && T.getScore() === 1, JSON.stringify(T.doors()[0]));
     check('checkpoint: saved on stage 1', Game.checkpoint.stage === 1 && T.getSfxLog().includes('checkpoint'), Game.checkpoint.stage);
     T.step(DT, 400);
@@ -461,7 +464,7 @@ async function runAll() {
     // premature receptacle attempt is refused with feedback
     T.walkTo(-8, -4); T.walkTo(-5, -20.5);
     T.aimAt(-6.5, 1.6, -23.85); click(1); T.step(DT, 25);
-    check('puzzle: receptacle refuses an open circuit', !Level.receptacles[1].powered && T.getSfxLog().includes('deny'), GrabPack.hint);
+    check('puzzle: receptacle refuses an open circuit', !Level.receptacles.find(r => r.action === 'R1').powered && T.getSfxLog().includes('deny'), GrabPack.hint);
     T.step(DT, 60);
     T.walkTo(-8, -4);
     check('puzzle: walking back unwraps the cable', GrabPack.hands[0].wrapCount === 0, JSON.stringify(T.hands()[0].wraps));
@@ -475,7 +478,7 @@ async function runAll() {
     check('cable: pinned to wrap anchors (finite nodes)', Array.from(GrabPack.hands[0].nodes).every(Number.isFinite));
     T.clearSfxLog();
     T.aimAt(-6.5, 1.6, -23.85); click(1); T.step(DT, 25);
-    check('puzzle: closed circuit powers the receptacle', Level.receptacles[1].powered, GrabPack.hint);
+    check('puzzle: closed circuit powers the receptacle', Level.receptacles.find(r => r.action === 'R1').powered, GrabPack.hint);
     check('puzzle: hall door D1 opens', Level.doorById('D1').target === 1, JSON.stringify(T.doors()[1]));
     check('sound: power on', T.getSfxLog().includes('power'), T.getSfxLog().join(','));
     check('checkpoint: saved on stage 2', Game.checkpoint.stage === 2, Game.checkpoint.stage);
@@ -556,7 +559,7 @@ async function runAll() {
     check('checkpoint: rewind returns to gameplay', Game.isGameplay(), T.getState());
     const cp = Game.checkpoint;
     check('checkpoint: player at stage-2 checkpoint', Math.abs(Player.body.pos[2] - cp.pos[2]) < 0.2 && Game.stage === 2, Player.body.pos[2].toFixed(2));
-    check('checkpoint: puzzle progress kept (R1 powered, D1 open)', Level.receptacles[1].powered && Level.doorById('D1').open === 1);
+    check('checkpoint: puzzle progress kept (R1 powered, D1 open)', Level.receptacles.find(r => r.action === 'R1').powered && Level.doorById('D1').open === 1);
     check('checkpoint: the Epxirtype is not back in the gallery (revealed later)', !Monster.active && !Monster.visible, Monster.state);
     check('checkpoint: no hands out, particles cleared', T.getCounts().handsOut === 0, JSON.stringify(T.getCounts()));
 
@@ -584,6 +587,11 @@ async function runAll() {
     // gallery gate via scripted tether
     T.setPlayerPose(8, 0, -29, -Math.PI / 2, 0); T.aimAt(9.85, 1.5, -29); click(0); T.step(DT, 20);
     check('puzzle 2: tether on the gallery node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
+    for (const wp of [[3, -30], [-1, -31], [-1, -36], [0, -40], [-2, -43], [-6, -43], [-7, -44]]) T.walkTo(wp[0], wp[1]);
+    T.aimAt(-9.85, 1.6, -44.5); click(1); T.step(DT, 25);
+    check('puzzle 2: the gate\'s fuse box is empty - no fuse, no power', !Level.receptacles.find(r => r.action === 'R2').powered && /FUSE BOX EMPTY/.test(GrabPack.hint), GrabPack.hint);
+    Gear.pickups.find(p => p.key === 'FUSE_G').taken = true; GrabPack.reset(); T.step(DT, 10);
+    T.setPlayerPose(8, 0, -29, -Math.PI / 2, 0); T.aimAt(9.85, 1.5, -29); click(0); T.step(DT, 20);
     for (const wp of [[3, -30], [-1, -31], [-1, -36], [0, -40], [-2, -43], [-6, -43], [-7, -44]]) T.walkTo(wp[0], wp[1]);
     T.aimAt(-9.85, 1.6, -44.5); click(1); T.step(DT, 25);
     check('puzzle 2: gallery gate powered (relays C + D)', Level.receptacles.find(r => r.action === 'R2').powered, JSON.stringify(T.hands()[0]) + ' ' + GrabPack.hint);
@@ -706,6 +714,7 @@ async function runAll() {
     T.aimAt(-13.85, 1.5, -179.5); click(0); T.step(DT, 20);
     check('fab: hand latches the line node', GrabPack.hands[0].tethered, '');
     for (const wp of [[-4, -183.6], [-1.5, -188.5], [4, -188.6], [6.5, -193.0], [10, -195.2]]) T.walkTo(wp[0], wp[1]);
+    Gear.pickups.find(p => p.key === 'FUSE_F').taken = true;
     T.aimAt(10, 1.6, -196.05); click(1); T.step(DT, 25);
     check('fab: circuit across the moving lines opens the piston hall', DWk.receptacleBy('F_CIRCUIT').powered && Level.doorById('DF').target === 1, GrabPack.hint + ' ' + JSON.stringify(T.hands()[0].wraps));
     GrabPack.reset(); T.step(DT, 300);
@@ -903,6 +912,19 @@ async function runAll() {
     check('act3: the MAGNET hand zips you across the chasm', Player.body.pos[2] < -547 && T.getState() === 'GAMEPLAY_ACTIVE', Player.body.pos[2].toFixed(1));
     A3t.flareAt(V3.create(0, 1, -548));
     check('act3: a FLARE sends the scraplings fleeing', A3t.scraps.filter(s => !s.dead && V3.dist(s.pos, V3.create(0, 0, -548)) < 9).every(s => s.state === 'FLEE'), '');
+    { GrabPack.reset(); Gear.cur = 9; Gear.swapT = 0; T.step(DT, 2); const nF = A3t.flares.length; T.aimAt(Player.body.pos[0], 0, Player.body.pos[2] - 6); click(1); T.step(DT, 2);
+      check('flare: the FLARE hand fires a burning pellet and stays on your wrist', Gear.pellets.length === 1 && GrabPack.hands[1].state === HAND.DOCKED, Gear.pellets.length + ' ' + GrabPack.hands[1].state);
+      for (let i = 0; i < 120 && Gear.pellets.length; i++) T.step(DT, 1);
+      check('flare: where the pellet lands it starts a fire', A3t.flares.length > nF, A3t.flares.length + ' vs ' + nF); Gear.cur = 0; }
+    // the admin panel: god mode, unlock everything, the hideable button
+    { check('admin: the ADMIN button is on screen', document.getElementById('adminBtn') && document.getElementById('adminBtn').style.display !== 'none', '');
+      Admin.set('god', true); Game.invulnerable = false; T.step(DT, 1); DeepWorks.kill('TEST'); T.step(DT, 1);
+      check('admin: god mode - nothing can kill you', T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
+      Admin.set('god', false);
+      Admin.action('unlock'); check('admin: unlock gives every hand', Gear.ownedCount() === HAND_COUNT && Gear.hasMask, Gear.ownedCount());
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F9' })); check('admin: F9 hides the button', document.getElementById('adminBtn').style.display === 'none', '');
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F9' })); check('admin: F9 brings it back', document.getElementById('adminBtn').style.display === 'block', '');
+      Game.invulnerable = true; }
     DeepWorks.leverBy('S_CRANE').pulled = true; A3t.action('S_CRANE');
     check('act3: the crane clears the barricade into the Heart', Level.doorById('D15').target === 1 && Game.stage === 15, '');
     goA3(15);
@@ -974,7 +996,7 @@ async function runAll() {
     Input.touchActive = false; document.getElementById('touch').classList.remove('on');
     const mutedBefore = Game.muted;
     tap('KeyM');
-    check('mute: M toggles and persists', Game.muted !== mutedBefore && load('muted', '0') === (Game.muted ? '1' : '0'));
+    check('mute: M toggles sound (and a mute never carries over to the next session)', Game.muted !== mutedBefore && load('muted', '0') === '0' && /SOUND/.test(document.getElementById('btnMute').textContent));
     if (Game.muted !== savedMuted) Game.toggleMute();
     save('checkpoint', '{corrupt');
     Game.refreshContinue();

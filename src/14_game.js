@@ -12,14 +12,14 @@ const STATE = {
 STATE.MENU = STATE.MAIN_MENU; STATE.PLAYING = STATE.GAMEPLAY_ACTIVE; STATE.GAME_OVER = STATE.FAILURE_STATE;
 
 const OBJECTIVES = [
-  'Fire your BLUE (left) hand at the blue scanner beside the intake gate. Scanners only read the hand of their own colour.',
+  'The intake gate has two scanners: fire your BLUE (left) hand at the blue one and your RED (right) hand at the red one.',
   'Restore power to the hall door: latch a hand on the power node, loop the cable around both amber relays, then fire your other hand into the door receptacle.',
-  'Cross the Pressure Gallery quietly. Shut the steam (high lever, east wall) and power the gallery gate (west wall).',
+  'Cross the Pressure Gallery quietly. Shut the steam (high lever, east wall), find a FUSE for the gate\'s empty fuse box, and power the gallery gate (west wall).',
   'RUN. Reach the freight lift at the end of the Spool Foundry.',
   'Defeat the Epxirtype: latch a hand onto a live power node, then strike it with your other hand (each node burns out after one shock). When it cuts the power, wrench BOTH breakers by the lift gate. Stay off the shuttle rails.',
   // ---- Act II: the Deep Works ----
-  'STATION YARD. Take your hands from the crate by the tracks, meet Posie on the platform, then power the yard gate. Mind the shunter.',
-  'FABRICATION LINE. Carry the cable across the moving belts (stay clear of the end stampers): node on the west wall, loop both relays, plug LINE POWER. Then hit the piston override in the hall.',
+  'STATION YARD. Take your hands from the crate by the tracks and meet Posie on the platform. The yard gate\'s fuse box is empty: the fuse is in the locked records office, and the office key is at the end of the crawl duct. Then power the gate. Mind the shunter.',
+  'FABRICATION LINE. Find the fuse for LINE POWER (on a crate by the east wall), then carry the cable across the moving belts (stay clear of the end stampers): node on the west wall, loop both relays, plug LINE POWER. Then hit the piston override in the hall.',
   'DRAINAGE CATACOMBS. Watch your footing on the gel. Fire a hand at each lock terminal so Posie can override it, then wrench the exit ladder down (latch the ring, drag your view down) and climb.',
   'SORTING HUB. When the intercom calls a colour, every container of that colour moves. Find the open gaps through the three bands, then time your run past the crushing walls.',
   'CORE VAULT. Phase 1: lure the Epxirtype onto a track, then hit the TRACK SWITCH (west wall) - Morsel sends the next train down that line. Dodge the trains. Phase 2: latch each exposed core and drag it out.',
@@ -127,7 +127,8 @@ const Game = {
   },
 
   init() {
-    this.muted = load('muted', '0') === '1';
+    // sound always starts ON: a mute left over from an earlier session must never silence a new one
+    this.muted = false; save('muted', '0');
     this.scene = {
       flash: { on: true, intensity: LIGHTING.flashIntensity, pos: V3.create(), dir: V3.create(0, 0, -1), tint: new Float32Array([1, 1, 1]) },
       shadows: true, sectorVisible: Streaming.visible, lights: Lights.visible, fogDensity: LIGHTING.fogDensity,
@@ -159,8 +160,9 @@ const Game = {
     for (let i = 0; i < HAND_COUNT; i++) { const need = byStage[HAND_TYPES[i].id]; if (need !== undefined && rank(st) >= rank(need)) Gear.owned[i] = 1; }
     for (const p of Gear.pickups) { if (p.kind === 'mask' || p.restore) p.taken = true; if (p.kind === 'hand' && Gear.owned[p.type]) p.taken = true; }
     Gear.hasMask = true;
-    const keys = { OFFICE: 6, EXEC: 14 };
-    for (const p of Gear.pickups) if (p.kind === 'key' && st >= keys[p.key]) p.taken = true;
+    // keys and fuses you would have picked up by then (in story order: yard 5, then 0-4, then 6 on)
+    const keys = { FUSE_Y: 0, FUSE_G: 3, OFFICE: 6, FUSE_F: 7, EXEC: 14 };
+    for (const p of Gear.pickups) if (p.kind === 'key' && keys[p.key] !== undefined && rank(st) >= rank(keys[p.key])) p.taken = true;
     this.stage = st;
     this.saveCheckpoint(st);
     this.restoreCheckpoint();
@@ -214,9 +216,10 @@ const Game = {
   },
   toggleMute() {
     this.muted = !this.muted;
-    save('muted', this.muted ? '1' : '0');
-    Audio.applyVolumes();
+    Audio.init(); Audio.applyVolumes();
+    if (this.muted) Voices.stop();
     UI.setMuteLabel();
+    if (typeof toast === 'function') toast(this.muted ? 'SOUND OFF - press M or the SOUND button to turn it back on' : 'SOUND ON');
   },
 
   startNewGame() {
@@ -358,10 +361,14 @@ const Game = {
   // ---------- level actions (from receptacles, levers, triggers) ----------
   action(id) {
     switch (id) {
-      case 'D0':
+      case 'D0': case 'D0B': {
+        // the intake gate takes BOTH scanners: blue hand on the blue one, red hand on the red one
+        const a = Level.receptacles.find(r => r.action === 'D0'), b = Level.receptacles.find(r => r.action === 'D0B');
+        if (!(a && a.powered && b && b.powered)) { GrabPack.showHint('ONE SCANNER ACCEPTED - now the other one, with your other hand'); Pip.react('wink', 1.2); break; }
         Doors.setOpen('D0', true);
         this.stage = 1; UI.setObjective(OBJECTIVES[1]); this.saveCheckpoint(1);
         break;
+      }
       case 'R1':
         Dialogue.say('MARIGOLD', 'There. You see? You are good at fixing things.');
         Doors.setOpen('D1', true);
@@ -440,10 +447,11 @@ const Game = {
 
   onCaught() {
     if (!this.isGameplay()) return;
+    if (Admin.god) { Monster.stunTimer = 3; Monster.setState(MSTATE.STUNNED); return; }   // god mode: it can't take you
     setState(STATE.JUMPSCARE);
   },
   onPlayerDied(reason) {
-    if (!this.isGameplay()) return;
+    if (!this.isGameplay() || Admin.god) return;
     this.failReason = reason;
     Renderer.post.redWave = 0.6;
     setState(STATE.FAILURE_STATE);
@@ -514,6 +522,7 @@ const Game = {
       if (locker && usePressed) this.enterLocker(locker);
       else if (tape && usePressed) { if (tape.kind) Gear.take(tape); else { this.playTape(tape); return; } }
     }
+    Admin.tick(dt);
     this.updateLockers(dt);
     GrabPack.update(dt, Player.cam);
     Gear.update(dt);
@@ -946,6 +955,15 @@ const Game = {
     for (const r of Level.receptacles) {
       if (!vis[r.sector]) continue;
       const p = r.pos, n = r.n;
+      if (r.needKey) {
+        // the fuse box beside it: a grey steel box with a glass window; the fuse shows (glowing) once fitted
+        const fr = frame(n), has = Gear.hasKey(r.needKey);
+        V3.set(_g.p1, p[0] + fr[0] * 0.75 + n[0] * 0.07, p[1] - 0.05, p[2] + fr[2] * 0.75 + n[2] * 0.07);
+        const bx = R.push('box', MAT.steel); if (bx) { basisMatrix(bx.model, _g.p1, fr, _g.u, n, 0.34, 0.5, 0.14); bx.tint[0] = bx.tint[1] = bx.tint[2] = 0.7; }
+        V3.set(_g.p2, _g.p1[0] + n[0] * 0.075, _g.p1[1], _g.p1[2] + n[2] * 0.075);
+        const gl = R.push('box', MAT.screen, false); if (gl) { basisMatrix(gl.model, _g.p2, fr, _g.u, n, 0.24, 0.36, 0.01); const k = has ? 0.6 + 0.3 * Math.sin(t * 4) : 0.05; gl.emis[0] = (has ? 0.3 : 0.8) * k; gl.emis[1] = (has ? 0.9 : 0.1) * k; gl.emis[2] = 0.1 * k; }
+        if (has) { V3.set(_g.p2, _g.p1[0] + n[0] * 0.05, _g.p1[1], _g.p1[2] + n[2] * 0.05); const fz = R.push('cyl', MAT.porcelain, false); if (fz) basisMatrix(fz.model, _g.p2, fr, _g.u, n, 0.035, 0.24, 0.035); }
+      }
       plate('box', MAT.steel, p, n, -0.04, 0.85, 0.85, 0.12);
       if (r.requiresPower) {
         // power receptacle: a round socket in a copper collar with three contacts inside
@@ -1097,6 +1115,11 @@ const Game = {
         const er = R.push('torus', MAT.copper, false);
         if (er) { ringMatrix(er.model, _g.p2, _g.hf, 0.021); er.tint[3] = 0.08; }
         V3.scale(_g.hu, fwd, -1);
+        // the FLARE is held like a gun: barrels pointing ahead, thumb up
+        if (s === 1 && HAND_TYPES[Gear.cur].id === 'FLARE' && Sculpt.ready('flare_gun')) {
+          V3.scale(_g.hf, fwd, 0.97); V3.addScaled(_g.hf, _g.hf, up, 0.12); V3.addScaled(_g.hf, _g.hf, right, -0.18); V3.normalize(_g.hf, _g.hf);
+          V3.copy(_g.hu, up);
+        }
         // swapping the right hand: it drops out of view and comes back as the new one
         if (s === 1 && Gear.swapT > 0) {
           // swap: the old hand spins like a wheel as it drops, then the new one rises back into place
@@ -1210,6 +1233,13 @@ const Game = {
         if (!gun && Sculpt.ready(gm + '_st')) { const st = R.push(gm + '_st', MAT.steel, shadow); if (st) { st.model.set(it.model); st.tint[0] = st.tint[1] = st.tint[2] = 1.3; st.tint[3] = lift * 0.6; } }
         it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow;
         if (side === 1 && HT.glow) { const p = 0.7 + 0.3 * Math.sin(Game.time * 3); it.emis[0] += HT.glow[0] * p; it.emis[1] += HT.glow[1] * p; it.emis[2] += HT.glow[2] * p; }
+        // the FLARE's ammo readout: a green digit block and a round indicator glowing on the side display
+        if (gun) {
+          const disp = (lx, ly, lz, sx, sy, sz, g) => { V3.set(_g.e, lx, ly, lz); M4.transformPoint(_g.p2, it.model, _g.e); const q = R.push('box', MAT.screen, false); if (q) { basisMatrix(q.model, _g.p2, r, u, f, sx * s, sy * s, sz * s); q.emis[0] = 0.25 * g; q.emis[1] = 2.4 * g; q.emis[2] = 0.5 * g; q.tint[3] = lift; } };
+          const ready = GrabPack.hands[1].cooldown <= 0 ? 1 : 0.35;
+          disp(-0.0555, 0.042, -0.055, 0.002, 0.016, 0.012, ready);
+          disp(-0.0555, 0.018, -0.055, 0.002, 0.008, 0.008, ready * (0.6 + 0.4 * Math.sin(Game.time * 6)));
+        }
         // a charged CONDUIT glows cyan, flickering as the charge runs down
         if (side === 1 && HT.id === 'CONDUIT' && Gear.charge > 0) { const p = (0.6 + 0.4 * Math.sin(Game.time * 9)) * Math.min(1, Gear.charge / 5); it.emis[0] += 0.15 * p; it.emis[1] += 0.9 * p; it.emis[2] += 1.3 * p; }
       }
@@ -1339,6 +1369,7 @@ const Loader = {
       }
       if (this.phase === 3) {
         UI.setLoading(1, 'Ready.');
+        Admin.init();
         this.done = true;
         this.phase = 4;
         setState(STATE.MAIN_MENU);
