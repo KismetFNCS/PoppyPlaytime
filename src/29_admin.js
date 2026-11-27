@@ -132,7 +132,7 @@ const Admin = {
       case 'boss':
         if (Boss.active && Boss.mode !== 'DEFEATED') { Boss.hp = 0; Boss.defeat(); toast('Loom boss defeated'); }
         else if (DeepWorks.vault.active && DeepWorks.vault.mode !== 'DONE') { const V = DeepWorks.vault; V.mode = 'CONTAIN'; V.t = 0; toast('Vault: containment started'); }
-        else if (Act3.heart && (Act3.heart.mode === 'FIGHT' || Act3.heart.mode === 'TAKEDOWN')) { Act3.heart.mode = 'TAKEDOWN'; Act3.heart.hits[0] = Act3.heart.hits[1] = true; toast('Heart: finished'); }
+        else if (Act3.heart && (Act3.heart.mode === 'FIGHT' || Act3.heart.mode === 'SWARM' || Act3.heart.mode === 'TAKEDOWN')) { Act3.heart.mode = 'TAKEDOWN'; Act3.heart.hits[0] = Act3.heart.hits[1] = true; toast('Heart: finished'); }
         else toast('No boss fight running here');
         break;
       case 'go': { const st = +document.getElementById('adminLevel').value; this.close(); Game.startAtStage(st); toast('Jumped to ' + ADMIN_LEVELS.find(l => l[0] === st)[1]); break; }

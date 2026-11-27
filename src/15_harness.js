@@ -932,7 +932,9 @@ async function runAll() {
     for (let i = 0; i < 400 && A3t.heart.mode !== 'FIGHT'; i++) T.step(DT, 1);
     check('showdown: the Epxirtype drops into the Heart', A3t.heart.mode === 'FIGHT' && Monster.active, A3t.heart.mode);
     Game.invulnerable = true; A3t.action('H_CLAMP'); A3t.action('H_CLAMP'); A3t.action('H_CLAMP');
-    check('showdown: three reactor clamps pin it for the takedown', A3t.heart.mode === 'TAKEDOWN', A3t.heart.mode);
+    check('showdown: three clamps wake the toys - they pour out of the vents and swarm it', A3t.heart.mode === 'SWARM' && A3t.crawlers && A3t.crawlers.length >= 20, A3t.heart.mode);
+    for (let i = 0; i < 700 && A3t.heart.mode === 'SWARM'; i++) T.step(DT, 1);
+    check('showdown: buried in toys, it is pinned for the final blow', A3t.heart.mode === 'TAKEDOWN' && A3t.crawlers.some(c => c.on), A3t.heart.mode);
     A3t.takedownHit(0); A3t.takedownHit(1); T.step(DT, 2);
     check('takedown: both hands into its core finish it', A3t.heart.mode === 'DYING' || A3t.heart.mode === 'DONE', A3t.heart.mode);
     for (let i = 0; i < 300 && A3t.heart.mode !== 'DONE'; i++) T.step(DT, 1);

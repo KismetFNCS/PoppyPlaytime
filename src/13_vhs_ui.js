@@ -732,7 +732,7 @@ const UI = {
     const sub = Settings.values.subtitles && GrabPack.hintTimer > 0 ? GrabPack.hint : '';
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
     Renderer.post.slats = Player.hidden ? 1 : 0;
-    const AH = Act3.heart, heartOn = AH && (AH.mode === 'FIGHT' || AH.mode === 'TAKEDOWN');
+    const AH = Act3.heart, heartOn = AH && (AH.mode === 'FIGHT' || AH.mode === 'SWARM' || AH.mode === 'TAKEDOWN');
     const bossKey = Boss.active && Boss.mode !== 'DEFEATED' ? Boss.hp : DeepWorks.vault.active && DeepWorks.vault.mode !== 'DONE' ? DeepWorks.vault.hp : heartOn ? AH.hp : -1;
     if (H.boss !== bossKey) {
       H.boss = bossKey;

@@ -105,7 +105,9 @@ const Act3 = {
     L.light(S, 0, 11, -377, A3_COL.rose, 5, 16, 0, 'none', 0.7);
     // altar stage, organ pipes along the north wall, the loft (balcony) along the east wall
     L.solid(S, -10, 0, -379.9, 10, 0.8, -372, MAT.wood, SURFACE.WOOD);
-    for (let i = 0; i < 15; i++) { const x = -8 + i * 1.15, h = 6 + Math.sin(i * 0.7) * 2.5 + (7 - Math.abs(i - 7)) * 0.5; L.builders[S].cylinder(x, -379.4, 0.8, 0.8 + h, 0.22 + (i % 3) * 0.04, 12, MAT.copper); }
+    // three broad steps up to the altar from the aisle (each riser low enough to walk up)
+    for (const [z0, z1, top] of [[-371.0, -370.4, 0.27], [-371.6, -371.0, 0.54], [-372.0, -371.6, 0.8]]) L.solid(S, -4, 0, z0, 4, top, z1, MAT.wood, SURFACE.WOOD);
+    for (let i = 0; i < 15; i++) { if (Math.abs(-8 + i * 1.15) < 1.8) continue; const x = -8 + i * 1.15, h = 6 + Math.sin(i * 0.7) * 2.5 + (7 - Math.abs(i - 7)) * 0.5; L.builders[S].cylinder(x, -379.4, 0.8, 0.8 + h, 0.22 + (i % 3) * 0.04, 12, MAT.copper); }
     L.solid(S, 9.8, 4.0, -372, 16, 4.3, -346, MAT.wood, SURFACE.WOOD);
     L.solid(S, 9.8, 4.3, -372, 10.0, 5.3, -361, MAT.wood, SURFACE.WOOD); L.solid(S, 9.8, 4.3, -357, 10.0, 5.3, -346, MAT.wood, SURFACE.WOOD);   // the loft rail, with a gap you bounce through
     for (let z = -346; z >= -372; z -= 2.6) L.geom(S, 9.85, 0, z - 0.12, 10.1, 4.0, z + 0.12, MAT.wood);
@@ -149,11 +151,11 @@ const Act3 = {
     // toy-block walkways (dry) winding through the flood
     const blocks = [[-1.5, -383, 1.5, -380], [-1.5, -389, 4, -383], [2, -395, 6, -389], [-6, -399, 4, -395], [-7, -406, -3, -399], [-5, -412, 2, -406], [0, -418, 6, -412], [-2, -424, 2, -418], [-2, -428, 2, -424]];
     const cols = [MAT.handRose, MAT.handTeal, MAT.paint, MAT.handRose, MAT.handTeal, MAT.paint, MAT.handRose, MAT.handTeal, MAT.paint];
-    blocks.forEach((b, i) => L.solid(S, b[0], 0, b[1], b[2], 0.8, b[3], cols[i], SURFACE.WOOD));
+    blocks.forEach((b, i) => { L.solid(S, b[0], 0, b[1], b[2], 0.8, b[3], cols[i], SURFACE.WOOD); L.solid(S, b[0] - 0.45, 0, b[1] - 0.45, b[2] + 0.45, 0.42, b[3] + 0.45, MAT.wood, SURFACE.WOOD); });
     // drain valves (levers) at either end of the room, the FLARE hand on a toy chest
-    L.solid(S, 12, 0, -400, 15.9, 0.8, -396, MAT.wood);
+    L.solid(S, 12, 0, -400, 15.9, 0.8, -396, MAT.wood); L.solid(S, 11.5, 0, -400.5, 15.9, 0.42, -395.5, MAT.wood, SURFACE.WOOD);
     L.lever(S, 15.85, 1.6, -398, -1, 0, 'T_DRAIN_A');
-    L.solid(S, -15.9, 0, -418, -12, 0.8, -414, MAT.wood);
+    L.solid(S, -15.9, 0, -418, -12, 0.8, -414, MAT.wood); L.solid(S, -12.6, 0, -418, -11.5, 0.42, -414, MAT.wood, SURFACE.WOOD);
     L.lever(S, -15.85, 1.6, -416, 1, 0, 'T_DRAIN_B');
     // the second valve is boxed in behind a cracked, waterlogged panel: blast it open with BELLOWS
     L.solid(S, -15.9, 0.8, -418.2, -12.4, 3.2, -418.0, MAT.rustIron, SURFACE.METAL); L.solid(S, -15.9, 0.8, -414.0, -12.4, 3.2, -413.8, MAT.rustIron, SURFACE.METAL);
@@ -185,6 +187,10 @@ const Act3 = {
     L.solid(S, -16, 0, -474, 16, 0.9, -465, MAT.concrete, SURFACE.CONCRETE);
     L.solid(S, -16, 0, -452, 16, 0.9, -449.5, MAT.concrete, SURFACE.CONCRETE);   // the island between the lines
     for (const z of [-443, -458]) { DeepWorks.rails(S, -16, 16, z); L.geom(S, -16, 0.9, z - 0.05, 16, 0.92, z + 0.05, MAT.hazard); }
+    // concrete steps down off each platform edge (and up onto the island) at both ends and in the middle
+    const box = (x0, y1, za, zb) => L.solid(S, x0 - 1.1, 0, Math.min(za, zb), x0 + 1.1, y1, Math.max(za, zb), MAT.concrete, SURFACE.CONCRETE);
+    const steps = (zEdge, dir) => { for (const x of [-13, 0, 13]) { box(x, 0.6, zEdge, zEdge + dir * 0.55); box(x, 0.3, zEdge + dir * 0.55, zEdge + dir * 1.1); } };
+    steps(-437, -1); steps(-449.5, 1); steps(-452, -1); steps(-465, 1);
     for (const z of [-437, -449.5, -452, -465]) L.geom(S, -16, 0.9, z - 0.15, 16, 0.92, z + 0.15, MAT.hazard);
     for (const x of [-15.9, 15.9]) for (const z of [-443, -458]) L.geom(S, x - 0.05, 0, z - 2.4, x + 0.05, 4.2, z + 2.4, MAT.rubber);
     // tiled pillars, benches, a dead ticket booth
@@ -210,30 +216,52 @@ const Act3 = {
   // ---------- 13 EXECUTIVE SUITE ----------
   buildSuite(L) {
     const S = 15;
-    // office partitions making a little maze, desks, filing cabinets
-    const walls = [[-16, -484, -4, -483.6], [4, -484, 16, -483.6], [-8, -494, 10, -493.6], [-16, -504, -2, -503.6], [6, -504, 16, -503.6]];
-    for (const w of walls) L.solid(S, w[0], 0, w[1], w[2], 2.6, w[3], MAT.wood);
-    for (const [x, z] of [[-10, -478], [10, -479], [-12, -489], [12, -488], [-6, -499], [4, -500], [-12, -509], [12, -509]]) {
-      L.solid(S, x - 0.9, 0, z - 0.45, x + 0.9, 0.78, z + 0.45, MAT.wood);
-      L.geom(S, x - 0.25, 0.78, z - 0.2, x + 0.25, 1.1, z + 0.15, MAT.porcelain);
-    }
-    for (let x = -15; x <= 15; x += 2.2) if (Math.abs(x) > 3) L.solid(S, x - 0.4, 0, -515.7, x + 0.4, 1.4, -515.0, MAT.steel);
-    // Harlan Smithers' office along the north end: a wall of CRTs, his huge desk, the key
-    L.solid(S, -4, 0, -513.5, 4, 0.85, -511.8, MAT.wood);
-    for (let i = 0; i < 9; i++) { const x = -6 + (i % 3) * 1.1 - (i > 5 ? 0 : 0), y = 1.2 + Math.floor(i / 3) * 1.0; L.geom(S, x + 6 - 1.1 * 3 + 3.3 - 3.3, y, -515.9, x + 6 - 1.1 * 3 + 3.3 - 3.3 + 0.95, y + 0.8, -515.4, MAT.screen); }
+    // carpet runner up the central aisle, ceiling tiles and strip lights
+    L.geom(S, -1.6, 0, -515, 1.6, 0.02, -475, MAT.clothWine);
     for (let z = -478; z >= -512; z -= 8) { L.light(S, -8, 5.2, z, LIGHTING.fillColor, 3.0, 8, z === -494 ? 2 : 0, 'tubeX', 0.2); L.light(S, 8, 5.2, z, LIGHTING.fillColor, 3.0, 8, 0, 'tubeX', 0.2); }
+    // RECEPTION (just inside the door): a long desk off to the right, waiting chairs on the left, a dead plant
+    L.solid(S, 4, 0, -480.5, 9.5, 1.05, -479.2, MAT.wood); L.geom(S, 4, 1.05, -480.6, 9.5, 1.12, -479.1, MAT.paint);
+    L.geom(S, 6, 1.12, -480.2, 6.7, 1.6, -479.9, MAT.screen); L.geom(S, 6.1, 1.12, -480.5, 6.6, 1.15, -479.6, MAT.steel);
+    for (let i = 0; i < 4; i++) { const x = -9 + i * 1.3; L.solid(S, x - 0.5, 0, -478.5, x + 0.5, 0.45, -477.6, MAT.clothTeal); L.geom(S, x - 0.5, 0.45, -477.7, x + 0.5, 1.1, -477.5, MAT.clothTeal); }
+    // THE CUBICLE FARM: two blocks of cubicles either side of the aisle, low partitions you can crouch behind
+    const cube = (x0, z0, side) => {
+      const x1 = x0 + 4.2 * side, xa = Math.min(x0, x1), xb = Math.max(x0, x1);
+      L.solid(S, xa, 0, z0 - 0.08, xb, 1.3, z0 + 0.08, MAT.vest);                    // back partition
+      L.solid(S, side > 0 ? xb - 0.16 : xa, 0, z0 - 3.4, side > 0 ? xb : xa + 0.16, 1.3, z0, MAT.vest);   // side partition (wall side)
+      L.geom(S, xa, 1.3, z0 - 0.1, xb, 1.36, z0 + 0.1, MAT.steel);
+      const dx = (xa + xb) / 2;
+      L.solid(S, dx - 1.2, 0, z0 - 0.9, dx + 1.2, 0.76, z0 - 0.15, MAT.wood);          // desk
+      L.geom(S, dx - 0.3, 0.76, z0 - 0.6, dx + 0.3, 1.2, z0 - 0.25, MAT.porcelain);   // computer
+      L.geom(S, dx - 0.24, 0.82, z0 - 0.62, dx + 0.24, 1.15, z0 - 0.6, MAT.screen);
+      L.geom(S, dx + 0.5, 0.76, z0 - 0.5, dx + 0.9, 0.8, z0 - 0.25, MAT.canvas);      // papers
+      L.solid(S, dx - 0.3, 0, z0 - 1.7, dx + 0.3, 0.5, z0 - 1.1, MAT.rubber);          // chair
+      L.geom(S, dx - 0.3, 0.5, z0 - 1.75, dx + 0.3, 1.05, z0 - 1.65, MAT.rubber);
+    };
+    for (const z of [-485, -492, -499]) { cube(-2.2, z, -1); cube(-7.6, z, -1); cube(2.2, z, 1); cube(7.6, z, 1); }
+    // filing cabinets, a printer and water coolers against the side walls
+    for (const z of [-484, -491, -498]) for (const x of [-15.55, 15.55]) L.solid(S, x - 0.4, 0, z - 0.3, x + 0.4, 1.3, z + 0.3, MAT.steel);
+    L.solid(S, 14.6, 0, -505.2, 15.8, 1.0, -504.2, MAT.porcelain);
+    for (const [x, z] of [[-15.2, -480], [15.2, -480]]) { L.solid(S, x - 0.25, 0, z - 0.25, x + 0.25, 1.1, z + 0.25, MAT.steel); L.builders[S].cylinder(x, z, 1.1, 1.5, 0.16, 10, MAT.screen); }
+    for (const [x, z] of [[-3.2, -482.5], [3.2, -482.5], [-12, -503.5]]) { L.builders[S].cylinder(x, z, 0, 0.5, 0.25, 10, MAT.paint); L.geom(S, x - 0.4, 0.5, z - 0.05, x + 0.4, 1.4, z + 0.05, MAT.handTeal); L.geom(S, x - 0.05, 0.5, z - 0.4, x + 0.05, 1.4, z + 0.4, MAT.handTeal); }
+    // HARLAN'S OFFICE: a glass wall across the floor with a door gap, bookcases, a rug, his huge desk, a CRT wall
+    L.solid(S, -16, 0, -506.2, -1.1, 3.2, -506.0, MAT.screen); L.solid(S, 1.1, 0, -506.2, 16, 3.2, -506.0, MAT.screen);
+    for (let x = -15; x <= 15; x += 2) if (Math.abs(x) > 1.2) L.geom(S, x - 0.04, 0, -506.25, x + 0.04, 3.2, -505.95, MAT.steel);
+    L.geom(S, -16, 3.2, -506.25, 16, 3.35, -505.95, MAT.steel);
+    for (const x of [-1.15, 1.15]) L.geom(S, x - 0.08, 0, -506.3, x + 0.08, 3.2, -505.9, MAT.steel);
+    L.geom(S, -5, 0, -514, 5, 0.025, -508, MAT.lining);                                      // the rug
+    L.solid(S, -4, 0, -513.5, 4, 0.85, -511.8, MAT.wood); L.geom(S, -4.1, 0.85, -513.6, 4.1, 0.92, -511.7, MAT.clothWine);
+    L.solid(S, -0.6, 0, -515.0, 0.6, 1.3, -514.2, MAT.clothWine);                           // his chair
+    for (let i = 0; i < 9; i++) { const x = -2.75 + (i % 3) * 1.1, y = 1.2 + Math.floor(i / 3) * 0.95; L.geom(S, x, y, -515.9, x + 0.95, y + 0.8, -515.4, MAT.screen); }
+    for (let x = -15; x <= 15; x += 2.2) if (Math.abs(x) > 3.6) L.solid(S, x - 0.4, 0, -515.7, x + 0.4, 1.4, -515.0, MAT.steel);   // steel lockers
+    for (const x of [-15.6, 15.6]) for (const z of [-508, -511.5]) { L.solid(S, x - 0.35, 0, z - 1.4, x + 0.35, 2.6, z + 1.4, MAT.wood); for (let k = 0; k < 4; k++) L.geom(S, x - 0.3, 0.4 + k * 0.55, z - 1.3, x + 0.3, 0.7 + k * 0.55, z + 1.3, k % 2 ? MAT.clothWine : MAT.clothTeal); }
+    L.light(S, 0, 3.0, -510, LIGHTING.hazardColor, 2.4, 7, 1, 'bulb', 0.4);
     // Harlan keeps the executive key in a desk drawer on its own lock circuit: node on the west wall, round the
-    // relay in the middle office, into the socket on the steel lockers behind the desk - past the Suits
-    L.powerSource(S, -15.85, 1.5, -498, 1, 0);
-    const er = L.peg(S, 1.5, -498.6, true, 'RELAY');
+    // relay in the aisle, through the office door, into the DESK LOCK on the lockers behind the desk
+    L.powerSource(S, -15.85, 1.5, -495.5, 1, 0);
+    const er = L.peg(S, 0, -496, true, 'RELAY');
     L.receptacle(S, 7.0, 1.1, -514.95, 0, 1, true, [er.id], 'E_DESK', 'DESK LOCK');
-    // office clutter: water coolers, potted palms, paper stacks, a fallen ceiling tile, filing cabinets
-    for (const [x, z] of [[-14.5, -478], [14.5, -489], [-14.5, -509]]) { L.solid(S, x - 0.25, 0, z - 0.25, x + 0.25, 1.1, z + 0.25, MAT.steel); L.builders[S].cylinder(x, z, 1.1, 1.5, 0.16, 10, MAT.screen); }
-    for (const [x, z] of [[-5, -478.5], [7, -488.5], [-3, -506]]) { L.builders[S].cylinder(x, z, 0, 0.5, 0.25, 10, MAT.paint); L.geom(S, x - 0.4, 0.5, z - 0.05, x + 0.4, 1.4, z + 0.05, MAT.handTeal); L.geom(S, x - 0.05, 0.5, z - 0.4, x + 0.05, 1.4, z + 0.4, MAT.handTeal); }
-    for (const [x, z] of [[-10.5, -478.2], [10.6, -479.2], [-6.3, -499.2], [12.4, -509.2]]) L.geom(S, x - 0.15, 0.78, z - 0.12, x + 0.15, 0.78 + 0.05 + (Math.abs(x) % 3) * 0.05, z + 0.12, MAT.canvas);
-    L.geom(S, -2, 0, -490, -0.8, 0.06, -488.8, MAT.concrete);
-    for (const x of [-15.5, 15.5]) for (const z of [-482, -501]) L.solid(S, x - 0.4, 0, z - 0.3, x + 0.4, 1.6, z + 0.3, MAT.steel);
-    this.suits = [[0, -481, 1.2], [-9, -490, -0.8], [7, -498, 2.4], [-2, -508, 0], [12, -486, 3.3], [-12, -498, 0.6], [9, -510, 1.9]].map(([x, z, ph]) => ({ pos: V3.create(x, 0, z), yaw: 0, ph, fire: 0, flash: 0 }));
+    // the Suits pace the aisles and the office
+    this.suits = [[0, -481.5, 1.2], [-9, -488.6, -0.8], [9, -488.6, 2.4], [-9, -495.6, 0.6], [9, -502.6, 1.9], [5.5, -509, 0]].map(([x, z, ph]) => ({ pos: V3.create(x, 0, z), yaw: 0, ph, fire: 0, flash: 0 }));
   },
 
   // ---------- 14 SALVAGE YARDS ----------
@@ -297,7 +325,7 @@ const Act3 = {
     this.betrayal = -1; this.grab = 0; this.leeches = 0; this.leechT = 0; this.drain = 0; this.water = 0.55;
     this.gas.length = 0; this.flares.length = 0; this.ending = null; this.escape = null;
     if (Game.scene && Game.scene.atmos) { Game.scene.atmos = null; Game.scene.fogDensity = LIGHTING.fogDensity; }
-    this.heart = { clamps: 0, mode: 'WAIT', t: 0, hits: [false, false], hp: 6, loveyHit: false }; this.gibs = null;
+    this.heart = { clamps: 0, mode: 'WAIT', t: 0, hits: [false, false], hp: 6, loveyHit: false }; this.gibs = null; this.crawlers = null;
     if (this.seraph) { this.seraph.hold = 0; this.seraph.dive = 0; this.seraph.see = 0; }
     this.swarm = 0; this.biteT = 0; this.posie = null; this.posieDone = false; this.posieSaid = false; this.morselRebel = false; for (const c of this.cherubs) { c.down = 0; c.pos[1] = 15.6; c.dead = false; }
     if (this.seraph) { this.seraph.weak = false; this.seraph.broken = false; if (this.seraph.light) this.seraph.light.base = 9; }
@@ -672,7 +700,7 @@ const Act3 = {
     }
     if (wet) { this.leechT += dt * (nearSwarm ? 2.2 : 1); if (this.leechT > 1.4) { this.leechT = 0; this.leeches++; sfx('cherubBite', b); Player.addTrauma(0.2); if (this.leeches === 1) GrabPack.showHint('LEECHES! Fire a hand to knock them off - get out of the water'); } }
     else { this.leechT = 0; if (this.leeches > 0 && gameRng() < dt * 0.6) this.leeches--; }
-    if (this.leeches >= 3) { this.leeches = 0; this.kill('DRAGGED UNDER BY LEECHES'); return; }
+    if (this.leeches >= 3) { this.leeches = 0; DeepWorks.hurt(30, 'DRAGGED UNDER BY LEECHES'); GrabPack.showHint('The leeches drag at you - get up on the blocks!'); }
     // puffers drift; rush at one and it ruptures into rose gas
     for (const p of this.puffers) {
       if (p.burst > 0) continue;
@@ -688,7 +716,7 @@ const Act3 = {
       if (Math.hypot(b[0] - g.pos[0], b[2] - g.pos[2]) < 3.2) inGas = true;
       if (g.t <= 0) this.gas.splice(i, 1);
     }
-    if (inGas && !Gear.maskOn) { this.gasT = (this.gasT || 0) + dt; Player.addTrauma(dt * 0.4); if (this.gasT > 2) { this.gasT = 0; this.kill('CHOKED ON ROSE GAS'); return; } }
+    if (inGas && !Gear.maskOn) { this.gasT = (this.gasT || 0) + dt; Player.addTrauma(dt * 0.4); if (this.gasT > 0.8) { this.gasT = 0; DeepWorks.hurt(14, 'CHOKED ON ROSE GAS'); } }
     else this.gasT = Math.max(0, (this.gasT || 0) - dt);
     // anglers rise from the deep pools when something moves close, then snap
     for (const a of this.anglers) {
@@ -698,7 +726,7 @@ const Act3 = {
       a.rise = damp(a.rise, want, 3, dt);
       a.light.pos[1] = 0.6 + a.rise * 1.9;
       a.light.base = a.stun > 0 || this.drain >= 1 ? 0 : 2.4;
-      if (a.rise > 0.8 && ((d < 2.8 && this.playerMoving()) || d < 1.6)) { a.snap = 1; this.kill('TAKEN BY AN ANGLER'); return; }
+      if (a.rise > 0.8 && a.stun <= 0 && ((d < 2.6 && this.playerMoving()) || d < 1.5)) { a.snap = 1; a.stun = 3; a.rise = 0; DeepWorks.hurt(40, 'TAKEN BY AN ANGLER'); sfx('handHitFlesh', b); Player.addTrauma(0.6); }
     }
     // drowned outimals crawl after you through the water; your light holds them still
     for (const o of this.outimals) {
@@ -709,7 +737,7 @@ const Act3 = {
       const dx = b[0] - o.pos[0], dz = b[2] - o.pos[2], d = Math.hypot(dx, dz) || 1;
       o.yaw = Math.atan2(-dx, -dz);
       if (o.held <= 0 && wet) { o.pos[0] += dx / d * 2.0 * dt; o.pos[2] += dz / d * 2.0 * dt; }
-      if (d < 0.9 && o.held <= 0) { this.kill('PULLED DOWN BY A DROWNED TOY'); return; }
+      if (d < 0.9 && o.held <= 0) { o.held = 3; DeepWorks.hurt(30, 'PULLED DOWN BY A DROWNED TOY'); Player.addTrauma(0.5); }
     }
   },
 
@@ -751,8 +779,8 @@ const Act3 = {
       const cosA = (dx * fwdX + dz * fwdZ) / d;
       if (cosA > Math.cos(0.42) && Player.crouch < 0.6 && Physics.lineOfSight(V3.set(this.tmp, s.pos[0], 1.5, s.pos[2]), Player.eyePos, LAYER.SIGHT)) {
         s.fire += dt;
-        if (s.fire > 0.15) { s.flash = 1; sfx('blast', s.pos); s.fire = 0; this.kill('GUNNED DOWN BY A SUIT'); return; }
-      } else s.fire = 0;
+        if (s.fire > 0.3) { s.flash = 1; sfx('blast', s.pos); s.fire = -1.0; DeepWorks.hurt(34, 'GUNNED DOWN BY A SUIT'); GrabPack.showHint('The Suit fired - CROUCH [C] under its laser grid'); }
+      } else s.fire = Math.min(0, s.fire + dt);
     }
     if (Game.stage === 13 && !this.officeTalk && b[2] < -506) {
       this.officeTalk = true;
@@ -777,16 +805,16 @@ const Act3 = {
       if (Player.flashOn && V3.dot(this.tmp, Renderer.camFwd) / dl > 0.93 && dl < 8) { s.flee = Math.max(s.flee, 1.5); }
       let vx = 0, vz = 0, sp = 0;
       if (s.flee > 0) { vx = -dx / d; vz = -dz / d; sp = 4.5; }
-      else if (d < 14 && Math.sign(s.pos[2] - this.chasm.z1) === Math.sign(b[2] - this.chasm.z1)) { vx = dx / d; vz = dz / d; sp = 4.6; }
+      else if (d < 12 && Math.sign(s.pos[2] - this.chasm.z1) === Math.sign(b[2] - this.chasm.z1)) { vx = dx / d; vz = dz / d; sp = 2.3; }
       else { vx = Math.sin(s.t * 0.7 + s.pos[0]); vz = Math.cos(s.t * 0.5); sp = 0.8; }
       s.pos[0] = clamp(s.pos[0] + vx * sp * dt, -15.5, 15.5); s.pos[2] += vz * sp * dt;
       // never into the pit
       if (s.pos[2] < this.chasm.z1 + 0.5 && s.pos[2] > this.chasm.z1 - 4) s.pos[2] = this.chasm.z1 + 0.5;
       if (s.pos[2] > this.chasm.z0 - 0.5 && s.pos[2] < this.chasm.z0 + 4 && s.pos[2] < this.chasm.z1) s.pos[2] = this.chasm.z0 - 0.5;
       s.yaw = Math.atan2(-vx, -vz);
-      if (d < 1.1) { close++; if (gameRng() < dt * 2) { sfx('cherubBite', s.pos); Player.addTrauma(0.15); } }
+      if (d < 1.0) { close++; s.bite = (s.bite || 0) - dt; if (s.bite <= 0) { s.bite = 1.2; sfx('cherubBite', s.pos); Player.addTrauma(0.15); DeepWorks.hurt(6, 'TORN APART BY SCRAPLINGS'); } }
     }
-    if (close >= 2) this.kill('TORN APART BY SCRAPLINGS');
+
   },
 
   // ---------------------------------------------------------------- the final showdown
@@ -817,6 +845,23 @@ const Act3 = {
         this.morselCd = 16; M.stunTimer = Math.max(M.stunTimer, 2); Companion.plasmaBurst(Cast.plush.pos); sfx('shock', M.pos);
       }
     }
+    if (H.mode === 'SWARM') {
+      // it fights them off: thrashing, flinging toys across the room - but there are too many
+      M.bossHold = true; M.stunTimer = 2; M.active = true; M.visible = true; M.inVent = false;
+      M.pos[0] = damp(M.pos[0], 0, 2, dt); M.pos[2] = damp(M.pos[2], -585.6, 2, dt);
+      M.lean = Math.sin(H.t * 7) * 0.35; M.jaw = Math.abs(Math.sin(H.t * 9)); M.lookYaw = Math.sin(H.t * 5) * 0.9;
+      this.updateSwarm(dt, M);
+      if (H.t > 9) {
+        H.mode = 'TAKEDOWN'; H.t = 0; H.hits[0] = H.hits[1] = false; H.hp = 1;
+        Dialogue.say('THIMBLE', 'It\'s buried in them! Lovey, hold it - Posie, now! Partner - BOTH HANDS, into its core!');
+        Dialogue.say('MARIGOLD', 'Together, like always. Finish it!');
+        GrabPack.showHint('FINAL BLOW: fire BOTH hands into its exposed core');
+        // Lovey pins it, Morsel braces with his staff
+        if (Lovey.active) { V3.set(Lovey.pos, 1.6, 0, -584.4); Lovey.yaw = Math.atan2(-(M.pos[0] - 1.6), -(M.pos[2] + 584.4)); Lovey.mode = 'FOLLOW'; Lovey.swingT = 3; Lovey.cool = 99; }
+        const P = Cast.plush; if (P) { V3.set(P.pos, -1.6, 0, -584.2); P.yaw = Math.atan2(-(M.pos[0] + 1.6), -(M.pos[2] + 584.2)); }
+      }
+    }
+    if (H.mode === 'TAKEDOWN' && this.crawlers) this.updateSwarm(dt, M);
     if (H.mode === 'TAKEDOWN') {
       // pinned in the cradle, its core exposed: both hands into the core finishes it
       M.bossHold = true; M.stunTimer = 2; M.active = true; M.visible = true; M.inVent = false;
@@ -835,10 +880,53 @@ const Act3 = {
     }
     if (this.gibs && H.mode !== 'DYING') this.updateGibs(dt);
   },
+  // every broken toy in the walls: they pour out of the four vents, crawl across the floor and climb onto it;
+  // it flings some off, they crawl straight back
+  startSwarm() {
+    const kinds = ['a3_scrapling', 'a3_leechling', 'cherub_head', 'a3_scrapling', 'a3_leechling'];
+    this.crawlers = [];
+    for (let i = 0; i < 22; i++) {
+      const v = Level.vents[this.heartVents[i % 4]];
+      this.crawlers.push({ mesh: kinds[i % kinds.length], pos: V3.create(v.exit[0], 0.3, v.exit[2]), vel: V3.create(), delay: i * 0.25, on: false, off: V3.create((gameRng() - 0.5) * 0.9, 0.4 + gameRng() * 2.4, (gameRng() - 0.5) * 0.9), fly: 0, yaw: 0 });
+    }
+    for (const id of this.heartVents) sfx('ventBurst', Level.vents[id].pos);
+  },
+  updateSwarm(dt, M) {
+    for (const c of this.crawlers) {
+      if (c.delay > 0) { c.delay -= dt; continue; }
+      if (c.fly > 0) {
+        // flung off: tumbling through the air, landing, then crawling back
+        c.fly -= dt; c.vel[1] -= 9.8 * dt; V3.addScaled(c.pos, c.pos, c.vel, dt);
+        if (c.pos[1] < 0.15) { c.pos[1] = 0.15; c.vel[1] = 0; c.vel[0] *= 0.5; c.vel[2] *= 0.5; }
+        continue;
+      }
+      if (c.on) {
+        c.pos[0] = M.pos[0] + c.off[0] + Math.sin(Game.time * 9 + c.off[1] * 7) * 0.04; c.pos[1] = M.pos[1] + c.off[1]; c.pos[2] = M.pos[2] + c.off[2];
+        if (this.heart.mode === 'SWARM' && gameRng() < dt * 0.35) {
+          c.on = false; c.fly = 1.2; const a = gameRng() * Math.PI * 2; V3.set(c.vel, Math.cos(a) * 6, 4, Math.sin(a) * 6);
+          sfx('shatter', c.pos); Particles.burst(c.pos, 8, 'debris');
+        } else if (gameRng() < dt * 1.5) { Particles.burst(c.pos, 2, 'debris'); if (gameRng() < 0.2) sfx('cherubBite', c.pos); }
+        continue;
+      }
+      const dx = M.pos[0] - c.pos[0], dz = M.pos[2] - c.pos[2], d = Math.hypot(dx, dz) || 1;
+      c.yaw = Math.atan2(-dx, -dz);
+      if (d < 1.1) { c.on = true; sfx('cherubBite', c.pos); }
+      else { c.pos[0] += dx / d * 4.2 * dt; c.pos[2] += dz / d * 4.2 * dt; c.pos[1] = 0.15 + Math.abs(Math.sin(Game.time * 14 + c.off[0] * 9)) * 0.08; }
+    }
+  },
+  submitSwarm(R) {
+    for (const c of this.crawlers) {
+      if (c.delay > 0 || !Sculpt.ready(c.mesh)) continue;
+      const sc = c.mesh === 'cherub_head' ? 0.45 : c.mesh === 'a3_scrapling' ? 0.9 : 1.2, spin = c.fly > 0 ? Game.time * 9 : 0;
+      const it = R.trs(c.mesh, c.mesh === 'cherub_head' ? MAT.porcelain : c.mesh === 'a3_leechling' ? MAT.gel : MAT.handTeal, c.pos[0], c.pos[1], c.pos[2], c.yaw + spin, c.on ? 0.8 : spin, 0, sc, sc, sc);
+      if (it && c.mesh === 'cherub_head') { it.tint[0] = 0.9; it.tint[1] = 0.85; it.tint[2] = 0.8; }
+    }
+  },
   // tear the Epxirtype apart into flying pieces (each drawn with its own sculpt, tumbling, bouncing, settling)
   ripApart() {
     const M = Monster, c = M.chest, h = M.head;
     M.visible = false;
+    if (this.crawlers) for (const k of this.crawlers) { k.on = false; k.fly = 2; const a = gameRng() * Math.PI * 2; V3.set(k.vel, Math.cos(a) * 7, 5, Math.sin(a) * 7); }
     sfx('collapse', c); sfx('shatter', c); sfx('screech', h); sfx('bossDown', c); Audio.boom(); Player.addTrauma(1);
     for (let k = 0; k < 6; k++) { V3.set(this.tmp, c[0] + (gameRng() - 0.5), c[1] - 0.6 + gameRng(), c[2] + (gameRng() - 0.5)); Particles.burst(this.tmp, 30, 'debris'); Particles.burst(this.tmp, 14, 'spark'); }
     const P = Renderer.post; P.flash = 0.9; P.flashTint[0] = 1; P.flashTint[1] = 0.35; P.flashTint[2] = 0.5;
@@ -885,11 +973,12 @@ const Act3 = {
     const P = Renderer.post; P.flash = 0.5; P.flashTint[0] = 1; P.flashTint[1] = 0.25; P.flashTint[2] = 0.45;
     if (M.active && !M.inVent) { M.stunTimer = 3; M.flinchAmt = 1; }
     if (H.clamps >= 3) {
-      H.mode = 'TAKEDOWN'; H.t = 0; H.hits[0] = H.hits[1] = false; H.hp = 1;
+      // the surge wakes every broken toy in the walls: they come crawling out of the vents and pipes and swarm it
+      H.mode = 'SWARM'; H.t = 0; H.hp = 2; this.startSwarm();
       Dialogue.clear();
-      Dialogue.say('SPOOLWRIGHT', '(in every voice it ever stole, all at once) NO - not the HEART - not like THIS -');
-      Dialogue.say('THIMBLE', 'Lovey\'s got it pinned! Its core is open - BOTH HANDS, NOW!');
-      GrabPack.showHint('TAKEDOWN: fire BOTH hands into its exposed core');
+      Dialogue.say('MARIGOLD', 'Listen... the vents. Something is coming out of the walls.');
+      Dialogue.say('THIMBLE', 'It\'s the toys! Every toy it ever broke - they\'re coming for it!');
+      Dialogue.say('SPOOLWRIGHT', '(thrashing) GET OFF - get OFF me - I made you - I MADE you -');
     } else Dialogue.say('MARIGOLD', H.clamps === 1 ? 'One clamp! The reactor is screaming!' : 'Two! One more!');
   },
   // a hand reached the Epxirtype during the takedown
@@ -902,6 +991,9 @@ const Act3 = {
   finish() {
     const H = this.heart;
     H.mode = 'DYING'; H.t = 0;
+    // everyone strikes at once: Lovey's swat, Morsel's purple blast, Posie's needle, your two hands
+    if (Lovey.active) { Lovey.swingT = 0.6; sfx('boom'); }
+    if (Cast.plush) Companion.plasmaBurst(Monster.chest);
     sfx('bossDown', Monster.pos); Audio.boom(); Player.addTrauma(1);
     const P = Renderer.post; P.flash = 1; P.flashTint[0] = 1; P.flashTint[1] = 0.6; P.flashTint[2] = 0.5;
     Dialogue.clear();
@@ -1102,6 +1194,7 @@ const Act3 = {
   submitHeart(R, t) {
     const H = this.heart, cz = -589;
     if (this.gibs) this.submitGibs(R);
+    if (this.crawlers) this.submitSwarm(R);
     const pulse = 1 + Math.sin(t * (2 + H.clamps * 2)) * 0.25 + H.clamps * 0.4;
     const core = R.trs('sphere', MAT.screen, 0, 3.2, cz, t * 0.4, 0, 0, 1.4, 1.4, 1.4, false); if (core) { core.emis[0] = 2.2 * pulse; core.emis[1] = 0.25 * pulse; core.emis[2] = 0.6 * pulse; }
     for (let k = 0; k < 3; k++) R.trs('torus', MAT.copper, 0, 3.2, cz, t * (0.3 + k * 0.2), k * 1.05, 0, 2.0 + k * 0.25, 0.6, 2.0 + k * 0.25);

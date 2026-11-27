@@ -168,6 +168,7 @@ const Companion = {
 
   update(dt) {
     const P = Cast.plush;
+    if (Act3.ending || (Act3.heart && Act3.heart.mode === 'DYING')) return;   // nobody chatters through the finale
     Ambush.update(dt);
     if (Game.stage !== this.lastStage) { this.lastStage = Game.stage; this.stageTime = 0; }
     this.stageTime += dt;
