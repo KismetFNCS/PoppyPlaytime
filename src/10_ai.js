@@ -171,6 +171,7 @@ const Monster = {
 
   canCatch() {
     if (!this.active || this.inVent || this.catchCooldown > 0 || Game.invulnerable || Player.hidden) return false;
+    if (typeof Admin !== 'undefined' && (Admin.god || Admin.freeze)) return false;   // admin: it can't take you
     if (this.state === MSTATE.EMERGE || this.state === MSTATE.STUNNED || this.state === MSTATE.MENU_POSE) return false;
     const d = V3.distXZ(this.pos, Player.body.pos);
     return d < FEEL.monsterCatch + 0.35 && Math.abs(Player.body.pos[1] - this.pos[1]) < 2.0;

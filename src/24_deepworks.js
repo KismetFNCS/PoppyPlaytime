@@ -75,6 +75,7 @@ const DeepWorks = {
     return Math.abs(b.pos[1] - c.max[1]) < 0.08 && b.pos[0] + r > c.min[0] && b.pos[0] - r < c.max[0] && b.pos[2] + r > c.min[2] && b.pos[2] - r < c.max[2];
   },
   hurt(amount, reason, src) {
+    if (Admin.god) return;
     if (Game.invulnerable || !Game.isGameplay()) return;
     if (this.hurtCool <= 0) {
       sfx('hurt'); this.hurtCool = 0.4;
@@ -83,7 +84,7 @@ const DeepWorks = {
     Player.health -= amount; Player.hurtTimer = 2.2; Player.addTrauma(Math.min(0.6, amount * 0.02));
     if (Player.health <= 0) Game.onPlayerDied(reason);
   },
-  kill(reason) { if (Game.invulnerable || !Game.isGameplay()) return; Player.addTrauma(1); Renderer.post.redWave = 0.8; Game.onPlayerDied(reason); },
+  kill(reason) { if (Game.invulnerable || Admin.god || !Game.isGameplay()) return; Player.addTrauma(1); Renderer.post.redWave = 0.8; Game.onPlayerDied(reason); },
   receptacleBy(action) { return Level.receptacles.find(r => r.action === action); },
   leverBy(action) { return Level.levers.find(l => l.action === action); },
   inSector(s) { return Streaming.current === s; },

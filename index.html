@@ -4929,6 +4929,7 @@ const Monster = {
 
   canCatch() {
     if (!this.active || this.inVent || this.catchCooldown > 0 || Game.invulnerable || Player.hidden) return false;
+    if (typeof Admin !== 'undefined' && (Admin.god || Admin.freeze)) return false;   // admin: it can't take you
     if (this.state === MSTATE.EMERGE || this.state === MSTATE.STUNNED || this.state === MSTATE.MENU_POSE) return false;
     const d = V3.distXZ(this.pos, Player.body.pos);
     return d < FEEL.monsterCatch + 0.35 && Math.abs(Player.body.pos[1] - this.pos[1]) < 2.0;
@@ -8408,7 +8409,7 @@ const Game = {
 
   onCaught() {
     if (!this.isGameplay()) return;
-    if (Admin.god) { Monster.stunTimer = 3; Monster.setState(MSTATE.STUNNED); return; }   // god mode: it can't take you
+    if (Admin.god || Admin.freeze) { Monster.stunTimer = 3; Monster.catchCooldown = 3; return; }   // admin: it can't take you
     setState(STATE.JUMPSCARE);
   },
   onPlayerDied(reason) {
@@ -16091,6 +16092,7 @@ const DeepWorks = {
     return Math.abs(b.pos[1] - c.max[1]) < 0.08 && b.pos[0] + r > c.min[0] && b.pos[0] - r < c.max[0] && b.pos[2] + r > c.min[2] && b.pos[2] - r < c.max[2];
   },
   hurt(amount, reason, src) {
+    if (Admin.god) return;
     if (Game.invulnerable || !Game.isGameplay()) return;
     if (this.hurtCool <= 0) {
       sfx('hurt'); this.hurtCool = 0.4;
@@ -16099,7 +16101,7 @@ const DeepWorks = {
     Player.health -= amount; Player.hurtTimer = 2.2; Player.addTrauma(Math.min(0.6, amount * 0.02));
     if (Player.health <= 0) Game.onPlayerDied(reason);
   },
-  kill(reason) { if (Game.invulnerable || !Game.isGameplay()) return; Player.addTrauma(1); Renderer.post.redWave = 0.8; Game.onPlayerDied(reason); },
+  kill(reason) { if (Game.invulnerable || Admin.god || !Game.isGameplay()) return; Player.addTrauma(1); Renderer.post.redWave = 0.8; Game.onPlayerDied(reason); },
   receptacleBy(action) { return Level.receptacles.find(r => r.action === action); },
   leverBy(action) { return Level.levers.find(l => l.action === action); },
   inSector(s) { return Streaming.current === s; },
@@ -18995,7 +18997,7 @@ const Admin = {
     const act = (a, label) => `<button data-a="${a}">${label}</button>`;
     p.innerHTML = '<h3>ADMIN PANEL</h3>' +
       '<div class="sec">CHEATS</div>' +
-      tog('god', 'God mode (nothing can hurt or kill you)') + tog('noclip', 'Noclip / fly (Space up, C down, Shift fast)') +
+      tog('god', 'God mode (nothing can hurt you; enemies stay passive)') + tog('noclip', 'Noclip / fly (Space up, C down, Shift fast)') +
       tog('speed', 'Super speed (x2.2)') + tog('slow', 'Slow motion (half speed world)') + tog('infCable', 'Infinite cable') +
       tog('noCool', 'No hand cooldown') + tog('freeze', 'Freeze every monster') + tog('hideHud', 'Hide the HUD') +
       '<div class="sec">GIVE</div>' +
@@ -19044,7 +19046,12 @@ const Admin = {
     if (k === 'speed') { const f = on ? 2.2 : 1; FEEL.walkSpeed = this.base.walk * f; FEEL.sprintSpeed = this.base.sprint * f; FEEL.crouchSpeed = this.base.crouch * f; }
     if (k === 'slow') this.timeScale = on ? 0.5 : 1;
     if (k === 'infCable') FEEL.cableMax = on ? 9999 : this.base.cable;
-    if (k === 'freeze') Enemies.disabled = on;
+    if (k === 'freeze' || k === 'god') {
+      // passive enemies while either is on; put things back the way they were when both are off
+      const passive = this.freeze || this.god;
+      if (passive && this.prevEnemies === undefined) this.prevEnemies = Enemies.disabled;
+      if (passive) Enemies.disabled = true; else if (this.prevEnemies !== undefined) { Enemies.disabled = this.prevEnemies; this.prevEnemies = undefined; }
+    }
     if (k === 'hideHud') { const h = document.getElementById('hud'); if (h) h.style.visibility = on ? 'hidden' : 'visible'; }
     if (k === 'noclip') { this.vy = 0; Player.body.vel[1] = 0; }
     toast((on ? 'ON: ' : 'OFF: ') + k.replace(/([A-Z])/g, ' $1').toUpperCase());
@@ -19088,7 +19095,10 @@ const Admin = {
   tick(dt) {
     if (this.god) { Game.invulnerable = true; Player.health = 100; Player.hurtTimer = 0; }
     if (this.noCool) for (const h of GrabPack.hands) h.cooldown = 0;
-    if (this.freeze) {
+    // god mode and freeze both make every enemy passive: they stay where they are and never come for you,
+    // so you can finish the level (or the boss) off at your own pace
+    if (this.god || this.freeze) {
+      if (Monster.state === MSTATE.JUMPSCARE_EXECUTION) Monster.setState(MSTATE.STUNNED);
       Monster.stunTimer = Math.max(Monster.stunTimer, 0.3);
       if (typeof Act3 !== 'undefined' && Act3.built) {
         Act3.swarm = 0; Act3.grab = 0; Act3.leeches = 0; Act3.biteT = 0; Act3.signalT = Math.max(Act3.signalT || 0, 1);

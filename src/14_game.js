@@ -447,7 +447,7 @@ const Game = {
 
   onCaught() {
     if (!this.isGameplay()) return;
-    if (Admin.god) { Monster.stunTimer = 3; Monster.setState(MSTATE.STUNNED); return; }   // god mode: it can't take you
+    if (Admin.god || Admin.freeze) { Monster.stunTimer = 3; Monster.catchCooldown = 3; return; }   // admin: it can't take you
     setState(STATE.JUMPSCARE);
   },
   onPlayerDied(reason) {
