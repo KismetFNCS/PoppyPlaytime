@@ -111,7 +111,7 @@ const Cast = {
     this.resetPlush();
     Lovey.reset();
     if (Enemies.cherubs.length) Enemies.reset();
-    Dialogue.clear();
+    Dialogue.reset();
     Pip.reset();
     // the Usher's monitor: above the intake gate at the start, on a pole in the station yard in Act II
     const MO = this.monitor, yard = Game.stage === 5;
@@ -129,7 +129,7 @@ const Cast = {
     this.updateMonitor(dt);
     // CRT face animation at ~15 fps
     this.screenTimer -= dt;
-    if (this.screenTimer <= 0 && (this.usher.state !== 'HIDDEN' || this.monitor.active)) {
+    if (this.screenTimer <= 0 && (this.usher.state !== 'HIDDEN' || this.monitor.active || Streaming.visible[10])) {
       this.screenTimer = 1 / 15;
       this.drawScreen(Game.time);
       const gl = Renderer.gl;
@@ -192,6 +192,8 @@ const Cast = {
       D.blink = Math.max(0, D.blink - dt * 5); if (gameRng() < dt * 0.12) D.blink = 1;
       return;
     }
+    // off Lovey's shoulder in a fight (Act3 moves her): she looks where she is going and blinks
+    if (Lovey.active && Act3.posie) { D.headYaw = damp(D.headYaw, 0, 4, dt); D.headPitch = damp(D.headPitch, 0, 4, dt); D.blink = Math.max(0, D.blink - dt * 5); return; }
     // relocate to the seat for the current stage while nobody can see her
     const seat = MARIGOLD_SEATS[Math.min(Game.stage, MARIGOLD_SEATS.length - 1)];
     const sector = Level.sectorAt(seat[0], seat[2]);
@@ -289,21 +291,22 @@ const Cast = {
     // fell far behind and you can't see him: he catches up out of sight (through the vents)
     V3.set(this.tmp2, P.pos[0] - Player.eyePos[0], 0.9, P.pos[2] - Player.eyePos[2]);
     const seen = V3.dot(this.tmp2, Renderer.camFwd) / (Math.hypot(this.tmp2[0], this.tmp2[2]) || 1) > 0.35 && Streaming.visible[P.sector];
-    if ((dp > 11 && !seen) || dp > 24) {
+    if ((dp > 11 && !seen) || dp > 24 || P.fell) {
       const back = Companion.trailPoint(3.5, this.tmp2);
-      V3.set(P.pos, back[0], 0, back[2]);
+      V3.copy(P.pos, back); P.vy = 0; P.fell = false;
       return;
     }
     let speed = 0;
     if (dist > 0.25 && dp > 1.5) {
       speed = Math.min(dist * 2.2, dp > 6 ? 6.2 : 4.0);
-      P.pos[0] += dx / dist * speed * dt; P.pos[2] += dz / dist * speed * dt;
+      CharPhys.move(P, P.pos, dx / dist * speed * dt, dz / dist * speed * dt, 0.3, dt);
       P.yaw = P.yaw + wrapAngle(Math.atan2(-dx, -dz) - P.yaw) * Math.min(1, dt * 8);
     } else {
+      CharPhys.move(P, P.pos, 0, 0, 0.3, dt);
       P.yaw = P.yaw + wrapAngle(Math.atan2(-(b[0] - P.pos[0]), -(b[2] - P.pos[2])) - P.yaw) * Math.min(1, dt * 3);
     }
-    // personal space
-    if (dp < 1.1 && dp > 1e-3) { const k = (1.1 - dp) / dp; P.pos[0] -= (b[0] - P.pos[0]) * k; P.pos[2] -= (b[2] - P.pos[2]) * k; }
+    // bump into him and you push him along (he can't be walked through)
+    CharPhys.shove(P, P.pos, 0.32, dt);
     P.walk = damp(P.walk, clamp(speed / 4, 0, 1), 8, dt);
   },
 
@@ -404,7 +407,14 @@ const Cast = {
       }
       const sp = R.trs('box', MAT.wood, x - 0.03, 0.9, z + 0.62, 0, 0.08, 0, 0.36, 0.016, 0.04, false);
       shell('sphereLow', x + 0.62, 0.885, z + 0.5, 0.06, 0.03, 0.09, 1);  // mouse
-      R.trs('cylLow', MAT.cable, x + 0.62, 0.88, z + 0.3, Math.PI / 2, 0, 0, 0.006, 0.2, 0.006, false);
+      // the mouse cord: off the back of the mouse, across the desk and plugged into the side of the computer,
+      // with a little slack loop
+      {
+        const P = _cMouse.pts, Q = [[0.62, 0.877, 0.452], [0.63, 0.866, 0.36], [0.66, 0.864, 0.24], [0.64, 0.866, 0.12], [0.58, 0.88, 0.04], [0.538, 0.93, -0.02]];
+        for (let i = 0; i < Q.length; i++) V3.set(P[i], x + Q[i][0], Q[i][1], z + Q[i][2]);
+        for (let i = 0; i < Q.length - 1; i++) R.seg('cylLow', MAT.cable, P[i], P[i + 1], 0.0055, false);
+        R.trs('box', MAT.rubber, x + 0.532, 0.93, z - 0.02, 0, 0, 0, 0.012, 0.03, 0.045, false);   // the plug
+      }
       M4.compose(this.monM, x, y + 0.02, z + 0.205, Math.PI, 0, 0, 0.7, 0.55, 1);
       AssetQueue.push(this.screen, this.monM, false);
       return;
@@ -468,6 +478,18 @@ const Cast = {
     if (vis[this.doll.sector]) this.submitDoll();
     Lovey.submit(vis);
     if (this.monitor.active && vis[this.monitor.sector] && this.screen) this.submitMonitor();
+    // three big CRT screens high on the Core Vault walls: Harlan watches the whole fight
+    if (vis[10] && this.screen) {
+      const R = RenderQueue;
+      for (const [x, y, z, yaw] of [[-15.75, 6.2, -311, -Math.PI / 2], [15.75, 6.2, -311, Math.PI / 2], [0, 7.2, -329.75, Math.PI]]) {
+        const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+        R.trs('box', MAT.steel, x - fx * 0.25, y, z - fz * 0.25, yaw, 0, 0, 3.4, 2.6, 0.5);
+        R.trs('box', MAT.rubber, x - fx * 0.02, y, z - fz * 0.02, yaw, 0, 0, 3.0, 2.25, 0.06, false);
+        R.trs('cylLow', MAT.cable, x - fx * 0.3, y + 1.3, z - fz * 0.3, 0, 0, 0, 0.05, 4.5, 0.05, false);
+        M4.compose(this.monM, x + fx * 0.02, y, z + fz * 0.02, yaw, 0, 0, 2.7, 2.0, 1);
+        AssetQueue.push(this.screen, this.monM, false);
+      }
+    }
     if (vis[3]) this.submitSocket();
     if (!this.plush.hidden && vis[this.plush.sector]) this.submitPlush();
     Enemies.submit(vis);
@@ -757,7 +779,7 @@ const Voices = {
     const clean = text.replace(/\([^)]*\)/g, '').replace(/\s-\s|--/g, ', ').replace(/\s+/g, ' ').trim();
     if (!clean) return;
     try {
-      speechSynthesis.cancel();
+      if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
       // speak phrase by phrase so each sentence gets its own contour (and the Epxirtype can change voice)
       const parts = clean.match(/[^.,!?;]+[.,!?;]*/g) || [clean];
       let who = speaker, k = Math.floor(Math.random() * MIMIC_CAST.length);
@@ -779,12 +801,23 @@ const Voices = {
   stop() { if (this.ok) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } } this.startedAt = -1; }
 };
 Voices.init();
+// Chrome stops long speech queues dead after ~15 s; a pause/resume every few seconds keeps it talking
+if (Voices.ok) setInterval(() => { try { if (speechSynthesis.speaking && !speechSynthesis.paused) { speechSynthesis.pause(); speechSynthesis.resume(); } } catch (e) { /* ignore */ } }, 9000);
 
 const Dialogue = {
   queue: [], current: null, chars: 0, acc: 0, hold: 0, el: null, nameEl: null, textEl: null, shown: '',
   init() { this.el = document.getElementById('hudDialog'); this.nameEl = document.getElementById('hudDialogName'); this.textEl = document.getElementById('hudDialogText'); },
-  say(speaker, text) { if (this.queue.length < 12) this.queue.push({ speaker, text }); },
-  clear() { this.queue.length = 0; this.current = null; Voices.stop(); this.render(); },
+  // the same line is never queued twice in a row, and the queue is long enough for a whole scene
+  say(speaker, text) {
+    const last = this.queue.length ? this.queue[this.queue.length - 1] : this.current;
+    if (last && last.speaker === speaker && last.text === text) return;
+    if (this.queue.length < 40) this.queue.push({ speaker, text });
+  },
+  // a scripted moment taking over: drop what was waiting, but let the line being spoken FINISH (no cut-off);
+  // the new scene's lines follow straight after it
+  clear() { this.queue.length = 0; if (this.current) this.current.finishing = true; },
+  // hard stop (new game, death, loading a checkpoint, leaving a tape)
+  reset() { this.queue.length = 0; this.current = null; Voices.stop(); this.render(); },
   // skip the line being spoken; a second press soon after skips the rest of the conversation
   skip() {
     const now = performance.now();
@@ -798,6 +831,7 @@ const Dialogue = {
     const c = this.current;
     if (c) {
       const sp = SPEAKERS[c.speaker];
+      if (c.finishing && this.chars < c.text.length) { this.chars = c.text.length; }
       if (this.chars < c.text.length) {
         this.acc += dt * 34;
         while (this.acc >= 1 && this.chars < c.text.length) {
@@ -808,7 +842,7 @@ const Dialogue = {
       } else {
         this.hold += dt;
         // the next line never starts over a voice that is still speaking (capped, in case speech stalls)
-        const base = 1.6 + c.text.length * 0.035;
+        const base = c.finishing && this.queue.length ? 0.5 : 1.6 + c.text.length * 0.035;
         if (this.hold > base && !(Voices.active() && this.hold < base + 14)) this.current = null;
       }
     }
@@ -954,3 +988,4 @@ const Pip = {
     c.fillStyle = 'rgba(255,255,255,0.06)'; c.beginPath(); c.ellipse(46, 34, 30, 11, -0.4, 0, Math.PI * 2); c.fill();
   }
 };
+const _cMouse = { pts: [V3.create(), V3.create(), V3.create(), V3.create(), V3.create(), V3.create()] };

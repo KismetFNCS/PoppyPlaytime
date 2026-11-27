@@ -2,7 +2,7 @@
 // GEAR: the swappable right hand, pickups, the gas mask, PIP's blacklight + hidden messages,
 // and PIP mounted on the teal glove.
 //
-//   RIGHT HAND (the teal left hand never changes). [X] / mouse wheel / pad Y cycles the hands you own:
+//   RIGHT HAND (the teal left hand never changes). tap [X] / pad Y for the next hand, or hold it (or [Tab]) for the hand wheel:
 //     ROSE      your old hand. A plain hit staggers (1.3 s).
 //     THUMPER   brass knuckle-buster. Heavy hit: 3.2 s stun, knock-back, smashes nearby cherubs.
 //     STITCHER  steel needle fingers that pin whatever they hit in place (4.5 s; cherubs 6 s).
@@ -37,22 +37,21 @@ const HAND_TYPES = [
   { id: 'FLARE', mat: MAT.copper, tint: [1.4, 0.7, 0.35], glow: [0.5, 0.18, 0.04], stun: 2.0, cool: 1.2, desc: 'bursts into a burning flare - scatters small creatures, stuns lurkers' }
 ];
 const HAND_COUNT = HAND_TYPES.length;
+// you start with every hand except the three you are here to find (THUMPER, STITCHER, LANTERN)
+const STARTER_HANDS = ['ROSE', 'CONDUIT', 'BELLOWS', 'ANCHOR', 'SPRING', 'MAGNET', 'FLARE'];
 const PICKUP_SPOTS = [
   { kind: 'mask', sector: 0, pos: [-2.6, 0.97, 2.2] },
-  // (THUMPER, STITCHER and LANTERN are hands you already had: they are on the wheel from the start)
-  // Act II: your own right hand, torn off in the drop to the station yard
+  // the three new hands, all hard to get:
+  //   THUMPER  caged in the reclamation hall - the cage has its own circuit, round RELAY A to the east wall
+  //   LANTERN  deep in the gallery's toxic smog, past the steam line (you need the mask)
+  //   STITCHER sealed behind a cracked panel in the foundry - blast it with BELLOWS while the Epxirtype creeps
+  { kind: 'hand', type: 1, sector: 1, pos: [-3.5, 1.08, -14.5], lock: 'R1_CAGE' },
+  { kind: 'hand', type: 3, sector: 2, pos: [-8.6, 1.08, -46.6] },
+  { kind: 'hand', type: 2, sector: 3, pos: [4.6, 1.18, -56], lockIf: 'panel:stitch' },
+  // Act II: your GrabPack, torn off in the drop to the station yard
   { kind: 'hand', type: 0, restore: true, sector: 6, pos: [-4.2, 0.98, -146.5] },
   { kind: 'key', key: 'OFFICE', label: 'OFFICE KEY', sector: 6, pos: [-13.3, 0.25, -158.2] },
-  { kind: 'hand', type: 5, sector: 8, pos: [-9.6, 1.0, -220.5] },
-  { kind: 'hand', type: 4, sector: 9, pos: [-12.8, 1.0, -259.6] },
-  { kind: 'hand', type: 6, sector: 10, pos: [14.2, 1.0, -293.9], lock: 'V_CAGE' },
-  // Act III (hard to get): SPRING caged on the altar until you run the chapel circuit past the Choir;
-  // FLARE on the bottom of the flooded pool, only reachable once both drains are open; the executive key;
-  // MAGNET caged by the chasm until you power the yard cage past the Scraplings
-  { kind: 'hand', type: 7, sector: 12, pos: [-6, 1.0, -375.5], lock: 'A_SPRINGCAGE' },
-  { kind: 'hand', type: 9, sector: 13, pos: [9.5, 0.12, -416.5], lockIf: 'drained' },
-  { kind: 'key', key: 'EXEC', label: 'EXECUTIVE KEY', sector: 15, pos: [0, 1.0, -512.6] },
-  { kind: 'hand', type: 8, sector: 16, pos: [-12, 1.0, -534.4], lock: 'S_MAGCAGE' }
+  { kind: 'key', key: 'EXEC', label: 'EXECUTIVE KEY', sector: 15, pos: [0, 1.0, -512.6], lock: 'E_DESK' }
 ];
 const GAS_ZONES = [{ sector: 2, x0: -10, z0: -48, x1: -4.6, z1: -39.2 }];
 const UV_SECRETS = [
@@ -83,14 +82,16 @@ const Gear = {
     this.reset();
   },
   reset() {
-    this.owned.fill(0); this.owned[0] = 1; this.owned[1] = 1; this.owned[2] = 1; this.owned[3] = 1;   // ROSE + the old THUMPER, STITCHER, LANTERN this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0; this.charge = 0;
+    this.starters();
+    this.cur = 0; this.swapT = 0; this.wheelOpen = false; this.holdT = 0; this.charge = 0;
     this.hasMask = false; this.maskOn = false; this.maskT = 0; this.gasT = 0; this.gasHinted = false;
     this.blacklight = false; this.secretsFound.fill(0); this.handsLost = false;
     for (const p of this.pickups) p.taken = false;
   },
+  starters() { this.owned.fill(0); for (let i = 0; i < HAND_COUNT; i++) if (STARTER_HANDS.includes(HAND_TYPES[i].id)) this.owned[i] = 1; },
   // after a checkpoint restore: what you own follows from which pickups are gone
   syncFromPickups() {
-    this.owned.fill(0); this.owned[0] = 1; this.hasMask = false;
+    this.starters(); this.hasMask = false;
     for (const p of this.pickups) if (p.taken) { if (p.kind === 'mask') this.hasMask = true; else this.owned[p.type] = 1; }
     if (!this.owned[this.cur]) this.cur = 0;
     if (!this.hasMask) this.maskOn = false;
@@ -192,7 +193,8 @@ const Gear = {
       else if (!this.handsLost) dir = 1;
       this.holdT = 0;
     }
-    if (Input.wheel) { dir = Input.wheel > 0 ? 1 : -1; Input.wheel = 0; }
+    // (the scroll wheel no longer swaps hands: one notch of a free-spinning wheel fired off several swaps)
+    Input.wheel = 0;
     if (dir) this.cycle(dir);
     if (this.swapT > 0) {
       this.swapT -= dt;
@@ -286,7 +288,7 @@ const Gear = {
 
   // ---------- pickups ----------
   // a caged pickup opens when the receptacle named by its lock has been powered
-  locked(p) { if (p.lockIf === 'drained') return !(Act3.drain >= 1); if (!p.lock) return false; const r = Level.receptacles.find(q => q.action === p.lock); return !(r && r.powered); },
+  locked(p) { if (p.lockIf === 'drained') return !(Act3.drain >= 1); if (p.lockIf && p.lockIf.indexOf('panel:') === 0) { const b = Level.namedPanels[p.lockIf.slice(6)]; return !!(b && !b.broken); } if (!p.lock) return false; const r = Level.receptacles.find(q => q.action === p.lock); return !(r && r.powered); },
   nearestPickup() {
     let best = null, bd = 2.4;
     for (const p of this.pickups) {
@@ -320,7 +322,7 @@ const Gear = {
     } else {
       this.owned[p.type] = 1;
       this.swapTo = p.type; this.swapT = SWAP_TIME;
-      GrabPack.showHint('NEW HAND: ' + HAND_TYPES[p.type].id + ' - ' + HAND_TYPES[p.type].desc + '  ([X] / wheel to swap)');
+      GrabPack.showHint('NEW HAND: ' + HAND_TYPES[p.type].id + ' - ' + HAND_TYPES[p.type].desc + '  (tap [X] to swap, hold for the hand wheel)');
     }
     Pip.react('stars', 2.5);
   },

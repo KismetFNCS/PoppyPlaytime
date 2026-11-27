@@ -13,7 +13,7 @@ const VHS_COLORS = {
 
 const TAPES = [
   {
-    title: 'ORIENTATION 06-A', label: 'EMPLOYEE TRAINING ARCHIVE', presenter: 'mascot', pitch: 330,
+    title: 'ORIENTATION 06-A', label: 'EMPLOYEE TRAINING ARCHIVE', presenter: 'portrait', people: ['host', 'host', 'item:pack', 'hand:CONDUIT', 'monster:cherub'], pitch: 330,
     lines: [
       'Welcome to Sector Six: Reclamation. Down here, nothing is ever thrown away.',
       'Broken toys, broken machines, broken ideas... we stitch them back together, good as new!',
@@ -23,7 +23,7 @@ const TAPES = [
     ]
   },
   {
-    title: 'RECLAMATION LOG 19', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'portrait', people: ['varga'], pitch: 190,
+    title: 'RECLAMATION LOG 19', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'portrait', people: ['varga', 'monster', 'monster', 'varga'], pitch: 190,
     lines: [
       'Reclamation log, entry nineteen. Doctor Ilse Varga recording.',
       'Experiment 6-06 refuses to stay disassembled. We cut its threads; by morning it has sewn itself back together.',
@@ -32,7 +32,7 @@ const TAPES = [
     ]
   },
   {
-    title: 'INCIDENT 6-06', label: 'FINAL TRANSMISSION', presenter: 'mascot', pitch: 300,
+    title: 'INCIDENT 6-06', label: 'FINAL TRANSMISSION', presenter: 'portrait', people: ['monster', 'varga', 'child2', 'harlan'], pitch: 300,
     lines: [
       'The Epxirtype is still. For the first time in years, the Loom has stopped turning.',
       'Whatever we built down there only ever wanted one thing... to be finished.',
@@ -43,7 +43,7 @@ const TAPES = [
 ];
 
 TAPES.push({
-  title: 'RECLAMATION LOG 23', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'portrait', people: ['varga'], pitch: 185,
+  title: 'RECLAMATION LOG 23', label: 'AUDIO LOG - DR. I. VARGA', presenter: 'portrait', people: ['varga', 'varga', 'varga', 'monster'], pitch: 185,
   lines: [
     'Log twenty-three. The doll keeps turning up in places nobody carried her.',
     'Posie was our display model. Now she sits by the doors before they open, as if she knows.',
@@ -81,6 +81,105 @@ TAPES.push({
   ]
 });
 
+// the GrabPack catalogue: Varga's R&D reel showing off the prototype hands (found in the reclamation hall)
+TAPES.push({
+  title: 'GRABPACK CATALOGUE', label: 'R&D - PROTOTYPE HANDS', presenter: 'portrait',
+  people: ['varga', 'hand:THUMPER', 'hand:STITCHER', 'hand:LANTERN', 'item:mask', 'hand:FLARE'], pitch: 200,
+  lines: [
+    'Doctor Varga, R and D. Three new hands came off the bench this month. Staff are to keep them under lock.',
+    'The THUMPER: a brass knuckle-buster. Stuns for seconds, not moments. Caged in the hall, on its own circuit.',
+    'The STITCHER: needle fingers that pin whatever they strike. Sealed in the foundry behind a cracked panel.',
+    'The LANTERN: a violet lamp that bursts like a flashbulb. We lost it in the gallery smog. Wear a mask.',
+    'Speaking of which - the gallery masks are in the intake. The lint smog will put you on the floor in a minute.',
+    'And the FLARE, for the ones who prefer to keep their distance. Two fingers on the trigger. Mind the ceiling.'
+  ]
+});
+
+// showcase footage on a tape: one of the hands, an item, or a creature, filmed on the R&D bench
+const SHOW_HANDS = {
+  ROSE: [214, 120, 132], THUMPER: [206, 156, 74], STITCHER: [188, 190, 198], LANTERN: [150, 110, 230], CONDUIT: [190, 120, 70],
+  BELLOWS: [170, 170, 160], ANCHOR: [140, 80, 60], SPRING: [150, 80, 220], MAGNET: [200, 70, 64], FLARE: [236, 120, 40]
+};
+function drawShowcase(c, x, y, w, h, what, t) {
+  const [kind, id] = what.split(':');
+  const cx = x + w / 2, cy = y + h * 0.5, s = h * 0.3, rgb = (a, k) => 'rgb(' + ((a[0] * k) | 0) + ',' + ((a[1] * k) | 0) + ',' + ((a[2] * k) | 0) + ')';
+  // a turntable on the bench under a work lamp
+  c.fillStyle = 'rgb(40,34,30)'; c.beginPath(); c.ellipse(cx, y + h * 0.86, w * 0.36, h * 0.07, 0, 0, Math.PI * 2); c.fill();
+  c.fillStyle = 'rgb(70,62,54)'; c.beginPath(); c.ellipse(cx, y + h * 0.84, w * 0.33, h * 0.055, 0, 0, Math.PI * 2); c.fill();
+  const g = c.createRadialGradient(cx, y + h * 0.2, 4, cx, y + h * 0.4, w * 0.5); g.addColorStop(0, 'rgba(255,236,200,0.28)'); g.addColorStop(1, 'rgba(255,236,200,0)');
+  c.fillStyle = g; c.fillRect(x, y, w, h);
+  c.save(); c.translate(cx, cy); c.rotate(Math.sin(t * 0.8) * 0.12);
+  if (kind === 'hand') {
+    const col = SHOW_HANDS[id] || SHOW_HANDS.ROSE;
+    if (id === 'LANTERN') { const lg = c.createRadialGradient(0, -s * 0.2, 2, 0, 0, s * 1.6); lg.addColorStop(0, 'rgba(190,140,255,' + (0.5 + 0.3 * Math.sin(t * 6)) + ')'); lg.addColorStop(1, 'rgba(120,60,255,0)'); c.fillStyle = lg; c.fillRect(-s * 2, -s * 2, s * 4, s * 4); }
+    // cuff with black rubber rings
+    c.fillStyle = rgb(col, 0.6); c.fillRect(-s * 0.42, s * 0.55, s * 0.84, s * 0.55);
+    c.fillStyle = 'rgb(20,20,22)'; c.fillRect(-s * 0.46, s * 0.6, s * 0.92, s * 0.08); c.fillRect(-s * 0.46, s * 0.95, s * 0.92, s * 0.08);
+    if (id === 'FLARE') {
+      // the flare gun: a fat barrel over the knuckles, a grip, two fingers curled on the trigger
+      c.fillStyle = rgb(col, 1); c.beginPath(); c.roundRect(-s * 0.5, -s * 0.25, s * 1.0, s * 0.85, s * 0.18); c.fill();
+      c.fillStyle = rgb(col, 1.08); c.beginPath(); c.roundRect(-s * 0.32, -s * 1.35, s * 0.64, s * 1.2, s * 0.12); c.fill();
+      c.fillStyle = 'rgb(18,16,16)'; c.beginPath(); c.ellipse(0, -s * 1.35, s * 0.24, s * 0.07, 0, 0, Math.PI * 2); c.fill();
+      c.fillRect(-s * 0.36, -s * 1.25, s * 0.72, s * 0.06);
+      c.strokeStyle = 'rgb(20,20,20)'; c.lineWidth = s * 0.06; c.beginPath(); c.arc(s * 0.5, s * 0.05, s * 0.28, -1.2, 1.4); c.stroke();
+      c.fillStyle = rgb(col, 0.85); for (const dy of [-0.05, 0.2]) { c.beginPath(); c.ellipse(s * 0.56, s * dy, s * 0.17, s * 0.1, 0.3, 0, Math.PI * 2); c.fill(); }
+      c.fillStyle = rgb(col, 0.8); c.beginPath(); c.ellipse(-s * 0.55, -s * 0.15, s * 0.14, s * 0.32, 0.2, 0, Math.PI * 2); c.fill();
+    } else {
+      // padded palm and four thick fingers with black joints, the thumb out to the side
+      c.fillStyle = rgb(col, 1); c.beginPath(); c.roundRect(-s * 0.5, -s * 0.15, s * 1.0, s * 0.78, s * 0.2); c.fill();
+      for (let i = 0; i < 4; i++) {
+        const fx = -s * 0.36 + i * s * 0.24, len = s * (i === 1 || i === 2 ? 0.8 : 0.66);
+        if (id === 'STITCHER') { c.strokeStyle = 'rgb(220,224,232)'; c.lineWidth = s * 0.05; c.beginPath(); c.moveTo(fx, -s * 0.1); c.lineTo(fx, -s * 0.15 - len * 1.4); c.stroke(); continue; }
+        c.fillStyle = rgb(col, 0.95); c.beginPath(); c.roundRect(fx - s * 0.1, -s * 0.1 - len, s * 0.2, len, s * 0.09); c.fill();
+        c.fillStyle = 'rgb(18,18,20)'; c.fillRect(fx - s * 0.1, -s * 0.1 - len * 0.45, s * 0.2, s * 0.05); c.fillRect(fx - s * 0.1, -s * 0.1 - len * 0.8, s * 0.2, s * 0.05);
+        c.beginPath(); c.arc(fx, -s * 0.1 - len + s * 0.06, s * 0.085, Math.PI, 0); c.fill();
+      }
+      c.fillStyle = rgb(col, 0.9); c.beginPath(); c.ellipse(-s * 0.62, s * 0.1, s * 0.13, s * 0.3, 0.6, 0, Math.PI * 2); c.fill();
+      // what makes each one different
+      if (id === 'THUMPER') { c.fillStyle = 'rgb(232,190,90)'; c.fillRect(-s * 0.52, -s * 0.22, s * 1.04, s * 0.16); for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(-s * 0.36 + i * s * 0.24, -s * 0.22, s * 0.08, 0, Math.PI * 2); c.fill(); } }
+      if (id === 'CONDUIT') { c.strokeStyle = 'rgb(220,150,80)'; c.lineWidth = s * 0.05; for (let i = 0; i < 4; i++) { c.beginPath(); c.ellipse(0, s * 0.05 + i * s * 0.12, s * 0.5, s * 0.05, 0, 0, Math.PI * 2); c.stroke(); } c.fillStyle = 'rgba(90,220,255,' + (0.4 + 0.3 * Math.sin(t * 9)) + ')'; c.beginPath(); c.arc(0, s * 0.2, s * 0.14, 0, Math.PI * 2); c.fill(); }
+      if (id === 'LANTERN') { c.fillStyle = 'rgb(236,220,255)'; c.beginPath(); c.arc(0, s * 0.22, s * 0.18, 0, Math.PI * 2); c.fill(); }
+      if (id === 'BELLOWS') { c.fillStyle = 'rgb(60,60,64)'; for (let i = 0; i < 4; i++) c.fillRect(-s * 0.4, s * 0.0 + i * s * 0.13, s * 0.8, s * 0.06); }
+      if (id === 'ANCHOR') { c.fillStyle = 'rgb(200,200,206)'; c.beginPath(); c.moveTo(-s * 0.12, -s * 0.2); c.lineTo(0, -s * 1.45); c.lineTo(s * 0.12, -s * 0.2); c.fill(); }
+      if (id === 'SPRING') { c.strokeStyle = 'rgb(210,210,220)'; c.lineWidth = s * 0.05; c.beginPath(); for (let i = 0; i <= 20; i++) { const yy = s * 0.6 + i * s * 0.03, xx = Math.sin(i * 1.6) * s * 0.3; i ? c.lineTo(xx, yy) : c.moveTo(xx, yy); } c.stroke(); }
+      if (id === 'MAGNET') { c.strokeStyle = 'rgb(220,220,226)'; c.lineWidth = s * 0.14; c.beginPath(); c.arc(0, s * 0.2, s * 0.26, 0, Math.PI); c.stroke(); }
+    }
+  } else if (kind === 'item' && id === 'pack') {
+    c.fillStyle = 'rgb(70,64,58)'; c.beginPath(); c.roundRect(-s * 0.7, -s * 0.9, s * 1.4, s * 1.7, s * 0.2); c.fill();
+    c.fillStyle = 'rgb(46,42,40)'; c.fillRect(-s * 0.5, -s * 0.6, s * 1.0, s * 0.5);
+    c.fillStyle = 'rgba(90,220,255,' + (0.5 + 0.3 * Math.sin(t * 4)) + ')'; c.fillRect(-s * 0.4, -s * 0.5, s * 0.8 * (0.5 + 0.5 * Math.sin(t)), s * 0.12);
+    c.lineWidth = s * 0.1;
+    for (const [sx, cl] of [[-1, 'rgb(70,100,210)'], [1, 'rgb(214,120,132)']]) {
+      c.strokeStyle = 'rgb(30,30,34)'; c.beginPath(); c.moveTo(sx * s * 0.6, -s * 0.2); c.quadraticCurveTo(sx * s * 1.4, -s * 0.4, sx * s * 1.25, -s * 1.15); c.stroke();
+      c.fillStyle = cl; c.beginPath(); c.ellipse(sx * s * 1.25, -s * 1.3, s * 0.22, s * 0.28, 0, 0, Math.PI * 2); c.fill();
+    }
+  } else if (kind === 'item' && id === 'mask') {
+    c.fillStyle = 'rgb(58,62,56)'; c.beginPath(); c.ellipse(0, 0, s * 0.85, s * 1.0, 0, 0, Math.PI * 2); c.fill();
+    for (const sx of [-1, 1]) { c.fillStyle = 'rgb(200,160,70)'; c.beginPath(); c.arc(sx * s * 0.36, -s * 0.2, s * 0.3, 0, Math.PI * 2); c.fill(); c.fillStyle = 'rgba(140,200,210,0.8)'; c.beginPath(); c.arc(sx * s * 0.36, -s * 0.2, s * 0.22, 0, Math.PI * 2); c.fill(); c.fillStyle = 'rgb(190,150,60)'; c.fillRect(sx * s * 0.85 - s * 0.18, s * 0.1, s * 0.36, s * 0.6); }
+    c.fillStyle = 'rgb(40,42,40)'; c.beginPath(); c.ellipse(0, s * 0.55, s * 0.3, s * 0.32, 0, 0, Math.PI * 2); c.fill();
+  } else if (kind === 'item' && id === 'key') {
+    c.strokeStyle = 'rgb(210,170,80)'; c.lineWidth = s * 0.16; c.beginPath(); c.arc(0, -s * 0.6, s * 0.32, 0, Math.PI * 2); c.stroke();
+    c.fillStyle = 'rgb(210,170,80)'; c.fillRect(-s * 0.08, -s * 0.3, s * 0.16, s * 1.4); c.fillRect(0, s * 0.8, s * 0.36, s * 0.14); c.fillRect(0, s * 0.5, s * 0.26, s * 0.12);
+  } else if (kind === 'monster' && id === 'cherub') {
+    for (const sx of [-1, 1]) { c.fillStyle = 'rgb(200,196,188)'; c.beginPath(); c.ellipse(sx * s * 0.95, -s * 0.2, s * 0.6, s * 0.28, sx * -0.5 + Math.sin(t * 14) * 0.2 * sx, 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = 'rgb(232,196,180)'; c.beginPath(); c.arc(0, 0, s * 0.65, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgb(210,120,130)'; for (const sx of [-1, 1]) { c.beginPath(); c.arc(sx * s * 0.36, s * 0.15, s * 0.16, 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = 'rgb(12,10,10)'; for (const sx of [-1, 1]) { c.beginPath(); c.arc(sx * s * 0.22, -s * 0.12, s * 0.09, 0, Math.PI * 2); c.fill(); }
+    c.beginPath(); c.ellipse(0, s * 0.3, s * 0.26, s * 0.16, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgb(236,232,220)'; for (let i = -3; i <= 3; i++) c.fillRect(i * s * 0.07 - s * 0.025, s * 0.18, s * 0.05, s * 0.08);
+  } else if (kind === 'monster' && id === 'seraph') {
+    c.strokeStyle = 'rgb(180,170,150)'; c.lineWidth = s * 0.05;
+    for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + (k - 2.5) * 0.45; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * s * 1.5, Math.sin(a) * s * 1.2); c.stroke(); }
+    const eg = c.createRadialGradient(0, 0, 1, 0, 0, s * 0.5); eg.addColorStop(0, 'rgb(255,230,160)'); eg.addColorStop(1, 'rgba(255,170,60,0)');
+    c.fillStyle = eg; c.beginPath(); c.arc(0, 0, s * 0.5, 0, Math.PI * 2); c.fill();
+  }
+  c.restore();
+  // caption plate
+  c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(x + 8, y + h - 24, w - 16, 18);
+  c.fillStyle = 'rgb(232,195,90)'; c.font = 'bold 11px monospace'; c.textBaseline = 'middle';
+  c.fillText((kind === 'hand' ? 'PROTOTYPE HAND: ' : kind === 'item' ? 'EQUIPMENT: ' : 'SUBJECT: ') + (id || '').toUpperCase(), x + 14, y + h - 15);
+}
+
 // a painted, film-grain portrait of one of the founders, staff or orphans (or the creature itself) for the tapes
 // and the missing-person posters. Original people: Augustus Merriweather (founder), Dr. Ilse Varga (R&D),
 // Nora Merriweather, Harlan Smithers (Director), and the Hollow Pines children.
@@ -88,19 +187,37 @@ const PORTRAIT_PEOPLE = {
   augustus: { skin: [214, 176, 150], hair: [196, 196, 190], hairStyle: 'side', age: 0.8, beard: 'moustache', suit: [52, 44, 40], tie: [120, 30, 40], glasses: false, female: false },
   varga: { skin: [226, 192, 168], hair: [48, 36, 32], hairStyle: 'bun', age: 0.45, suit: [222, 222, 214], tie: null, glasses: true, female: true },
   nora: { skin: [232, 200, 176], hair: [150, 92, 52], hairStyle: 'curls', age: 0.3, suit: [70, 110, 120], tie: null, glasses: false, female: true },
+  // the smiling training-film host from the employee orientation reels
+  host: { skin: [230, 196, 170], hair: [212, 170, 96], hairStyle: 'curls', age: 0.25, suit: [168, 44, 60], tie: null, glasses: false, female: true },
   harlan: { skin: [206, 178, 160], hair: [30, 28, 28], hairStyle: 'slick', age: 0.6, suit: [36, 38, 44], tie: [30, 90, 96], glasses: false, female: false },
   child: { skin: [236, 206, 184], hair: [120, 70, 40], hairStyle: 'bob', age: 0.05, suit: [150, 150, 170], tie: null, glasses: false, female: false, child: true },
-  child2: { skin: [216, 172, 140], hair: [36, 26, 22], hairStyle: 'pigtails', age: 0.05, suit: [170, 120, 140], tie: null, glasses: false, female: true, child: true }
+  child2: { skin: [216, 172, 140], hair: [36, 26, 22], hairStyle: 'pigtails', age: 0.05, suit: [170, 120, 140], tie: null, glasses: false, female: true, child: true },
+  // more of the Hollow Pines children (the missing-person posters)
+  child3: { skin: [196, 150, 118], hair: [24, 18, 16], hairStyle: 'curls', age: 0.05, suit: [90, 130, 90], tie: null, glasses: false, female: true, child: true },
+  child4: { skin: [240, 214, 196], hair: [220, 180, 110], hairStyle: 'side', age: 0.05, suit: [120, 70, 60], tie: null, glasses: true, female: false, child: true },
+  child5: { skin: [150, 104, 78], hair: [20, 16, 14], hairStyle: 'bob', age: 0.05, suit: [200, 170, 80], tie: null, glasses: false, female: false, child: true },
+  child6: { skin: [232, 196, 170], hair: [170, 70, 40], hairStyle: 'pigtails', age: 0.05, suit: [80, 110, 170], tie: null, glasses: false, female: true, child: true },
+  child7: { skin: [210, 170, 140], hair: [60, 44, 34], hairStyle: 'slick', age: 0.05, suit: [60, 60, 70], tie: [150, 40, 40], glasses: false, female: false, child: true },
+  child8: { skin: [180, 132, 100], hair: [44, 30, 24], hairStyle: 'bun', age: 0.05, suit: [190, 110, 150], tie: null, glasses: true, female: true, child: true }
 };
+// the missing children on the posters: who, name, age, last seen
+const MISSING_KIDS = [
+  ['child', 'TOMMY ASHFORD', 8, 'THE PLAYROOM'], ['child2', 'MAE LINDQVIST', 7, 'THE DORMITORY'], ['child3', 'ROSA FAIRWEATHER', 9, 'THE TOY LINE'],
+  ['child4', 'OLIVER PIKE', 10, 'THE FREIGHT YARD'], ['child5', 'SAMUEL ODUYA', 6, 'THE INFIRMARY'], ['child6', 'IVY CALLOWAY', 8, 'GAME STATION 3'],
+  ['child7', 'HENRY VOSS', 11, 'THE CHAPEL'], ['child8', 'NELL BRANNIGAN', 9, 'THE TOYBOX']
+];
 function drawPortrait(c, x, y, w, h, who, t, talking) {
   const P = PORTRAIT_PEOPLE[who];
   c.save();
   c.beginPath(); c.rect(x, y, w, h); c.clip();
+  const show = who.indexOf(':') > 0 && who !== 'monster:epx';
+  if (who === 'monster:epx') who = 'monster';
   // backdrop: a dim office or workshop wall, vignetted
   let g = c.createRadialGradient(x + w / 2, y + h * 0.4, 10, x + w / 2, y + h / 2, w * 0.8);
   g.addColorStop(0, 'rgb(92,78,64)'); g.addColorStop(1, 'rgb(18,14,12)');
   c.fillStyle = g; c.fillRect(x, y, w, h);
-  if (who === 'monster') {
+  if (show) drawShowcase(c, x, y, w, h, who, t);
+  else if (who === 'monster') {
     // grainy, half-lit footage of the creature in its workshop days: the porcelain mask and grin in the dark
     const cx = x + w / 2, cy = y + h * 0.45, s = h * 0.32;
     c.fillStyle = 'rgb(30,70,80)'; c.beginPath(); c.moveTo(cx - s * 1.2, cy - s * 0.4); c.lineTo(cx, cy - s * 2.2); c.lineTo(cx + s * 1.2, cy - s * 0.4); c.fill();
@@ -615,11 +732,16 @@ const UI = {
     const sub = Settings.values.subtitles && GrabPack.hintTimer > 0 ? GrabPack.hint : '';
     if (H.sub !== sub) { H.sub = sub; E.hudSub.textContent = sub; }
     Renderer.post.slats = Player.hidden ? 1 : 0;
-    const bossKey = Boss.active && Boss.mode !== 'DEFEATED' ? Boss.hp : DeepWorks.vault.active && DeepWorks.vault.mode !== 'DONE' ? DeepWorks.vault.hp : -1;
+    const AH = Act3.heart, heartOn = AH && (AH.mode === 'FIGHT' || AH.mode === 'TAKEDOWN');
+    const bossKey = Boss.active && Boss.mode !== 'DEFEATED' ? Boss.hp : DeepWorks.vault.active && DeepWorks.vault.mode !== 'DONE' ? DeepWorks.vault.hp : heartOn ? AH.hp : -1;
     if (H.boss !== bossKey) {
       H.boss = bossKey;
       document.getElementById('hudBoss').style.display = bossKey >= 0 ? 'block' : 'none';
-      const segs = document.getElementById('hudBossSegs').children;
+      // one segment per point of health: 9 in the Loom, 6 in the vault
+      const segBox = document.getElementById('hudBossSegs'), want = Boss.active ? Boss.maxHp : 6;
+      while (segBox.children.length < want) segBox.appendChild(document.createElement('i'));
+      while (segBox.children.length > want) segBox.removeChild(segBox.lastChild);
+      const segs = segBox.children;
       for (let i = 0; i < segs.length; i++) segs[i].classList.toggle('gone', i >= bossKey);
     }
     const hot = Game.aimHot;

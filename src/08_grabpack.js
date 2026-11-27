@@ -179,11 +179,11 @@ const GrabPack = {
     EventBus.emit(EV.HAND_HIT, h.pos[0], h.pos[1], h.pos[2], 10, h.side);
     EventBus.emit(EV.NOISE, h.pos[0], h.pos[1], h.pos[2], 10, 0);
     Particles.burst(h.pos, 12, 'spark');
-    if (kind === 'source' && h.latchRef && h.latchRef.burnt) {
+    if (kind === 'source' && h.latchRef && (h.latchRef.burnt || h.latchRef.dead)) {
       h.latchKind = 'world';
       sfx('deny', h.pos);
       Particles.burst(h.pos, 8, 'spark');
-      this.showHint('NODE BURNT OUT - find another live node');
+      this.showHint(h.latchRef.burnt ? 'NODE BURNT OUT - find another live node' : 'NODE DEAD - no current in it right now');
       return;
     }
     // BELLOWS: every impact is a pneumatic blast
@@ -226,17 +226,29 @@ const GrabPack = {
     if (r.powered) { sfx('handHit', h.pos, SURFACE.METAL); return; }
     // charge sockets take only a charged CONDUIT hand
     if (r.charge) {
-      if (h.side === 1 && Gear.cur === 4 && Gear.charge > 0) {
-        r.powered = true; Gear.charge = 0;
+      // a charged CONDUIT hand powers it on its own; so does running a live cable to it (latch a node with one
+      // hand, then fire the other hand into the socket)
+      const tt = this.tetheredHand(), cable = tt && tt !== h;
+      if ((h.side === 1 && Gear.cur === 4 && Gear.charge > 0) || cable) {
+        r.powered = true; if (!cable) Gear.charge = 0; else this.release(tt, false);
         sfx('power', r.pos); Particles.burst(r.pos, 20, 'spark');
         Game.action(r.action);
       } else {
         r.denyFlash = 1; sfx('deny', r.pos);
-        this.showHint('CHARGE SOCKET - it needs a charged CONDUIT hand (touch a live node with it first)');
+        this.showHint('CHARGE SOCKET - run a live cable to it (latch a node, then fire your other hand in), or use a charged CONDUIT hand');
       }
       return;
     }
     if (!r.requiresPower) {
+      // hand scanners only read the hand of their colour: blue scanner = your blue (left) hand, red scanner =
+      // your red (right) hand
+      const need = r.scanCol === 'red' ? 1 : 0;
+      if (h.side !== need) {
+        r.denyFlash = 1; sfx('deny', r.pos);
+        this.showHint(r.scanCol === 'red' ? 'RED SCANNER - it only reads your RED hand (right)' : 'BLUE SCANNER - it only reads your BLUE hand (left)');
+        EventBus.emit(EV.DENY, r.pos[0], r.pos[1], r.pos[2], 0, 0);
+        return;
+      }
       r.powered = true;
       sfx('scanner', r.pos);
       Game.action(r.action);

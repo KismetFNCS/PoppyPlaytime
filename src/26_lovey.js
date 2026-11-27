@@ -32,7 +32,7 @@ const Lovey = {
     this.mode = 'FOLLOW'; this.target = null; this.cool = 4; this.hurtT = 0; this.stabCool = 0; this.swingT = 0; this.patT = 0; this.stillT = 0; this.lineCool = 0;
     if (!this.active) return;
     const b = Player.body.pos;
-    V3.set(this.pos, b[0] + 1.4, 0, b[2] + 2.6); this.yaw = Player.yaw;
+    V3.set(this.pos, b[0] + 1.4, b[1], b[2] + 2.6); this.yaw = Player.yaw; this.vy = 0;
     this.sector = Level.sectorAt(this.pos[0], this.pos[2]);
   },
   // arriving on the fabrication line: she is missing, somewhere on this floor
@@ -56,7 +56,7 @@ const Lovey = {
     const b = Player.body.pos;
     if (Math.hypot(b[0] - LOVEY_HIDE[0], b[2] - LOVEY_HIDE[1]) < 4.2) this.discover();
   },
-  carrying() { return this.active; },
+  carrying() { return this.active && !(typeof Act3 !== 'undefined' && Act3.posieDown()); },
   // where Posie sits: on her shoulder
   seat(out) {
     const c = Math.cos(this.yaw), s = Math.sin(this.yaw), bob = Math.abs(Math.sin(this.phase)) * 0.04 * this.walk;
@@ -90,7 +90,7 @@ const Lovey = {
     // look for something to fight: the Epxirtype near you first, then cherubs and the seraph
     if (this.mode === 'FOLLOW' && this.cool <= 0) {
       const M = Monster;
-      if (M.active && M.visible && !M.inVent && Math.hypot(M.pos[0] - b[0], M.pos[2] - b[2]) < 8) { this.mode = 'CHARGE'; this.target = { kind: 'monster', pos: M.pos }; }
+      if (M.active && M.visible && !M.inVent && Math.hypot(M.pos[0] - b[0], M.pos[2] - b[2]) < (Streaming.current === 17 ? 13 : 8)) { this.mode = 'CHARGE'; this.target = { kind: 'monster', pos: M.pos }; }
       else {
         for (const c of Enemies.cherubs) {
           if (c.dead || c.state === 'GONE' || !Streaming.visible[c.sector]) continue;
@@ -107,26 +107,27 @@ const Lovey = {
       goal = T.pos;
       const d = Math.hypot(goal[0] - P[0], goal[2] - P[2]);
       if (d < (T.kind === 'monster' ? 2.2 : 1.3)) this.strike(T);
-      else if (d > 20 || (T.kind === 'cherub' && (T.c.dead || T.c.state === 'GONE'))) { this.mode = 'FOLLOW'; this.target = null; }
+      else if (d > 20 || (T.kind === 'cherub' && (T.c.dead || T.c.state === 'GONE')) || (T.kind === 'a3cherub' && T.c.dead)) { this.mode = 'FOLLOW'; this.target = null; }
       speed = 6.5;
     } else {
       // follow a few steps behind you (Morsel walks closer)
       const tp = Companion.trailPoint(4.6, this.tmp);
-      if ((dp > 14 && !this.seen()) || dp > 26) { const back = Companion.trailPoint(5, this.tmp2); V3.set(P, back[0], 0, back[2]); return; }
+      if ((dp > 14 && !this.seen()) || dp > 26 || this.fell) { const back = Companion.trailPoint(5, this.tmp2); V3.copy(P, back); this.vy = 0; this.fell = false; return; }
       if (Math.hypot(tp[0] - P[0], tp[2] - P[2]) > 0.4 && dp > 2.6) { goal = tp; speed = dp > 8 ? 5.5 : 3.2; }
     }
     if (goal) {
       const dx = goal[0] - P[0], dz = goal[2] - P[2], d = Math.hypot(dx, dz) || 1;
       const v = Math.min(speed, d * 2.4);
-      P[0] += dx / d * v * dt; P[2] += dz / d * v * dt;
+      CharPhys.move(this, P, dx / d * v * dt, dz / d * v * dt, 0.42, dt);
       this.yaw = this.yaw + wrapAngle(Math.atan2(-dx, -dz) - this.yaw) * Math.min(1, dt * 6);
       this.walk = damp(this.walk, clamp(v / 4, 0, 1), 6, dt);
     } else {
       this.yaw = this.yaw + wrapAngle(Math.atan2(-(b[0] - P[0]), -(b[2] - P[2])) - this.yaw) * Math.min(1, dt * 2);
       this.walk = damp(this.walk, 0, 6, dt);
+      CharPhys.move(this, P, 0, 0, 0.42, dt);
     }
-    // personal space
-    if (dp < 1.3 && dp > 1e-3) { const k = (1.3 - dp) / dp; P[0] -= (b[0] - P[0]) * k; P[2] -= (b[2] - P[2]) * k; }
+    // walk into her and you push her (gently) out of the way; she won't go through walls doing it
+    CharPhys.shove(this, P, 0.45, dt);
     this.phase += dt * (2 + this.walk * 5);
     this.sector = Level.sectorAt(P[0], P[2]);
     // gentle: stand still beside her for a few seconds and she gives you a soft pat
@@ -155,6 +156,16 @@ const Lovey = {
       Monster.stunTimer = Math.max(Monster.stunTimer, 7);
       const V = DeepWorks.vault;
       if (V && V.active && V.mode === 'P1') { V.hp = Math.max(4, V.hp - 1); V.hitFlash = 1; sfx('monsterHurt', Monster.pos); }
+      // in the Heart she tears into it: it goes down for a long time and her blows show on its health
+      const H = Act3.heart;
+      if (H && H.mode === 'FIGHT') {
+        Monster.stunTimer = Math.max(Monster.stunTimer, 9); this.cool = 15;
+        H.hp = Math.max(H.clamps >= 2 ? 1 : 2, H.hp - 1); sfx('monsterHurt', Monster.pos);
+        Particles.burst(this.tmp, 30, 'debris');
+        if (!H.loveyHit) { H.loveyHit = true; Dialogue.say('THIMBLE', 'Lovey knocked it flat! It\'s down - go for a clamp, NOW!'); }
+      }
+    } else if (T.kind === 'a3cherub') {
+      Act3.breakCherub(T.c); this.cool = 1.6;
     } else if (T.kind === 'cherub') {
       T.c.dead = true; Particles.burst(this.tmp, 24, 'debris'); sfx('shatter', this.tmp);
       this.cool = 2;

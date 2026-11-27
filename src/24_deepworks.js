@@ -386,13 +386,8 @@ const DeepWorks = {
     this.genLights = VAULT_GENS.map(gx => L.light(S, gx, 2.0, -326.8, '#7cff5a', 0.0, 6, 0, 'none', 0.5));
     L.hazardLamp(S, -15.2, 2.6, -310); L.hazardLamp(S, 12.8, 1.8, -296.5);
     L.trigger(-6, -299, 6, -297, 'V_ENTER');
-    // the ANCHOR hand in a barred cage by the entrance; a charge socket on the cage, a live node across the room
+    // a toolbox crate by the entrance
     L.crate(S, 14.2, -293.9, 0.9, 1);
-    L.solid(S, 12.35, 0, -295.6, 12.45, 2.6, -292.3, MAT.steel, SURFACE.METAL, LAYER.WORLD_STATIC, true);
-    L.solid(S, 12.35, 0, -295.7, 16, 2.6, -295.5, MAT.steel, SURFACE.METAL, LAYER.WORLD_STATIC, true);
-    this.cageCol = this.dyn(S, 12.3, 0, -295.6, 12.5, 2.6, -292.3);
-    L.cage(S, 12.4, -295.6, 16, -292.3, 2.6, 'V_CAGE');
-    const sock = L.receptacle(S, 12.25, 1.5, -294.0, -1, 0, true, [], 'V_CAGE', 'CHARGE SOCKET'); sock.charge = true;
     L.powerSource(S, -15.85, 1.5, -294.2, 1, 0);
   },
 
@@ -445,7 +440,7 @@ const DeepWorks = {
   // the Loom is won: the Spoolwright drags itself down the drain, the freight lift follows
   beginDescent() {
     this.descent = 6.5;
-    Dialogue.say('SPOOLWRIGHT', '(from under the grating) Not... finished. Downstairs. Come and find me in the Vault.');
+    Dialogue.say('SPOOLWRIGHT', '(from somewhere up in the dark) Not... finished. Downstairs. Come and find me in the Vault.');
     Dialogue.say('PIP', 'It fell through the drain! The freight lift goes deeper - the Deep Works!');
     Dialogue.say('THIMBLE', 'Oh no. Oh no no no. We\'re going after it, aren\'t we?');
   },

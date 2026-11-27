@@ -60,6 +60,12 @@ const Audio = {
     if (Loader.phase >= 2) this.buildEmitters();
     this.ready = true;
     ctx.resume();
+    // the browser can suspend or interrupt the context (tab switch, focus loss, headphones unplugged):
+    // pick it straight back up on the next input or when the page is visible again
+    const wake = () => { if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.ctx.resume().catch(() => {}); };
+    for (const ev of ['pointerdown', 'keydown', 'mousedown', 'touchstart']) window.addEventListener(ev, wake, { passive: true });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+    ctx.onstatechange = () => { if (ctx.state === 'suspended' && !document.hidden) setTimeout(wake, 200); };
   },
 
   applyVolumes() {
@@ -128,12 +134,12 @@ const Audio = {
   updateChase(on) {
     if (!this.ctx) return;
     const ctx = this.ctx, S = this.score, k = 1 / 60;
-    const boss = Boss.active, puzzle = !on && state === STATE.INTERACTIVE_PUZZLE, end = Game.stage >= 10 && !boss;
+    const boss = Boss.active || (DeepWorks.vault && DeepWorks.vault.active && DeepWorks.vault.mode !== 'DONE'), puzzle = !on && state === STATE.INTERACTIVE_PUZZLE, end = Game.stage >= 17 && !boss;
     const calm = !on && !boss && !puzzle && !end && Game.isGameplay();
     this.chaseOn = damp(this.chaseOn, on && !boss ? 1 : 0, on ? 6 : 1.5, k);
     S.calm = damp(S.calm, calm ? 1 : 0, 0.7, k); S.puzzle = damp(S.puzzle, puzzle ? 1 : 0, 1.2, k);
     S.boss = damp(S.boss, boss ? 1 : 0, 1.5, k); S.end = damp(S.end, end ? 1 : 0, 0.5, k);
-    this.updateDuck();
+    this.updateDuck(); this.updateWalk(k);
     const any = Math.max(this.chaseOn, S.calm, S.puzzle, S.boss, S.end);
     if (any < 0.02 || ctx.state !== 'running') { this.nextBeat = ctx.currentTime + 0.05; return; }
     if (this.nextBeat < ctx.currentTime - 0.2) this.nextBeat = ctx.currentTime + 0.02;
@@ -146,12 +152,17 @@ const Audio = {
         if (i % 2 === 1) this.hat(t, 0.12 * v);
         if (i === 0 || i === 7 || i === 10) this.stab(t, 0.18 * v, [55, 58.27, 82.4][this.beatIdx % 3]);
       }
-      if (S.calm > 0.02) this.calmStep(t, i, bar, S.calm);
+      if (S.calm > 0.02) this.themeStep(t, i, bar, S.calm);
+      if (S.calm > 0.02 && this.walkAmt > 0.05) this.walkStep(t, i, bar, S.calm * this.walkAmt);
       if (S.puzzle > 0.02) this.puzzleStep(t, i, bar, S.puzzle);
       if (S.boss > 0.02) this.bossStep(t, i, bar, S.boss);
       if (S.end > 0.02) this.endStep(t, i, bar, S.end);
       this.nextBeat += step; this.beatIdx++;
     }
+  },
+  updateWalk(dt) {
+    const sp = typeof Player !== 'undefined' && Player.body ? Math.hypot(Player.body.vel[0], Player.body.vel[2]) : 0;
+    this.walkAmt = damp(this.walkAmt, Game.isGameplay() ? clamp(sp / 4, 0, 1) : 0, 2, dt);
   },
   updateDuck() {
     if (!this.duckGain || !this.gate('duck')) return;
@@ -172,6 +183,96 @@ const Audio = {
     o.connect(lp); lp.connect(g); g.connect(this.buses.music); if (verb) g.connect(this.verbIn);
     o.start(t); o.stop(t + dur + 0.05);
     return o;
+  },
+  // ---------- one theme per area (the calm layer), plus a walking pulse that follows your footsteps ----------
+  //   factory    "Faded Threads"       warped piano over a cello pad            (Act I: intake, hall, gallery, foundry)
+  //   yard       "Freight at Dusk"      slow harmonica-like reed + rail clacks    (station yard)
+  //   works      "Below the Belts"      low pulsing machinery minor ostinato      (fabrication line, catacombs, hub)
+  //   vault      "Core Hymn"            sustained choir-like fifths, a heartbeat  (core vault)
+  //   chapel     "Organ of the Choir"   a cracked pipe organ in D minor            (Celestial Wing)
+  //   toybox     "Sunken Lullaby"       a waterlogged music box, drips            (Sunken Toybox)
+  //   ghost      "Last Train"           brushed train rhythm, a lonely whistle    (Ghost Line)
+  //   suite      "After Hours"          a crooked lounge: walking bass, soft keys (Executive Suite)
+  //   salvage    "Scrap Waltz"          a limping 3/4 of metal hits and a bowed saw (Salvage Yards)
+  //   heart      "The Heart Beats"      a huge slow pulse with rising strings     (the Heart)
+  areaTheme() {
+    const s = Streaming.current;
+    if (s <= 3) return 'factory'; if (s === 6) return 'yard'; if (s === 10) return 'vault';
+    if (s >= 7 && s <= 9) return 'works'; if (s === 12) return 'chapel'; if (s === 13) return 'toybox';
+    if (s === 14) return 'ghost'; if (s === 15) return 'suite'; if (s === 16) return 'salvage'; if (s >= 17) return 'heart';
+    return 'factory';
+  },
+  themeStep(t, i, bar, v) {
+    const th = this.areaTheme(), warp = Math.sin(bar * 0.7) * 12;
+    switch (th) {
+      case 'factory': return this.calmStep(t, i, bar, v);
+      case 'yard': {
+        if (i === 0 && bar % 2 === 0) for (const m of [1, 1.26, 1.5]) this.note(t, 'triangle', 98 * m * ([1, 0.89, 1.12, 1][(bar >> 1) % 4]), 5, 0.03 * v, 700, 1.2, warp, true);
+        if (i % 8 === 0) { this.noise(t, 0.04, 0.05 * v, 2200, 'bandpass', this.buses.music); this.noise(t + 0.09, 0.04, 0.04 * v, 2000, 'bandpass', this.buses.music); }
+        if ((i === 2 || i === 10) && bar % 2) { const R = [392, 349.2, 329.6, 293.7, 261.6]; this.note(t, 'square', R[(bar + i) % 5], 0.9, 0.018 * v, 1400, 0.08, warp + 10, true); }
+        return;
+      }
+      case 'works': {
+        const OST = [110, 110, 130.8, 110, 146.8, 130.8, 110, 98];
+        if (i % 2 === 0) this.note(t, 'sawtooth', OST[(i >> 1) % 8] * 0.5, 0.22, 0.04 * v, 500, 0.004, 0, false);
+        if (i === 0 || i === 8) { this.kick(t, 0.25 * v); }
+        if (i === 12 && bar % 2) this.metalHit(t, 0.12 * v, 0.7);
+        if (i === 0 && bar % 4 === 0) this.note(t, 'sawtooth', 55, 6, 0.04 * v, 300, 2, warp, true);
+        return;
+      }
+      case 'vault': {
+        if (i === 0 && bar % 2 === 0) for (const m of [1, 1.5, 2, 3]) this.note(t, 'sine', 73.4 * m, 6, 0.025 * v, 1200, 2.4, warp, true);
+        if (i === 0 || i === 3) this.kick(t, (i ? 0.18 : 0.3) * v);
+        return;
+      }
+      case 'chapel': {
+        // a cracked pipe organ: stacked sine/square partials, slow chords, a hymn line on top
+        const CH = [[146.8, 174.6, 220], [116.5, 146.8, 174.6], [130.8, 164.8, 196], [110, 138.6, 164.8]], c = CH[bar % 4];
+        if (i === 0) for (const f of c) { this.note(t, 'square', f, 3.6, 0.014 * v, 1100, 0.25, warp, true); this.note(t, 'sine', f * 2, 3.6, 0.02 * v, 3000, 0.25, warp, true); this.note(t, 'sine', f * 0.5, 3.6, 0.03 * v, 600, 0.3, 0, true); }
+        if (i % 4 === 0 && bar % 2) { const H = [587.3, 523.3, 440, 466.2]; this.note(t, 'sine', H[i >> 2], 0.8, 0.025 * v, 4000, 0.06, warp, true); }
+        return;
+      }
+      case 'toybox': {
+        const MB = [1046.5, 1318.5, 1568, 1318.5, 1174.7, 987.8, 1046.5, 784];
+        if (i % 2 === 0) { const f = MB[((bar * 8) + (i >> 1)) % 8]; this.note(t, 'sine', f, 1.0, 0.026 * v, 6000, 0.002, warp * 3 - 30, true); this.note(t, 'sine', f * 2.76, 0.25, 0.005 * v, 8000, 0.002, warp * 3, true); }
+        if (i === 0 && bar % 2 === 0) this.note(t, 'sine', 130.8, 4, 0.04 * v, 400, 1.5, warp, true);
+        if (gameRng() < 0.08) this.note(t, 'sine', 1800 + gameRng() * 900, 0.08, 0.02 * v, 9000, 0.001, 0, true);   // drips
+        return;
+      }
+      case 'ghost': {
+        if (i % 4 === 0) this.noise(t, 0.06, 0.07 * v, 5000, 'highpass', this.buses.music);
+        if (i % 4 === 2) this.noise(t, 0.12, 0.05 * v, 3000, 'bandpass', this.buses.music);
+        if (i === 0) this.note(t, 'triangle', [73.4, 65.4, 82.4, 61.7][bar % 4], 1.6, 0.06 * v, 500, 0.01, 0, false);
+        if (i === 6 && bar % 4 === 3) { this.note(t, 'sine', 659.3, 1.4, 0.03 * v, 3000, 0.2, warp, true); this.note(t, 'sine', 830.6, 1.4, 0.025 * v, 3000, 0.2, warp, true); }
+        return;
+      }
+      case 'suite': {
+        const WB = [98, 110, 116.5, 123.5, 130.8, 123.5, 116.5, 110];
+        if (i % 2 === 0) this.note(t, 'triangle', WB[((bar * 8) + (i >> 1)) % 8], 0.3, 0.05 * v, 900, 0.004, 0, false);
+        if (i % 4 === 2) this.noise(t, 0.09, 0.025 * v, 6000, 'highpass', this.buses.music);
+        if (i === 4 || i === 12) for (const f of [293.7, 349.2, 440, 523.3]) this.note(t, 'sine', f, 0.6, 0.012 * v, 2500, 0.01, warp - 20, true);
+        return;
+      }
+      case 'salvage': {
+        const beat = i % 12;   // a limping 3/4 against the 16-step grid
+        if (beat === 0) this.metalHit(t, 0.22 * v, 0.45);
+        if (beat === 4 || beat === 8) this.metalHit(t, 0.1 * v, 0.9);
+        if (i === 0 && bar % 2 === 0) { const o = this.note(t, 'sine', 440 * [1, 0.94, 1.12, 0.84][(bar >> 1) % 4], 3.5, 0.03 * v, 3000, 0.8, 0, true); o.detune.setValueAtTime(-60, t); o.detune.linearRampToValueAtTime(60, t + 3); }
+        return;
+      }
+      case 'heart': {
+        if (i === 0 || i === 3) this.kick(t, (i ? 0.35 : 0.55) * v);
+        if (i === 0 && bar % 2 === 0) { const r = 110 * Math.pow(2, ((bar >> 1) % 6) / 12); for (const m of [1, 1.19, 1.5]) this.note(t, 'sawtooth', r * m, 3.6, 0.02 * v, 1600, 1.4, warp, true); }
+        return;
+      }
+    }
+  },
+  // walking: soft plucked bass on the beat while you move (louder when you sprint), in the area's key
+  walkAmt: 0,
+  walkStep(t, i, bar, v) {
+    const ROOT = { factory: 110, yard: 98, works: 110, vault: 73.4, chapel: 146.8, toybox: 130.8, ghost: 73.4, suite: 98, salvage: 110, heart: 110 }[this.areaTheme()] || 110;
+    if (i % 4 === 0) this.note(t, 'triangle', ROOT * [1, 1.5, 1.19, 1.5][(i >> 2) % 4], 0.35, 0.05 * v, 800, 0.004, 0, false);
+    if (i % 8 === 6) this.note(t, 'sine', ROOT * 4 * [1, 1.19][bar % 2], 0.25, 0.012 * v, 3000, 0.004, 0, true);
   },
   calmStep(t, i, bar, v) {
     const warp = Math.sin(bar * 0.7) * 14;   // slow vinyl-like pitch warp, in cents

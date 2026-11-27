@@ -234,3 +234,50 @@ const CharacterController = {
     body.vel[other] *= 1 - FEEL.bumpFriction * clamp(impact / FEEL.sprintSpeed, 0, 1);
   }
 };
+
+// ---------- walking characters (allies, monsters): walls, steps, stairs and floors ----------
+// Moves a character's feet `pos` by (dx, dz) through the same sweep as the player: it slides along walls,
+// climbs steps and stairs, and falls onto whatever floor is below. `ch` carries its vertical speed. A
+// character already inside geometry (a scripted pose) is moved freely so it can never get stuck.
+const CharPhys = {
+  body: { pos: V3.create(), vel: V3.create(), radius: 0.35, height: 1.5, grounded: false, groundSurface: 0, bumpSpeed: 0 },
+  move(ch, pos, dx, dz, r, dt) {
+    if (dt <= 0) return;
+    if (Physics.pointInSolid(pos[0], pos[1] + 0.9, pos[2], LAYER.SOLID)) { pos[0] += dx; pos[2] += dz; return; }
+    const B = this.body; V3.copy(B.pos, pos); B.radius = r; B.height = 1.5;
+    ch.vy = Math.max(-20, (ch.vy || 0) - 22 * dt);
+    B.vel[0] = dx / dt; B.vel[1] = ch.vy; B.vel[2] = dz / dt; B.grounded = false;
+    CharacterController.move(B, dt);
+    if (B.grounded) ch.vy = 0;
+    V3.copy(pos, B.pos);
+    ch.fell = pos[1] < -1.5;
+  },
+  // characters are SOLID: you bump into your friends (and the creatures) and stop - you can't walk through
+  // them and you can't shove them about; only the player is pushed back out
+  shove(ch, pos, r, dt) {
+    const b = Player.body.pos, dx = b[0] - pos[0], dz = b[2] - pos[2], d = Math.hypot(dx, dz), min = r + Player.body.radius;
+    if (d >= min || Math.abs(pos[1] - b[1]) > 1.6) return false;
+    const nx = d > 1e-4 ? dx / d : 1, nz = d > 1e-4 ? dz / d : 0, push = min - d;
+    // move the player out with a wall check, so you are never shoved into geometry
+    const B = this.body; V3.copy(B.pos, b); B.radius = Player.body.radius; B.height = 1.5; B.vel[0] = B.vel[1] = B.vel[2] = 0; B.grounded = true;
+    CharacterController.moveAxis(B, 0, nx * push); CharacterController.moveAxis(B, 2, nz * push);
+    b[0] = B.pos[0]; b[2] = B.pos[2];
+    // and lose the speed you had going into them
+    const vn = Player.body.vel[0] * -nx + Player.body.vel[2] * -nz;
+    if (vn > 0) { Player.body.vel[0] += nx * vn; Player.body.vel[2] += nz * vn; }
+    return true;
+  },
+  // keep a free-moving body (the Epxirtype, creatures) from sinking into walls: push it out along the
+  // shallowest axis of whatever solid its middle is inside
+  pushOut(pos, r, y0, y1) {
+    const n = Physics.queryBox(pos[0] - r, pos[1] + y0, pos[2] - r, pos[0] + r, pos[1] + y1, pos[2] + r, LAYER.WORLD_STATIC);
+    for (let i = 0; i < n; i++) {
+      const c = Physics.colliders[Physics.scratch[i]];
+      if (c.max[1] <= pos[1] + 0.45) continue;   // floors and low steps are fine
+      const px = Math.min(pos[0] + r - c.min[0], c.max[0] - (pos[0] - r)), pz = Math.min(pos[2] + r - c.min[2], c.max[2] - (pos[2] - r));
+      if (px <= 0 || pz <= 0) continue;
+      if (px < pz) pos[0] += pos[0] < (c.min[0] + c.max[0]) / 2 ? -px : px;
+      else pos[2] += pos[2] < (c.min[2] + c.max[2]) / 2 ? -pz : pz;
+    }
+  }
+};

@@ -682,6 +682,24 @@ const Monster = {
       if (it) M4.compose(it.model, this.chest[0], this.chest[1], this.chest[2], yaw + Math.sin(this.breathe * 1.1) * 0.05, lean * 0.6 - 0.08, Math.sin(this.headTilt) * 0.08, 1, 1, 1);
       if (it) { it.tint[0] = 0.9; it.tint[1] = 0.74; it.tint[2] = 0.64; }
     }
+    // two brass bobbin pins jutting out of red rubber sockets in the back of the coat
+    for (const sx of [-0.09, 0.09]) {
+      this.bodyPoint(B, sx, 2.12 + this.rise(), -0.26); this.bodyPoint(H, sx, 2.2 + this.rise(), 0.02);
+      const sk = R.trs('sphere', MAT.rubber, B[0], B[1], B[2], yaw, 0, 0, 0.06, 0.06, 0.045); if (sk) { sk.tint[0] = 3.2; sk.tint[1] = 0.5; sk.tint[2] = 0.45; }
+      const pin = R.seg('cyl', MAT.copper, B, H, 0.024); if (pin) { pin.tint[0] = 1.8; pin.tint[1] = 1.4; pin.tint[2] = 0.55; }
+      const cap = R.trs('sphere', MAT.copper, H[0], H[1], H[2], 0, 0, 0, 0.028, 0.028, 0.028); if (cap) { cap.tint[0] = 1.8; cap.tint[1] = 1.4; cap.tint[2] = 0.55; }
+    }
+    // a coil of frayed red rope looped round the collar, its end hanging down the front
+    {
+      this.bodyPoint(B, 0.12, 2.36 + this.rise(), -0.66); this.bodyPoint(H, 1, 2.36 + this.rise(), -0.66); V3.sub(H, H, B); V3.normalize(H, H);
+      for (let k = 0; k < 3; k++) {
+        this.bodyPoint(X, 0.1 + k * 0.025, 2.33 + this.rise() - k * 0.02, -0.68 - k * 0.01);
+        const lp = R.push('torus', MAT.rubber); if (lp) { ringMatrix(lp.model, X, H, 0.07 - k * 0.008); lp.model[4] *= 0.5; lp.model[5] *= 0.5; lp.model[6] *= 0.5; lp.tint[0] = 3.4; lp.tint[1] = 0.45; lp.tint[2] = 0.4; }
+      }
+      this.bodyPoint(B, 0.14, 2.28 + this.rise(), -0.7);
+      this.bodyPoint(X, 0.17 + Math.sin(this.breathe * 2) * 0.02, 1.98 + this.rise(), -0.72);
+      const rp = R.seg('cylLow', MAT.rubber, B, X, 0.016); if (rp) { rp.tint[0] = 3.4; rp.tint[1] = 0.45; rp.tint[2] = 0.4; }
+    }
     this.trophyFrom = RenderQueue.count;
     // three stolen toy arms, long and limp and DEAD, dragging from under his chest along the floor in front of
     // him: a teal fur arm and a rose fur arm with yellow fur hands (a black patch on each palm), and a long
@@ -790,15 +808,30 @@ const Monster = {
     let fx = dx, fy = dy - droop, fz = dz; const fl = Math.hypot(fx, fy, fz) || 1; fx /= fl; fy /= fl; fz /= fl;
     let lx = -fz, lz = fx; const ll = Math.hypot(lx, lz) || 1; lx /= ll; lz /= ll;
     this.bodyPoint(L.a, hx, hy, hz);
-    let it = R.trs('box', MAT.steel, L.a[0], L.a[1], L.a[2], this.yaw + Math.atan2(-fx, -fz), Math.asin(clamp(fy, -1, 1)), 0, 0.075, 0.035, 0.07);
-    if (it) { it.tint[0] = it.tint[1] = it.tint[2] = 1.6; }
     const chrome = q => { if (q) { q.tint[0] = 2.2; q.tint[1] = 2.2; q.tint[2] = 2.3; } return q; };
+    // the back of the hand: a grimy steel plate, pointed toward the wrist, its knuckle bar across the front
+    {
+      const wf = _mh.wf, wr = _mh.wr, wu = _mh.wu, c = Math.cos(this.yaw), sn = Math.sin(this.yaw);
+      // body-local (fx, fy, fz) and (lx, 0, lz) -> world directions
+      V3.set(wf, fx * c + fz * sn, fy, -fx * sn + fz * c); V3.set(wr, (lx * c + lz * sn) * -side, 0, (-lx * sn + lz * c) * -side);
+      V3.cross(wu, wf, wr); if (wu[1] < 0) { V3.scale(wu, wu, -1); V3.scale(wr, wr, -1); } V3.cross(wr, wu, wf);
+      V3.addScaled(_mh.ha, L.a, wf, 0.03);
+      const pl = Sculpt.ready('sp_palm') ? R.push('sp_palm', MAT.steel) : null;
+      if (pl) { basisMatrix(pl.model, _mh.ha, wr, wu, wf, 1.35, 1.35, 1.35); pl.tint[0] = 1.25; pl.tint[1] = 1.18; pl.tint[2] = 1.12; }
+      else { const it = R.trs('box', MAT.steel, L.a[0], L.a[1], L.a[2], this.yaw + Math.atan2(-fx, -fz), Math.asin(clamp(fy, -1, 1)), 0, 0.075, 0.035, 0.07); if (it) { it.tint[0] = it.tint[1] = it.tint[2] = 1.6; } }
+      // red wires coming out of the plate's slots and running back up the forearm
+      for (let k = -1; k <= 1; k++) {
+        V3.addScaled(_mh.hb, _mh.ha, wr, k * 0.03); V3.addScaled(_mh.hb, _mh.hb, wu, 0.03);
+        this.bodyPoint(L.c, ex + (hx - ex) * 0.45, ey + (hy - ey) * 0.45 + 0.05 + k * 0.012, ez + (hz - ez) * 0.45);
+        const w = R.seg('cylLow', MAT.rubber, _mh.hb, L.c, 0.008); if (w) { w.tint[0] = 4.2; w.tint[1] = 0.55; w.tint[2] = 0.5; }
+      }
+    }
     const SEG = [0.3, 0.34, 0.4];
     for (let f = 0; f < 5; f++) {
       const thumb = f === 4, off = thumb ? -1.9 * side : (f - 1.5);
       let px = hx + lx * off * 0.045 + fx * 0.05, py = hy + fy * 0.05 + (thumb ? 0.03 : 0), pz = hz + lz * off * 0.045 + fz * 0.05;
       this.bodyPoint(L.b, px, py, pz);
-      chrome(R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.026, 0.026, 0.026));
+      chrome(R.trs('sphere', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.038, 0.034, 0.038));
       for (let j = 0; j < 3; j++) {
         // each joint fans a touch wider and bends a little further down
         const fan = off * (0.05 + j * 0.03) * (1 - reach * 0.6), bend = j * 0.1 * (1 - reach * 0.7);
@@ -806,8 +839,8 @@ const Monster = {
         const len = SEG[j] * (thumb ? 1.25 : 1);
         const nx = px + sx / sl * len, ny = py + sy / sl * len, nz = pz + sz / sl * len;
         this.bodyPoint(L.b, px, py, pz); this.bodyPoint(L.c, nx, ny, nz);
-        chrome(R.seg(j === 2 ? 'cone' : 'cylLow', MAT.steel, L.b, L.c, j === 2 ? 0.011 : 0.012));
-        if (j < 2) chrome(R.trs('sphereLow', MAT.steel, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.024, 0.024, 0.024));
+        chrome(R.seg(j === 2 ? 'cone' : 'cyl', MAT.steel, L.b, L.c, j === 2 ? 0.013 : 0.015));
+        if (j < 2) chrome(R.trs('sphere', MAT.steel, L.c[0], L.c[1], L.c[2], 0, 0, 0, 0.032, 0.032, 0.032));
         px = nx; py = ny; pz = nz;
       }
     }
@@ -842,14 +875,21 @@ const Monster = {
     const cuff = R.push('cyl', MAT.paint); if (cuff) { basisMatrix(cuff.model, c, r, d, f, 0.075, 0.07, 0.075); cuff.tint[0] = 1.3; cuff.tint[1] = 1.05; cuff.tint[2] = 0.5; }
     const strap = R.push('torus', MAT.rubber); if (strap) ringMatrix(strap.model, c, d, 0.08);
   },
-  // a bone-white forearm wrapped in red cables
+  // the forearm: a chrome steel strut with collars, a long bone strapped beside it, red wires wound round both
   boneForearm(H, X) {
     const R = RenderQueue, L = _mh.kl;
-    R.seg('cyl', MAT.porcelain, H, X, 0.035);
+    const st = R.seg('cyl', MAT.steel, H, X, 0.028); if (st) { st.tint[0] = 1.9; st.tint[1] = 1.9; st.tint[2] = 2.0; }
+    V3.sub(L.a, X, H); const len = V3.len(L.a) || 1; V3.scale(L.a, L.a, 1 / len);
+    for (const t of [0.12, 0.5, 0.86]) { V3.lerp(L.b, H, X, t); const rg = R.push('torus', MAT.steel); if (rg) { ringMatrix(rg.model, L.b, L.a, 0.04); rg.tint[0] = rg.tint[1] = rg.tint[2] = 1.6; } }
+    // the bone rides just above the strut
+    V3.lerp(L.b, H, X, 0.06); L.b[1] += 0.06; V3.lerp(L.c, H, X, 0.9); L.c[1] += 0.055;
+    const bn = Sculpt.ready('sp_bone') ? R.push('sp_bone', MAT.porcelain) : null;
+    if (bn) { M4.segment(bn.model, L.b, L.c, 0.024); bn.tint[0] = 1.0; bn.tint[1] = 0.86; bn.tint[2] = 0.78; }
+    else R.seg('cyl', MAT.porcelain, L.b, L.c, 0.022);
     for (let k = 0; k < 3; k++) {
       const ph = k * 2.1;
-      V3.lerp(L.b, H, X, 0.1); L.b[1] += Math.cos(ph) * 0.04; L.b[0] += Math.sin(ph) * 0.04;
-      V3.lerp(L.c, H, X, 0.92); L.c[1] += Math.cos(ph + 1.5) * 0.035; L.c[0] += Math.sin(ph + 1.5) * 0.035;
+      V3.lerp(L.b, H, X, 0.1); L.b[1] += Math.cos(ph) * 0.05; L.b[0] += Math.sin(ph) * 0.05;
+      V3.lerp(L.c, H, X, 0.92); L.c[1] += Math.cos(ph + 1.5) * 0.045; L.c[0] += Math.sin(ph + 1.5) * 0.045;
       const cb = R.seg('cylLow', MAT.rubber, L.b, L.c, 0.009);
       if (cb) { cb.tint[0] = 4.2; cb.tint[1] = 0.55; cb.tint[2] = 0.5; }
     }
@@ -885,7 +925,7 @@ const Monster = {
       // knuckle
       const kx = hx + dx * 0.1 + lx * spread * 0.035, ky = hy + dy * 0.1 + 0.01, kz = hz + dz * 0.1 + lz * spread * 0.035;
       this.bodyPoint(L.a, kx, ky, kz);
-      R.trs('sphereLow', MAT.copper, L.a[0], L.a[1], L.a[2], 0, 0, 0, 0.022, 0.022, 0.022);
+      { const kb = R.trs('sphere', MAT.steel, L.a[0], L.a[1], L.a[2], 0, 0, 0, 0.034, 0.03, 0.034); if (kb) { kb.tint[0] = 2.2; kb.tint[1] = 2.2; kb.tint[2] = 2.3; } }
       // mid joint and tip: long needle blades fanned out; grabbing fingers curl in around your head; joined
       // needles all meet at a single spike point
       let mx = kx + dx * 0.16 + lx * spread * 0.05, my = ky + dy * 0.16 + 0.05, mz = kz + dz * 0.16 + lz * spread * 0.05;
@@ -910,7 +950,7 @@ const Monster = {
       this.bodyPoint(L.b, mx, my, mz);
       this.bodyPoint(L.c, tx, ty, tz);
       R.seg('cylLow', bony ? MAT.porcelain : MAT.steel, L.a, L.b, bony ? 0.016 : 0.013);
-      R.trs('sphereLow', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.018, 0.018, 0.018);
+      { const mb = R.trs('sphere', MAT.steel, L.b[0], L.b[1], L.b[2], 0, 0, 0, 0.028, 0.028, 0.028); if (mb) { mb.tint[0] = 2.2; mb.tint[1] = 2.2; mb.tint[2] = 2.3; } }
       const nd = R.seg('cone', MAT.steel, L.b, L.c, bony ? 0.014 : 0.012);
       if (nd && !bony) { nd.tint[0] = 2.2; nd.tint[1] = 2.2; nd.tint[2] = 2.3; }
     }
@@ -987,18 +1027,67 @@ const Monster = {
     R.trs('sphere', MAT.rubber, this.tmp3[0], this.tmp3[1], this.tmp3[2], maskYaw, maskPitch, maskRoll, 0.095 * s, 0.122 * s, 0.035 * s, false);
     // the hood and its hat as one piece: rose / teal / gold patchwork with the battered harlequin top hat sewn on
     if (Sculpt.ready('sp_hood')) { it = R.push('sp_hood', MAT.clothWine); if (it) { it.model.set(mh); it.tint[0] = 0.74; it.tint[1] = 0.66; it.tint[2] = 0.6; } }
-    // brass jingle bells hanging from the hat tails, swaying as he moves
-    if (Sculpt.ready('sp_bell')) {
-      const sway = Math.sin(Game.time * 3.1) * 0.25 * Math.min(1, 0.25 + this.speed * 0.3);
-      for (const k of ['up', 'left', 'right']) {
-        // the bell sits right on the brass stem at the end of its tail (cap space -> hood space -> world)
-        const P = HAT_TIPS[k], tp = P[P.length - 1], pr = P[P.length - 2], sx = k === 'left' ? -1 : 1;
-        const ux = tp[0] - pr[0], uy = tp[1] - pr[1], uz = tp[2] - pr[2], ul = Math.hypot(ux, uy, uz), o = 0.12;
-        this.headLocal(mh, tp[0] + ux / ul * o + 0.03, tp[1] + uy / ul * o + 0.47, tp[2] + uz / ul * o + 0.06, this.tmp3);
-        it = R.trs('sp_bell', MAT.copper, this.tmp3[0], this.tmp3[1], this.tmp3[2], yaw, sway * sx, sway * 0.6, s * 1.45, s * 1.45, s * 1.45);
-        if (it) { it.tint[0] = 1.7; it.tint[1] = 1.35; it.tint[2] = 0.6; }
+    // the three tails of the cap flop and swing (simulated chains), each ending in a brass bell
+    this.hatTails(mh, s, yaw);
+  },
+  // FLOPPY HAT: each tail is a chain of points simulated in world space (verlet): gravity pulls it down, a soft
+  // spring pulls it back toward its sewn shape, and it can't pass through his head. Walking, snapping the head
+  // round or pouncing makes the tails whip and swing; the bells ride on the ends.
+  hatTails(mh, s, yaw) {
+    const R = RenderQueue, now = performance.now() / 1000, HT = _mh.hat;
+    let dt = HT.last ? Math.min(0.05, now - HT.last) : 0; HT.last = now;
+    if (HT.owner !== this) { HT.owner = this; HT.init = false; }
+    this.headLocal(mh, 0.03, 0.47 - 0.02, 0.1, _mh.hc);   // collision centre: the crown of the hood
+    const keys = ['up', 'left', 'right'], N = HAT_SEGS;
+    for (let t = 0; t < 3; t++) {
+      const k = keys[t], ch = HT.tails[t], P = HAT_TIPS[k];
+      // the rest shape: the tail centreline resampled into N+1 points from the end of its sewn stub
+      for (let i = 0; i <= N; i++) {
+        const u = 0.55 / (P.length - 1) + (i / N) * (1 - 0.55 / (P.length - 1)), f = u * (P.length - 1), j = Math.min(P.length - 2, Math.floor(f)), w = f - j;
+        const x = P[j][0] + (P[j + 1][0] - P[j][0]) * w, y = P[j][1] + (P[j + 1][1] - P[j][1]) * w, z = P[j][2] + (P[j + 1][2] - P[j][2]) * w;
+        this.headLocal(mh, x + 0.03, y + 0.47, z + 0.06, ch.rest[i]);
+      }
+      if (!HT.init || V3.dist(ch.p[0], ch.rest[0]) > 2) for (let i = 0; i <= N; i++) { V3.copy(ch.p[i], ch.rest[i]); V3.copy(ch.q[i], ch.rest[i]); }
+      if (dt > 0) {
+        const spring = 1 - Math.exp(-dt * 7), g = 9.8 * 0.55 * dt * dt;
+        V3.copy(ch.p[0], ch.rest[0]); V3.copy(ch.q[0], ch.rest[0]);
+        for (let i = 1; i <= N; i++) {
+          const p = ch.p[i], q = ch.q[i], r = ch.rest[i], k2 = spring * (1.15 - i / N * 0.75);
+          const vx = (p[0] - q[0]) * 0.94, vy = (p[1] - q[1]) * 0.94, vz = (p[2] - q[2]) * 0.94;
+          V3.copy(q, p);
+          p[0] += vx + (r[0] - p[0]) * k2; p[1] += vy - g + (r[1] - p[1]) * k2; p[2] += vz + (r[2] - p[2]) * k2;
+        }
+        // keep each link its rest length, and keep the tail out of his head
+        for (let it = 0; it < 3; it++) for (let i = 1; i <= N; i++) {
+          const a = ch.p[i - 1], b = ch.p[i], L = V3.dist(ch.rest[i - 1], ch.rest[i]);
+          const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], d = Math.hypot(dx, dy, dz) || 1e-4, c = (d - L) / d;
+          if (i === 1) { b[0] -= dx * c; b[1] -= dy * c; b[2] -= dz * c; }
+          else { a[0] += dx * c * 0.5; a[1] += dy * c * 0.5; a[2] += dz * c * 0.5; b[0] -= dx * c * 0.5; b[1] -= dy * c * 0.5; b[2] -= dz * c * 0.5; }
+          const hc = _mh.hc, ex = b[0] - hc[0], ey = b[1] - hc[1], ez = b[2] - hc[2], ed = Math.hypot(ex, ey, ez), rr = 0.5 * s;
+          if (ed < rr && ed > 1e-4) { b[0] = hc[0] + ex / ed * rr; b[1] = hc[1] + ey / ed * rr; b[2] = hc[2] + ez / ed * rr; }
+        }
+      }
+      // draw: tapered cloth tube segments with soft joints, a dark seam down the top, then the brass stem and bell
+      const mat = k === 'up' ? MAT.clothTeal : k === 'left' ? MAT.paint : MAT.clothWine, r0 = (k === 'up' ? 0.15 : 0.14) * 0.9 * s;
+      const tint = q => { if (q) { if (mat === MAT.paint) { q.tint[0] = 0.85; q.tint[1] = 0.62; q.tint[2] = 0.34; } else { q.tint[0] = 0.74; q.tint[1] = 0.66; q.tint[2] = 0.6; } } return q; };
+      for (let i = 0; i < N; i++) {
+        const ra = r0 * (1 - i / N) + 0.01 * s, rb = r0 * (1 - (i + 1) / N) + 0.01 * s;
+        tint(R.seg('cyl', mat, ch.p[i], ch.p[i + 1], (ra + rb) * 0.5));
+        tint(R.trs('sphere', mat, ch.p[i + 1][0], ch.p[i + 1][1], ch.p[i + 1][2], 0, 0, 0, rb, rb, rb));
+        V3.set(_mh.ha, ch.p[i][0], ch.p[i][1] + ra * 0.92, ch.p[i][2]); V3.set(_mh.hb, ch.p[i + 1][0], ch.p[i + 1][1] + rb * 0.92, ch.p[i + 1][2]);
+        R.seg('cylLow', MAT.rubber, _mh.ha, _mh.hb, 0.0045 * s, false);
+      }
+      const e = ch.p[N], d = ch.p[N - 1], ux = e[0] - d[0], uy = e[1] - d[1], uz = e[2] - d[2], ul = Math.hypot(ux, uy, uz) || 1;
+      V3.set(_mh.ha, e[0] + ux / ul * 0.07 * s, e[1] + uy / ul * 0.07 * s, e[2] + uz / ul * 0.07 * s);
+      const st = R.seg('cylLow', MAT.copper, e, _mh.ha, 0.016 * s); if (st) { st.tint[0] = 1.7; st.tint[1] = 1.35; st.tint[2] = 0.6; }
+      if (Sculpt.ready('sp_bell')) {
+        // the bell hangs from the stem and swings with how fast the tip is moving
+        const sw = clamp((e[0] - ch.q[N][0]) * 18, -0.8, 0.8), sp = clamp((e[2] - ch.q[N][2]) * 18, -0.8, 0.8);
+        const bl = R.trs('sp_bell', MAT.copper, _mh.ha[0] + ux / ul * 0.05 * s, _mh.ha[1] + uy / ul * 0.05 * s - 0.03 * s, _mh.ha[2] + uz / ul * 0.05 * s, yaw, sp, -sw, s * 1.45, s * 1.45, s * 1.45);
+        if (bl) { bl.tint[0] = 1.7; bl.tint[1] = 1.35; bl.tint[2] = 0.6; }
       }
     }
+    HT.init = true;
   },
   headLocal(m, x, y, z, out) { V3.set(_mh.local, x, y, z); return M4.transformPoint(out, m, _mh.local); },
 
@@ -1021,8 +1110,11 @@ const Monster = {
     return out;
   }
 };
+const HAT_SEGS = 7;
 const _mh = {
   hoodM: M4.create(),
+  hat: { last: 0, init: false, owner: null, tails: [0, 1, 2].map(() => ({ p: [...Array(HAT_SEGS + 1)].map(() => V3.create()), q: [...Array(HAT_SEGS + 1)].map(() => V3.create()), rest: [...Array(HAT_SEGS + 1)].map(() => V3.create()) })) },
+  hc: V3.create(), ha: V3.create(), hb: V3.create(), wf: V3.create(), wr: V3.create(), wu: V3.create(),
   dir: V3.create(), sr: V3.create(), sf: V3.create(), sc: V3.create(),
   kl: { a: V3.create(), b: V3.create(), c: V3.create() },
   tapePrev: V3.create(),

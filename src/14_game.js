@@ -12,11 +12,11 @@ const STATE = {
 STATE.MENU = STATE.MAIN_MENU; STATE.PLAYING = STATE.GAMEPLAY_ACTIVE; STATE.GAME_OVER = STATE.FAILURE_STATE;
 
 const OBJECTIVES = [
-  'Press your hand to the scanner beside the intake gate.',
+  'Fire your BLUE (left) hand at the blue scanner beside the intake gate. Scanners only read the hand of their own colour.',
   'Restore power to the hall door: latch a hand on the power node, loop the cable around both amber relays, then fire your other hand into the door receptacle.',
   'Cross the Pressure Gallery quietly. Shut the steam (high lever, east wall) and power the gallery gate (west wall).',
   'RUN. Reach the freight lift at the end of the Spool Foundry.',
-  'Defeat the Epxirtype: latch a hand onto a live power node, then strike the creature with your other hand. Each node burns out after one shock.',
+  'Defeat the Epxirtype: latch a hand onto a live power node, then strike it with your other hand (each node burns out after one shock). When it cuts the power, wrench BOTH breakers by the lift gate. Stay off the shuttle rails.',
   // ---- Act II: the Deep Works ----
   'STATION YARD. Take your hands from the crate by the tracks, meet Posie on the platform, then power the yard gate. Mind the shunter.',
   'FABRICATION LINE. Carry the cable across the moving belts (stay clear of the end stampers): node on the west wall, loop both relays, plug LINE POWER. Then hit the piston override in the hall.',
@@ -153,8 +153,10 @@ const Game = {
     this.resetGame();
     if (st === 5) { DeepWorks.startOpening(); setState(STATE.GAMEPLAY_ACTIVE); return; }
     Gear.handsLost = false;
-    const byStage = { THUMPER: 1, LANTERN: 2, STITCHER: 3, BELLOWS: 8, CONDUIT: 9, ANCHOR: 9, SPRING: 11, FLARE: 12, MAGNET: 15 };
-    for (let i = 0; i < HAND_COUNT; i++) { const need = byStage[HAND_TYPES[i].id]; if (need === undefined || st >= need) Gear.owned[i] = 1; }
+    // the three hands you find on the way down: by the stage after the one they are in
+    const byStage = { THUMPER: 2, LANTERN: 3, STITCHER: 4 };
+    const order = [5, 0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], rank = x => order.indexOf(x);
+    for (let i = 0; i < HAND_COUNT; i++) { const need = byStage[HAND_TYPES[i].id]; if (need !== undefined && rank(st) >= rank(need)) Gear.owned[i] = 1; }
     for (const p of Gear.pickups) { if (p.kind === 'mask' || p.restore) p.taken = true; if (p.kind === 'hand' && Gear.owned[p.type]) p.taken = true; }
     Gear.hasMask = true;
     const keys = { OFFICE: 6, EXEC: 14 };
@@ -379,6 +381,11 @@ const Game = {
         GrabPack.showHint('STEAM VALVES SHUT');
         EventBus.emit(EV.STEAM, 0, 0, 0, 0, 0);
         break;
+      case 'R1_CAGE':
+        Dialogue.say('THIMBLE', 'The cage! That\'s the THUMPER in there - I knew they kept one down here.');
+        GrabPack.showHint('CAGE OPEN - the THUMPER hand');
+        break;
+      case 'LOOM_BREAKER': Boss.breaker(); break;
       case 'R2':
         Dialogue.say('MARIGOLD', 'The foundry is where it was stitched together. Once you are in, do not stop running.');
         Doors.setOpen('D2', true);
@@ -514,6 +521,8 @@ const Game = {
     Steam.update(dt, this.time);
     Triggers.update(Player.body.pos);
     Monster.update(dt);
+    // the Epxirtype walks the floor like anything else: it can't sink into walls or pews
+    if (Monster.active && Monster.visible && !Monster.inVent && !Monster.airborne && !(Monster.kill && Monster.kill.on)) CharPhys.pushOut(Monster.pos, 0.55, 0.6, 2.2);
     EventBus.dispatch();
     if (!this.isGameplay()) return;   // the monster or a hazard handed control to an override state
     Cast.update(dt);
@@ -673,7 +682,7 @@ const Game = {
   stopTv() {
     const tv = this.tv;
     if (!tv) return;
-    if (!tv.hijack && VHS.tape) VHS.finish(); else { this.tv = null; Dialogue.clear(); }
+    if (!tv.hijack && VHS.tape) VHS.finish(); else { this.tv = null; Dialogue.reset(); }
     if (this.tv === tv && !tv.hijack) this.tv = null;
   },
 
@@ -838,6 +847,7 @@ const Game = {
     Cast.submit(vis);
     Gear.submit(vis);
     DeepWorks.submit(vis);
+    Boss.submit(vis);
     Act3.submit(vis);
     Dressing.submit(vis);
     if (state === STATE.MAIN_MENU && UI.menuPage === 'title') TitleScene.submit();
@@ -925,7 +935,8 @@ const Game = {
       for (let k = 0; k < 3; k++) { V3.set(_g.p1, p[0] + n[0] * (0.04 + k * 0.05), p[1], p[2] + n[2] * (0.04 + k * 0.05)); const c = R.push('torus', MAT.copper); if (c) ringMatrix(c.model, _g.p1, n, 0.3 - k * 0.05); }
       const it = R.trs('sphere', MAT.screen, p[0] + n[0] * 0.14, p[1], p[2] + n[2] * 0.14, 0, 0, 0, 0.17, 0.17, 0.17, false);
       const pulse = 2.5 + Math.sin(t * 5) * 1.0;
-      if (it && s.burnt) { it.emis[0] = 0.5 + 0.4 * Math.max(0, noise1(t * 20 + s.id)); it.emis[1] = 0.04; it.emis[2] = 0.02; }
+      if (it && s.dead && !s.burnt) { it.emis[0] = 0.02; it.emis[1] = 0.03; it.emis[2] = 0.05; }
+      else if (it && s.burnt) { it.emis[0] = 0.5 + 0.4 * Math.max(0, noise1(t * 20 + s.id)); it.emis[1] = 0.04; it.emis[2] = 0.02; }
       else if (it) { it.emis[0] = 0.08 * pulse; it.emis[1] = 0.75 * pulse; it.emis[2] = 1.0 * pulse; }
       V3.set(_g.p1, p[0] - n[0] * 0.02, p[1] + 0.5, p[2] - n[2] * 0.02); V3.set(_g.p2, _g.p1[0], p[1] + 4.0, _g.p1[2]);
       R.seg('cylLow', MAT.rustIron, _g.p1, _g.p2, 0.07);
@@ -949,7 +960,7 @@ const Game = {
         }
       } else {
         // hand scanner: a dark housing with a glowing hand print and an LED bar on top, red or blue
-        const rr = frame(n), col = (Level.receptacles.indexOf(r) % 2) ? 'red' : 'blue';
+        const rr = frame(n), col = r.scanCol;
         const A = Gear.scanAssets && Gear.scanAssets[col][r.powered ? 1 : 0];
         V3.set(_g.p1, p[0] + n[0] * 0.03, p[1] + 0.02, p[2] + n[2] * 0.03);
         const box = R.push('box', MAT.steel); if (box) basisMatrix(box.model, _g.p1, rr, _g.u, n, 0.56, 0.68, 0.06);
@@ -1002,11 +1013,14 @@ const Game = {
       // the set sits on the desk beside its VCR, its screen facing the open room (the direction with the most
       // free space), so it never backs into a wall
       if (tp.tvYaw === undefined) {
-        let best = -1, by = 0;
+        let best = -1e9, by = 0;
         for (let k = 0; k < 4; k++) {
           const yw = k * Math.PI / 2; V3.set(_g.d, -Math.sin(yw), 0, -Math.cos(yw)); V3.set(_g.p0, tp.pos[0], tp.pos[1] + 0.35, tp.pos[2]);
           const dist = Physics.raycast(_g.p0, _g.d, 12, LAYER.WORLD_STATIC, GrabPack.hit) ? GrabPack.hit.t : 12;
-          if (dist > best) { best = dist; by = yw; }
+          // face out into the middle of the room (where you walk up from), never into a wall or along it
+          const S = Level.sectors[tp.sector], cx = S ? (S.min[0] + S.max[0]) / 2 - tp.pos[0] : 0, cz = S ? (S.min[2] + S.max[2]) / 2 - tp.pos[2] : 0, cl = Math.hypot(cx, cz) || 1;
+          const score = (dist < 1.3 ? -10 : Math.min(dist, 5)) + 4 * ((_g.d[0] * cx + _g.d[2] * cz) / cl);
+          if (score > best) { best = score; by = yw; }
         }
         tp.tvYaw = by;
       }
@@ -1185,13 +1199,15 @@ const Game = {
     }
     // sculpted glove meshes (open / gripping), coloured per hand by the draw material
     // (with r = up x f the sculpt's x axis is mirrored, so each hand uses the opposite-handed sculpt)
-    const gm = (side === 0 ? 'glove_R_' : 'glove_L_') + (curl > 0.5 ? 'grip' : 'open');
+    // the FLARE hand is a flare gun: barrel over the knuckles, two fingers curled as the trigger
+    const gun = side === 1 && HT.id === 'FLARE' && Sculpt.ready('flare_gun');
+    const gm = gun ? 'flare_gun' : (side === 0 ? 'glove_R_' : 'glove_L_') + (curl > 0.5 ? 'grip' : 'open');
     if (Sculpt.ready(gm)) {
       const it = R.push(gm, mat, shadow);
       if (it) {
         basisMatrix(it.model, pos, r, u, f, s, s, s); it.tint[0] = tr; it.tint[1] = tg; it.tint[2] = tb; it.tint[3] = lift;
         // the steel knuckle linkage and rubber fingertip caps, drawn untinted so the steel stays steel
-        if (Sculpt.ready(gm + '_st')) { const st = R.push(gm + '_st', MAT.steel, shadow); if (st) { st.model.set(it.model); st.tint[0] = st.tint[1] = st.tint[2] = 1.3; st.tint[3] = lift * 0.6; } }
+        if (!gun && Sculpt.ready(gm + '_st')) { const st = R.push(gm + '_st', MAT.steel, shadow); if (st) { st.model.set(it.model); st.tint[0] = st.tint[1] = st.tint[2] = 1.3; st.tint[3] = lift * 0.6; } }
         it.emis[0] = 0.12 * glow; it.emis[1] = 0.5 * glow; it.emis[2] = 0.8 * glow;
         if (side === 1 && HT.glow) { const p = 0.7 + 0.3 * Math.sin(Game.time * 3); it.emis[0] += HT.glow[0] * p; it.emis[1] += HT.glow[1] * p; it.emis[2] += HT.glow[2] * p; }
         // a charged CONDUIT glows cyan, flickering as the charge runs down

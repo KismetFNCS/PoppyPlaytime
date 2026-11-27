@@ -14,7 +14,7 @@ const SECTOR_NAMES = ['INTAKE LIFT', 'RECLAMATION HALL', 'PRESSURE GALLERY', 'SP
 const Level = {
   sectors: [], doors: [], batches: [], builders: [], portals: [],
   pegs: [], sources: [], receptacles: [], levers: [], tapes: [], steam: [], vents: [], triggers: [], lockers: [],
-  lightEntities: [], fixtures: [], decor: [], breakables: [], cages: [], ducts: [],
+  lightEntities: [], fixtures: [], decor: [], breakables: [], namedPanels: {}, cages: [], ducts: [],
   spawn: { pos: V3.create(0, 0, 5.5), yaw: 0 },
   menuCam: { pos: V3.create(-1.1, 1.2, -79.6), yaw: -0.02, pitch: 0.12 },
   menuMonster: { pos: V3.create(0.9, 0, -84.6), yaw: 0 },
@@ -24,7 +24,7 @@ const Level = {
     this.sectors.length = 0; this.doors.length = 0; this.batches.length = 0; this.builders.length = 0; this.portals.length = 0;
     this.pegs.length = 0; this.sources.length = 0; this.receptacles.length = 0; this.levers.length = 0; this.tapes.length = 0;
     this.steam.length = 0; this.vents.length = 0; this.triggers.length = 0; this.lockers.length = 0; this.lightEntities.length = 0; this.fixtures.length = 0;
-    this.decor.length = 0; this.breakables.length = 0; this.cages.length = 0; this.ducts.length = 0;
+    this.decor.length = 0; this.breakables.length = 0; this.namedPanels = {}; this.cages.length = 0; this.ducts.length = 0;
   },
   // a cracked panel blocking a gap: solid until a BELLOWS blast shatters it
   breakable(sector, x0, y0, z0, x1, y1, z1) {
@@ -202,7 +202,7 @@ const Level = {
   },
   receptacle(sector, x, y, z, nx, nz, requiresPower, requires, action, label) {
     const e = World.create();
-    const r = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), requiresPower, requires: requires || [], action, powered: false, label: label || '', denyFlash: 0 };
+    const r = { entity: e, sector, pos: V3.create(x, y, z), n: V3.create(nx, 0, nz), requiresPower, requires: requires || [], action, powered: false, label: label || '', denyFlash: 0, scanCol: this.receptacles.length % 2 ? 'red' : 'blue' };
     r.collider = Physics.addBox(x - 0.4 + nx * 0.18, y - 0.4, z - 0.4 + nz * 0.18, x + 0.4 + nx * 0.18, y + 0.4, z + 0.4 + nz * 0.18, LAYER.GRAB_RECEPTACLE, SURFACE.METAL, e, false, sector);
     r.collider.kind = 'receptacle'; r.collider.ref = r;
     World.add(e, 'receptacle', r);
@@ -381,6 +381,8 @@ const Level = {
     const P2 = this.peg(1, 1.5, -17.0, true, 'RELAY B');
     this.receptacle(1, -6.5, 1.6, -23.85, 0, 1, true, [P1.id, P2.id], 'R1', 'DOOR CIRCUIT');
     this.tape(1, 9.2, 1.0, -3.1, 1);
+    // the GrabPack catalogue reel on a desk behind the fence, near the THUMPER cage
+    this.desk(1, -7.2, -17.2, true); this.tape(1, -7.2, 1.0, -17.2, 6);
     this.locker(1, 11.55, -10.6, Math.PI / 2);
     this.desk(1, 9.2, -3.1, true);
     this.conveyor(1, -10.5, -3.2, -2.5, -2.2);
@@ -390,7 +392,10 @@ const Level = {
     this.shelf(1, -11.8, -10.8, -10.9, -7.5, 3.4);
     this.shelf(1, 10.9, -22, 11.8, -16, 4.4);
     this.spoolMachine(1, -5.5, -6.5);
-    this.cage(1, -4.2, -15.2, -2.8, -13.8, 1.8, 'R1');
+    // the THUMPER cage runs on its own circuit: node -> round RELAY A -> the cage socket on the east wall
+    this.cage(1, -4.2, -15.2, -2.8, -13.8, 1.8, 'R1_CAGE');
+    this.receptacle(1, 11.85, 1.6, -13.4, -1, 0, true, [P1.id], 'R1_CAGE', 'CAGE CIRCUIT');
+    this.hazardLamp(1, 11.4, 2.6, -13.4);
     this.tank(1, 9.5, -14.5, 0.9, 3.6);
     this.pipeX(1, -12, 12, 6.2, -1.0, 0.18);
     this.pipeX(1, -12, 12, 5.9, -23.4, 0.14, MAT.copper);
@@ -422,6 +427,11 @@ const Level = {
     // ---------- S3: spool foundry (chase) ----------
     this.spoolMachine(3, -3.6, -58); this.spoolMachine(3, 3.4, -63.5);
     this.crate(3, -4.5, -66, 1.2, 2); this.crate(3, 4.6, -56, 1.1, 1);
+    // STITCHER is sealed in a steel alcove behind a cracked panel: blast it open with BELLOWS
+    this.solid(3, 3.6, 0, -57.4, 6, 2.5, -57.2, MAT.rustIron, SURFACE.METAL); this.solid(3, 3.6, 0, -54.8, 6, 2.5, -54.6, MAT.rustIron, SURFACE.METAL);
+    this.solid(3, 3.6, 2.5, -57.4, 6, 2.65, -54.6, MAT.steel, SURFACE.METAL);
+    this.namedPanels.stitch = this.breakable(3, 3.45, 0, -57.2, 3.62, 2.5, -54.8);
+    this.geom(3, 3.4, 2.5, -57.45, 3.65, 2.7, -54.55, MAT.hazard);
     this.conveyor(3, -5.6, -77.4, -1.8, -76.4);
     this.spoolMachine(3, -3.5, -84);
     // inner shutter wall at z = -72 with a 4 m shutter
@@ -461,8 +471,15 @@ const Level = {
     this.geom(5, -4.5, 0, -131.8, -4.2, 8.6, -131.4, MAT.steel); this.geom(5, 4.2, 0, -131.8, 4.5, 8.6, -131.4, MAT.steel);
     this.geom(5, -4.5, 8.2, -131.8, 4.5, 8.6, -131.4, MAT.steel);
     for (let x = -4.0; x <= 4.0; x += 0.25) this.geom(5, x - 0.012, 0.4, -131.62, x + 0.012, 8.2, -131.58, x % 1 === 0 ? MAT.furViolet : MAT.furBlue);
-    // the lift gate the player arrives through (south wall)
-    for (let x = -1.5; x <= 1.5; x += 0.3) this.geom(5, x - 0.03, 0, -106.3, x + 0.03, 3.4, -106.2, MAT.steel);
+    // the freight-lift door you arrived through (south wall): a heavy riveted steel door in a hazard frame,
+    // shut behind you, with a small wired window
+    this.geom(5, -1.6, 0, -106.24, 1.6, 3.4, -106.02, MAT.steel);
+    for (const x of [-1.78, 1.78]) this.geom(5, x - 0.18, 0, -106.3, x + 0.18, 3.75, -105.98, MAT.hazard);
+    this.geom(5, -1.96, 3.4, -106.3, 1.96, 3.75, -105.98, MAT.hazard);
+    this.geom(5, -0.02, 0, -106.28, 0.02, 3.4, -106.2, MAT.rubber);   // the seam between the two leaves
+    for (const y of [0.6, 1.7, 2.8]) this.geom(5, -1.55, y - 0.05, -106.3, 1.55, y + 0.05, -106.22, MAT.rustIron);
+    for (const x of [-0.9, 0.9]) { this.geom(5, x - 0.32, 2.05, -106.27, x + 0.32, 2.55, -106.22, MAT.screen); this.geom(5, x - 0.36, 2.0, -106.29, x + 0.36, 2.04, -106.23, MAT.steel); }
+    for (const x of [-1.1, 1.1]) this.geom(5, x - 0.06, 1.05, -106.32, x + 0.06, 1.45, -106.22, MAT.copper);   // handles
     this.bossNodes = [
       this.powerSource(5, -11.85, 1.5, -113, 1, 0), this.powerSource(5, -11.85, 1.5, -125, 1, 0),
       this.powerSource(5, 11.85, 1.5, -113, -1, 0), this.powerSource(5, 11.85, 1.5, -125, -1, 0)
@@ -471,6 +488,24 @@ const Level = {
     for (let z = -109; z >= -129; z -= 6) { this.tube(5, -6, 8.98, z, true, 1); this.tube(5, 6, 8.98, z, true, z === -121 ? 2 : 1); }
     this.emergency(5, -11.6, 6, -107); this.emergency(5, 11.6, 6, -131); this.emergency(5, 0, 7, -131.6);
     for (const s of this.bossNodes) this.hazardLamp(5, s.pos[0] + s.n[0] * 0.4, 2.6, s.pos[2]);
+    // the breaker panel either side of the lift gate: two levers that bring the nodes back after a power cut
+    this.loomBreakers = [this.lever(5, -8.5, 1.5, -106.15, 0, -1, 'LOOM_BREAKER'), this.lever(5, 8.5, 1.5, -106.15, 0, -1, 'LOOM_BREAKER')];
+    for (const bx of [-8.5, 8.5]) {
+      this.geom(5, bx - 0.75, 0.4, -106.12, bx + 0.75, 2.6, -106.0, MAT.steel);
+      this.geom(5, bx - 0.8, 2.6, -106.15, bx + 0.8, 2.72, -105.98, MAT.hazard);
+      this.hazardLamp(5, bx, 2.95, -106.3);
+      this.pipeY(5, bx + 0.55, -106.1, 2.6, 9, 0.07);
+    }
+    // the loom shuttle's floor rails: two lanes across the arena, red lamps at each end
+    this.loomLaneLights = [];
+    for (const lz of [-110, -119.5]) {
+      for (const dz of [-0.42, 0.42]) this.geom(5, -12, 0, lz + dz - 0.05, 12, 0.07, lz + dz + 0.05, MAT.steel);
+      this.geom(5, -12, 0, lz - 0.55, 12, 0.02, lz - 0.48, MAT.hazard); this.geom(5, -12, 0, lz + 0.48, 12, 0.02, lz + 0.55, MAT.hazard);
+      for (const ex of [-11.7, 11.7]) {
+        this.geom(5, ex - 0.18, 0, lz - 0.7, ex + 0.18, 1.3, lz + 0.7, MAT.rustIron);
+        this.loomLaneLights.push(this.light(5, ex * 0.97, 1.5, lz, LIGHTING.hazardColor, 0, 6, 0, 'bulb', 0.45));
+      }
+    }
 
     // ---------- triggers ----------
     this.trigger(-10, -30, 10, -24.6, 'enterGallery');

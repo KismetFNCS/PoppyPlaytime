@@ -61,7 +61,8 @@ const Dressing = {
             L.pipeY(S, cx, z, h - 2.2 - rnd() * 1.2, h, 0.025, MAT.cable);
           }
           // a faded poster now and then
-          if (rnd() < 0.12) this.posters.push({ sector: S, x: wx - side * 0.05, y: 1.7 + rnd() * 0.4, z, yaw: side < 0 ? -Math.PI / 2 : Math.PI / 2, kind: (rnd() * 4) | 0 });
+          // (half of them are missing-children posters, each one a different Hollow Pines child)
+          if (rnd() < 0.14) this.posters.push({ sector: S, x: wx - side * 0.05, y: 1.7 + rnd() * 0.4, z, yaw: side < 0 ? -Math.PI / 2 : Math.PI / 2, kind: rnd() < 0.5 ? 3 + ((rnd() * MISSING_KIDS.length) | 0) : (rnd() * 3) | 0 });
         }
       }
       // corner clutter
@@ -103,8 +104,16 @@ const Dressing = {
     c.textAlign = 'center';
     if (kind === 0) { c.fillStyle = rose; c.fillRect(0, 0, 128, 40); c.fillStyle = 'rgb(239,227,196)'; c.font = 'bold 18px sans-serif'; c.fillText('SAFETY', 64, 27); c.fillStyle = ink; c.font = 'bold 13px sans-serif'; c.fillText('HANDS STAY', 64, 80); c.fillText('ON THE PACK', 64, 98); c.beginPath(); c.arc(64, 135, 22, 0, 7); c.strokeStyle = teal; c.lineWidth = 5; c.stroke(); }
     else if (kind === 1) { c.fillStyle = teal; c.fillRect(0, 0, 128, 176); c.fillStyle = 'rgb(239,227,196)'; c.font = 'bold 16px sans-serif'; c.fillText('SMILE!', 64, 40); c.font = '11px sans-serif'; c.fillText("YOU'RE ON THE LINE", 64, 60); c.beginPath(); c.arc(64, 112, 34, 0, 7); c.fill(); c.fillStyle = ink; c.beginPath(); c.arc(52, 104, 5, 0, 7); c.arc(76, 104, 5, 0, 7); c.fill(); c.beginPath(); c.arc(64, 116, 18, 0.2, Math.PI - 0.2); c.lineWidth = 4; c.strokeStyle = ink; c.stroke(); }
-    else if (kind === 2) { c.fillStyle = ink; c.font = 'bold 14px sans-serif'; c.fillText('HAVE YOU SEEN', 64, 28); c.fillText('THIS CHILD?', 64, 46); drawPortrait(c, 30, 56, 68, 84, (Math.random() < 0.5 ? 'child' : 'child2'), 0, false); c.fillStyle = ink; c.font = '10px sans-serif'; c.fillText('HOLLOW PINES HOME', 64, 158); }
-    else { c.fillStyle = 'rgb(239,227,196)'; c.fillRect(0, 0, 128, 176); c.fillStyle = rose; c.font = 'bold 30px serif'; c.fillText('M', 64, 60); c.fillStyle = ink; c.font = 'bold 12px sans-serif'; c.fillText('MERRIWEATHER', 64, 92); c.fillText('TOY WORKS', 64, 108); c.font = '9px sans-serif'; c.fillText('EVERY TOY COMES HOME', 64, 140); }
+    else if (kind >= 3) {
+      const [who, name, age, seen] = MISSING_KIDS[(kind - 3) % MISSING_KIDS.length];
+      c.fillStyle = 'rgb(150,30,36)'; c.fillRect(0, 0, 128, 22); c.fillStyle = 'rgb(239,227,196)'; c.font = 'bold 15px sans-serif'; c.fillText('MISSING', 64, 17);
+      c.fillStyle = ink; c.font = 'bold 10px sans-serif'; c.fillText('HAVE YOU SEEN THIS CHILD?', 64, 34);
+      c.fillStyle = 'rgb(40,36,32)'; c.fillRect(27, 40, 74, 90);
+      drawPortrait(c, 30, 43, 68, 84, who, 0, false);
+      c.fillStyle = ink; c.font = 'bold 10px sans-serif'; c.fillText(name, 64, 142);
+      c.font = '9px sans-serif'; c.fillText('AGE ' + age + ' - LAST SEEN: ' + seen, 64, 154); c.fillText('HOLLOW PINES HOME', 64, 166);
+    }
+    else if (kind === 2) { c.fillStyle = 'rgb(239,227,196)'; c.fillRect(0, 0, 128, 176); c.fillStyle = rose; c.font = 'bold 30px serif'; c.fillText('M', 64, 60); c.fillStyle = ink; c.font = 'bold 12px sans-serif'; c.fillText('MERRIWEATHER', 64, 92); c.fillText('TOY WORKS', 64, 108); c.font = '9px sans-serif'; c.fillText('EVERY TOY COMES HOME', 64, 140); }
     // age it: stains, tears and fading
     for (let i = 0; i < 400; i++) { c.fillStyle = 'rgba(60,40,20,' + (Math.random() * 0.08) + ')'; c.fillRect(Math.random() * 128, Math.random() * 176, 3, 3); }
     c.fillStyle = 'rgba(80,60,30,0.25)'; c.fillRect(0, 150 + Math.random() * 20, 128, 30);
@@ -113,7 +122,7 @@ const Dressing = {
   },
   submit(vis) {
     const R = RenderQueue, t = Game.time;
-    if (!this.assets && typeof Gear !== 'undefined' && Gear.canvasQuad && Renderer.gl) { this.assets = [0, 1, 2, 3].map(k => { const a = Gear.canvasQuad(this.posterCanvas(k), 'poster' + k, 0, false); a.materials[0].rough = 0.9; return a; }); }
+    if (!this.assets && typeof Gear !== 'undefined' && Gear.canvasQuad && Renderer.gl) { this.assets = [...Array(3 + MISSING_KIDS.length).keys()].map(k => { const a = Gear.canvasQuad(this.posterCanvas(k), 'poster' + k, 0, false); a.materials[0].rough = 0.9; return a; }); }
     if (this.assets) for (const p of this.posters) {
       if (!vis[p.sector]) continue;
       M4.compose(_dr.m, p.x, p.y, p.z, p.yaw, 0, 0, 0.62, 0.85, 1);

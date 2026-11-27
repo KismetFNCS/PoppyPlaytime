@@ -22,11 +22,11 @@
 // =====================================================================================
 const A3 = { S: [12, 13, 14, 15, 16, 17, 18], Z: [-330, -380, -428, -474, -516, -566, -612, -624] };
 const A3_OBJECTIVES = [
-  'CELESTIAL WING. Stay out of the Seraph\'s searchlight and away from the pews. Take the SPRING hand, bounce up to the choir loft and pull the organ lever.',
-  'SUNKEN TOYBOX. Keep to the toy blocks where you can. Don\'t rush the Puffers. Open both drain valves.',
-  'GHOST LINE. Quiet near the tracks - the Conductors hear you. Run a cable from the node across both lines to the gate.',
-  'EXECUTIVE SUITE. Crouch under the Suits\' laser grids. Find the executive key in Harlan Smithers\' office.',
-  'SALVAGE YARDS. Your light scares the Scraplings. Take the MAGNET hand, zip across the chasm on the gantry plates, then work the crane.',
+  'CELESTIAL WING. Stay out of the Seraph\'s searchlight and away from the pews. Run the pad circuit to power the spring pad, bounce up to the choir loft with the SPRING hand and pull the organ lever.',
+  'SUNKEN TOYBOX. Keep to the toy blocks where you can. Don\'t rush the Puffers. Open both drain valves (the far one is boxed in behind a rotten panel - BELLOWS).',
+  'GHOST LINE. Quiet near the tracks - the Conductors hear you. The signal lever (west wall) holds both trains at red for a while. Run a cable from the node across both lines to the gate.',
+  'EXECUTIVE SUITE. Crouch under the Suits\' laser grids. Harlan\'s desk drawer is on its own circuit: node on the west wall, round the relay, into the DESK LOCK behind his desk. Then take the executive key.',
+  'SALVAGE YARDS. Your light scares the Scraplings. Power the gantry magnets, zip across the chasm with the MAGNET hand, then work the crane.',
   'THE HEART. Pull all three reactor clamps while Lovey and Morsel hold it off - then finish it.',
   'SELF-DESTRUCT. 40 SECONDS - RUN FOR THE FREIGHT LIFT!',
   'It is over.'
@@ -115,13 +115,21 @@ const Act3 = {
     L.light(S, 14, 6.4, -368, LIGHTING.fillColor, 2.4, 6, 2, 'bulb', 0.3);
     L.solid(S, 11.4, 4.3, -360.95, 13.0, 4.95, -360.05, MAT.wood, SURFACE.WOOD);   // a worktable for the tape and its set
     L.tape(S, 12.2, 5.0, -360.5, 5);
-    // the SPRING hand is caged on the altar: a circuit from the node on the east wall, round both brass relays
-    // in front of the altar, into the cage socket on the west wall - right past the Choir's pews
+    // the spring pad is dead until you run the pad circuit: from the node on the east wall, round both brass
+    // relays in front of the altar, into the socket on the west wall - right past the Choir's pews
     L.powerSource(S, 15.85, 1.5, -367, -1, 0);
     const ra = L.peg(S, 5, -368.6, true, 'RELAY'), rb = L.peg(S, -5, -368.6, true, 'RELAY');
-    L.receptacle(S, -15.75, 1.6, -367, 1, 0, true, [ra.id, rb.id], 'A_SPRINGCAGE', 'CAGE CIRCUIT');
-    L.cage(S, -6.8, -376.3, -5.2, -374.7, 2.6, 'A_SPRINGCAGE');
+    L.receptacle(S, -15.75, 1.6, -367, 1, 0, true, [ra.id, rb.id], 'A_SPRINGCAGE', 'PAD CIRCUIT');
     L.lever(S, 15.85, 5.6, -352, -1, 0, 'A_ORGAN');
+    // a staircase up the east wall to the loft, so Lovey, Morsel and Posie can follow you up (you can bounce)
+    for (let k = 0; k < 13; k++) {
+      const z0 = -333.7 - k * 0.95, top = (k + 1) * 0.33;
+      L.solid(S, 14.2, 0, z0 - 0.95, 15.95, top, z0, MAT.wood, SURFACE.WOOD);
+      L.geom(S, 14.2, top - 0.03, z0 - 0.95, 14.26, top + 0.9, z0 - 0.9, MAT.wood);   // balusters
+    }
+    L.geom(S, 14.18, 1.2, -345.9, 14.24, 1.28, -333.7, MAT.wood);   // handrail (low end)
+    // iron bars over the way out: they lift once the pad circuit is closed
+    L.cage(S, -1.5, -379.75, 1.5, -379.55, 3.0, 'A_SPRINGCAGE');
     // the spring pad by the east wall that bounces you up into the loft
     L.geom(S, 6.8, 0, -358.1, 8.4, 0.12, -356.7, MAT.hazard);
     this.pad('spring', S, 7.6, 0.12, -357.4, [13.2, 4.3, -359], this.springs);
@@ -130,7 +138,9 @@ const Act3 = {
     // the Seraph, cherub pack and choir masses
     this.seraph = { pos: V3.create(0, 11.5, -356), beam: V3.create(0, 0, -356), ang: 0, hold: 0, dive: 0, see: 0, light: L.light(S, 0, 0.6, -356, A3_COL.beam, 9, 6, 0, 'none', 0.9) };
     this.choirs = [[-9, -344.6], [5.5, -353.6], [-6, -362.6], [6.5, -365.6], [-12, -350.6], [3, -341.6], [-3.5, -368.6]].map(([x, z]) => ({ home: V3.create(x, 0, z), pos: V3.create(x, 0, z), stun: 0, lunge: 0, yaw: 0 }));
-    this.cherubs = [0, 1, 2, 3, 4, 5, 6].map(i => ({ pos: V3.create(-8 + i * 4, 15.6, -340 - i * 6), ang: i * 1.3, shriek: 0 }));
+    // four cherubs on the ceiling, and three little ones with poppies growing out of their heads
+    this.cherubs = [0, 1, 2, 3].map(i => ({ pos: V3.create(-8 + i * 5, 15.6, -340 - i * 8), ang: i * 1.3, shriek: 0, baby: false }))
+      .concat([0, 1, 2].map(i => ({ pos: V3.create(-5 + i * 6, 15.6, -350 - i * 7), ang: i * 2.1 + 0.7, shriek: 0, baby: true })));
   },
 
   // ---------- 11 SUNKEN TOYBOX ----------
@@ -145,6 +155,16 @@ const Act3 = {
     L.lever(S, 15.85, 1.6, -398, -1, 0, 'T_DRAIN_A');
     L.solid(S, -15.9, 0, -418, -12, 0.8, -414, MAT.wood);
     L.lever(S, -15.85, 1.6, -416, 1, 0, 'T_DRAIN_B');
+    // the second valve is boxed in behind a cracked, waterlogged panel: blast it open with BELLOWS
+    L.solid(S, -15.9, 0.8, -418.2, -12.4, 3.2, -418.0, MAT.rustIron, SURFACE.METAL); L.solid(S, -15.9, 0.8, -414.0, -12.4, 3.2, -413.8, MAT.rustIron, SURFACE.METAL);
+    L.solid(S, -15.9, 3.2, -418.2, -12.4, 3.35, -413.8, MAT.rustIron, SURFACE.METAL);
+    L.namedPanels.valveB = L.breakable(S, -12.55, 0.8, -418.0, -12.4, 3.2, -414.0);
+    // drowned props: a toppled giant teddy, a half-sunk carousel, floating blocks, a broken jack-in-the-box
+    L.solid(S, 9, 0, -428, 13.5, 1.4, -425.5, MAT.furViolet); L.geom(S, 12.6, 1.4, -427.4, 13.6, 2.3, -426.2, MAT.furViolet);
+    L.builders[S].cylinder(-12, -394, 0, 0.5, 2.2, 16, MAT.paint); L.builders[S].cylinder(-12, -394, 0.5, 3.6, 0.15, 8, MAT.copper);
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; L.geom(S, -12 + Math.cos(a) * 1.7 - 0.25, 0.5, -394 + Math.sin(a) * 1.7 - 0.25, -12 + Math.cos(a) * 1.7 + 0.25, 1.4, -394 + Math.sin(a) * 1.7 + 0.25, k % 2 ? MAT.handRose : MAT.handTeal); }
+    for (const [x, z, c] of [[6, -385, MAT.handTeal], [-4, -392, MAT.paint], [9, -405, MAT.handRose], [-8, -416, MAT.paint], [4, -426, MAT.handTeal]]) L.geom(S, x - 0.35, 0.3, z - 0.35, x + 0.35, 1.0, z + 0.35, c);
+    L.solid(S, 13.6, 0, -385, 15.6, 1.6, -383, MAT.wood); L.geom(S, 14.1, 1.6, -384.5, 15.1, 2.6, -383.5, MAT.handRose);
     // stacks of soggy toy crates, a sunken carousel horse, giant drowned blocks
     for (const [x, z, s, n] of [[-12, -386, 1.2, 2], [11, -388, 1.0, 3], [-10, -410, 1.4, 1], [10, -420, 1.1, 2], [13, -408, 0.9, 1]]) L.crate(S, x, z, s, n);
     L.builders[S].cylinder(-9, -392, 0, 3.5, 0.12, 8, MAT.copper);
@@ -175,6 +195,14 @@ const Act3 = {
     for (const x of [-10, 0, 10]) { L.peg(S, x, -450.7, true, ''); }
     for (let x = -12; x <= 12; x += 8) { L.tube(S, x, 7.9, -432, true, 2); L.tube(S, x, 7.9, -469, true, 1); }
     this.trains = [-443, -458].map((z, i) => ({ z, x: -40, dir: i ? -1 : 1, speed: 0, wait: 5 + i * 4, alerted: false, horn: false, light: L.light(S, -40, 2, z, A3_COL.arc, 6, 9, 3, 'none', 0.5) }));
+    // the signal box: a lever on the west wall that throws both lines to red - the Conductors hold for 25 s
+    L.solid(S, -16, 0.9, -436.5, -14.6, 3.2, -434.5, MAT.wood); L.lever(S, -14.55, 2.2, -435.5, 1, 0, 'G_SIGNAL');
+    this.signalLamp = L.light(S, -14.4, 3.1, -435.5, PALETTE.relayLinked, 0, 4, 0, 'bulb', 0.4);   // the signal lamp
+    // platform clutter: bins, a timetable board, a collapsed luggage trolley, posters
+    for (const x of [-12, 4, 12]) { L.builders[S].cylinder(x, -429.2, 0.9, 1.7, 0.3, 10, MAT.steel); }
+    L.geom(S, -4, 2.2, -428.15, 2, 4.0, -428.05, MAT.screen); L.geom(S, -4.1, 2.1, -428.2, 2.1, 2.2, -428.0, MAT.steel);
+    L.solid(S, 7, 0.9, -472.5, 9.5, 1.6, -471, MAT.rustIron); L.geom(S, 6.8, 0.9, -472.6, 7, 2.2, -470.9, MAT.steel);
+    for (const x of [-10, -2, 6]) L.geom(S, x - 0.8, 1.6, -473.95, x + 0.8, 3.4, -473.85, MAT.canvas);
   },
 
   // ---------- 13 EXECUTIVE SUITE ----------
@@ -192,6 +220,17 @@ const Act3 = {
     L.solid(S, -4, 0, -513.5, 4, 0.85, -511.8, MAT.wood);
     for (let i = 0; i < 9; i++) { const x = -6 + (i % 3) * 1.1 - (i > 5 ? 0 : 0), y = 1.2 + Math.floor(i / 3) * 1.0; L.geom(S, x + 6 - 1.1 * 3 + 3.3 - 3.3, y, -515.9, x + 6 - 1.1 * 3 + 3.3 - 3.3 + 0.95, y + 0.8, -515.4, MAT.screen); }
     for (let z = -478; z >= -512; z -= 8) { L.light(S, -8, 5.2, z, LIGHTING.fillColor, 3.0, 8, z === -494 ? 2 : 0, 'tubeX', 0.2); L.light(S, 8, 5.2, z, LIGHTING.fillColor, 3.0, 8, 0, 'tubeX', 0.2); }
+    // Harlan keeps the executive key in a desk drawer on its own lock circuit: node on the west wall, round the
+    // relay in the middle office, into the socket on the steel lockers behind the desk - past the Suits
+    L.powerSource(S, -15.85, 1.5, -498, 1, 0);
+    const er = L.peg(S, 1.5, -498.6, true, 'RELAY');
+    L.receptacle(S, 7.0, 1.1, -514.95, 0, 1, true, [er.id], 'E_DESK', 'DESK LOCK');
+    // office clutter: water coolers, potted palms, paper stacks, a fallen ceiling tile, filing cabinets
+    for (const [x, z] of [[-14.5, -478], [14.5, -489], [-14.5, -509]]) { L.solid(S, x - 0.25, 0, z - 0.25, x + 0.25, 1.1, z + 0.25, MAT.steel); L.builders[S].cylinder(x, z, 1.1, 1.5, 0.16, 10, MAT.screen); }
+    for (const [x, z] of [[-5, -478.5], [7, -488.5], [-3, -506]]) { L.builders[S].cylinder(x, z, 0, 0.5, 0.25, 10, MAT.paint); L.geom(S, x - 0.4, 0.5, z - 0.05, x + 0.4, 1.4, z + 0.05, MAT.handTeal); L.geom(S, x - 0.05, 0.5, z - 0.4, x + 0.05, 1.4, z + 0.4, MAT.handTeal); }
+    for (const [x, z] of [[-10.5, -478.2], [10.6, -479.2], [-6.3, -499.2], [12.4, -509.2]]) L.geom(S, x - 0.15, 0.78, z - 0.12, x + 0.15, 0.78 + 0.05 + (Math.abs(x) % 3) * 0.05, z + 0.12, MAT.canvas);
+    L.geom(S, -2, 0, -490, -0.8, 0.06, -488.8, MAT.concrete);
+    for (const x of [-15.5, 15.5]) for (const z of [-482, -501]) L.solid(S, x - 0.4, 0, z - 0.3, x + 0.4, 1.6, z + 0.3, MAT.steel);
     this.suits = [[0, -481, 1.2], [-9, -490, -0.8], [7, -498, 2.4], [-2, -508, 0], [12, -486, 3.3], [-12, -498, 0.6], [9, -510, 1.9]].map(([x, z, ph]) => ({ pos: V3.create(x, 0, z), yaw: 0, ph, fire: 0, flash: 0 }));
   },
 
@@ -209,11 +248,10 @@ const Act3 = {
     // gantry over the chasm with magnet plates, landing ledge
     L.solid(S, -16, 7, -536.6, 16, 7.4, -536.2, MAT.steel, SURFACE.METAL);
     for (const x of [-15.6, 15.6]) L.geom(S, x - 0.2, 0, -536.6, x + 0.2, 7, -536.2, MAT.steel);
-    // the MAGNET hand is caged by the chasm: power the cage from the node across the scrap heaps
+    // the gantry magnets are dead until you power them from the node across the scrap heaps
     L.powerSource(S, 15.85, 1.5, -526, -1, 0);
     const rs = L.peg(S, 2, -530.5, true, 'RELAY');
-    L.receptacle(S, -15.75, 1.6, -531.5, 1, 0, true, [rs.id], 'S_MAGCAGE', 'CAGE CIRCUIT');
-    L.cage(S, -12.8, -535.2, -11.2, -533.6, 2.6, 'S_MAGCAGE');
+    L.receptacle(S, -15.75, 1.6, -531.5, 1, 0, true, [rs.id], 'S_MAGCAGE', 'GANTRY MAGNETS');
     this.plate(S, 0, 4.2, -536.75, [0, 0, -548.5]);
     this.plate(S, -6, 4.2, -536.75, [-6, 0, -548.5]);
     // crane and the scrap barricade in front of the exit
@@ -257,9 +295,10 @@ const Act3 = {
     this.betrayal = -1; this.grab = 0; this.leeches = 0; this.leechT = 0; this.drain = 0; this.water = 0.55;
     this.gas.length = 0; this.flares.length = 0; this.ending = null; this.escape = null;
     if (Game.scene && Game.scene.atmos) { Game.scene.atmos = null; Game.scene.fogDensity = LIGHTING.fogDensity; }
-    this.heart = { clamps: 0, mode: 'WAIT', t: 0, hits: [false, false] };
+    this.heart = { clamps: 0, mode: 'WAIT', t: 0, hits: [false, false], hp: 6, loveyHit: false }; this.gibs = null;
     if (this.seraph) { this.seraph.hold = 0; this.seraph.dive = 0; this.seraph.see = 0; }
-    this.swarm = 0; this.biteT = 0; for (const c of this.cherubs) { c.down = 0; c.pos[1] = 15.6; }
+    this.swarm = 0; this.biteT = 0; this.posie = null; this.posieDone = false; this.posieSaid = false; this.morselRebel = false; for (const c of this.cherubs) { c.down = 0; c.pos[1] = 15.6; c.dead = false; }
+    if (this.seraph) { this.seraph.weak = false; this.seraph.broken = false; if (this.seraph.light) this.seraph.light.base = 9; }
     for (const c of this.choirs) { V3.copy(c.pos, c.home); c.stun = 0; c.lunge = 0; }
     for (const p of this.puffers) { V3.copy(p.pos, p.home); p.burst = 0; }
     for (const a of this.anglers) { a.rise = 0; a.snap = 0; a.stun = 0; }
@@ -274,6 +313,7 @@ const Act3 = {
     const st = Game.stage;
     const a = DeepWorks.leverBy('T_DRAIN_A'), b = DeepWorks.leverBy('T_DRAIN_B');
     if ((a && a.pulled && b && b.pulled) || st > 11) { this.drain = 1; this.water = -0.3; }
+    if (this.powered('A_SPRINGCAGE') && this.seraph) this.seraph.weak = true;
     const cr = DeepWorks.leverBy('S_CRANE'); if ((cr && cr.pulled) || st > 14) { this.barricade.enabled = false; }
     if (st === 15) this.startHeart();
     if (st === 16) { this.heart.mode = 'DONE'; this.startEscape(); }
@@ -300,8 +340,9 @@ const Act3 = {
   action(id) {
     switch (id) {
       case 'A_ORGAN':
-        Doors.setOpen('D11', true); sfx('power', Player.body.pos); this.setStage(11);
-        Dialogue.say('MARIGOLD', 'The organ is breathing again - the doors below are opening. Down into the toybox.');
+        Doors.setOpen('D11', true); sfx('power', Player.body.pos); if (Game.stage < 11) this.setStage(11);
+        if (this.seraph && !this.seraph.broken) this.breakSeraph();
+        Dialogue.say('MARIGOLD', 'The organ is breathing again - listen to it shake the rafters. Down into the toybox.');
         return true;
       case 'T_DRAIN_A': case 'T_DRAIN_B': {
         const a = DeepWorks.leverBy('T_DRAIN_A'), b = DeepWorks.leverBy('T_DRAIN_B');
@@ -309,9 +350,18 @@ const Act3 = {
         if (a.pulled && b.pulled && this.drain === 0) {
           this.drain = 0.001; sfx('grind', Player.body.pos);
           Dialogue.say('THIMBLE', 'Listen to that gurgle! The water is going down!');
-        } else Dialogue.say('MARIGOLD', 'One valve open. Find the other one.');
+        } else Dialogue.say('MARIGOLD', a.pulled ? 'One valve open. The other one is boxed in on the far wall - that panel looks rotten enough to blast.' : 'One valve open. Find the other one.');
         return true;
       }
+      case 'G_SIGNAL':
+        this.signalT = 25; sfx('lever', Player.body.pos); sfx('ventClick', Player.body.pos);
+        for (const T of this.trains) if (T.speed === 0) T.wait = Math.max(T.wait, 25);
+        Dialogue.say('THIMBLE', 'Both signals at red! The Conductors have to wait - but not for long. Move!');
+        return true;
+      case 'E_DESK':
+        sfx('power', Player.body.pos); sfx('doorStart', Player.body.pos);
+        Dialogue.say('MARIGOLD', 'That was his desk drawer. Harlan always did keep the important things under lock and current.');
+        return true;
       case 'G_GATE':
         Doors.setOpen('D13', true); this.setStage(13);
         Dialogue.say('MARIGOLD', 'Through! Quickly, before the next train comes.');
@@ -321,6 +371,19 @@ const Act3 = {
         Doors.setOpen('D15', true); this.setStage(15);
         this.startHeart();
         return true;
+      case 'A_SPRINGCAGE':
+        // the circuit lights the spring pad, lifts the bars over the exit and opens the door - and the surge
+        // runs up into the Seraph's lamp: it is sparking now, and one good hit will smash it
+        sfx('power', Player.body.pos); sfx('doorStart', Player.body.pos);
+        Doors.setOpen('D11', true); if (Game.stage < 11) this.setStage(11);
+        if (this.seraph) this.seraph.weak = true;
+        Dialogue.say('THIMBLE', 'The bars are up and the door is open! And look - the surge went right up into its lamp!');
+        Dialogue.say('MARIGOLD', 'Its light is sparking. One good hit with a hand and it is blind for good.');
+        return true;
+      case 'S_MAGCAGE':
+        sfx('power', Player.body.pos);
+        Dialogue.say('MARIGOLD', 'The gantry magnets are live. Lock on and let them pull you over.');
+        return true;
       case 'H_CLAMP': this.clampOut(); return true;
       case 'A3_LIFT': if (this.escape && !this.ending) this.startEnding(); return true;
     }
@@ -328,10 +391,16 @@ const Act3 = {
   },
 
   // ---------------------------------------------------------------- hands
+  powered(action) { const r = Level.receptacles.find(q => q.action === action); return !!(r && r.powered); },
   handIs(id) { return HAND_TYPES[Gear.cur] && HAND_TYPES[Gear.cur].id === id; },
   // called from the GrabPack when a hand hits something; true = handled (the hand comes straight back)
   handImpact(h, kind) {
     if (h.side !== 1) return false;
+    if ((kind === 'spring' || kind === 'magnet') && !this.powered(kind === 'spring' ? 'A_SPRINGCAGE' : 'S_MAGCAGE')) {
+      sfx('deny', h.pos); h.state = HAND.RETRACTING; h.retractT = 0;
+      GrabPack.showHint(kind === 'spring' ? 'SPRING PAD - no power. Run the pad circuit past the pews first' : 'MAGNET PLATE - dead. Power the gantry magnets first');
+      return true;
+    }
     if (this.handIs('SPRING') && kind === 'spring' && h.latchRef) { this.launch(h.latchRef.to); h.state = HAND.RETRACTING; h.retractT = 0; return true; }
     if (this.handIs('MAGNET') && kind === 'magnet' && h.latchRef) {
       Player.zip = { from: V3.clone ? V3.create(Player.body.pos[0], Player.body.pos[1], Player.body.pos[2]) : null, mid: V3.create(h.latchRef.pos[0], h.latchRef.pos[1] - 1.7, h.latchRef.pos[2] + 0.4), to: h.latchRef.to, t: 0, dur: 1.3 };
@@ -342,6 +411,87 @@ const Act3 = {
     }
     if (this.handIs('FLARE')) { this.flareAt(h.pos); h.state = HAND.RETRACTING; h.retractT = 0; return true; }
     return false;
+  },
+  // your friends fight back: Morsel blasts cherubs with his needle staff, Lovey swats them, and Posie asks to be
+  // put down, hops off Lovey's shoulder and smashes them herself - then Lovey scoops her back up
+  alliesFight(dt, live) {
+    const floor = live.filter(c => c.pos[1] < Player.body.pos[1] + 2.5 && this.swarm > 0 && !(c.down > 0));
+    const nearest = (p, r) => { let best = null, bd = r; for (const c of floor) { const d = Math.hypot(c.pos[0] - p[0], c.pos[2] - p[2]); if (d < bd) { bd = d; best = c; } } return best; };
+    // Morsel
+    const P = Cast.plush;
+    this.morselCd = Math.max(0, (this.morselCd || 0) - dt);
+    if (P.mode === 'FOLLOW' && P.sector === 12 && this.morselCd <= 0) {
+      const c = nearest(P.pos, 6);
+      if (c) {
+        this.morselCd = 2.6; Companion.plasmaBurst(c.pos); this.breakCherub(c);
+        if (!this.morselRebel) { this.morselRebel = true; Dialogue.say('THIMBLE', 'Finally! FINALLY I can rebel! Back to the rafters with you!'); }
+      }
+    }
+    // Lovey
+    if (Lovey.active && !(Lovey.hurtT > 0) && Lovey.mode === 'FOLLOW' && Lovey.cool <= 0 && Lovey.sector === 12) {
+      const c = nearest(Lovey.pos, 9);
+      if (c) { Lovey.mode = 'CHARGE'; Lovey.target = { kind: 'a3cherub', c, pos: c.pos }; sfx('cherubFlee', Lovey.pos); }
+    }
+    // Posie
+    const D = Cast.doll, Q = this.posie;
+    if (!Q && Lovey.active && Lovey.sector === 12 && floor.length && !this.posieDone) {
+      this.posie = { mode: 'ASK', t: 0, from: V3.create(), to: V3.create() };
+      Dialogue.say('MARIGOLD', 'Lovey - put me down! Put me DOWN, I can help!');
+      return;
+    }
+    if (!Q) return;
+    Q.t += dt;
+    D.sector = Level.sectorAt(D.pos[0], D.pos[2]);
+    if (Q.mode === 'ASK') { if (Q.t > 0.8) { Q.mode = 'HOP'; Q.t = 0; Lovey.seat(Q.from); V3.set(Q.to, Lovey.pos[0] + Math.cos(Lovey.yaw) * 0.9, Lovey.pos[1], Lovey.pos[2] - Math.sin(Lovey.yaw) * 0.9); sfx('footstep', Q.from); } return; }
+    if (Q.mode === 'HOP' || Q.mode === 'LIFT') {
+      const k = Math.min(1, Q.t / (Q.mode === 'HOP' ? 0.55 : 0.75));
+      if (Q.mode === 'LIFT') { Lovey.seat(Q.to); }
+      V3.lerp(D.pos, Q.from, Q.to, k); D.pos[1] += Math.sin(k * Math.PI) * 0.7;
+      if (k >= 1) {
+        if (Q.mode === 'HOP') { Q.mode = 'FIGHT'; Q.t = 0; D.vy = 0; sfx('land', D.pos); }
+        else { this.posie = null; this.posieDone = true; }
+      }
+      return;
+    }
+    if (Q.mode === 'FIGHT') {
+      const c = nearest(D.pos, 30);
+      if (c) {
+        const dx = c.pos[0] - D.pos[0], dz = c.pos[2] - D.pos[2], d = Math.hypot(dx, dz) || 1;
+        D.yaw = Math.atan2(-dx, -dz);
+        if (d > 0.6) CharPhys.move(D, D.pos, dx / d * 4.2 * dt, dz / d * 4.2 * dt, 0.22, dt);
+        else {
+          this.breakCherub(c); sfx('handHit', c.pos, SURFACE.WOOD);
+          if (!this.posieSaid) { this.posieSaid = true; Dialogue.say('MARIGOLD', 'They had this coming! Every last one of them!'); }
+        }
+        Q.t = 0;
+      } else if (Q.t > 2 && this.swarm <= 0) { Q.mode = 'RETURN'; Q.t = 0; }
+      CharPhys.shove(D, D.pos, 0.22, dt);
+      return;
+    }
+    if (Q.mode === 'RETURN') {
+      const dx = Lovey.pos[0] - D.pos[0], dz = Lovey.pos[2] - D.pos[2], d = Math.hypot(dx, dz) || 1;
+      D.yaw = Math.atan2(-dx, -dz);
+      if (d > 1.1) CharPhys.move(D, D.pos, dx / d * 3.2 * dt, dz / d * 3.2 * dt, 0.22, dt);
+      else { Q.mode = 'LIFT'; Q.t = 0; V3.copy(Q.from, D.pos); Dialogue.say('MARIGOLD', 'Alright, alright - up I go. Thank you, Lovey.'); }
+      if (Q.t > 12) { this.posie = null; this.posieDone = true; }   // she can always just climb back up
+    }
+  },
+  posieDown() { return !!this.posie && this.posie.mode !== 'ASK'; },
+  breakSeraph() {
+    const S = this.seraph; if (!S || S.broken) return;
+    S.broken = true; S.see = 0; S.hold = 0; this.swarm = 0;
+    if (S.light) S.light.base = 0;
+    V3.set(this.tmp, S.pos[0], S.pos[1] - 0.6, S.pos[2]);
+    sfx('shatter', this.tmp); sfx('seraphShriek', this.tmp); Particles.burst(this.tmp, 50, 'spark'); Particles.burst(this.tmp, 20, 'debris');
+    Player.addTrauma(0.4);
+    Dialogue.say('THIMBLE', 'HA! Its light is out! It can\'t see a thing now!');
+  },
+  // a cherub smashed to pieces (by your hand, Lovey, Morsel or Posie): it stays broken
+  breakCherub(c, at) {
+    c.dead = true; c.down = 0;
+    V3.copy(this.tmp3, at || c.pos);
+    sfx('shatter', c.pos); sfx('cherubFlee', c.pos); Particles.burst(c.pos, c.baby ? 14 : 24, 'debris');
+    if (c.baby) Particles.burst(c.pos, 8, 'ember');   // poppy petals
   },
   launch(to) {
     const b = Player.body, T = 1.15, ga = FEEL.gravity * 1.3;
@@ -365,7 +515,8 @@ const Act3 = {
   handHit(h, o, d, len) {
     const test = (c, r) => { const px = c[0] - o[0], py = c[1] - o[1], pz = c[2] - o[2]; const t = clamp(px * d[0] + py * d[1] + pz * d[2], 0, len); const qx = px - d[0] * t, qy = py - d[1] * t, qz = pz - d[2] * t; return qx * qx + qy * qy + qz * qz < r * r; };
     const st = Streaming.current;
-    if (st === 12) for (const c of this.cherubs) { if (c.pos[1] > 3) continue; if (test(c.pos, 0.5)) { c.down = 6; c.pos[1] = 15; sfx('cherubFlee', c.pos); Particles.burst(c.pos, 10, 'debris'); V3.copy(h.pos, c.pos); return true; } }
+    if (st === 12 && this.seraph && this.seraph.weak && !this.seraph.broken) { V3.set(this.tmp, this.seraph.pos[0], this.seraph.pos[1] - 0.6, this.seraph.pos[2]); if (test(this.tmp, 1.6)) { this.breakSeraph(); V3.copy(h.pos, this.tmp); return true; } }
+    if (st === 12) for (const c of this.cherubs) { if (c.dead || c.pos[1] > 3 + Player.body.pos[1]) continue; if (test(c.pos, c.baby ? 0.4 : 0.55)) { this.breakCherub(c, h.pos); V3.copy(h.pos, c.pos); return true; } }
     if (st === 12) for (const c of this.choirs) { V3.set(this.tmp, c.pos[0], 0.6, c.pos[2]); if (test(this.tmp, 0.9)) { c.stun = 5; this.grab = 0; sfx('shatter', this.tmp); V3.copy(h.pos, this.tmp); return true; } }
     if (st === 13) {
       for (const p of this.puffers) if (p.burst <= 0) { if (test(p.pos, 0.55)) { this.pop(p); V3.copy(h.pos, p.pos); return true; } }
@@ -401,10 +552,7 @@ const Act3 = {
     const st = Game.stage;
     if (st === 11 && sec === 14 && Player.body.pos[2] < -430) this.setStage(12);
     if (st === 13 && sec === 16 && Player.body.pos[2] < -518) this.setStage(14);
-    if (st === 10 && sec === 12 && this.betrayal < 0 && !this.wingTalk && Player.body.pos[2] < -334) {
-      this.wingTalk = true;
-      Dialogue.say('MARIGOLD', 'A chapel... they built a chapel inside the factory. Stay low. Something up there is listening.');
-    }
+
   },
   kill(reason) { DeepWorks.kill(reason); },
   playerMoving() { return Math.hypot(Player.body.vel[0], Player.body.vel[2]) > 0.6; },
@@ -417,12 +565,22 @@ const Act3 = {
       if (gameRng() < dt * 10) { V3.set(this.tmp, (gameRng() - 0.5) * 3, 1 + gameRng() * 3, -313 + (gameRng() - 0.5) * 2); Particles.burst(this.tmp, 6, 'spark'); }
       Player.addTrauma(dt * 0.25);
       M.visible = true; M.active = true; M.bossHold = true; M.airborne = true; M.pos[1] = 1.3 + Math.sin(b * 9) * 0.05; M.lean = -0.3 + Math.sin(b * 13) * 0.05;
-    } else if (b < 9) {
-      // it tears loose and bolts for the far door
+    } else if (b < 9.5) {
+      // SECOND DEFEAT: it drops out of the cradle broken and glitching - flickering in and out, pulsing red,
+      // jerking - and scurries off low to the far door, promising to come back mended with Posie Gel
       M.airborne = false; M.pos[1] = 0; M.bossHold = false;
-      M.pos[0] = damp(M.pos[0], 13, 1.2, dt); M.pos[2] = damp(M.pos[2], -333, 0.8, dt); M.speed = 6;
-      M.yaw = M.yaw + wrapAngle(Math.atan2(-(13 - M.pos[0]), -(-333 - M.pos[2])) - M.yaw) * Math.min(1, dt * 6);
-      if (b - dt < 6) { sfx('overload', M.pos); Doors.setOpen('D10', true); Audio.boom(); Player.addTrauma(0.7); }
+      const tx = 13 + (gameRng() - 0.5) * 0.6, tz = -333;
+      M.pos[0] = damp(M.pos[0], tx, 1.0, dt) + (gameRng() - 0.5) * 0.12; M.pos[2] = damp(M.pos[2], tz, 0.7, dt) + (gameRng() - 0.5) * 0.12; M.speed = 7;
+      M.yaw = M.yaw + wrapAngle(Math.atan2(-(13 - M.pos[0]), -(-333 - M.pos[2])) - M.yaw) * Math.min(1, dt * 6) + (gameRng() - 0.5) * 0.3;
+      M.lean = 0.7 + Math.sin(b * 23) * 0.1; M.bodyBob = -0.45; M.jaw = Math.abs(Math.sin(b * 17));
+      M.visible = gameRng() > 0.18;   // the glitch: it flickers out of existence for a frame now and then
+      if (gameRng() < dt * 8) { Lights.pulse(M.head, 1.0, 0.15, 0.2, 6, 4, 0.3, 0); sfx('tapeGlitch', M.pos); }
+      if (b - dt < 6) {
+        sfx('overload', M.pos); Doors.setOpen('D10', true); Audio.boom(); Player.addTrauma(0.7);
+        Dialogue.say('SPOOLWRIGHT', '(glitching, scuttling low across the floor) Broken... b-broken... but not FINISHED.');
+        Dialogue.say('SPOOLWRIGHT', 'There is gel in the wings above. Posie Gel. It mends anything. It will mend ME.');
+        Dialogue.say('SPOOLWRIGHT', 'I will be back, little employee. Just... wait for me.');
+      }
     } else {
       M.visible = false; M.active = false; M.boss = false;
       this.betrayal = -1;
@@ -441,33 +599,41 @@ const Act3 = {
     S.beam[0] = damp(S.beam[0], this.tmp[0], S.hold > 0 ? 5 : 2, dt); S.beam[2] = damp(S.beam[2], this.tmp[2], S.hold > 0 ? 5 : 2, dt);
     S.light.pos[0] = S.beam[0]; S.light.pos[2] = S.beam[2];
     const inLoft = b[1] > 3.5, shaded = (b[0] > 9.8 && b[2] < -346 && b[2] > -372) || inLoft;
-    const lit = !shaded && Math.hypot(b[0] - S.beam[0], b[2] - S.beam[2]) < 2.1;
+    const lit = !S.broken && !shaded && Math.hypot(b[0] - S.beam[0], b[2] - S.beam[2]) < 2.1;
     S.see = lit ? S.see + dt : Math.max(0, S.see - dt * 2);
     // the searchlight doesn't kill: it calls the cherub pack down off the ceiling onto whoever stands in it
     if (S.see > 0.35 && !(this.swarm > 0)) { this.swarm = 7; sfx('cherubSiren', V3.set(this.tmp, b[0], 6, b[2])); Player.addTrauma(0.3); GrabPack.showHint('THE LIGHT CALLED THE CHERUBS DOWN - get out of the beam and hit them!'); }
     this.swarm = Math.max(0, (this.swarm || 0) - dt);
-    // cherubs on the ceiling: running near them sets off a static shriek that turns the beam on you
-    let bite = false;
-    for (const c of this.cherubs) {
+    // cherubs on the ceiling. Called down, they drop to whatever floor you are on and scuttle after you; they
+    // bite (it hurts, it doesn't kill outright), they bump into each other and the pews, and any hand, Lovey,
+    // Morsel or Posie can smash them for good
+    let bite = 0;
+    const live = this.cherubs.filter(c => !c.dead);
+    for (const c of live) {
       if (c.down > 0) c.down -= dt;
       if (this.swarm > 0 && !(c.down > 0)) {
-        // dropped from the ceiling: scuttling across the floor after you
         const dx = b[0] - c.pos[0], dz = b[2] - c.pos[2], d = Math.hypot(dx, dz) || 1;
-        c.pos[1] = damp(c.pos[1], 0.55, 5, dt);
-        if (d > 0.7) { c.pos[0] += dx / d * 5.2 * dt; c.pos[2] += dz / d * 5.2 * dt; } else bite = true;
+        c.pos[1] = damp(c.pos[1], b[1] + (c.baby ? 0.35 : 0.55), 5, dt);
+        const sp = c.baby ? 3.6 : 4.4;
+        if (d > 0.75) { c.pos[0] += dx / d * sp * dt; c.pos[2] += dz / d * sp * dt; } else if (Math.abs(c.pos[1] - b[1]) < 1.2) bite += c.baby ? 0.5 : 1;
+        // they can't pass through each other or the pews and walls
+        for (const o of live) { if (o === c || o.pos[1] > 3 + b[1]) continue; const ox = c.pos[0] - o.pos[0], oz = c.pos[2] - o.pos[2], od = Math.hypot(ox, oz); if (od < 0.6 && od > 1e-4) { c.pos[0] += ox / od * (0.6 - od) * 0.5; c.pos[2] += oz / od * (0.6 - od) * 0.5; } }
+        V3.set(this.tmp3, c.pos[0], c.pos[1] - 0.5, c.pos[2]); CharPhys.pushOut(this.tmp3, 0.3, 0.1, 0.9); c.pos[0] = this.tmp3[0]; c.pos[2] = this.tmp3[2];
         continue;
       }
       c.pos[1] = damp(c.pos[1], 15.6, 1.5, dt);
       c.ang += dt * 0.6; c.pos[0] = damp(c.pos[0], Math.sin(c.ang) * 12, 1.5, dt); c.pos[2] = damp(c.pos[2], -356 + Math.cos(c.ang * 0.8) * 18, 1.5, dt);
       c.shriek = Math.max(0, c.shriek - dt);
       const cd = Math.hypot(b[0] - c.pos[0], b[2] - c.pos[2]);
-      if (c.shriek <= 0 && !inLoft && ((Player.sprinting && cd < 9) || (!Player.crouching && this.playerMoving() && cd < 4))) {
+      if (!S.broken && c.shriek <= 0 && !inLoft && ((Player.sprinting && cd < 9) || (!Player.crouching && this.playerMoving() && cd < 4))) {
         c.shriek = 6; S.hold = 2.2; sfx('cherubShriek', c.pos); Player.addTrauma(0.25);
       }
     }
-    this.biteT = bite ? (this.biteT || 0) + dt : Math.max(0, (this.biteT || 0) - dt);
-    if (bite && gameRng() < dt * 4) { sfx('cherubBite', b); Player.addTrauma(0.15); }
-    if (this.biteT > 1.4) { this.biteT = 0; this.swarm = 0; this.kill('TORN APART BY THE CHERUB PACK'); return; }
+    if (bite > 0) {
+      this.biteT = (this.biteT || 0) + dt * bite;
+      if (this.biteT > 0.5) { this.biteT = 0; sfx('cherubBite', b); Player.addTrauma(0.15); DeepWorks.hurt(7, 'TORN APART BY THE CHERUB PACK'); }
+    }
+    this.alliesFight(dt, live);
     // the choir masses lunge from the pews and pin your ankles; fire a hand at one to make it let go
     for (const c of this.choirs) {
       c.stun = Math.max(0, c.stun - dt);
@@ -537,10 +703,15 @@ const Act3 = {
 
   updateGhost(dt) {
     const b = Player.body.pos;
+    this.signalT = Math.max(0, (this.signalT || 0) - dt);
+    if (this.signalLamp) this.signalLamp.base = this.signalT > 0 ? 3 : 0;
+    // the lever springs back when the hold runs out, so you can throw it again
+    if (this.signalT <= 0) { const sl = DeepWorks.leverBy('G_SIGNAL'); if (sl && sl.pulled && !sl.grab) { sl.pulled = false; sl.wrench = 0; } }
     const loud = Player.sprinting || !Player.body.grounded || GrabPack.hands.some(h => h.state === HAND.FLYING);
     for (const T of this.trains) {
       T.light.pos[2] = T.z; T.light.pos[0] = T.x;
       if (T.speed === 0) {
+        if (this.signalT > 0) { T.wait = Math.max(T.wait, 0.5); continue; }   // held at red
         T.wait -= dt;
         // the Conductor hears you near its line and comes early, much faster
         if (loud && Math.abs(b[2] - T.z) < 13 && T.wait > 0.8) { T.wait = 0.8; T.alerted = true; sfx('trainHorn', V3.set(this.tmp, -14 * T.dir, 2, T.z)); }
@@ -641,20 +812,68 @@ const Act3 = {
       if (H.hits[0] && H.hits[1]) this.finish();
     }
     if (H.mode === 'DYING') {
+      // THIRD AND LAST DEFEAT: it shakes itself to pieces in the surge - then it is RIPPED APART: mask, hood,
+      // coat, every leg and bell flung across the Heart in a burst of stuffing and sparks
       M.bossHold = true; M.jaw = 1; M.lean = damp(M.lean, -0.6, 2, dt);
+      if (H.t < 1.4) { M.pos[0] += (gameRng() - 0.5) * 0.08; M.pos[2] += (gameRng() - 0.5) * 0.08; M.lookRoll = Math.sin(H.t * 40) * 0.4; }
       if (gameRng() < dt * 25) { V3.set(this.tmp, M.pos[0] + (gameRng() - 0.5), 1.5 + gameRng() * 2, M.pos[2] + (gameRng() - 0.5)); Particles.burst(this.tmp, 5, 'spark'); }
-      if (H.t > 3.2) { M.visible = false; M.active = false; M.boss = false; H.mode = 'DONE'; this.startEscape(); }
+      if (H.t > 1.4 && !this.gibs) this.ripApart();
+      if (this.gibs) this.updateGibs(dt);
+      if (H.t > 4.2) { M.active = false; M.boss = false; H.mode = 'DONE'; this.startEscape(); }
+    }
+    if (this.gibs && H.mode !== 'DYING') this.updateGibs(dt);
+  },
+  // tear the Epxirtype apart into flying pieces (each drawn with its own sculpt, tumbling, bouncing, settling)
+  ripApart() {
+    const M = Monster, c = M.chest, h = M.head;
+    M.visible = false;
+    sfx('collapse', c); sfx('shatter', c); sfx('screech', h); sfx('bossDown', c); Audio.boom(); Player.addTrauma(1);
+    for (let k = 0; k < 6; k++) { V3.set(this.tmp, c[0] + (gameRng() - 0.5), c[1] - 0.6 + gameRng(), c[2] + (gameRng() - 0.5)); Particles.burst(this.tmp, 30, 'debris'); Particles.burst(this.tmp, 14, 'spark'); }
+    const P = Renderer.post; P.flash = 0.9; P.flashTint[0] = 1; P.flashTint[1] = 0.35; P.flashTint[2] = 0.5;
+    const parts = [
+      ['sp_mask', MAT.porcelain, h, 1.26, [0.9, 0.87, 0.8]], ['sp_hood', MAT.clothWine, h, 1.26, [0.74, 0.66, 0.6]], ['sp_coat', MAT.clothWine, c, 1, [0.9, 0.74, 0.64]],
+      ['sp_body', MAT.furViolet, M.pos, 0.8, [0.72, 0.66, 0.62]]
+    ];
+    for (let k = 0; k < 4; k++) parts.push(['sp_femur', MAT.steel, M.pos, 1.1, [1, 1, 1]], ['sp_tibia', MAT.steel, M.pos, 1.1, [1, 1, 1]]);
+    for (let k = 0; k < 3; k++) parts.push(['sp_bell', MAT.copper, h, 1.8, [1.7, 1.35, 0.6]]);
+    for (let k = 0; k < 6; k++) parts.push(['sphere', k % 2 ? MAT.furViolet : MAT.furBlue, c, 0.18, [0.8, 0.75, 0.8]]);
+    this.gibs = parts.map(([mesh, mat, at, sc, tint], i) => {
+      const a = i * 2.39996 + gameRng(), up = 4 + gameRng() * 5, out = 3 + gameRng() * 5;
+      return { mesh, mat, sc, tint, p: V3.create(at[0], Math.max(0.6, at[1] - (mesh === 'sp_body' ? 1.0 : 0)), at[2]), v: V3.create(Math.cos(a) * out, up, Math.sin(a) * out),
+        r: V3.create(gameRng() * 6, gameRng() * 6, gameRng() * 6), w: V3.create((gameRng() - 0.5) * 12, (gameRng() - 0.5) * 12, (gameRng() - 0.5) * 12), rest: false };
+    });
+  },
+  updateGibs(dt) {
+    for (const g of this.gibs) {
+      if (g.rest) continue;
+      g.v[1] -= 9.8 * dt;
+      V3.addScaled(g.p, g.p, g.v, dt); V3.addScaled(g.r, g.r, g.w, dt);
+      if (Math.abs(g.p[0]) > 15.5) { g.p[0] = Math.sign(g.p[0]) * 15.5; g.v[0] *= -0.4; }
+      if (g.p[2] > -568 || g.p[2] < -610) { g.p[2] = clamp(g.p[2], -610, -568); g.v[2] *= -0.4; }
+      const floor = g.mesh === 'sphere' ? g.sc : 0.15;
+      if (g.p[1] < floor) {
+        g.p[1] = floor; if (g.v[1] < -1.5) sfx('thump', g.p);
+        g.v[1] *= -0.3; g.v[0] *= 0.6; g.v[2] *= 0.6; V3.scale(g.w, g.w, 0.5);
+        if (Math.hypot(g.v[0], g.v[1], g.v[2]) < 0.4) g.rest = true;
+      }
+    }
+  },
+  submitGibs(R) {
+    for (const g of this.gibs) {
+      if (g.mesh !== 'sphere' && !Sculpt.ready(g.mesh)) continue;
+      const it = R.trs(g.mesh, g.mat, g.p[0], g.p[1], g.p[2], g.r[0], g.r[1], g.r[2], g.sc, g.sc, g.sc);
+      if (it) { it.tint[0] = g.tint[0] * 0.6; it.tint[1] = g.tint[1] * 0.55; it.tint[2] = g.tint[2] * 0.5; }
     }
   },
   clampOut() {
     const H = this.heart, M = Monster;
     if (H.mode !== 'FIGHT') return;
-    H.clamps++;
+    H.clamps++; H.hp = Math.max(1, H.hp - 1);
     sfx('overload', Player.body.pos); Player.addTrauma(0.5); Audio.boom();
     const P = Renderer.post; P.flash = 0.5; P.flashTint[0] = 1; P.flashTint[1] = 0.25; P.flashTint[2] = 0.45;
     if (M.active && !M.inVent) { M.stunTimer = 3; M.flinchAmt = 1; }
     if (H.clamps >= 3) {
-      H.mode = 'TAKEDOWN'; H.t = 0; H.hits[0] = H.hits[1] = false;
+      H.mode = 'TAKEDOWN'; H.t = 0; H.hits[0] = H.hits[1] = false; H.hp = 1;
       Dialogue.clear();
       Dialogue.say('SPOOLWRIGHT', '(in every voice it ever stole, all at once) NO - not the HEART - not like THIS -');
       Dialogue.say('THIMBLE', 'Lovey\'s got it pinned! Its core is open - BOTH HANDS, NOW!');
@@ -675,6 +894,7 @@ const Act3 = {
     const P = Renderer.post; P.flash = 1; P.flashTint[0] = 1; P.flashTint[1] = 0.6; P.flashTint[2] = 0.5;
     Dialogue.clear();
     Dialogue.say('SPOOLWRIGHT', '(its own voice at last, very small) ...it was... so... cold...');
+    Dialogue.say('THIMBLE', 'Lovey - pull! PULL! Tear it apart so it can never sew itself back together!');
     Game.chaseActive = false; Game.invulnerable = true;
   },
   startEscape() {
@@ -762,20 +982,35 @@ const Act3 = {
     if (Sculpt.ready('seraph_tunic')) R.trs('seraph_tunic', MAT.clothWine, S.pos[0], S.pos[1] - 1.2, S.pos[2], Math.PI, 0, 0, 1.3, 1.3, 1.3);
     if (Sculpt.ready('a3_wing')) for (const sx of [-1, 1]) { const flap = Math.sin(t * 1.3) * 0.15; R.trs('a3_wing', MAT.rustIron, S.pos[0] + sx * 0.4, S.pos[1] + 0.2, S.pos[2], sx < 0 ? Math.PI : 0, 0, sx * (0.25 + flap), 1.5, 1.5, 1.5); }
     V3.set(this.tmp, S.pos[0], S.pos[1] - 0.6, S.pos[2]);
-    const lamp = R.trs('sphere', MAT.screen, this.tmp[0], this.tmp[1], this.tmp[2], 0, 0, 0, 0.3, 0.3, 0.3, false); if (lamp) { lamp.emis[0] = 4; lamp.emis[1] = 2.4; lamp.emis[2] = 0.7; }
+    const lamp = R.trs('sphere', MAT.screen, this.tmp[0], this.tmp[1], this.tmp[2], 0, 0, 0, 0.3, 0.3, 0.3, false);
+    if (lamp && S.broken) { lamp.emis[0] = 0.05; lamp.emis[1] = 0.02; lamp.emis[2] = 0; lamp.tint[0] = lamp.tint[1] = lamp.tint[2] = 0.2; }
+    else if (lamp) { const fl = S.weak ? (gameRng() < 0.3 ? 0.3 : 1) : 1; lamp.emis[0] = 4 * fl; lamp.emis[1] = 2.4 * fl; lamp.emis[2] = 0.7 * fl; if (S.weak && gameRng() < 0.1) Particles.burst(this.tmp, 2, 'spark'); }
+    if (S.broken) return this.submitCherubs(R, t);
     V3.set(this.tmp2, S.beam[0], 0.05, S.beam[2]);
     const beam = R.seg('cylLow', MAT.screen, this.tmp, this.tmp2, 0.05, false); if (beam) { beam.emis[0] = 1.4; beam.emis[1] = 0.8; beam.emis[2] = 0.25; }
     const spot = R.trs('cyl', MAT.screen, S.beam[0], 0.02, S.beam[2], 0, 0, 0, 1.6, 0.01, 1.6, false); if (spot) { const g = S.hold > 0 ? 1.4 : 0.8; spot.emis[0] = g; spot.emis[1] = g * 0.6; spot.emis[2] = g * 0.18; }
-    for (const c of this.cherubs) {
-      const onFloor = c.pos[1] < 3;
-      if (Sculpt.ready('cherub_head')) R.trs('cherub_head', MAT.porcelain, c.pos[0], c.pos[1] - (onFloor ? 0 : 0.4), c.pos[2], c.ang, onFloor ? 0 : Math.PI, 0, 0.8, 0.8, 0.8);
-      for (let k = 0; k < 4; k++) { const a = k * 1.57 + t * 6; V3.set(this.tmp, c.pos[0], c.pos[1] - 0.3, c.pos[2]); V3.set(this.tmp2, c.pos[0] + Math.cos(a) * 0.4, c.pos[1] - 0.05, c.pos[2] + Math.sin(a) * 0.4); R.seg('cylLow', MAT.steel, this.tmp, this.tmp2, 0.015); }
-    }
+    this.submitCherubs(R, t);
     for (const c of this.choirs) {
       if (!Sculpt.ready('a3_choir')) break;
       const lunge = c.lunge, rise = 0.15 + lunge * 0.4 + Math.sin(t * 2 + c.home[0]) * 0.03;
       const it = R.trs('a3_choir', MAT.porcelain, c.pos[0], -0.15 + rise * 0.6, c.pos[2], c.yaw, lunge * 0.4, 0, 0.9, 0.9, 0.9);
       if (it) { it.tint[0] = 0.85; it.tint[1] = 0.8; it.tint[2] = 0.74; }
+    }
+  },
+  submitCherubs(R, t) {
+    for (const c of this.cherubs) {
+      if (c.dead) continue;
+      const onFloor = c.pos[1] < 3 + Player.body.pos[1], sc = c.baby ? 0.5 : 0.8, up = onFloor ? 1 : -1;
+      if (Sculpt.ready('cherub_head')) R.trs('cherub_head', MAT.porcelain, c.pos[0], c.pos[1] - (onFloor ? 0 : 0.4), c.pos[2], c.ang, onFloor ? 0 : Math.PI, 0, sc, sc, sc);
+      for (let k = 0; k < 4; k++) { const a = k * 1.57 + t * 6; V3.set(this.tmp, c.pos[0], c.pos[1] - 0.3 * sc / 0.8, c.pos[2]); V3.set(this.tmp2, c.pos[0] + Math.cos(a) * 0.5 * sc, c.pos[1] - 0.05, c.pos[2] + Math.sin(a) * 0.5 * sc); R.seg('cylLow', MAT.steel, this.tmp, this.tmp2, 0.015); }
+      if (c.baby) {
+        // a poppy growing out of the top of its little head: a green stem, red petals, a black middle
+        const hy = c.pos[1] + up * 0.42, sway = Math.sin(t * 3 + c.ang) * 0.06;
+        V3.set(this.tmp, c.pos[0], c.pos[1] + up * 0.3, c.pos[2]); V3.set(this.tmp2, c.pos[0] + sway, hy, c.pos[2]);
+        const st = R.seg('cylLow', MAT.handTeal, this.tmp, this.tmp2, 0.012); if (st) { st.tint[0] = 0.4; st.tint[1] = 1.2; st.tint[2] = 0.4; }
+        for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2 + c.ang; const p = R.trs('sphere', MAT.handRose, this.tmp2[0] + Math.cos(a) * 0.06, hy + up * 0.02, this.tmp2[2] + Math.sin(a) * 0.06, a, 0, 0, 0.07, 0.02, 0.05); if (p) { p.tint[0] = 2.2; p.tint[1] = 0.25; p.tint[2] = 0.2; } }
+        R.trs('sphereLow', MAT.rubber, this.tmp2[0], hy + up * 0.035, this.tmp2[2], 0, 0, 0, 0.025, 0.02, 0.025);
+      }
     }
   },
   submitToybox(R, t) {
@@ -831,6 +1066,7 @@ const Act3 = {
   },
   submitHeart(R, t) {
     const H = this.heart, cz = -589;
+    if (this.gibs) this.submitGibs(R);
     const pulse = 1 + Math.sin(t * (2 + H.clamps * 2)) * 0.25 + H.clamps * 0.4;
     const core = R.trs('sphere', MAT.screen, 0, 3.2, cz, t * 0.4, 0, 0, 1.4, 1.4, 1.4, false); if (core) { core.emis[0] = 2.2 * pulse; core.emis[1] = 0.25 * pulse; core.emis[2] = 0.6 * pulse; }
     for (let k = 0; k < 3; k++) R.trs('torus', MAT.copper, 0, 3.2, cz, t * (0.3 + k * 0.2), k * 1.05, 0, 2.0 + k * 0.25, 0.6, 2.0 + k * 0.25);

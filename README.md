@@ -49,13 +49,15 @@ Overstretching the cable (42 m) snaps it, and arcs crawl along it as it nears th
 drag your view **down** (or back away) to wrench the handle over; let go too early and it springs back.
 
 **Gear:**
-- **Hands.** The teal left hand never changes. The right slot swaps between every hand you own with **[X]**,
-  the mouse wheel or pad Y: **ROSE** (your old hand: a slap that staggers for 1.3 s), **THUMPER** (brass
-  knuckle-buster, found in the Reclamation Hall: 3.2 s stun, knock-back, smashes nearby cherubs), **LANTERN**
-  (violet lamp-hand, found in the Pressure Gallery: bursts with blinding light wherever it lands, stunning
-  everything within 7 m) and **STITCHER** (steel needle fingers, found in the Spool Foundry: pins whatever it
-  hits for 4.5 s). Gloves are worn and grimy; launches puff and spin, the winch spins up to reel them in, and
-  they dock with a clunk.
+- **Hands.** Your left hand is blue and never changes. You start with your old hands on the wheel: **ROSE**
+  (your red right hand), **CONDUIT**, **BELLOWS**, **ANCHOR**, **SPRING** (violet jump hand), **MAGNET** and
+  **FLARE** (a flare gun built into the glove: a fat barrel over the knuckles, two fingers curled on the trigger).
+  Three new hands have to be found: **THUMPER** (brass knuckle-buster, caged in the Reclamation Hall on its own
+  circuit round RELAY A), **LANTERN** (violet lamp-hand, deep in the Pressure Gallery's toxic smog - wear the
+  mask) and **STITCHER** (needle fingers, sealed in a foundry alcove behind a cracked panel - blast it with
+  BELLOWS while the Epxirtype creeps). Tap **[X]** / pad Y for the next hand; the scroll wheel no longer swaps.
+- **Scanners** only read the hand of their colour: blue scanner = blue (left) hand, red scanner = red (right)
+  hand. **Charge sockets** take a charged CONDUIT hand or a live cable.
 - **Hand wheel.** Hold **[Tab]** (or hold [X] / pad Y) to open a wheel of your hands; the camera holds still
   while you aim at a slot with the mouse or stick (or press 1-4), and releasing equips it. The old hand spins
   like a wheel as it drops out of view, then the new one rises into place. A quick tap of [X] still cycles.
@@ -116,11 +118,41 @@ shaft and the freight lift follows it into five more levels (sectors 6-10, each 
    the next train runs down that line. Three hits, then phase 2: Posie overloads the generators, and you
    latch each exposed core and drag it out. Three cores start the containment cinematic and the ending.
 
+## The Loom (first boss)
+
+Nine shocks across three phases. **Hunt:** all four wall nodes are live. **Blackout:** it rips the power on the
+way back in - every node is dead and the lights drop until you wrench **both** breaker levers by the freight-lift
+door while it hunts you, and it starts to pounce. **The Loom:** the breakers trip again; once restored only one
+node holds current at a time (it hops every few seconds), and the loom shuttle tears across the floor on its
+rails after a red warning - it kills you, but if you lure the Epxirtype into a lane it is slammed and stunned for
+a free shot. Defeated, it is blasted back in blue sparks, drags itself up, bolts for the darkest corner and leaps
+up into the shadows.
+
+The second defeat (the Core Vault) leaves it broken and glitching: it scuttles off promising to mend itself with
+Posie Gel and come back. The third, in the Heart, tears it apart.
+
 ## Level select
 
 **LEVEL SELECT** on the Chapter 6 menu jumps straight into any area or boss fight (the Loom, the Core Vault, the Heart) with every hand, key and the mask you would have by then.
 
 ## Act III: the upper wings
+
+- **Celestial Wing:** run the pad circuit past the pews: it powers the spring pad, lifts the bars and opens the
+  door, and leaves the Seraph's lamp sparking - one hand hit smashes it. Stairs up the east wall lead to the loft.
+  Four cherubs and three little ones with poppies on their heads; they bite (it hurts, it doesn't kill outright)
+  and bump into each other and the pews. Lovey, Morsel and Posie smash them - Posie asks Lovey to put her down,
+  fights, then Lovey lifts her back onto her shoulder.
+- **Sunken Toybox:** the far drain valve is boxed in behind a rotten panel (BELLOWS).
+- **Ghost Line:** a signal lever on the west wall holds both Conductors at red for 25 s.
+- **Executive Suite:** Harlan's desk drawer (the executive key) is on its own circuit round a relay past the Suits.
+- **Salvage Yards:** the gantry magnets are dead until you power them.
+- **The Heart:** Lovey knocks it flat for 9 s and her blows show on its health bar.
+
+Every area has its own music theme, with a walking pulse that follows your footsteps. Arriving somewhere new,
+the group talks it over; quiet stretches turn into conversations between Morsel and Posie. Lines are never cut
+off: a new scene waits for the current line to finish. Allies and creatures collide with walls and climb steps
+and stairs; they are solid (you bump into them) and can't be pushed.
+
 
 At the Core Vault the containment works - until **Harlan Smithers** cracks the cradle open from every screen in the room. The Epxirtype tears loose and flees north through a door that was never there before, and you follow it up through five new wings to the factory's **Heart**:
 

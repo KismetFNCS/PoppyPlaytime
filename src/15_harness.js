@@ -209,6 +209,8 @@ async function runAll() {
   const tap = code => { T.simulateKey(code, true); T.step(DT, 1); T.simulateKey(code, false); T.step(DT, 1); };
   const hold = (code, frames) => { T.simulateKey(code, true); T.step(DT, frames); T.simulateKey(code, false); T.step(DT, 1); };
   const click = b => { T.simulateMouse(b, true); T.step(DT, 1); T.simulateMouse(b, false); };
+  // the hand a scanner reads: blue scanners take the left (blue) hand, red ones the right (red) hand
+  const scanHand = act => (Level.receptacles.find(r => r.action === act).scanCol === 'red' ? 1 : 0);
   const hexRgb = h => { const n = parseInt(h.slice(1, 7), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
   const cssRgb = s => (String(s).match(/[\d.]+/g) || []).slice(0, 3).map(Number);
   const chanDiff = (a, b) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]));
@@ -331,11 +333,11 @@ async function runAll() {
     check('opening: you cannot walk away while he speaks', Math.abs(Player.body.pos[2] - lockZ) < 0.01, (Player.body.pos[2] - lockZ).toFixed(3));
     tap('Enter'); tap('Space'); T.step(DT, 2);
     check('cutscene: the broadcast cannot be skipped', DWo.broadcastLocked(), '');
-    Dialogue.clear(); T.step(DT, 2);
-    Dialogue.clear(); Dialogue.say('THIMBLE', 'First line of a long chat between friends.'); Dialogue.say('PIP', 'Second line.'); Dialogue.say('MARIGOLD', 'Third line.'); T.step(DT, 3);
+    Dialogue.reset(); T.step(DT, 2);
+    Dialogue.reset(); Dialogue.say('THIMBLE', 'First line of a long chat between friends.'); Dialogue.say('PIP', 'Second line.'); Dialogue.say('MARIGOLD', 'Third line.'); T.step(DT, 3);
     tap('Enter'); tap('Enter'); T.step(DT, 1);
     check('dialogue: lines play out in full (no skipping)', Dialogue.current && Dialogue.current.speaker === 'THIMBLE' && Dialogue.queue.length === 2, Dialogue.current ? Dialogue.current.speaker : 'none');
-    Dialogue.clear();
+    Dialogue.reset();
     check('opening: when he finishes you are free to move', !DWo.broadcastLocked(), '');
     click(0); T.step(DT, 10);
     check('opening: firing does nothing until you have your hands', GrabPack.hands[0].state === HAND.DOCKED && /crate/.test(GrabPack.hint), GrabPack.hint);
@@ -359,12 +361,12 @@ async function runAll() {
     check('explore: the office tape plays on the CRT beside it (you stay in the room)', T.getState() === 'GAMEPLAY_ACTIVE' && Game.tv && Game.tv.tp.tapeId === 4 && VHS.tapeId === 4, T.getState());
     VHS.finish(); T.step(DT, 2);
     check('explore: Harlan Smithers hijacks the tape as it ends', Dialogue.busy() && (Dialogue.current.speaker === 'USHER' || Dialogue.queue.some(q => q.speaker === 'USHER')), '');
-    Dialogue.clear();
+    Dialogue.reset();
     const shX0 = DWo.shunter.x; T.step(DT, 60);
     check('opening: the shunter car patrols the second line', DWo.shunter.x !== shX0 || DWo.shunter.wait > 0, shX0 + ' -> ' + DWo.shunter.x);
     T.setPlayerPose(8.6, 0, -170.6, -Math.PI / 2, 0); T.step(DT, 6);
     check('opening: rendezvous with Posie on the platform', DWo.met && Cast.plush.mode === 'FOLLOW', String(DWo.met));
-    Dialogue.clear();
+    Dialogue.reset();
     T.setPlayerPose(-10, 0, -165, Math.PI / 2, 0); T.step(DT, 2);
     T.aimAt(-12.45, 1.5, -165); click(0); T.step(DT, 20);
     check('yard: hand latches the signal-box node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
@@ -374,7 +376,7 @@ async function runAll() {
     for (let i = 0; i < 400 && Game.stage !== 0; i++) T.step(DT, 1);
     T.step(DT, 4);
     check('yard: the lift takes you down into the Intake (stage 0, hands on)', Game.stage === 0 && Streaming.current === 0 && !Gear.handsLost && Game.checkpoint.stage === 0, 'stage ' + Game.stage + ' sector ' + Streaming.current);
-    Dialogue.clear();
+    Dialogue.reset();
     checkUI('GAMEPLAY_ACTIVE');
     check('start: stage 0', T.getScore() === 0, T.getScore());
     T.step(DT, 30);
@@ -437,6 +439,9 @@ async function runAll() {
     // ---------------- hand scanner -> D0 ----------------
     T.setPlayerPose(2.6, 0, 2.2, 0, 0); T.aimAt(2.6, 1.45, 0.05); T.step(DT, 1);
     check('aim: crosshair goes hot on a receptacle', Game.aimHot, '');
+    click(1); T.step(DT, 30);
+    check('scanner: the blue scanner refuses your red hand', Level.doorById('D0').target !== 1 && /BLUE SCANNER/.test(GrabPack.hint), GrabPack.hint);
+    GrabPack.reset(); T.step(DT, 10); T.aimAt(2.6, 1.45, 0.05); T.step(DT, 1);
     click(0); T.step(DT, 30);
     check('scanner: hand opens the intake gate', Level.doorById('D0').target === 1 && T.getScore() === 1, JSON.stringify(T.doors()[0]));
     check('checkpoint: saved on stage 1', Game.checkpoint.stage === 1 && T.getSfxLog().includes('checkpoint'), Game.checkpoint.stage);
@@ -487,7 +492,7 @@ async function runAll() {
     check('tape: the tape keeps playing while you move about', !!VHS.tape && VHS.chars > 0, VHS.chars);
     tap('Enter');
     check('tape: the tape cannot be skipped', !!VHS.tape && T.getState() === 'GAMEPLAY_ACTIVE', T.getState());
-    Game.stopTv(); Dialogue.clear();
+    Game.stopTv(); Dialogue.reset();
 
     await breathe();
     // ---------------- pause ----------------
@@ -581,7 +586,7 @@ async function runAll() {
     check('puzzle 2: tether on the gallery node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
     for (const wp of [[3, -30], [-1, -31], [-1, -36], [0, -40], [-2, -43], [-6, -43], [-7, -44]]) T.walkTo(wp[0], wp[1]);
     T.aimAt(-9.85, 1.6, -44.5); click(1); T.step(DT, 25);
-    check('puzzle 2: gallery gate powered (relays C + D)', Level.receptacles[2].powered, JSON.stringify(T.hands()[0]) + ' ' + GrabPack.hint);
+    check('puzzle 2: gallery gate powered (relays C + D)', Level.receptacles.find(r => r.action === 'R2').powered, JSON.stringify(T.hands()[0]) + ' ' + GrabPack.hint);
     check('checkpoint: saved on stage 3', Game.checkpoint.stage === 3, Game.checkpoint.stage);
     T.step(DT, 400);
 
@@ -626,21 +631,36 @@ async function runAll() {
     check('boss: hand latches a live wall node', GrabPack.hands[0].tethered, JSON.stringify(T.hands()[0]));
     V3.set(Monster.pos, node.pos[0] + 6.5, 0, node.pos[2]); Monster.targetSpeed = 0; Monster.speed = 0; Monster.snapLegs();
     T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
-    check('boss: shocking it costs health and stuns it', Boss.hp === 5 && Monster.stunTimer > 0, 'hp ' + Boss.hp + ' stun ' + Monster.stunTimer.toFixed(2));
+    check('boss: shocking it costs health and stuns it', Boss.hp === 8 && Monster.stunTimer > 0, 'hp ' + Boss.hp + ' stun ' + Monster.stunTimer.toFixed(2));
     check('boss: the used node burns out', node.burnt && !GrabPack.hands[0].tethered, '');
     check('sound: shock', T.getSfxLog().includes('shock'), '');
     T.step(DT, 60);
     T.aimAt(node.pos[0], node.pos[1], node.pos[2]); click(0); T.step(DT, 12);
     check('boss: burnt node refuses a second tether', !GrabPack.hands[0].tethered, GrabPack.hint);
-    check('ui: boss health bar shows 5 of 6', document.getElementById('hudBoss').style.display === 'block' && document.querySelectorAll('#hudBossSegs i.gone').length === 1);
+    check('ui: boss health bar shows 8 of 9', document.getElementById('hudBoss').style.display === 'block' && document.querySelectorAll('#hudBossSegs i.gone').length === 1);
     T.step(DT, 90);
-    Boss.debugShock(); T.step(DT, 120);
-    check('boss: two shocks end phase 1 (retreat into the ducts)', Boss.phase === 1 && (Boss.mode === 'RETREAT' || Boss.mode === 'FIGHT'), Boss.mode + ' phase ' + Boss.phase);
+    Boss.debugShock(); T.step(DT, 60); Boss.debugShock(); T.step(DT, 120);
+    check('boss: three shocks end phase 1 (retreat into the ducts)', Boss.phase === 1 && (Boss.mode === 'RETREAT' || Boss.mode === 'FIGHT'), Boss.mode + ' phase ' + Boss.phase);
     check('boss: nodes come back live for the next phase', Level.bossNodes.every(n => !n.burnt));
     T.step(DT, 300);
     check('boss: it drops back in from another vent', Boss.mode === 'FIGHT' && !Monster.inVent, Boss.mode);
-    Boss.debugShock(); T.step(DT, 160); Boss.debugShock(); T.step(DT, 400);
+    // phase 2: it cuts the power - every node is dead until BOTH breakers are wrenched
+    check('boss: phase 2 cuts the power (nodes dead, lights down)', !Boss.power && Level.bossNodes.every(n => n.dead), 'power ' + Boss.power);
+    { const n0 = Level.bossNodes[0]; T.setPlayerPose(n0.pos[0] + 1.6, 0, n0.pos[2], Math.PI / 2, 0); T.aimAt(n0.pos[0], n0.pos[1], n0.pos[2]); click(0); T.step(DT, 12);
+      check('boss: a dead node will not take a tether', !GrabPack.hands[0].tethered, GrabPack.hint); }
+    Level.loomBreakers[0].pulled = true; Game.action('LOOM_BREAKER');
+    check('boss: one breaker is not enough', !Boss.power, '');
+    Level.loomBreakers[1].pulled = true; Game.action('LOOM_BREAKER');
+    check('boss: both breakers bring the nodes back', Boss.power && Level.bossNodes.every(n => !n.dead), '');
+    Boss.debugShock(); T.step(DT, 60); Boss.debugShock(); T.step(DT, 60); Boss.debugShock(); T.step(DT, 400);
     check('boss: phase 3 reached', Boss.phase === 2 && Boss.mode === 'FIGHT', Boss.mode + ' phase ' + Boss.phase);
+    for (const l of Level.loomBreakers) l.pulled = true; Game.action('LOOM_BREAKER');
+    check('boss: phase 3 - only one node holds current at a time', Level.bossNodes.filter(n => !n.dead && !n.burnt).length === 1, Level.bossNodes.map(n => n.dead ? 'd' : 'L').join(''));
+    Boss.shuttle.cd = 0; Boss.shuttle.state = 'IDLE'; T.step(DT, 2);
+    check('boss: the loom shuttle warns before it runs', Boss.shuttle.state === 'WARN' && T.getSfxLog().includes('klaxon'), Boss.shuttle.state);
+    T.step(DT, 140);
+    check('boss: the shuttle sweeps the lane', Boss.shuttle.state === 'IDLE' || Boss.shuttle.state === 'RUN', Boss.shuttle.state);
+    Boss.shuttle.state = 'IDLE'; Boss.shuttle.cd = 99;
     Boss.leapCd = 0; V3.set(Monster.pos, Player.body.pos[0] + 6, 0, Player.body.pos[2]); Monster.setState(MSTATE.LINE_OF_SIGHT_CHASE); Monster.stunTimer = 0;
     T.aimAt(Monster.pos[0], 1.6, Monster.pos[2]); Monster.yaw = Math.atan2(-(Player.body.pos[0] - Monster.pos[0]), -(Player.body.pos[2] - Monster.pos[2]));
     let leapt = false;
@@ -648,7 +668,7 @@ async function runAll() {
     check('boss: phase 3 telegraphs a pounce', leapt, Boss.mode);
     T.step(DT, 120);
     Boss.mode = 'FIGHT'; Monster.bossHold = false; Monster.airborne = false;
-    Boss.debugShock(); T.step(DT, 30); Boss.debugShock();
+    Boss.debugShock(); T.step(DT, 30); Boss.debugShock(); T.step(DT, 30); Boss.debugShock();
     check('boss: final shock defeats it', Boss.hp === 0 && Boss.mode === 'DEFEATED', 'hp ' + Boss.hp + ' ' + Boss.mode);
 
     await breathe();
@@ -697,7 +717,7 @@ async function runAll() {
     check('fab: standing under a piston crushes you', T.getState() === 'FAILURE_STATE' && Game.failReason === 'CRUSHED', T.getState() + ' ' + Game.failReason);
     setState(STATE.GAMEPLAY_ACTIVE); Game.invulnerable = true; Player.health = 100;
     T.setPlayerPose(0, 0, -199.0, Math.PI / 2, 0); T.step(DT, 2);
-    T.aimAt(-2.35, 1.6, -199.6); click(0); T.step(DT, 10);
+    T.aimAt(-2.35, 1.6, -199.6); click(scanHand('F_PATH')); T.step(DT, 10);
     check('fab: piston override sends Morsel into the machinery', DWk.thimbleTask && DWk.thimbleTask.kind === 'JAM', '');
     let jammed = false; for (let i = 0; i < 700 && !jammed; i++) { T.step(DT, 1); jammed = DWk.jam.on; }
     T.step(DT, 90);
@@ -717,7 +737,7 @@ async function runAll() {
     T.setPlayerPose(5.5, 0, -221, 0, 0); T.step(DT, 10);
     check('catacombs: the live cables shock you', Player.health < 90 && T.getSfxLog().includes('shock'), Player.health.toFixed(0));
     Game.invulnerable = true; Player.health = 100;
-    T.setPlayerPose(3, 0, -223.5, 0, 0); T.step(DT, 2); T.aimAt(3, 1.6, -225.85); click(0); T.step(DT, 10);
+    T.setPlayerPose(3, 0, -223.5, 0, 0); T.step(DT, 2); T.aimAt(3, 1.6, -225.85); click(scanHand('C_TERM1')); T.step(DT, 10);
     check('catacombs: terminal hands the lock to Posie', DWk.overrides.length === 1, '');
     T.step(DT, 300);
     check('catacombs: Posie overrides the lock', Level.doorById('DC1').target === 1, '');
@@ -737,7 +757,7 @@ async function runAll() {
     T.setPlayerPose(4, 0, -247.5, 0, 0); T.step(DT, 2);
     T.simulateKey('KeyW', true); for (let i = 0; i < 200 && Player.body.pos[2] > -248.3; i++) T.step(DT, 1); T.simulateKey('KeyW', false); T.step(DT, 40);
     check('catacombs: climb the ladder over the retaining wall', Player.body.pos[2] < -248.2, Player.body.pos[1].toFixed(2) + ' ' + Player.body.pos[2].toFixed(2));
-    T.setPlayerPose(-4, 0, -251, Math.PI, 0); T.step(DT, 2); T.aimAt(-4, 1.6, -249.15); click(0); T.step(DT, 320);
+    T.setPlayerPose(-4, 0, -251, Math.PI, 0); T.step(DT, 2); T.aimAt(-4, 1.6, -249.15); click(scanHand('C_TERM2')); T.step(DT, 320);
     check('catacombs: the last terminal opens the drain gate (stage 8)', Level.doorById('D8').target === 1 && Game.stage === 8 && Game.checkpoint.stage === 8, Game.stage);
     T.step(DT, 300);
 
@@ -787,7 +807,7 @@ async function runAll() {
     // lure it onto the near line and throw the switch
     Monster.bossHold = true; V3.set(Monster.pos, 4, 0, VAULT_TRACKS[0]); Monster.stunTimer = 0; Monster.inVent = false;
     T.setPlayerPose(-13.6, 0, -310, Math.PI / 2, 0); T.step(DT, 2);
-    T.aimAt(-15.25, 1.6, -310); click(0);
+    T.aimAt(-15.25, 1.6, -310); click(scanHand('V_SWITCH'));
     for (let i = 0; i < 400 && V.hp === 6; i++) T.step(DT, 1);
     Monster.bossHold = false;
     check('vault: Morsel throws the switch - the train hits the Epxirtype', V.hp === 5 && Monster.stunTimer > 0, 'hp ' + V.hp);
@@ -808,18 +828,17 @@ async function runAll() {
     check('betrayal: Harlan Smithers opens the cradle', Act3.betrayal >= 0 && (Dialogue.busy()), '');
     for (let i = 0; i < 800 && Act3.betrayal >= 0; i++) T.step(DT, 1);
     check('betrayal: the Epxirtype escapes through the far door into the upper wings', Act3.betrayal < 0 && Level.doorById('D10').target === 1 && Game.checkpoint.stage === 10, '');
-    Dialogue.clear();
+    Dialogue.reset();
     // ---------------- Act III: the upper wings ----------------
-    const A3t = Act3, goA3 = st => { if (T.getState() !== 'GAMEPLAY_ACTIVE') setState(STATE.GAMEPLAY_ACTIVE); Game.stage = st; Game.saveCheckpoint(st); Game.restoreCheckpoint(); Dialogue.clear(); Game.invulnerable = false; T.step(DT, 3); };
+    const A3t = Act3, goA3 = st => { if (T.getState() !== 'GAMEPLAY_ACTIVE') setState(STATE.GAMEPLAY_ACTIVE); Game.stage = st; Game.saveCheckpoint(st); Game.restoreCheckpoint(); Dialogue.reset(); Game.invulnerable = false; T.step(DT, 3); };
     goA3(10);
     check('act3: celestial wing - a new game area past the vault', Streaming.current === 12 && Game.stage === 10, 'sector ' + Streaming.current);
-    const a3sp = Gear.pickups.find(p => p.kind === 'hand' && HAND_TYPES[p.type].id === 'SPRING');
-    check('act3: the SPRING hand is caged until the chapel circuit is run', Gear.locked(a3sp), '');
-    Level.receptacles.find(r => r.action === 'A_SPRINGCAGE').powered = true;
-    Gear.take(a3sp); T.step(DT, 2);
-    check('act3: the SPRING hand', Gear.owned[7] === 1, '');
+    check('act3: you already have the SPRING hand (an old hand)', Gear.owned[7] === 1, '');
     Gear.cur = 7; const a3pad = A3t.springs[0];
     T.setPlayerPose(a3pad.pos[0], 0.15, a3pad.pos[2] + 0.2, 0, 0); T.step(DT, 2);
+    { const hh = { side: 1, latchRef: a3pad, pos: a3pad.pos, state: 0 }; A3t.handImpact(hh, 'spring'); }
+    check('act3: the spring pad is dead until the pad circuit is run', Player.body.pos[1] < 1 && /no power/i.test(GrabPack.hint), GrabPack.hint);
+    Level.receptacles.find(r => r.action === 'A_SPRINGCAGE').powered = true;
     A3t.handImpact({ side: 1, latchRef: a3pad, pos: a3pad.pos, state: 0 }, 'spring');
     for (let i = 0; i < 120 && !(Player.body.grounded && Player.body.pos[1] > 3.5); i++) T.step(DT, 1);
     check('act3: the spring a3pad bounces you up into the choir loft', Player.body.pos[1] > 3.5, Player.body.pos[1].toFixed(2));
@@ -830,6 +849,19 @@ async function runAll() {
     check('act3: a hand makes it let go', A3t.grab === 0 && a3ch.stun > 0, '');
     A3t.seraph.hold = 5; T.setPlayerPose(0, 0, -357.5, 0, 0); for (let i = 0; i < 120 && T.getState() === 'GAMEPLAY_ACTIVE' && !(A3t.swarm > 0); i++) T.step(DT, 1);
     check('act3: the Seraph\'s searchlight calls the cherub pack down onto you', T.getState() === 'FAILURE_STATE' || A3t.swarm > 0, T.getState());
+    { Game.invulnerable = false; Player.health = 100; const hp0 = Player.health;
+      for (const c of A3t.cherubs) { c.pos[1] = 0.55; c.down = 0; V3.set(c.pos, Player.body.pos[0] + 0.4, 0.55, Player.body.pos[2]); }
+      A3t.swarm = 5; for (let i = 0; i < 40 && T.getState() === 'GAMEPLAY_ACTIVE'; i++) T.step(DT, 1);
+      check('act3: cherub bites hurt but do not kill you outright', T.getState() === 'GAMEPLAY_ACTIVE' && Player.health < hp0, Player.health.toFixed(0) + ' ' + T.getState());
+      Game.invulnerable = true; Player.health = 100; }
+    check('act3: some of the cherubs are little ones with poppies on their heads', A3t.cherubs.some(c => c.baby) && A3t.cherubs.filter(c => c.baby).length <= 3, '');
+    { const c0 = A3t.cherubs.find(c => !c.dead); A3t.breakCherub(c0); check('act3: a smashed cherub stays broken', c0.dead, ''); }
+    goA3(10);
+    A3t.action('A_SPRINGCAGE');
+    check('act3: closing the pad circuit lifts the bars and opens the way down', Level.doorById('D11').target === 1 && Game.stage === 11, '');
+    check('act3: the surge leaves the Seraph\'s lamp sparking (breakable)', A3t.seraph.weak && !A3t.seraph.broken, '');
+    { const S = A3t.seraph; A3t.handHit({ pos: V3.create() }, V3.create(S.pos[0], S.pos[1] - 0.6, S.pos[2] + 3), V3.create(0, 0, -1), 6);
+      check('act3: one hit smashes the weakened searchlight', S.broken && S.light.base === 0, ''); }
     goA3(10);
     A3t.action('A_ORGAN');
     check('act3: the organ lever opens the way down to the toybox', Level.doorById('D11').target === 1 && Game.stage === 11, '');
@@ -853,11 +885,19 @@ async function runAll() {
     check('act3: crossing a Suit\'s laser grid gets you shot', T.getState() !== 'GAMEPLAY_ACTIVE', T.getState());
     goA3(13);
     check('act3: the way to the salvage yards needs the executive key', Level.doorById('D14').key === 'EXEC', '');
+    { const ek = Gear.pickups.find(p => p.key === 'EXEC'); ek.taken = false;
+      check('act3: Harlan\'s desk drawer (the key) is locked by its own circuit', Gear.locked(ek), '');
+      Level.receptacles.find(r => r.action === 'E_DESK').powered = true; Game.action('E_DESK');
+      check('act3: powering the desk lock frees the executive key', !Gear.locked(ek), ''); }
+    check('act3: the far drain valve is boxed in behind a cracked panel', Level.namedPanels.valveB && !Level.namedPanels.valveB.broken, '');
+    { A3t.action('G_SIGNAL'); const tr = A3t.trains[0]; tr.speed = 0; tr.wait = 0; A3t.updateGhost(DT); A3t.updateGhost(DT);
+      check('act3: the signal lever holds the Conductors at red', tr.speed === 0 && A3t.signalT > 20, A3t.signalT.toFixed(1)); A3t.signalT = 0; }
     goA3(14);
-    const a3mg = Gear.pickups.find(p => p.kind === 'hand' && HAND_TYPES[p.type].id === 'MAGNET');
-    check('act3: the MAGNET hand is caged until the yard circuit is run', Gear.locked(a3mg), '');
-    Level.receptacles.find(r => r.action === 'S_MAGCAGE').powered = true; Gear.take(a3mg); Gear.cur = 8;
+    Gear.cur = 8;
     const a3pl = A3t.magnets[0]; T.setPlayerPose(a3pl.pos[0], 0, -534, 0, 0); T.step(DT, 1);
+    A3t.handImpact({ side: 1, latchRef: a3pl, pos: a3pl.pos, state: 0 }, 'magnet');
+    check('act3: the gantry magnets are dead until powered', !Player.zip, '');
+    Level.receptacles.find(r => r.action === 'S_MAGCAGE').powered = true;
     A3t.handImpact({ side: 1, latchRef: a3pl, pos: a3pl.pos, state: 0 }, 'magnet');
     for (let i = 0; i < 120 && Player.zip; i++) T.step(DT, 1);
     check('act3: the MAGNET hand zips you across the chasm', Player.body.pos[2] < -547 && T.getState() === 'GAMEPLAY_ACTIVE', Player.body.pos[2].toFixed(1));
@@ -948,7 +988,7 @@ async function runAll() {
       T.setPlayerPose(6, 0, -14, 0, 0); T.step(DT, 4);
       check('harlan: speaks over the PA from the hall without ever showing a body', Cast.usher.state === 'HIDDEN' && Cast.usher.used[0] === 1 && (Dialogue.busy()), Cast.usher.state);
       check('sound: harlan\'s signal glitch', T.getSfxLog().includes('tapeGlitch'), '');
-      Dialogue.clear();
+      Dialogue.reset();
       // doll: look away, then back -> its head has turned to face you
       T.setPlayerPose(7.5, 0, -4.5, 0, 0); T.aimAt(10.6, 1.6, -6.6); T.step(DT, 3);
       Cast.doll.tickCool = 0; Cast.doll.snapped = false; Cast.doll.headYaw = 0.59;
@@ -966,36 +1006,36 @@ async function runAll() {
       check('pip: talks while a hint is shown', Pip.current === 'talk', Pip.current);
       check('pip: LED matrix lit', Pip.grid.some(v => v === 1));
       check('marigold: introduces herself when you approach', Cast.doll.met && (Dialogue.busy() || true) && T.getSfxLog().includes('voiceBlip') || Cast.doll.met, String(Cast.doll.met));
-      Dialogue.clear(); Companion.cool = 999; for (const k in Companion.lineCool) Companion.lineCool[k] = 999;
+      Dialogue.reset(); Companion.cool = 999; for (const k in Companion.lineCool) Companion.lineCool[k] = 999;
       Dialogue.say('MARIGOLD', 'Test line.'); T.step(DT, 20);
       check('dialogue: speaker label + typewriter text shown', document.getElementById('hudDialogName').textContent === 'POSIE' && document.getElementById('hudDialogText').textContent.length > 0, document.getElementById('hudDialogText').textContent);
       T.step(DT, 300);
       check('dialogue: line clears after its hold time', !Dialogue.busy() && document.getElementById('hudDialog').style.display === 'none');
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
       // Mister Thimble: he arrives with you and follows from the start
-      Dialogue.clear(); Game.stage = 2; Monster.reset(); Cast.resetPlush(); Steam.setAll(false); Player.health = 100;
+      Dialogue.reset(); Game.stage = 2; Monster.reset(); Cast.resetPlush(); Steam.setAll(false); Player.health = 100;
       for (const tr of Level.triggers) if (tr.action === 'enterGallery') tr.fired = true;
       T.setPlayerPose(1.6, 0, -24.9, 0, 0); T.step(DT, 4);
       check('thimble: already with you - an old friend, no introduction', Cast.plush.mode === 'FOLLOW' && !Cast.plush.hidden, Cast.plush.mode);
       while (Dialogue.current && Dialogue.current.speaker !== 'THIMBLE' && Dialogue.busy()) { Dialogue.current = null; T.step(DT, 1); }
-      Dialogue.clear(); Dialogue.say('THIMBLE', 'Stay close. I mean it this time - stay close.');
+      Dialogue.reset(); Dialogue.say('THIMBLE', 'Stay close. I mean it this time - stay close.');
       check('thimble: no lunge / scare on meeting', Player.trauma < 0.3, String(Player.trauma));
       let opened = 0;
       for (let i = 0; i < 20; i++) { T.step(DT, 1); if (Cast.plush.talking) opened++; }
       check('thimble: mouth opens while he talks', opened > 3 && Sculpt.ready('th_head_talk'), opened + '/20 frames');
-      Dialogue.clear(); T.step(DT, 2);
+      Dialogue.reset(); T.step(DT, 2);
       check('thimble: closed smile when quiet', !Cast.plush.talking, '');
       const tp0 = V3.clone ? V3.clone(Cast.plush.pos) : V3.create(Cast.plush.pos[0], 0, Cast.plush.pos[2]);
       for (const wp of [[0, -30], [-3, -34], [-3, -39]]) T.walkTo(wp[0], wp[1], 0.06);
       T.step(DT, 60);
       const tdist = Math.hypot(Cast.plush.pos[0] - Player.body.pos[0], Cast.plush.pos[2] - Player.body.pos[2]);
       check('thimble: follows you along your trail', tdist < 4.5 && Math.hypot(Cast.plush.pos[0] - tp0[0], Cast.plush.pos[2] - tp0[2]) > 6, 'gap ' + tdist.toFixed(2));
-      Dialogue.clear(); Companion.cool = 0; Companion.lineCool.dark = 0; Player.flashOn = false; T.step(DT, 100);
+      Dialogue.reset(); Companion.cool = 0; Companion.lineCool.dark = 0; Player.flashOn = false; T.step(DT, 100);
       check('thimble: speaks up and lights the way when your flashlight is off', Lights.thimbleGlow.current > 0 && Dialogue.busy() && Dialogue.current.speaker === 'THIMBLE', Lights.thimbleGlow.current.toFixed(2));
-      Player.flashOn = true; Dialogue.clear();
+      Player.flashOn = true; Dialogue.reset();
       Companion.cool = 0; Companion.stageTime = 50; Companion.lineCool.hint = 0; T.step(DT, 2);
       check('thimble: hints at the puzzle when you are stuck', Dialogue.busy() && Dialogue.current.speaker === 'THIMBLE' && /lever|gate/.test(Dialogue.current.text), Dialogue.current ? Dialogue.current.text : '');
-      Dialogue.clear(); Companion.cool = 0; Companion.lineCool.threat = 0;
+      Dialogue.reset(); Companion.cool = 0; Companion.lineCool.threat = 0;
       Game.invulnerable = true; T.spawnMonsterNear(9); Monster.targetSpeed = 0; T.step(DT, 3);
       check('thimble: warns you and hides when the Epxirtype is near', Cast.plush.mode === 'HIDE' && Cast.plush.hidden && Dialogue.current.speaker === 'THIMBLE', Cast.plush.mode);
       Monster.reset(); T.step(DT, 300);
@@ -1016,7 +1056,7 @@ async function runAll() {
       // foundry shutter: he plugs his staff in, the surge overloads, you clamp his staff and ground it
       { const ds = Level.doorById('DS'); ds.open = 0; ds.target = 0; ds.collider.enabled = true; }
       { const s = Cast.PLUSH_SHUTTER; Cast.plush.mode = 'SHUTTER'; V3.set(Cast.plush.pos, s[0], 0, s[1]); Cast.plush.yaw = s[2]; }
-      Game.chaseActive = true; Cast.plush.plugState = 0; Dialogue.clear();
+      Game.chaseActive = true; Cast.plush.plugState = 0; Dialogue.reset();
       T.setPlayerPose(-2.4, 0, -67.6, 0, 0); T.step(DT, 70);
       check('thimble: plugs his staff into the socket during the chase', Cast.plush.plugState === 2, 'state ' + Cast.plush.plugState);
       check('thimble: staff tip lands in the socket', V3.dist(Cast.staff.tip, Cast.plushSocket) < 0.05, V3.dist(Cast.staff.tip, Cast.plushSocket).toFixed(3));
@@ -1028,7 +1068,7 @@ async function runAll() {
       Game.chaseActive = false;
       Game.stage = 3; T.setPlayerPose(0, 0, -60, -Math.PI / 2, 0); T.step(DT, 3);
       check('marigold: relocates to the freight lift for the ending', Math.abs(Cast.doll.pos[2] - (-96.9)) < 0.01, Cast.doll.pos[2]);
-      Game.stage = 1; Dialogue.clear();
+      Game.stage = 1; Dialogue.reset();
       T.setStepRender(true); T.setPlayerPose(-2.6, 0, -66.6, 0, 0);
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
       T.aimAt(-3.6, 1.2, -70.9); T.step(DT, 2);
@@ -1060,7 +1100,7 @@ async function runAll() {
       check('cherub: gone into the vent', c.state === 'GONE', c.state);
       // the chase: PA voice, strike damage, then it climbs back up
       Player.health = 100;
-      S.state = 'CHASE'; S.pos[1] = 0; S.lostT = 0; S.lineT = 0; V3.set(S.pos, Player.body.pos[0] + 4, 0, Player.body.pos[2]); Dialogue.clear();
+      S.state = 'CHASE'; S.pos[1] = 0; S.lostT = 0; S.lineT = 0; V3.set(S.pos, Player.body.pos[0] + 4, 0, Player.body.pos[2]); Dialogue.reset();
       T.step(DT, 4);
       check('seraph: booms over its PA while it chases', Dialogue.busy() && Dialogue.current.speaker === 'SERAPH', Dialogue.current ? Dialogue.current.speaker : 'none');
       for (let i = 0; i < 200 && S.state === 'CHASE'; i++) T.step(DT, 1);
@@ -1094,7 +1134,7 @@ async function runAll() {
     {
       Game.resetGame(); setState(STATE.GAMEPLAY_ACTIVE);
       for (const d of Level.doors) { d.open = 1; d.target = 1; d.collider.enabled = false; }
-      check('gear: you start with ROSE and your old hands (THUMPER, STITCHER, LANTERN)', Gear.cur === 0 && Gear.ownedCount() === 4 && !Gear.hasMask);
+      check('gear: you start with your old hands (ROSE, CONDUIT, BELLOWS, ANCHOR, SPRING, MAGNET, FLARE)', Gear.cur === 0 && Gear.ownedCount() === 7 && !Gear.owned[1] && !Gear.owned[2] && !Gear.owned[3] && !Gear.hasMask);
       // the gas mask on the intake desk
       const mk = Gear.pickups.find(p => p.kind === 'mask');
       T.setPlayerPose(mk.pos[0], 0, mk.pos[2] + 1.4, 0, 0); T.aimAt(mk.pos[0], mk.pos[1], mk.pos[2]); T.step(DT, 2);
@@ -1108,8 +1148,14 @@ async function runAll() {
       tap('KeyG'); T.step(DT, 30);
       check('gear: [G] takes it off', !Gear.maskOn && document.getElementById('maskOverlay').style.display === 'none');
       // the hands from before (THUMPER, STITCHER, LANTERN) are already on the wheel
-      check('gear: the old hands are already on the wheel', Gear.owned[1] && Gear.owned[2] && Gear.owned[3] && !Gear.pickups.some(p => p.kind === 'hand' && p.type >= 1 && p.type <= 3), '');
-      Gear.cur = 3;
+      check('gear: THUMPER, STITCHER and LANTERN have to be found', [1, 2, 3].every(k => Gear.pickups.some(p => p.kind === 'hand' && p.type === k)), '');
+      { const th = Gear.pickups.find(p => p.type === 1), st = Gear.pickups.find(p => p.type === 2);
+        check('gear: the THUMPER cage has its own circuit', Gear.locked(th), '');
+        check('gear: the STITCHER is sealed behind a cracked panel', Gear.locked(st), '');
+        Level.breakPanel(Level.namedPanels.stitch);
+        check('gear: blasting the panel frees the STITCHER', !Gear.locked(st), '');
+        for (const k of [1, 2, 3]) { const pk = Gear.pickups.find(p => p.type === k); pk.taken = true; Gear.owned[k] = 1; } }
+      Gear.cur = 9;
       tap('KeyX'); T.step(DT, 30);
       check('gear: [X] cycles back round to ROSE (the left hand never swaps)', Gear.cur === 0, Gear.cur);
       T.simulateKey('Tab', true); T.step(DT, 3);
@@ -1125,29 +1171,26 @@ async function runAll() {
       tap('KeyX'); T.step(DT, 50);
       tap('KeyX'); T.step(DT, 50);
       // the THUMPER stuns the Spoolwright far longer than the ROSE hand
+      Gear.cur = 1; Gear.swapT = 0;
       Game.invulnerable = true; Game.stage = 1;
       T.setPlayerPose(0, 0, -13.5, 0, 0); T.spawnMonsterNear(5); Monster.targetSpeed = 0; Monster.stunImmune = 0; T.step(DT, 2);
       T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
       check('gear: THUMPER hit stuns for longer (3.2 s) and knocks it back', Monster.state === MSTATE.STUNNED && Monster.stunTimer > 2.2, Monster.stunTimer.toFixed(2));
       Monster.reset(); GrabPack.reset(); T.step(DT, 30);
       // the Act II hands
-      Gear.owned[4] = Gear.owned[5] = Gear.owned[6] = 1; Gear.cur = 5; Gear.swapT = 0; Level.resetBreakables(); Game.stage = 8;
+      Gear.cur = 5; Gear.swapT = 0; Level.resetBreakables(); Game.stage = 8;
+      const hubPanel = Level.breakables.find(b => b.sector === 9);
       T.setPlayerPose(-9.5, 0, -259.6, Math.PI / 2, 0); T.step(DT, 3); T.aimAt(-11.5, 1.4, -259.6); click(1); T.step(DT, 20);
-      check('hands: a BELLOWS blast shatters the cracked panel sealing the closet', Level.breakables[0].broken && !Level.breakables[0].collider.enabled, '');
+      check('hands: a BELLOWS blast shatters the cracked panel sealing the closet', hubPanel.broken && !hubPanel.collider.enabled, '');
       GrabPack.reset(); Gear.cur = 4; T.step(DT, 60); Game.stage = 9;
       T.setPlayerPose(-14, 0, -294.2, Math.PI / 2, 0); T.step(DT, 3); T.aimAt(-15.85, 1.5, -294.2); click(1); T.step(DT, 20);
       check('hands: CONDUIT stores the charge of a live node', Gear.charge > 15 && !GrabPack.hands[1].tethered, Gear.charge.toFixed(1));
-      const anch = Gear.pickups.find(p => p.type === 6);
-      check('hands: the ANCHOR is caged until its charge socket is powered', Gear.locked(anch), '');
-      GrabPack.reset(); T.step(DT, 40);
-      T.setPlayerPose(10.6, 0, -294.0, -Math.PI / 2, 0); T.step(DT, 3); T.aimAt(12.25, 1.5, -294.0); click(1); T.step(DT, 25);
-      check('hands: firing the charged CONDUIT into the socket opens the cage', !Gear.locked(anch) && !DeepWorks.cageCol.enabled && Gear.charge === 0, GrabPack.hint);
       GrabPack.reset(); Gear.cur = 6; T.step(DT, 60); Game.stage = 1;
       T.setPlayerPose(0, 0, -13.5, 0, 0); T.spawnMonsterNear(5); Monster.targetSpeed = 0; Monster.stunImmune = 0; T.step(DT, 2);
       T.aimAt(Monster.pos[0], 1.5, Monster.pos[2]); click(1); T.step(DT, 12);
       const ax = Monster.pos[0]; T.step(DT, 60);
       check('hands: the ANCHOR chains the Epxirtype in place', Monster.anchorT > 0 && Monster.pos[0] === ax, Monster.anchorT.toFixed(2));
-      Monster.reset(); GrabPack.reset(); Gear.cur = 0; Gear.owned[4] = Gear.owned[5] = Gear.owned[6] = 0; T.step(DT, 30);
+      Monster.reset(); GrabPack.reset(); Gear.cur = 0; T.step(DT, 30);
       // the gas: without the mask it chokes you, with it you breathe
       Gear.gasDisabled = false; Game.invulnerable = false; Player.health = 100; Game.stage = 2;
       const z = GAS_ZONES[0];

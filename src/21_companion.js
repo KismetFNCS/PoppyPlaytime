@@ -53,15 +53,72 @@ const COMPANION_LINES = {
   ]
 };
 
+// arriving somewhere for the first time: the whole group talks it over (Lovey never speaks - the others speak
+// for her), Harlan cuts in over the PA, the Epxirtype hisses from the dark, Starby chirps
+const AREA_LINES = {
+  0: [['PIP', 'Beep! Intake lift. Hands on, scanner ahead. Blue scanner, blue hand - I don\'t make the rules!'],
+    ['USHER', '(over the PA) Good morning, staff. Please keep your hands inside the lift until it has fully stopped. Ha.']],
+  2: [['THIMBLE', 'The Pressure Gallery. We used to eat lunch on those pipes before the steam got angry.'],
+    ['PIP', 'Warning! Lint smog in the back corner. Mask on before you breathe that, partner.']],
+  3: [['THIMBLE', 'The Spool Foundry... this is where it was put together. I swore I\'d never set foot in here again.'],
+    ['SPOOLWRIGHT', '(somewhere in the dark, very softly) Home again, home again. Do come closer.']],
+  6: [['MARIGOLD', 'The station yard. The last place any of us saw daylight. It smells of rain and rust.'],
+    ['THIMBLE', 'And look who left the lights on for us. Harlan never did pay the power bill on time.'],
+    ['PIP', 'Your hands are in the crate by the tracks! Go get them - I\'m lonely on this wrist!']],
+  7: [['MARIGOLD', 'The fabrication line. Mind the belts - they still run, even with nothing on them.'],
+    ['THIMBLE', 'Every toy in the catalogue went down this line once. Some of them went down it twice.']],
+  8: [['MARIGOLD', 'The drainage catacombs. Everything the factory wanted to forget ran down into here.'],
+    ['THIMBLE', 'Watch the gel, partner. It\'s slick, it\'s pink and it is NOT strawberry.'],
+    ['MARIGOLD', 'Lovey hates this place. Look at her - she has not let go of the wall once.']],
+  9: [['THIMBLE', 'The sorting hub. When the intercom calls a colour, those containers move whether you\'re in the way or not.'],
+    ['USHER', '(over the intercom) Sorting is a privilege. Please do not get sorted.']],
+  10: [['MARIGOLD', 'The Core Vault. We sealed it once. Harlan made us sign papers promising we would never come back.'],
+    ['THIMBLE', 'Funny how papers never stopped anything down here.'],
+    ['SPOOLWRIGHT', '(from the cradle) There they are. My old co-workers. Did you miss the smell of the line?']],
+  12: [['MARIGOLD', 'A chapel... they built a chapel inside the factory. For the toys, Augustus said. For prayers that never got answered.'],
+    ['THIMBLE', 'Stay low. The thing in the rafters is blind, but it hears like nothing else. And the cherubs scream for it.'],
+    ['MARIGOLD', 'Run the circuit past the pews. It powers the pad, lifts the bars, and - if we are lucky - fries its lamp.']],
+  13: [['MARIGOLD', 'The Sunken Toybox. Lovey and I used to sort the plush down here before the pipes burst.'],
+    ['THIMBLE', 'The Puffers float when they\'re calm. Don\'t rush them - they pop into rose gas, and that gas burns.'],
+    ['PIP', 'Leeches in the water! Stay on the blocks! A flare scares them off!']],
+  14: [['THIMBLE', 'The Ghost Line. The trains run with nobody aboard. Nobody living, anyway.'],
+    ['MARIGOLD', 'The Conductors listen for footsteps. Walk softly near the tracks, and use the signal box if you must cross.']],
+  15: [['MARIGOLD', 'The executive floor. I have not been up here since the day Harlan took Augustus\'s office.'],
+    ['THIMBLE', 'Empty suits walking the halls. Fitting, for management. Crouch under their lasers, partner.'],
+    ['USHER', '(over the PA) Visitors on the executive floor? How unusual. Do mind the Suits. They are very particular about appointments.']],
+  16: [['THIMBLE', 'The salvage yards. Everything they couldn\'t fix, they threw out here to rot.'],
+    ['MARIGOLD', 'The Scraplings are made from what was left. Keep your light on them - they hate it.'],
+    ['SPOOLWRIGHT', '(far off, echoing) I found the gel, little employee. Pink and warm and mending. I feel BETTER already.']],
+  17: [['MARIGOLD', 'The Heart. Everything in this factory runs off that core. Including it.'],
+    ['THIMBLE', 'Then this is where it ends. Lovey - you ready? ...Yeah. She\'s ready.']]
+};
+// longer chats between Morsel and Posie on quiet stretches, once they are both with you
+const DUO_LINES = [
+  [['THIMBLE', 'Posie, do you remember the employee picnic? The one where the cotton candy machine caught fire?'],
+    ['MARIGOLD', 'I remember you trying to put it out with a lemonade jug, Morsel.'],
+    ['THIMBLE', 'And it WORKED. Mostly.']],
+  [['MARIGOLD', 'Lovey keeps looking at your hands, partner. She used to help test the old GrabPacks, before.'],
+    ['THIMBLE', 'She was the only one who could catch a misfired hand without losing a finger. Well. She had more arms then.']],
+  [['THIMBLE', 'You know what I miss? The lunch whistle. Three short blasts and everybody laughing.'],
+    ['MARIGOLD', 'You miss the pudding cups. Be honest.'],
+    ['THIMBLE', '...I miss the pudding cups.']],
+  [['MARIGOLD', 'We tried, you know. All of us. Petitions, safety reports, all of it. Harlan filed them in the incinerator.'],
+    ['THIMBLE', 'That\'s why it hates us, partner. We wore the badge. It doesn\'t care that we were trying to stop it all.']],
+  [['THIMBLE', 'Lovey! Stop patting my head, I\'m not a lamp. ...Okay, one more.'],
+    ['MARIGOLD', 'She likes you, Morsel. Try not to sound so pleased about it.']],
+  [['MARIGOLD', 'When we get out, I want to see a real garden. Poppies. Fields of them.'],
+    ['THIMBLE', 'After those cherubs? I never want to see another poppy as long as I live.']]
+];
+
 const Companion = {
   trail: new Float32Array(TRAIL_N * 3), head: 0, count: 0,
   cool: 0, lineCool: { sprint: 0, dark: 0, idle: 0, bump: 0, threat: 0, hint: 0, seraph: 0, cherubs: 0 },
   ambientIdx: 0, calm: 0, tauntIdx: 0, tauntTimer: 60, stageTime: 0, lastStage: -1,
   idleTime: 0, lookAmt: 0, lastYaw: 0, darkTime: 0, hideTimer: 0, banterDone: false, loomGreeted: false,
-  tmp: V3.create(),
+  tmp: V3.create(), areaSaid: {}, duoIdx: 0,
 
   reset() {
-    this.head = 0; this.count = 0;
+    this.head = 0; this.count = 0; this.areaSaid = {};
     this.cool = 4; for (const k in this.lineCool) this.lineCool[k] = 0;
     this.calm = 0; this.tauntTimer = 60; this.stageTime = 0; this.lastStage = Game.stage;
     this.idleTime = 0; this.lookAmt = 0; this.lastYaw = Player.yaw; this.darkTime = 0; this.hideTimer = 0;
@@ -78,23 +135,23 @@ const Companion = {
       if (Math.hypot(b[0] - T[i], b[2] - T[i + 2]) < 0.35) return;
     }
     const i = this.head * 3;
-    T[i] = b[0]; T[i + 1] = 0; T[i + 2] = b[2];
+    T[i] = b[0]; T[i + 1] = b[1]; T[i + 2] = b[2];
     this.head = (this.head + 1) % TRAIL_N; this.count = Math.min(TRAIL_N, this.count + 1);
   },
   // the point `dist` metres back along the trail from the player
   trailPoint(dist, out) {
     const b = Player.body.pos, T = this.trail;
-    let px = b[0], pz = b[2], acc = 0;
+    let px = b[0], py = b[1], pz = b[2], acc = 0;
     for (let k = 1; k <= this.count; k++) {
       const i = ((this.head - k + TRAIL_N) % TRAIL_N) * 3;
       const seg = Math.hypot(T[i] - px, T[i + 2] - pz);
       if (acc + seg >= dist && seg > 1e-4) {
         const f = (dist - acc) / seg;
-        return V3.set(out, px + (T[i] - px) * f, 0, pz + (T[i + 2] - pz) * f);
+        return V3.set(out, px + (T[i] - px) * f, py + (T[i + 1] - py) * f, pz + (T[i + 2] - pz) * f);
       }
-      acc += seg; px = T[i]; pz = T[i + 2];
+      acc += seg; px = T[i]; py = T[i + 1]; pz = T[i + 2];
     }
-    return V3.set(out, px, 0, pz);
+    return V3.set(out, px, py, pz);
   },
 
   // Thimble's grounding burst: a ring of plasma sparks and a flickering violet light
@@ -117,6 +174,15 @@ const Companion = {
     this.cool -= dt;
     for (const k in this.lineCool) this.lineCool[k] -= dt;
     this.record(false);
+    // first time in each area: everyone has something to say about it
+    const sec = Streaming.current;
+    if (AREA_LINES[sec] && !this.areaSaid[sec] && Game.isGameplay() && !(Game.stage === 5 && !Cast.monitor.said) && !Ambush.active) {
+      this.areaSaid[sec] = true;
+      for (const [who, line] of AREA_LINES[sec]) {
+        if ((who === 'MARIGOLD' && Game.stage < 5 && sec < 5) || (who === 'THIMBLE' && Game.stage < 2 && sec < 2)) continue;
+        Dialogue.say(who, line);
+      }
+    }
     // below in the Loom he waits by Marigold
     if (Game.stage === 4 && P.mode !== 'LOOM' && !Ambush.active) {
       const s = Cast.PLUSH_LOOM; P.mode = 'LOOM'; P.hidden = false; V3.set(P.pos, s[0], 0, s[1]); P.yaw = s[2];
@@ -175,7 +241,10 @@ const Companion = {
     }
     if (this.calm > 38) {
       this.calm = 0;
-      this.sayLines('THIMBLE', C.ambient[this.ambientIdx++ % C.ambient.length]);
+      // once Posie and Lovey are with you, quiet stretches turn into conversations between all of you
+      if (Lovey.active && this.ambientIdx % 2 === 1) for (const [who, line] of DUO_LINES[(this.duoIdx++) % DUO_LINES.length]) Dialogue.say(who, line);
+      else this.sayLines('THIMBLE', C.ambient[this.ambientIdx % C.ambient.length]);
+      this.ambientIdx++;
     }
   },
 
